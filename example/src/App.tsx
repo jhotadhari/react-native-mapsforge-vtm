@@ -4,7 +4,7 @@ import { MapsforgeVtmView } from 'react-native-mapsforge-vtm';
 export default function App() {
   return (
     <View style={styles.container}>
-      <MapsforgeVtmView color="#32a852" style={styles.box} />
+      <MapsforgeVtmView color="#ff0000" style={styles.box} />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-package com.mapsforgevtm
+package com.jhotadhari.reactnative.mapsforge.vtm
 
 import android.graphics.Color
 import android.view.View

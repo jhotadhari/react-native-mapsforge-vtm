@@ -49,7 +49,7 @@ def supportsNamespace() {
 
 android {
   if (supportsNamespace()) {
-    namespace "com.mapsforgevtm"
+    namespace "com.jhotadhari.reactnative.mapsforge.vtm"
 
     sourceSets {
       main {

@@ -1,4 +1,4 @@
-package com.mapsforgevtm
+package com.jhotadhari.reactnative.mapsforge.vtm
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

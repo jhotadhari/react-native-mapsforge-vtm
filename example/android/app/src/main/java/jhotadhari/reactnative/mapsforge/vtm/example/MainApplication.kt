@@ -1,4 +1,4 @@
-package mapsforgevtm.example
+package jhotadhari.reactnative.mapsforge.vtm.example
 
 import android.app.Application
 import com.facebook.react.PackageList
