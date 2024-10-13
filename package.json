@@ -2,15 +2,13 @@
   "name": "react-native-mapsforge-vtm",
   "version": "0.1.0",
   "description": "React Native components to build vector maps using Mapsforges fork of vtm. Offline rendering of OpenStreetMap data. Android only",
-  "source": "./src/index.tsx",
-  "main": "./lib/commonjs/index.js",
-  "module": "./lib/module/index.js",
-  "types": "./lib/typescript/src/index.d.ts",
+  "source": "./src/index",
+  "main": "./lib/commonjs/index",
+  "module": "./lib/module/index",
   "exports": {
     ".": {
-      "types": "./lib/typescript/src/index.d.ts",
-      "import": "./lib/module/index.js",
-      "require": "./lib/commonjs/index.js"
+      "import": "./lib/module/index",
+      "require": "./lib/commonjs/index"
     }
   },
   "files": [
@@ -162,12 +160,6 @@
         {
           "esm": true
         }
-      ],
-      [
-        "typescript",
-        {
-          "project": "tsconfig.build.json"
-        }
       ]
     ]
   },
@@ -175,5 +167,10 @@
     "type": "view-legacy",
     "languages": "kotlin-objc",
     "version": "0.39.0"
+  },
+  "dependencies": {
+    "events": "^3.3.0",
+    "lodash-es": "^4.17.21",
+    "queue-promise": "^2.2.1"
   }
 }

@@ -5,6 +5,7 @@ buildscript {
   repositories {
     google()
     mavenCentral()
+    maven { url 'https://jitpack.io' }
   }
 
   dependencies {
@@ -95,5 +96,69 @@ dependencies {
   //noinspection GradleDynamicVersion
   implementation "com.facebook.react:react-native:+"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+
+	// https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
+	implementation 'com.github.mapsforge.vtm:vtm:0.22.0'
+	implementation 'com.github.mapsforge.vtm:vtm-themes:0.22.0'
+	implementation 'org.slf4j:slf4j-api:1.7.28'
+
+	// Android
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-armeabi-v7a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-arm64-v8a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86_64'
+	implementation 'com.github.mapsforge.vtm:vtm-android:0.22.0'
+	implementation 'com.caverock:androidsvg:1.4'
+
+	// Android (libGDX)
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-armeabi-v7a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-arm64-v8a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86_64'
+	implementation 'com.github.mapsforge.vtm:vtm-android:0.22.0'
+	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.22.0'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-armeabi-v7a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-arm64-v8a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-x86'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-x86_64'
+	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0'
+	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
+	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
+	implementation 'com.caverock:androidsvg:1.4'
+
+	// Online tiles
+	implementation 'com.github.mapsforge.vtm:vtm-http:0.22.0'
+	// https://github.com/square/okhttp/issues/4481
+	implementation 'com.squareup.okhttp3:okhttp:3.12.13'
+	implementation 'com.squareup.okio:okio:1.15.0'
+
+	// MBTiles
+	implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.22.0'
+	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
+	implementation 'com.google.protobuf:protobuf-java:3.6.1'
+	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
+	// https://github.com/locationtech/jts/issues/145
+	implementation 'org.locationtech.jts:jts-core:1.15.1'
+
+//	// Mapbox vector tiles
+//	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
+//	implementation 'com.google.protobuf:protobuf-java:3.6.1'
+//	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
+//	// https://github.com/locationtech/jts/issues/145
+//	implementation 'org.locationtech.jts:jts-core:1.15.1'
+//
+//	// GeoJSON vector tiles
+//	implementation 'com.github.mapsforge.vtm:vtm-json:0.22.0'
+//	implementation 'com.fasterxml.jackson.core:jackson-annotations:2.9.9'
+//	implementation 'com.fasterxml.jackson.core:jackson-core:2.9.9'
+//	implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
+//
+//	// jeo (indoor maps)
+//	implementation 'com.github.mapsforge.vtm:vtm-jeo:0.22.0'
+//	implementation('com.github.jeo.jeo:jeo-carto:master-SNAPSHOT') {
+//		exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+//	}
+
 }
 
