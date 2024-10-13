@@ -57,9 +57,6 @@ const LayerMapsforge = ( {
 		} );
 	};
 
-	console.log( 'debug test hash', hash ); // debug
-
-
 	useEffect( () => {
 		if ( hash === null && mapViewNativeTag && mapFile ) {
 			createLayer();
@@ -120,7 +117,6 @@ const LayerMapsforge = ( {
 
 	return null;
 };
-// LayerMapsforge.isMapLayer = true;
 LayerMapsforge.mapLayers = 3;
 
 LayerMapsforge.propTypes = {

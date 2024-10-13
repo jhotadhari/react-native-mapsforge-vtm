@@ -24,6 +24,7 @@ public class MapsforgeVtmPackage implements ReactPackage {
         List<NativeModule> modules = new ArrayList<>();
         modules.add(new MapContainerModule(reactContext));
         modules.add(new MapLayerMapsforgeModule(reactContext));
+        modules.add(new MapLayerScalebarModule(reactContext));
 //        modules.add(new MapMarkerModule(reactContext));
 //        modules.add(new MapPolylineModule(reactContext));
         return modules;

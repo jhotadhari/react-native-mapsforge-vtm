@@ -25,6 +25,7 @@ import {
 import {
 	MapContainer,
 	LayerMapsforge,
+	LayerScalebar,
 	// LayerDownload,
 	// LayerHillshading,
 	// Marker,
@@ -138,6 +139,7 @@ const App = () => {
 
 	// const [mapFile, setMapFile] = useState( mapFileOptions[0].value );
 	const [showLayerMapsforge, setShowLayerMapsforge] = useState( true );
+	const [showLayerScalebar, setShowLayerScalebar] = useState( true );
 	// const [showMarkers, setShowMarkers] = useState( true );
 
 	const [mainMapViewId, setMainMapViewId] = useState( null );
@@ -365,6 +367,8 @@ const App = () => {
 						nativeTag={ mainMapViewId }
 					/>
 
+					{ showLayerScalebar && <LayerScalebar/> }
+
 					{ showLayerMapsforge && <LayerMapsforge
 						// mapFile={ mapFile }
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
@@ -372,6 +376,7 @@ const App = () => {
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
 					/> }
+
 
 
 					{/* <Polyline
@@ -417,13 +422,13 @@ const App = () => {
 							marginBottom: 10,
 						} }
 					>
-						{/* <Button
+						<Button
 							onPress={ () => {
-								setShowLayerMapsforge( ! showLayerMapsforge );
+								setShowLayerScalebar( ! showLayerScalebar );
 							} }
-							title="Toggle Mapsforge"
+							title="Toggle Scalebar"
 							disabled={ promiseQueueState > 0 }
-						/> */}
+						/>
 						<PickerModalControl
 							headerLabel={ 'Render theme' }
 							options={ renderThemeOptions }

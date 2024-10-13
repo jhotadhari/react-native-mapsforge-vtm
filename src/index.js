@@ -3,6 +3,7 @@
  */
 import MapContainer from './components/MapContainer.jsx';
 import LayerMapsforge from './components/LayerMapsforge.jsx';
+import LayerScalebar from './components/LayerScalebar.jsx';
 // import Marker from './components/Marker.jsx';
 // import Polyline from './components/Polyline.jsx';
 import MapPropTypes from './MapPropTypes';
@@ -15,6 +16,7 @@ import * as nativeMapModules from './nativeMapModules';
 export {
 	MapContainer,
 	LayerMapsforge,
+	LayerScalebar,
 	// Marker,
 	// Polyline,
 	MapPropTypes,

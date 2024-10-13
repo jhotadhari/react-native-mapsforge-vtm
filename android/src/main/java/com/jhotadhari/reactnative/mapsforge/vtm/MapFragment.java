@@ -189,16 +189,6 @@ public class MapFragment extends Fragment {
 
 			mapView = initMapView( v );
 
-			// Scale bar
-			DefaultMapScaleBar mapScaleBar = new DefaultMapScaleBar( mapView.map() );
-			mapScaleBar.setScaleBarMode(DefaultMapScaleBar.ScaleBarMode.BOTH);
-			mapScaleBar.setDistanceUnitAdapter(MetricUnitAdapter.INSTANCE);
-			mapScaleBar.setSecondaryDistanceUnitAdapter(ImperialUnitAdapter.INSTANCE);
-			MapScaleBarLayer mapScaleBarLayer = new MapScaleBarLayer( mapView.map(), mapScaleBar );
-			mapScaleBarLayer.getRenderer().setPosition( GLViewport.Position.BOTTOM_LEFT );
-			mapScaleBarLayer.getRenderer().setOffset(5 * CanvasAdapter.getScale(), 0 );
-			mapView.map().layers().add( mapScaleBarLayer );
-
 			// Initial position and zoomLevel.
 			MapPosition mapPosition = new MapPosition( propCenterGeoPoint.getLatitude(), propCenterGeoPoint.getLongitude(), 1 );
 			mapPosition.setZoomLevel( (int) propZoom );
