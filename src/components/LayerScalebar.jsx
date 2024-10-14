@@ -56,7 +56,7 @@ const LayerScalebar = ( {
 
 	return null;
 };
-LayerScalebar.mapLayers = 1;
+LayerScalebar.isMapLayer = true;
 
 LayerScalebar.propTypes = {
 	mapViewNativeTag: PropTypes.number,

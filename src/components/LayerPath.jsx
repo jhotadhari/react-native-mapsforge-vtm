@@ -64,7 +64,7 @@ const LayerPath = ( {
 
 	return null;
 };
-LayerPath.mapLayers = 1;
+LayerPath.isMapLayer = true;
 
 LayerPath.propTypes = {
 	mapViewNativeTag: PropTypes.number,

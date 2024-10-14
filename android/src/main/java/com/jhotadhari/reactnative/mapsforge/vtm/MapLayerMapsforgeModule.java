@@ -35,6 +35,7 @@ import org.oscim.android.MapView;
 import org.oscim.backend.CanvasAdapter;
 import org.oscim.core.MapPosition;
 import org.oscim.core.Tile;
+import org.oscim.layers.GroupLayer;
 import org.oscim.layers.Layer;
 import org.oscim.layers.tile.TileLoader;
 import org.oscim.layers.tile.TileManager;
@@ -64,13 +65,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class MapLayerMapsforgeModule extends ReactContextBaseJavaModule {
+public class MapLayerMapsforgeModule extends MapLayerBase {
 
     public String getName() {
         return "MapLayerMapsforgeModule";
     }
-
-    protected Map<Integer, HashMap<Integer, Layer>> layerCollections = new HashMap<>();
 
     MapLayerMapsforgeModule(ReactApplicationContext context) {
         super(context);
@@ -219,6 +218,19 @@ public class MapLayerMapsforgeModule extends ReactContextBaseJavaModule {
 		return theme;
     }
 
+	@Override
+	public void createLayer(int reactTag, int reactTreeIndex, Promise promise) {
+		createLayer(
+			reactTag,
+			"",
+			"DEFAULT",
+			"",
+			Utils.getEmptyReadableArray(),
+			reactTreeIndex,
+			promise
+		);
+	}
+
     @ReactMethod
     public void createLayer(
             int reactTag,
@@ -252,8 +264,11 @@ public class MapLayerMapsforgeModule extends ReactContextBaseJavaModule {
 			// VectorTileLayer
 			VectorTileLayer tileLayer = new OsmTileLayer( mapView.map() );
 			tileLayer.setTileSource( tileSource );
+
+			// Add tilelayer to map, in order to be able to load the render theme.
+			int zIndex = Math.min( mapView.map().layers().size(), (int) reactTreeIndex );
 			mapView.map().layers().add(
-				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
+				zIndex,
 				tileLayer
 			);
 
@@ -263,25 +278,28 @@ public class MapLayerMapsforgeModule extends ReactContextBaseJavaModule {
 
 			// Building layer
 			BuildingLayer buildingLayer = new BuildingLayer( mapView.map(), tileLayer );
-			mapView.map().layers().add(
-				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
-				buildingLayer
-			);
 
 			// Label layer
 			LabelLayer labelLayer = new LabelLayer( mapView.map(), tileLayer );
-			mapView.map().layers().add(
-				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
-				labelLayer
+
+			// Combine to groupLayer.
+			GroupLayer groupLayer = new GroupLayer( mapView.map() );
+			groupLayer.layers.add( tileLayer );
+			groupLayer.layers.add( buildingLayer );
+			groupLayer.layers.add( labelLayer );
+
+			// Replace previous added tilelayer with groupLayer.
+			mapView.map().layers().set(
+				zIndex,
+				groupLayer
 			);
 
-			// Store layerCollection
-            int hash = tileLayer.hashCode();
-			HashMap<Integer, Layer> collection = new HashMap<>();
-			collection.put( hash, tileLayer );
-			collection.put( buildingLayer.hashCode(), buildingLayer );
-			collection.put( labelLayer.hashCode(), labelLayer );
-			layerCollections.put( hash, collection );
+			// Trigger update map.
+			mapView.map().updateMap();
+
+			// Store layer
+			int hash = groupLayer.hashCode();
+			layers.put( hash, groupLayer );
 
 			// Resolve layer hash
             promise.resolve(hash);
@@ -291,42 +309,8 @@ public class MapLayerMapsforgeModule extends ReactContextBaseJavaModule {
         }
     }
 
-    @ReactMethod
-    public void removeLayer(int reactTag, int hash, Promise promise) {
-        try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-            if ( null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
-			// Get collection
-			HashMap<Integer, Layer> collection = layerCollections.get( hash );
-            if ( null == collection )  {
-                promise.resolve( false );
-                return;
-            }
-			// Loop collection, remove each layer from mapView.
-			for ( Map.Entry<Integer, Layer> entry : collection.entrySet() ) {
-				Layer layer = entry.getValue();
-				int layerIndex = -1;
-				for ( int i = 0; i < mapView.map().layers().size(); i++ ) {
-					if ( layer == mapView.map().layers().get( i ) ) {
-						layerIndex = i;
-					}
-				}
-				if ( layerIndex != -1 ) {
-					mapView.map().layers().remove( layerIndex );
-				}
-			}
-			// Remove collection from layerCollections
-			layerCollections.remove( hash );
-			// Trigger map update.
-			mapView.map().updateMap();
-			// Resolve hash
-			promise.resolve( hash );
-        } catch(Exception e) {
-            promise.reject("Remove Layer Error", e);
-        }
-    }
-
+	@ReactMethod
+	public void removeLayer(int reactTag, int hash, Promise promise) {
+		super.removeLayer( reactTag, hash, promise );
+	}
 }

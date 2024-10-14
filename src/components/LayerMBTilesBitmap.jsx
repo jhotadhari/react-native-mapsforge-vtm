@@ -67,7 +67,7 @@ const LayerMBTilesBitmap = ( {
 
 	return null;
 };
-LayerMBTilesBitmap.mapLayers = 1;
+LayerMBTilesBitmap.isMapLayer = true;
 
 LayerMBTilesBitmap.propTypes = {
 	mapViewNativeTag: PropTypes.number,

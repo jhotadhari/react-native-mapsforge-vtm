@@ -125,9 +125,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				pathLayer
 			);
-//			mapView.map().updateMap(true);
-
-
+			mapView.map().updateMap(true);
 
 			// Store layer
             int hash = pathLayer.hashCode();

@@ -22,6 +22,7 @@ const LayerMapsforge = ( {
 	reactTreeIndex,
 } ) => {
 
+	mapFile = mapFile || '';
 	renderTheme = renderTheme || 'DEFAULT';
 	renderStyle = renderStyle || '';
 	renderOverlays = renderOverlays || [];
@@ -117,7 +118,7 @@ const LayerMapsforge = ( {
 
 	return null;
 };
-LayerMapsforge.mapLayers = 3;
+LayerMapsforge.isMapLayer = true;
 
 LayerMapsforge.propTypes = {
 	mapViewNativeTag: PropTypes.number,

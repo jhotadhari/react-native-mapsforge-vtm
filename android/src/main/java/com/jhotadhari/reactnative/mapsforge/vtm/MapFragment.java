@@ -15,9 +15,7 @@
  */
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
-import android.graphics.Color;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,49 +27,19 @@ import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
-import android.app.Activity;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Bundle;
 import android.widget.RelativeLayout;
 
 import org.oscim.android.MapView;
-import org.oscim.backend.CanvasAdapter;
 import org.oscim.core.GeoPoint;
 import org.oscim.core.MapPosition;
-import org.oscim.core.Tile;
 import org.oscim.event.Event;
 import org.oscim.layers.Layer;
-import org.oscim.layers.tile.buildings.BuildingLayer;
-import org.oscim.layers.tile.vector.VectorTileLayer;
-import org.oscim.layers.tile.vector.labeling.LabelLayer;
-import org.oscim.renderer.GLViewport;
-import org.oscim.scalebar.DefaultMapScaleBar;
-import org.oscim.scalebar.ImperialUnitAdapter;
-import org.oscim.scalebar.MapScaleBar;
-import org.oscim.scalebar.MapScaleBarLayer;
-import org.oscim.scalebar.MetricUnitAdapter;
-import org.oscim.theme.IRenderTheme;
-import org.oscim.theme.ThemeLoader;
-import org.oscim.theme.XmlRenderThemeMenuCallback;
-import org.oscim.theme.XmlRenderThemeStyleLayer;
-import org.oscim.theme.XmlRenderThemeStyleMenu;
-import org.oscim.theme.internal.VtmThemes;
-import org.oscim.tiling.source.mapfile.MapFileTileSource;
-import org.oscim.tiling.source.mapfile.MapInfo;
 import org.oscim.map.Map.UpdateListener;
-
-import java.io.File;
-import java.io.FileInputStream;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 
 public class MapFragment extends Fragment {
 

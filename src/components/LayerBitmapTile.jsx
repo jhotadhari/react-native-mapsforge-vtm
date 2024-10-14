@@ -70,7 +70,7 @@ const LayerBitmapTile = ( {
 
 	return null;
 };
-LayerBitmapTile.mapLayers = 1;
+LayerBitmapTile.isMapLayer = true;
 
 LayerBitmapTile.propTypes = {
 	mapViewNativeTag: PropTypes.number,
