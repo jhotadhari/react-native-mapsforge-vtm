@@ -289,7 +289,9 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			groupLayer.layers.add( labelLayer );
 
 			// Replace previous added tilelayer with groupLayer.
-			mapView.map().layers().set(
+			// set doesn't work, have to remove and add.
+			mapView.map().layers().remove(zIndex);
+			mapView.map().layers().add(
 				zIndex,
 				groupLayer
 			);
