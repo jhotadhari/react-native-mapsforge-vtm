@@ -369,18 +369,18 @@ const App = () => {
 					/>
 
 					{ showLayerBitmapTile && <LayerBitmapTile
-						url={ 'https://mt1.google.com/vt' }
-						tilePath={ '/lyrs=r&x={X}&y={Y}&z={Z}' }
+						url={ 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}' }
 						cacheSize={ 10 * 1024 * 1024 }
 					/> }
 
-					{ showLayerMapsforge && <LayerMapsforge
+
+					{/* { showLayerMapsforge && <LayerMapsforge
 						// mapFile={ mapFile }
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
 						renderTheme={ renderTheme }
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
-					/> }
+					/> } */}
 
 
 					{/* <Polyline

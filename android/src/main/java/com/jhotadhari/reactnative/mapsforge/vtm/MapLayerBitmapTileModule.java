@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.util.Log;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -10,6 +12,7 @@ import org.oscim.tiling.source.OkHttpEngine;
 import org.oscim.tiling.source.bitmap.BitmapTileSource;
 
 import java.io.File;
+import java.net.URL;
 import java.util.Collections;
 
 import okhttp3.Cache;
@@ -34,7 +37,6 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 		createLayer(
 			reactTag,
 			"",
-			"",
 			1,
 			20,
 			0,
@@ -47,7 +49,6 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
     public void createLayer(
             int reactTag,
 			String url,
-			String tilePath,
 			int zoomMin,
 			int zoomMax,
 			int cacheSize,
@@ -64,9 +65,11 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
             }
 
 			// Define tile source.
+			URL urlParsed = new URL(url);
+			int index = url.indexOf( urlParsed.getFile() );
 			BitmapTileSource mTileSource = new BitmapTileSource(
-				url,
-				tilePath,
+				url.substring( 0, index ),
+				url.substring( index, url.length() ),
 				zoomMin,
 				zoomMax
 			);

@@ -16,7 +16,6 @@ const LayerBitmapTile = ( {
 	mapViewNativeTag,
 	reactTreeIndex,
     url,
-    tilePath,
     zoomMin,
     zoomMax,
     cacheSize,
@@ -25,8 +24,7 @@ const LayerBitmapTile = ( {
 	const [random, setRandom] = useState( 0 );
 	const [hash, setHash] = useRefState( null );
 
-	url = url || 'https://tile.openstreetmap.org';
-	tilePath = tilePath || '/{Z}/{X}/{Y}.png';
+	url = url || 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png';
     zoomMin = isNumber( zoomMin ) ? zoomMin : 1,
     zoomMax = isNumber( zoomMax ) ? zoomMax : 20,
 	cacheSize = isNumber( cacheSize ) ? cacheSize : 0 * 1024 * 1024;
@@ -37,7 +35,6 @@ const LayerBitmapTile = ( {
 			MapLayerBitmapTileModule.createLayer(
 				mapViewNativeTag,
                 url,
-                tilePath,
 				parseInt( zoomMin, 10 ),
 				parseInt( zoomMax, 10 ),
                 parseInt( cacheSize, 10 ),
@@ -79,7 +76,6 @@ LayerBitmapTile.propTypes = {
 	mapViewNativeTag: PropTypes.number,
 	reactTreeIndex: PropTypes.number,
     url: PropTypes.string,
-    tilePath: PropTypes.string,
     zoomMin: PropTypes.number,
     zoomMax: PropTypes.number,
     cacheSize: PropTypes.number,
