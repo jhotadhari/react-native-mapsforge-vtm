@@ -3,6 +3,7 @@
  */
 import MapContainer from './components/MapContainer.jsx';
 import LayerMapsforge from './components/LayerMapsforge.jsx';
+import LayerBitmapTile from './components/LayerBitmapTile.jsx';
 import LayerScalebar from './components/LayerScalebar.jsx';
 // import Marker from './components/Marker.jsx';
 // import Polyline from './components/Polyline.jsx';
@@ -16,6 +17,7 @@ import * as nativeMapModules from './nativeMapModules';
 export {
 	MapContainer,
 	LayerMapsforge,
+	LayerBitmapTile,
 	LayerScalebar,
 	// Marker,
 	// Polyline,

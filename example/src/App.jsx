@@ -25,6 +25,7 @@ import {
 import {
 	MapContainer,
 	LayerMapsforge,
+	LayerBitmapTile,
 	LayerScalebar,
 	// LayerDownload,
 	// LayerHillshading,
@@ -127,7 +128,7 @@ const App = () => {
 	const [randomZoom,setRandomZoom] = useState( 13 );
 	const doNewRandomZoom = () => setRandomZoom( Math.round( randomNumber( 8, 16 ) ) );
 
-	const [randomMinZoom,setRandomMinZoom] = useState( 5 );
+	const [randomMinZoom,setRandomMinZoom] = useState( 2 );
 	const doNewRandomMinZoom = () => setRandomMinZoom( Math.round( randomNumber( 5, 20 ) ) );
 
 	const [randomMaxZoom,setRandomMaxZoom] = useState( 20 );
@@ -139,7 +140,7 @@ const App = () => {
 
 	// const [mapFile, setMapFile] = useState( mapFileOptions[0].value );
 	const [showLayerMapsforge, setShowLayerMapsforge] = useState( true );
-	const [showLayerScalebar, setShowLayerScalebar] = useState( true );
+	const [showLayerBitmapTile, setShowLayerBitmapTile] = useState( true );
 	// const [showMarkers, setShowMarkers] = useState( true );
 
 	const [mainMapViewId, setMainMapViewId] = useState( null );
@@ -367,7 +368,11 @@ const App = () => {
 						nativeTag={ mainMapViewId }
 					/>
 
-					{ showLayerScalebar && <LayerScalebar/> }
+					{ showLayerBitmapTile && <LayerBitmapTile
+						url={ 'https://mt1.google.com/vt' }
+						tilePath={ '/lyrs=r&x={X}&y={Y}&z={Z}' }
+						cacheSize={ 10 * 1024 * 1024 }
+					/> }
 
 					{ showLayerMapsforge && <LayerMapsforge
 						// mapFile={ mapFile }
@@ -376,7 +381,6 @@ const App = () => {
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
 					/> }
-
 
 
 					{/* <Polyline
@@ -396,6 +400,8 @@ const App = () => {
 							console.log( 'debug Marker res', res ); // debug
 						} }
 					/> ) } */}
+
+					<LayerScalebar/>
 
 				</MapContainer> }
 
@@ -424,9 +430,9 @@ const App = () => {
 					>
 						<Button
 							onPress={ () => {
-								setShowLayerScalebar( ! showLayerScalebar );
+								setShowLayerBitmapTile( ! showLayerBitmapTile );
 							} }
-							title="Toggle Scalebar"
+							title="Toggle Bitmap"
 							disabled={ promiseQueueState > 0 }
 						/>
 						<PickerModalControl

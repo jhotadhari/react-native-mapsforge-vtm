@@ -30,6 +30,17 @@ export const MapLayerMapsforgeModule = NativeModules.MapLayerMapsforgeModule
 		},
 	);
 
+export const MapLayerBitmapTileModule = NativeModules.MapLayerBitmapTileModule
+	? NativeModules.MapLayerBitmapTileModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);
+
 export const MapLayerScalebarModule = NativeModules.MapLayerScalebarModule
 	? NativeModules.MapLayerScalebarModule
 	: new Proxy(
