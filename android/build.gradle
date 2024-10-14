@@ -129,6 +129,11 @@ dependencies {
 	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
 	implementation 'com.caverock:androidsvg:1.4'
 
+	// JTS overlays
+	implementation 'com.github.mapsforge.vtm:vtm-jts:0.22.0'
+	// https://github.com/locationtech/jts/issues/145
+	implementation 'org.locationtech.jts:jts-core:1.15.1'
+
 	// Online tiles
 	implementation 'com.github.mapsforge.vtm:vtm-http:0.22.0'
 	// https://github.com/square/okhttp/issues/4481

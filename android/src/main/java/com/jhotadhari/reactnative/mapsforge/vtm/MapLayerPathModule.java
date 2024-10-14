@@ -11,8 +11,8 @@ import com.facebook.react.bridge.ReadableType;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
-import org.oscim.layers.PathLayer;
-//import org.oscim.layers.vector.geometries.Style;
+import org.oscim.layers.vector.PathLayer;
+import org.oscim.layers.vector.geometries.Style;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
@@ -81,16 +81,14 @@ public class MapLayerPathModule extends MapLayerBase {
                 promise.resolve( false );
                 return;
             }
-//
-//			Style style = Style.builder()
-//				.fillAlpha(0.3f)
-//				.fillColor(Color.BLUE)
-//				.strokeColor(Color.BLUE)
-//				.strokeWidth(2)
-//				.build();
 
-			PathLayer pathLayer = new PathLayer(mapView.map(), Color.parseColor("#0000ff"), 5);
-//			PathLayer pathLayer = new PathLayer(mapView.map(), style );
+			Style style = Style.builder()
+				.strokeWidth(4)
+				.strokeColor(Color.parseColor("#ff0000"))
+				.fillColor(Color.parseColor("#00ff00"))
+				.build();
+
+			PathLayer pathLayer = new PathLayer( mapView.map(), style );
 
 			if ( null != positions && positions.size() > 0 ) {
 				pathLayer.setPoints( positionsToPointsList( positions ) );
