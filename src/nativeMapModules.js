@@ -41,6 +41,17 @@ export const MapLayerBitmapTileModule = NativeModules.MapLayerBitmapTileModule
 		},
 	);
 
+export const MapLayerMBTilesBitmapModule = NativeModules.MapLayerMBTilesBitmapModule
+	? NativeModules.MapLayerMBTilesBitmapModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);
+
 export const MapLayerScalebarModule = NativeModules.MapLayerScalebarModule
 	? NativeModules.MapLayerScalebarModule
 	: new Proxy(

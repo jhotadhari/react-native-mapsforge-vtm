@@ -26,6 +26,7 @@ import {
 	MapContainer,
 	LayerMapsforge,
 	LayerBitmapTile,
+	LayerMBTilesBitmap,
 	LayerScalebar,
 	LayerPath,
 	// LayerDownload,
@@ -126,7 +127,7 @@ const App = () => {
 		randomNumber( -74, -75 ),	// long
 	] );
 
-	const [randomZoom,setRandomZoom] = useState( 13 );
+	const [randomZoom,setRandomZoom] = useState( 8 );
 	const doNewRandomZoom = () => setRandomZoom( Math.round( randomNumber( 8, 16 ) ) );
 
 	const [randomMinZoom,setRandomMinZoom] = useState( 2 );
@@ -315,7 +316,7 @@ const App = () => {
 							marginBottom: 10,
 						} }
 					>
-						<Button
+						{/* <Button
 							onPress={ () => doNewRandomCenter() }
 							title="center rand"
 							disabled={ promiseQueueState > 0 }
@@ -344,6 +345,22 @@ const App = () => {
 							onPress={ () => doNewRandomMaxZoom() }
 							title="z max rand"
 							disabled={ promiseQueueState > 0 }
+						/> */}
+
+						<Button
+							onPress={ () => {
+								setShowLayerMapsforge( ! showLayerMapsforge );
+							} }
+							title="Toggle Vector"
+							disabled={ promiseQueueState > 0 }
+						/>
+
+						<Button
+							onPress={ () => {
+								setShowLayerBitmapTile( ! showLayerBitmapTile );
+							} }
+							title="Toggle Bitmap"
+							disabled={ promiseQueueState > 0 }
 						/>
 					</View>
 				</View>
@@ -365,24 +382,27 @@ const App = () => {
 					} }
 				>
 
-					{/* <MapEvents
+					<MapEvents
 						nativeTag={ mainMapViewId }
-					/> */}
+					/>
+
 
 					{/* { showLayerBitmapTile && <LayerBitmapTile
 						url={ 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}' }
 						cacheSize={ 10 * 1024 * 1024 }
 					/> } */}
 
+					{ showLayerBitmapTile && <LayerMBTilesBitmap
+						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
+					/> }
 
-
-					<LayerMapsforge
-						// mapFile={ mapFile }
+					{ showLayerMapsforge && <LayerMapsforge
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
 						renderTheme={ renderTheme }
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
-					/>
+					/> }
+
 
 
 					<LayerPath
@@ -397,14 +417,7 @@ const App = () => {
 					/>
 
 
-					{/* <Polyline
-						positions={ locations }
-						// file={ '/storage/emulated/0/Documents/orux/tracklogs/2024-06-10 1713__20240610_1713.gpx' }
-						onTab={ res => {
-							console.log( 'debug Polyline res', res ); // debug
-						} }
-					/>
-
+					{/* }
 					{ showMarkers && [...locations].map( ( latLong, index ) => <Marker
 						latLong={ latLong }
 						key={ index }
@@ -442,13 +455,6 @@ const App = () => {
 							marginBottom: 10,
 						} }
 					>
-						<Button
-							onPress={ () => {
-								setShowLayerBitmapTile( ! showLayerBitmapTile );
-							} }
-							title="Toggle Bitmap"
-							disabled={ promiseQueueState > 0 }
-						/>
 						<PickerModalControl
 							headerLabel={ 'Render theme' }
 							options={ renderThemeOptions }
