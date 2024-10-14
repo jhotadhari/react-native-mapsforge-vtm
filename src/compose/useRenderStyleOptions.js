@@ -44,15 +44,17 @@ const useRenderStyleOptions = ( {
 	}, [nativeTag] );
 
 	useEffect( () => {
-		MapLayerMapsforgeModule.getRenderThemeOptions( renderTheme ).then( res => {
-			if ( res ) {
-				setRenderStyleOptions( Object.values( res ) );
-				const defaultStyle = Object.values( res ).find( obj => obj.default );
-				if ( undefined !== defaultStyle && !! defaultStyle ) {
-					setRenderStyleDefault( defaultStyle.value );
+		if ( renderTheme ) {
+			MapLayerMapsforgeModule.getRenderThemeOptions( renderTheme ).then( res => {
+				if ( res ) {
+					setRenderStyleOptions( Object.values( res ) );
+					const defaultStyle = Object.values( res ).find( obj => obj.default );
+					if ( undefined !== defaultStyle && !! defaultStyle ) {
+						setRenderStyleDefault( defaultStyle.value );
+					}
 				}
-			}
-		} );
+			} );
+		}
 	}, [nativeTag, renderTheme] );
 
 	return {

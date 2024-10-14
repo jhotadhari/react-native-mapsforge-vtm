@@ -124,7 +124,7 @@ const MapContainer = ( {
 		};
 	}, [mapViewNativeTag] );
 
-	let lastIndex = -1;
+	let lastIndex = 0; // It starts with the MapFragment event layer.
 	const wrapChildren = () => ! children || ! ref?.current?._nativeTag ? null : React.Children.map( children, child => {
 		lastIndex = child?.type?.mapLayers ? lastIndex + child?.type?.mapLayers : lastIndex;
 		const newChild = child && child.type ? cloneElement(
