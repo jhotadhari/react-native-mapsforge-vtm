@@ -27,6 +27,7 @@ import {
 	LayerMapsforge,
 	LayerBitmapTile,
 	LayerScalebar,
+	LayerPath,
 	// LayerDownload,
 	// LayerHillshading,
 	// Marker,
@@ -364,23 +365,36 @@ const App = () => {
 					} }
 				>
 
-					<MapEvents
+					{/* <MapEvents
 						nativeTag={ mainMapViewId }
-					/>
+					/> */}
 
-					{ showLayerBitmapTile && <LayerBitmapTile
+					{/* { showLayerBitmapTile && <LayerBitmapTile
 						url={ 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}' }
 						cacheSize={ 10 * 1024 * 1024 }
-					/> }
+					/> } */}
 
 
-					{/* { showLayerMapsforge && <LayerMapsforge
+
+					<LayerMapsforge
 						// mapFile={ mapFile }
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
 						renderTheme={ renderTheme }
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
-					/> } */}
+					/>
+
+
+					<LayerPath
+						// positions={ [
+						// 	[-12, -74],
+						// 	[-13, -75],
+						// 	[-13, -74],
+						// 	[-13, -73],
+						// 	[-12, -73],
+						// ] }
+						filePath={ '/storage/emulated/0/Android/media/jhotadhari.reactnative.mapsforge.vtm.example/dummy/randomTrack.gpx' }
+					/>
 
 
 					{/* <Polyline

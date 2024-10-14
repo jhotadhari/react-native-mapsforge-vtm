@@ -52,6 +52,17 @@ export const MapLayerScalebarModule = NativeModules.MapLayerScalebarModule
 		},
 	);
 
+export const MapLayerPathModule = NativeModules.MapLayerPathModule
+	? NativeModules.MapLayerPathModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);
+
 // export const MapMarkerModule = NativeModules.MapMarkerModule
 // 	? NativeModules.MapMarkerModule
 // 	: new Proxy(

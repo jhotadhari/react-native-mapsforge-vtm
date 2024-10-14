@@ -2,11 +2,15 @@ package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
+import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -16,6 +20,8 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
 import org.oscim.core.MapPosition;
+
+import java.util.ArrayList;
 
 //import org.mapsforge.core.model.LatLong;
 //import org.mapsforge.core.model.Point;
@@ -67,6 +73,76 @@ public class Utils {
         latLongArray.pushDouble( mapPosition.getLongitude() );
         return latLongArray;
     }
+
+	public static ReadableArray getEmptyReadableArray() {
+		return new ReadableArray() {
+			@NonNull
+			@Override
+			public ArrayList<Object> toArrayList() {
+				return null;
+			}
+
+			@Override
+			public int size() {
+				return 0;
+			}
+
+			@Override
+			public boolean isNull(int i) {
+				return false;
+			}
+
+			@NonNull
+			@Override
+			public ReadableType getType(int i) {
+				return null;
+			}
+
+			@NonNull
+			@Override
+			public String getString(int i) {
+				return "";
+			}
+
+			@NonNull
+			@Override
+			public ReadableMap getMap(int i) {
+				return null;
+			}
+
+			@Override
+			public long getLong(int i) {
+				return 0;
+			}
+
+			@Override
+			public int getInt(int i) {
+				return 0;
+			}
+
+			@NonNull
+			@Override
+			public Dynamic getDynamic(int i) {
+				return null;
+			}
+
+			@Override
+			public double getDouble(int i) {
+				return 0;
+			}
+
+			@Override
+			public boolean getBoolean(int i) {
+				return false;
+			}
+
+			@NonNull
+			@Override
+			public ReadableArray getArray(int i) {
+				return null;
+			}
+		};
+	}
 
 //    public static LatLong aarrayToLatLong( ReadableArray latLong ) {
 //        return new LatLong(
