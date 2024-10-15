@@ -138,7 +138,7 @@ const App = () => {
 
 
 	const [randomViewportVal,setRandomViewportVal] = useState( 0 );
-	const doNewViewportVal = () => setRandomViewportVal( Math.round( randomNumber( 0, 65 ) ) );
+	const doNewViewportVal = () => setRandomViewportVal( Math.round( randomNumber( 200, 400 ) ) );
 
 
 
@@ -419,7 +419,8 @@ const App = () => {
 
 
 				{ mapHeight && <MapContainer
-					height={ mapHeight }
+					width={ randomViewportVal }
+					height={ randomViewportVal }
 					center={ randomCenter }
 					zoomLevel={ randomZoom }
 					mapViewNativeTag={ mainMapViewId }
@@ -428,7 +429,7 @@ const App = () => {
 					maxZoom={ randomMaxZoom }
 
 
-					bearing={ randomViewportVal }
+					// bearing={ randomViewportVal }
 
 
 

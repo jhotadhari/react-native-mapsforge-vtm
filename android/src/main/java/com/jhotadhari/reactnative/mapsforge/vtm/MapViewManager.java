@@ -26,6 +26,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 	public static final String REACT_CLASS = "MapViewManager";
 	public final int COMMAND_CREATE = 1;
+	protected MapFragment mapFragment;
 
 	private double propWidth;
 	private double propHeight;
@@ -57,6 +58,10 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 
 	ReactApplicationContext reactContext;
+
+	public ReactApplicationContext getReactContext() {
+		return reactContext;
+	}
 
 	public MapViewManager( ReactApplicationContext reactContext ) {
 		this.reactContext = reactContext;
@@ -224,9 +229,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	  */
 	public void createFragment( FrameLayout root, int reactNativeViewId ) {
 		ViewGroup parentView = ( ViewGroup ) root.findViewById( reactNativeViewId );
-		setupLayout( parentView );
-		final MapFragment mapFragment = new MapFragment(
-			reactContext,
+
+		mapFragment = new MapFragment(
+			this,
 
 			propWidthForLayoutSize,
 			propHeightForLayoutSize,
@@ -255,6 +260,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propMaxRoll
 
 		);
+
+		setupLayout( parentView );
+
 		FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
 		activity.getSupportFragmentManager()
 				.beginTransaction()
@@ -288,5 +296,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			);
 			child.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
 		}
+		mapFragment.updateViewLayoutSize( propWidthForLayoutSize, propHeightForLayoutSize );
 	}
+
 }

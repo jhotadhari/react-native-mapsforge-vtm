@@ -46,8 +46,8 @@ const MapContainer = ( {
 	onPause,
 	onResume,
 
-	width,		// ??? TODO doesn't react on prop change
-	height,		// ??? TODO doesn't react on prop change
+	width,
+	height,
 
 	center,
 

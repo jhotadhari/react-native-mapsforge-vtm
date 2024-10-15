@@ -16,6 +16,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,9 +43,13 @@ import java.util.ArrayList;
 
 public class MapFragment extends Fragment {
 
+
+	protected RelativeLayout relativeLayout;
+	protected View view;
+
 	protected MapView mapView;
 
-    protected ReactContext reactContext;
+    protected MapViewManager mapViewManager;
 
 	protected static double propWidthForLayoutSize = 200;
 	protected static double propHeightForLayoutSize = 200;
@@ -79,11 +84,11 @@ public class MapFragment extends Fragment {
     protected void sendEventMapLayersCreated() {
         WritableMap params = new WritableNativeMap();
         params.putInt( "nativeTag", this.getId() );
-        Utils.sendEvent( reactContext, "MapLayersCreated", params );
+        Utils.sendEvent( mapViewManager.getReactContext(), "MapLayersCreated", params );
     }
 
     MapFragment(
-		ReactContext reactContext_,
+		MapViewManager mapViewManager_,
 
 		double widthForLayoutSize,
 		double heightForLayoutSize,
@@ -115,7 +120,7 @@ public class MapFragment extends Fragment {
 
 		rateLimiter = new FixedWindowRateLimiter( 100, 1 );
 
-		reactContext = reactContext_;
+		mapViewManager = mapViewManager_;
 
 		propHeightForLayoutSize = heightForLayoutSize;
 		propWidthForLayoutSize = widthForLayoutSize;
@@ -168,18 +173,18 @@ public class MapFragment extends Fragment {
                     WritableMap params = new WritableNativeMap();
                     params.putInt( "keyCode", keyCode );
                     params.putString( "keyCodeString", keyCodeString );
-                    Utils.sendEvent( reactContext, "onHardwareKeyUp", params );
+                    Utils.sendEvent( mapViewManager.getReactContext(), "onHardwareKeyUp", params );
                     return true;
                 }
             };
             Class[] cArg = new Class[1];
             cArg[0] = HardwareKeyListener.class;
-            Method meth = reactContext.getCurrentActivity().getClass().getMethod(
-                    "addHardwareKeyListener",
-                    cArg
+            Method meth = mapViewManager.getReactContext().getCurrentActivity().getClass().getMethod(
+				"addHardwareKeyListener",
+				cArg
             );
             Object value = meth.invoke(
-                reactContext.getCurrentActivity(),
+                 mapViewManager.getReactContext().getCurrentActivity(),
                 hardwareKeyListener
             );
             String uid = (String) value;
@@ -194,13 +199,13 @@ public class MapFragment extends Fragment {
             if ( null != hardwareKeyListenerUid ) {
                 Class[] cArg = new Class[1];
                 cArg[0] = String.class;
-                Method meth = reactContext.getCurrentActivity().getClass().getDeclaredMethod(
-                        "removeHardwareKeyListener",
-                        cArg
+                Method meth = mapViewManager.getReactContext().getCurrentActivity().getClass().getDeclaredMethod(
+					"removeHardwareKeyListener",
+					cArg
                 );
                 meth.invoke(
-                        reactContext.getCurrentActivity(),
-                        hardwareKeyListenerUid
+					mapViewManager.getReactContext().getCurrentActivity(),
+					hardwareKeyListenerUid
                 );
                 hardwareKeyListenerUid = null;
             }
@@ -246,7 +251,7 @@ public class MapFragment extends Fragment {
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					if ( rateLimiter.tryAcquire() ) {
 						WritableMap params = getResponseBase();
-						Utils.sendEvent( reactContext, "onMapEvent", params );
+						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", params );
 					}
 				}
 			} );
@@ -268,7 +273,7 @@ public class MapFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-		final View view = inflater.inflate( R.layout.fragment_map, container, false );
+		view = inflater.inflate( R.layout.fragment_map, container, false );
         createMapView( view );
 		sendEventMapLayersCreated();
         addHardwareKeyListener();
@@ -295,7 +300,7 @@ public class MapFragment extends Fragment {
     protected void sendLifecycleEvent( String type ) {
         WritableMap params = getResponseBase();
         params.putString( "type", type );
-        Utils.sendEvent( reactContext, "MapLifecycle", params );
+        Utils.sendEvent(  mapViewManager.getReactContext(), "MapLifecycle", params );
     }
 
     @Override
@@ -349,18 +354,26 @@ public class MapFragment extends Fragment {
     }
 
     protected MapView initMapView( View view ) {
-
 		mapView = new MapView( this.getContext() );
-		RelativeLayout relativeLayout = view.findViewById( R.id.mapView );
+		relativeLayout = view.findViewById( R.id.mapView );
 		relativeLayout.addView( mapView );
+		fixViewLayoutSize();
+        return mapView;
+    }
 
-		// Fix view size
+	protected void fixViewLayoutSize() {
 		ViewGroup.LayoutParams params = relativeLayout.getLayoutParams();
 		params.width = (int) propWidthForLayoutSize;
 		params.height = (int) propHeightForLayoutSize;
 		view.setLayoutParams( params );
+	}
 
-        return mapView;
-    }
+	protected void updateViewLayoutSize( double widthForLayoutSize, double heightForLayoutSize ) {
+		if ( widthForLayoutSize != propWidthForLayoutSize || heightForLayoutSize != propHeightForLayoutSize ) {
+			propWidthForLayoutSize = widthForLayoutSize;
+			propHeightForLayoutSize = heightForLayoutSize;
+			fixViewLayoutSize();
+		}
+	}
 
 }
