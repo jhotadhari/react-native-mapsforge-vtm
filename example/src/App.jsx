@@ -137,6 +137,17 @@ const App = () => {
 	const doNewRandomMaxZoom = () => setRandomMaxZoom( Math.round( randomNumber( 5, 20 ) ) );
 
 
+	const [randomViewportVal,setRandomViewportVal] = useState( 0 );
+	const doNewViewportVal = () => setRandomViewportVal( Math.round( randomNumber( 0, 65 ) ) );
+
+
+
+
+	const [moveEnabled,setMoveEnabled] = useState( true );
+	const [tiltEnabled,setTiltEnabled] = useState( true );
+	const [rotationEnabled,setRotationEnabled] = useState( true );
+	const [zoomEnabled,setZoomEnabled] = useState( true );
+
 
 	const promiseQueueState = usePromiseQueueState();
 
@@ -207,17 +218,17 @@ const App = () => {
 	const [renderStyle, setRenderStyle] = useState( renderStyleDefaultId );
 
 
-	const test = {
-		renderOverlayOptions,
-		renderOverlays,
-		renderOverlayOptionsCount: renderOverlayOptions.length,
-		renderOverlaysCount: renderOverlays.length,
-		// renderTheme,
-		// renderStyle,
-		// renderStyleDefaultId,
-		// renderStyleOptions,
-	};
-	console.log( 'debug test', test ); // debug
+	// const test = {
+	// 	renderOverlayOptions,
+	// 	renderOverlays,
+	// 	renderOverlayOptionsCount: renderOverlayOptions.length,
+	// 	renderOverlaysCount: renderOverlays.length,
+	// 	// renderTheme,
+	// 	// renderStyle,
+	// 	// renderStyleDefaultId,
+	// 	// renderStyleOptions,
+	// };
+	// console.log( 'debug test', test ); // debug
 
 
 
@@ -316,11 +327,12 @@ const App = () => {
 							marginBottom: 10,
 						} }
 					>
-						{/* <Button
-							onPress={ () => doNewRandomCenter() }
-							title="center rand"
+						<Button
+							onPress={ () => doNewViewportVal() }
+							title="rand"
 							disabled={ promiseQueueState > 0 }
 						/>
+						{/*
 						<Button
 							onPress={ () => MapContainerModule.zoomIn( mainMapViewId ) }
 							title="z +"
@@ -345,7 +357,7 @@ const App = () => {
 							onPress={ () => doNewRandomMaxZoom() }
 							title="z max rand"
 							disabled={ promiseQueueState > 0 }
-						/> */}
+						/>
 
 						<Button
 							onPress={ () => {
@@ -361,7 +373,47 @@ const App = () => {
 							} }
 							title="Toggle Bitmap"
 							disabled={ promiseQueueState > 0 }
+						/> */}
+
+
+						{/* <Button
+							onPress={ () => {
+								setMoveEnabled( ! moveEnabled );
+							} }
+							title="Toggle move"
+							disabled={ promiseQueueState > 0 }
 						/>
+
+
+						<Button
+							onPress={ () => {
+								setTiltEnabled( ! tiltEnabled );
+							} }
+							title="Toggle tilt"
+							disabled={ promiseQueueState > 0 }
+						/>
+
+
+						<Button
+							onPress={ () => {
+								setRotationEnabled( ! rotationEnabled );
+							} }
+							title="Toggle rotation"
+							disabled={ promiseQueueState > 0 }
+						/>
+
+
+						<Button
+							onPress={ () => {
+								setZoomEnabled( ! zoomEnabled );
+							} }
+							title="Toggle zoom"
+							disabled={ promiseQueueState > 0 }
+						/> */}
+
+
+
+
 					</View>
 				</View>
 
@@ -369,11 +421,25 @@ const App = () => {
 				{ mapHeight && <MapContainer
 					height={ mapHeight }
 					center={ randomCenter }
-					zoom={ randomZoom }
+					zoomLevel={ randomZoom }
 					mapViewNativeTag={ mainMapViewId }
 					setMapViewNativeTag={ setMainMapViewId }
 					minZoom={ randomMinZoom }
 					maxZoom={ randomMaxZoom }
+
+
+					bearing={ randomViewportVal }
+
+
+
+					moveEnabled = { moveEnabled }
+					tiltEnabled = { tiltEnabled }
+					rotationEnabled = { rotationEnabled }
+					zoomEnabled = { zoomEnabled }
+
+
+
+
 					onPause={ result => {
 						console.log( 'debug lifecycle event onPause', result );
 					} }
@@ -382,9 +448,9 @@ const App = () => {
 					} }
 				>
 
-					<MapEvents
+					{/* <MapEvents
 						nativeTag={ mainMapViewId }
-					/>
+					/> */}
 
 
 					{/* { showLayerBitmapTile && <LayerBitmapTile
@@ -396,12 +462,21 @@ const App = () => {
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
 					/> }
 
+					{/*
 					{ showLayerMapsforge && <LayerMapsforge
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
 						renderTheme={ renderTheme }
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
 					/> }
+
+					{ showLayerMapsforge && <LayerMapsforge
+						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Panama_oam.osm.map' }
+						renderTheme={ renderTheme }
+						renderStyle={ renderStyle }
+						renderOverlays={ renderOverlays }
+					/> }
+					*/}
 
 
 

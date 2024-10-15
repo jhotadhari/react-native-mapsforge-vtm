@@ -35,7 +35,6 @@ import org.oscim.core.MapPosition;
 import org.oscim.event.Event;
 import org.oscim.layers.Layer;
 import org.oscim.map.Map.UpdateListener;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -47,19 +46,30 @@ public class MapFragment extends Fragment {
 
     protected ReactContext reactContext;
 
-    // Initial variables for controlling the map.
-    protected static double propZoom = 12;
-    protected static double propMinZoom = 3;
-    protected static double propMaxZoom = 50;
-
-	// Dimensions variables.
 	protected static double propWidthForLayoutSize = 200;
 	protected static double propHeightForLayoutSize = 200;
 
-    protected GeoPoint propCenterGeoPoint;
+	protected GeoPoint propCenterGeoPoint;
+
+	protected static boolean propMoveEnabled = true;
+	protected static boolean propRotationEnabled = true;
+	protected static boolean propZoomEnabled = true;
+	protected static boolean propTiltEnabled = true;
+
+	protected static int propZoomLevel = 12;
+	protected static int propMinZoom = 3;
+	protected static int propMaxZoom = 20;
+	protected static float propTilt = 0;
+	protected static float propMinTilt = 0;
+	protected static float propMaxTilt = 65;
+	protected static float propBearing = 0;
+	protected static float propMinBearing = -180;
+	protected static float propMaxBearing = 180;
+	protected static float propRoll = 0;
+	protected static float propMinRoll = -180;
+	protected static float propMaxRoll = 180;
 
 	protected FixedWindowRateLimiter rateLimiter;
-
     protected String hardwareKeyListenerUid = null;
 
     public MapView getMapView() {
@@ -72,22 +82,69 @@ public class MapFragment extends Fragment {
         Utils.sendEvent( reactContext, "MapLayersCreated", params );
     }
 
-    MapFragment( ReactContext reactContext_, ArrayList center, double zoom, double minZoom, double maxZoom, double widthForLayoutSize, double heightForLayoutSize ) {
+    MapFragment(
+		ReactContext reactContext_,
+
+		double widthForLayoutSize,
+		double heightForLayoutSize,
+
+		ArrayList center,
+
+		boolean moveEnabled,
+		boolean rotationEnabled,
+		boolean zoomEnabled,
+		boolean tiltEnabled,
+
+		int zoomLevel,
+		int minZoom,
+		int maxZoom,
+
+		float tilt,
+		float minTilt,
+		float maxTilt,
+
+		float bearing,
+		float minBearing,
+		float maxBearing,
+
+		float roll,
+		float minRoll,
+		float maxRoll
+	) {
         super();
 
-        reactContext = reactContext_;
-
 		rateLimiter = new FixedWindowRateLimiter( 100, 1 );
+
+		reactContext = reactContext_;
+
+		propHeightForLayoutSize = heightForLayoutSize;
+		propWidthForLayoutSize = widthForLayoutSize;
 
         propCenterGeoPoint = new GeoPoint(
             (double) center.get(0),
             (double) center.get(1)
         );
-        propZoom = zoom;
+
+		propMoveEnabled = moveEnabled;
+		propRotationEnabled = rotationEnabled;
+		propZoomEnabled = zoomEnabled;
+		propTiltEnabled = tiltEnabled;
+
+		propZoomLevel = zoomLevel;
         propMinZoom = minZoom;
         propMaxZoom = maxZoom;
-		propHeightForLayoutSize = heightForLayoutSize;
-		propWidthForLayoutSize = widthForLayoutSize;
+
+		propTilt = tilt;
+		propMinTilt = minTilt;
+		propMaxTilt = maxTilt;
+
+		propBearing = bearing;
+		propMinBearing = minBearing;
+		propMaxBearing = maxBearing;
+
+		propRoll = roll;
+		propMinRoll = minRoll;
+		propMaxRoll = maxRoll;
     }
 
     protected void addHardwareKeyListener() {
@@ -159,11 +216,29 @@ public class MapFragment extends Fragment {
 
 			// Initial position and zoomLevel.
 			MapPosition mapPosition = new MapPosition( propCenterGeoPoint.getLatitude(), propCenterGeoPoint.getLongitude(), 1 );
-			mapPosition.setZoomLevel( (int) propZoom );
+
+			mapPosition.setZoomLevel( propZoomLevel );
 			mapView.map().setMapPosition( mapPosition );
-			// Set min and max zoomLevel.
+
+			mapView.map().getEventLayer().enableMove( propMoveEnabled );
+			mapView.map().getEventLayer().enableRotation( propRotationEnabled );
+			mapView.map().getEventLayer().enableZoom( propZoomEnabled );	// ??? bug, doesn't work properly, and still possible on .setZoom
+			mapView.map().getEventLayer().enableTilt( propTiltEnabled );
+
 			mapView.map().viewport().setMinZoomLevel( (int) propMinZoom );
 			mapView.map().viewport().setMaxZoomLevel( (int) propMaxZoom );
+
+			mapView.map().viewport().setTilt( (float) propTilt );
+			mapView.map().viewport().setMinTilt( (float) propMinTilt );
+			mapView.map().viewport().setMaxTilt( (float) propMaxTilt );
+
+			mapView.map().viewport().setRotation( (double) propBearing );
+			mapView.map().viewport().setMinBearing( (float) propMinBearing );
+			mapView.map().viewport().setMaxBearing( (float) propMaxBearing );
+
+			mapView.map().viewport().setRoll( (double) propRoll );
+			mapView.map().viewport().setMinRoll( (float) propMinRoll );
+			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
@@ -210,9 +285,9 @@ public class MapFragment extends Fragment {
 		params.putDouble( "zoom", mapPosition.getZoom() );
 		params.putDouble( "scale", mapPosition.getScale() );
 		params.putDouble( "zoomScale", mapPosition.getZoomScale() );
-//		params.putDouble( "bearing", mapPosition.getBearing() );
-//		params.putDouble( "roll", mapPosition.getRoll() );
-//		params.putDouble( "tilt", mapPosition.getTilt() );
+		params.putDouble( "bearing", mapPosition.getBearing() );
+		params.putDouble( "roll", mapPosition.getRoll() );
+		params.putDouble( "tilt", mapPosition.getTilt() );
 
 		return params;
 	}

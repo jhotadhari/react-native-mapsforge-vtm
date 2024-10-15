@@ -1,7 +1,6 @@
 // replace with your package
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
-import android.graphics.Color;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.View;
@@ -25,140 +24,269 @@ import java.util.Map;
 
 public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
-  public static final String REACT_CLASS = "MapViewManager";
-  public final int COMMAND_CREATE = 1;
-  private double propWidth;
-  private double propHeight;
-  private double propWidthForLayoutSize;
-  private double propHeightForLayoutSize;
+	public static final String REACT_CLASS = "MapViewManager";
+	public final int COMMAND_CREATE = 1;
 
-  private double propZoom;
-  private double propMinZoom;
-  private double propMaxZoom;
-  private ArrayList propCenter;
+	private double propWidth;
+	private double propHeight;
+	private double propWidthForLayoutSize;
+	private double propHeightForLayoutSize;
 
-  ReactApplicationContext reactContext;
+	private ArrayList propCenter;
 
-  public MapViewManager(ReactApplicationContext reactContext) {
-    this.reactContext = reactContext;
-  }
+	private boolean propMoveEnabled;
+	private boolean propRotationEnabled;
+	private boolean propZoomEnabled;
+	private boolean propTiltEnabled;
 
-  @Override
-  public String getName() {
-    return REACT_CLASS;
-  }
+	private int propZoomLevel;
+	private int propMinZoom;
+	private int propMaxZoom;
 
-  /**
-   * Return a FrameLayout which will later hold the Fragment
-   */
-  @Override
-  public FrameLayout createViewInstance(ThemedReactContext reactContext) {
-    return new FrameLayout(reactContext);
-  }
+	private float propTilt;
+	private float propMinTilt;
+	private float propMaxTilt;
 
-  /**
-   * Map the "create" command to an integer
-   */
-  @Nullable
-  @Override
-  public Map<String, Integer> getCommandsMap() {
-    return MapBuilder.of("create", COMMAND_CREATE);
-  }
+	private float propBearing;
+	private float propMinBearing;
+	private float propMaxBearing;
 
-  /**
-   * Handle "create" command (called from JS) and call createFragment method
-   */
-  @Override
-  public void receiveCommand(
-    @NonNull FrameLayout root,
-    String commandId,
-    @Nullable ReadableArray args
-  ) {
-    super.receiveCommand(root, commandId, args);
-    int reactNativeViewId = args.getInt(0);
-    int commandIdInt = Integer.parseInt(commandId);
+	private float propRoll;
+	private float propMinRoll;
+	private float propMaxRoll;
 
-    switch (commandIdInt) {
-      case COMMAND_CREATE:
-        createFragment(root, reactNativeViewId);
-        break;
-      default: {}
-    }
-  }
 
-  @ReactPropGroup(names = {"width", "height", "widthForLayoutSize", "heightForLayoutSize"})
-  public void setReactPropsStyle(FrameLayout view, int index, double value) {
-    if (index == 0) {
-      propWidth = value;
-    }
-    if (index == 1) {
-      propHeight = value;
-    }
-	if (index == 2) {
-	  propWidthForLayoutSize = value;
-    }
-	if (index == 3) {
-      propHeightForLayoutSize = value;
-    }
-  }
+	ReactApplicationContext reactContext;
 
-  @ReactPropGroup(names = {"zoom", "minZoom","maxZoom"})
-  public void setReactPropsZoom(FrameLayout view, int index, double value) {
-    if (index == 0) {
-      propZoom = value;
-    }
-    if (index == 1) {
-      propMinZoom = value;
-    }
-    if (index == 2) {
-      propMaxZoom = value;
-    }
-  }
+	public MapViewManager( ReactApplicationContext reactContext ) {
+		this.reactContext = reactContext;
+	}
 
-  @ReactProp(name="center")
-  public void setReactPropCenter(FrameLayout view, ReadableArray value) {
-    propCenter = value.toArrayList();
-  }
+	@Override
+	public String getName() {
+		return REACT_CLASS;
+	}
 
-  /**
-   * Replace React Native view with a custom fragment
-   */
-  public void createFragment(FrameLayout root, int reactNativeViewId) {
-    ViewGroup parentView = (ViewGroup) root.findViewById(reactNativeViewId);
-    setupLayout(parentView);
-    final MapFragment mapFragment = new MapFragment( reactContext, propCenter, propZoom, propMinZoom, propMaxZoom, propWidthForLayoutSize, propHeightForLayoutSize );
-    FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
-    activity.getSupportFragmentManager()
-            .beginTransaction()
-            .replace(reactNativeViewId, mapFragment, String.valueOf(reactNativeViewId))
-            .commit();
-  }
+	/**
+	 * Return a FrameLayout which will later hold the Fragment
+	  */
+	@Override
+	public FrameLayout createViewInstance( ThemedReactContext reactContext ) {
+		return new FrameLayout( reactContext );
+	}
 
-  public void setupLayout(ViewGroup view) {
-    Choreographer.getInstance().postFrameCallback(new Choreographer.FrameCallback() {
-      @Override
-      public void doFrame(long frameTimeNanos) {
-        manuallyLayoutChildren(view);
-        view.getViewTreeObserver().dispatchOnGlobalLayout();
-        Choreographer.getInstance().postFrameCallback(this);
-      }
-    });
-  }
+	/**
+	 * Map the "create" command to an integer
+	  */
+	@Nullable
+	@Override
+	public Map<String, Integer> getCommandsMap() {
+		return MapBuilder.of( "create", COMMAND_CREATE );
+	}
 
-  /**
-   * Layout all children properly
-   */
-  public void manuallyLayoutChildren(ViewGroup view) {
-      // propWidth and propHeight coming from react-native props
-	  double width = propWidth;
-	  double height = propHeight;
-	  for ( int i = 0; i < view.getChildCount(); i++ ) {
-		  View child = view.getChildAt( i );
-		  child.measure(
-			  View.MeasureSpec.makeMeasureSpec( (int) width, View.MeasureSpec.EXACTLY),
-			  View.MeasureSpec.makeMeasureSpec( (int) height, View.MeasureSpec.EXACTLY)
-		  );
-		  child.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
-	  }
-  }
+	/**
+	 * Handle "create" command (called from JS) and call createFragment method
+	  */
+	@Override
+	public void receiveCommand(
+		@NonNull FrameLayout root,
+		String commandId,
+		@Nullable ReadableArray args
+	) {
+		super.receiveCommand(root, commandId, args);
+		int reactNativeViewId = args.getInt(0);
+		int commandIdInt = Integer.parseInt(commandId);
+
+		switch ( commandIdInt ) {
+			case COMMAND_CREATE:
+				createFragment( root, reactNativeViewId );
+					break;
+				default: {}
+		}
+	}
+
+	@ReactPropGroup( names = {
+		"width",
+		"height",
+		"widthForLayoutSize",
+		"heightForLayoutSize"
+	} )
+	public void setReactPropsDimensions(FrameLayout view, int index, double value) {
+		if (index == 0) {
+			propWidth = value;
+		}
+		if (index == 1) {
+			propHeight = value;
+		}
+		if (index == 2) {
+			propWidthForLayoutSize = value;
+		}
+		if (index == 3) {
+			propHeightForLayoutSize = value;
+		}
+	}
+
+	@ReactProp( name="center" )
+	public void setReactPropCenter( FrameLayout view, ReadableArray value ) {
+		propCenter = value.toArrayList();
+	}
+
+	@ReactPropGroup( names = {
+		"moveEnabled",
+		"rotationEnabled",
+		"zoomEnabled",
+		"tiltEnabled",
+	} )
+	public void setReactPropsInteractionsEnabled( FrameLayout view, int index, int value ) {	// boolean doesn't work, let's use int
+
+		if ( index == 0 ) {
+			propMoveEnabled = value == 1;
+		}
+		if ( index == 1 ) {
+			propRotationEnabled = value == 1;
+		}
+		if ( index == 2 ) {
+			propZoomEnabled = value == 1;
+		}
+		if ( index == 3 ) {
+			propTiltEnabled = value == 1;
+		}
+	}
+
+	@ReactPropGroup( names = {
+		"zoomLevel",
+		"minZoom",
+		"maxZoom",
+	} )
+	public void setReactPropsViewportPosInt( FrameLayout view, int index, int value ) {
+		// zoom
+		if ( index == 0 ) {
+			propZoomLevel = value;
+		}
+		if ( index == 1 ) {
+			propMinZoom = value;
+		}
+		if ( index == 2 ) {
+			propMaxZoom = value;
+		}
+	}
+
+	@ReactPropGroup( names = {
+		// tilt
+		"tilt",
+		"minTilt",
+		"maxTilt",
+		// bearing
+		"bearing",
+		"minBearing",
+		"maxBearing",
+		// roll
+		"roll",
+		"minRoll",
+		"maxRoll",
+	} )
+
+	public void setReactPropsViewportPosFloat( FrameLayout view, int index, float value ) {
+		// tilt
+		if ( index == 0 ) {
+			propTilt = value;
+		}
+		if ( index == 1 ) {
+			propMinTilt = value;
+		}
+		if ( index == 2 ) {
+			propMaxTilt = value;
+		}
+		// bearing
+		if ( index == 3 ) {
+			propBearing = value;
+		}
+		if ( index == 4 ) {
+			propMinBearing = value;
+		}
+		if ( index == 5 ) {
+			propMaxBearing = value;
+		}
+		// roll
+		if ( index == 6 ) {
+			propRoll = value;
+		}
+		if ( index == 7 ) {
+			propMinRoll = value;
+		}
+		if ( index == 8 ) {
+			propMaxRoll = value;
+		}
+	}
+
+	/**
+	 * Replace React Native view with a custom fragment
+	  */
+	public void createFragment( FrameLayout root, int reactNativeViewId ) {
+		ViewGroup parentView = ( ViewGroup ) root.findViewById( reactNativeViewId );
+		setupLayout( parentView );
+		final MapFragment mapFragment = new MapFragment(
+			reactContext,
+
+			propWidthForLayoutSize,
+			propHeightForLayoutSize,
+
+			propCenter,
+
+			propMoveEnabled,
+			propRotationEnabled,
+			propZoomEnabled,
+			propTiltEnabled,
+
+			propZoomLevel,
+			propMinZoom,
+			propMaxZoom,
+
+			propTilt,
+			propMinTilt,
+			propMaxTilt,
+
+			propBearing,
+			propMinBearing,
+			propMaxBearing,
+
+			propRoll,
+			propMinRoll,
+			propMaxRoll
+
+		);
+		FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
+		activity.getSupportFragmentManager()
+				.beginTransaction()
+				.replace(reactNativeViewId, mapFragment, String.valueOf(reactNativeViewId))
+				.commit();
+	}
+
+	public void setupLayout(ViewGroup view) {
+		Choreographer.getInstance().postFrameCallback(new Choreographer.FrameCallback() {
+		@Override
+		public void doFrame(long frameTimeNanos) {
+			manuallyLayoutChildren(view);
+			view.getViewTreeObserver().dispatchOnGlobalLayout();
+			Choreographer.getInstance().postFrameCallback(this);
+		}
+		});
+	}
+
+	/**
+	 * Layout all children properly
+	  */
+	public void manuallyLayoutChildren(ViewGroup view) {
+		// propWidth and propHeight coming from react-native props
+		double width = propWidth;
+		double height = propHeight;
+		for ( int i = 0; i < view.getChildCount(); i++ ) {
+			View child = view.getChildAt( i );
+			child.measure(
+				View.MeasureSpec.makeMeasureSpec( (int) width, View.MeasureSpec.EXACTLY),
+				View.MeasureSpec.makeMeasureSpec( (int) height, View.MeasureSpec.EXACTLY)
+			);
+			child.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+		}
+	}
 }

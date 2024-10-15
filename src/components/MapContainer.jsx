@@ -24,6 +24,7 @@ import MapPropTypes from '../MapPropTypes';
 import { MapViewManager } from './MapViewManager.jsx';
 import useMapLayersCreated from '../compose/useMapLayersCreated.js';
 import { MapContainerModule } from '../nativeMapModules';
+import { isBoolean, isNumber } from 'lodash-es';
 
 const createFragment = mapViewNativeTag =>
 	UIManager.dispatchViewManagerCommand(
@@ -40,16 +41,36 @@ const useDefaultWidth = propsWidth => {
 
 const MapContainer = ( {
 	children,
-	width,		// ??? TODO doesn't react on prop change
-	height,		// ??? TODO doesn't react on prop change
-	center,
-	zoom,
-	minZoom,
-	maxZoom,
 	mapViewNativeTag,	// It's not possible to control the nativeTag. It's a prop just to lift the state up.
 	setMapViewNativeTag,
 	onPause,
 	onResume,
+
+	width,		// ??? TODO doesn't react on prop change
+	height,		// ??? TODO doesn't react on prop change
+
+	center,
+
+	moveEnabled,
+	tiltEnabled,
+	rotationEnabled,
+	zoomEnabled,
+
+	zoomLevel,
+	minZoom,
+	maxZoom,
+
+	tilt,
+	minTilt,
+	maxTilt,
+
+	bearing,
+	minBearing,
+	maxBearing,
+
+	roll,
+	minRoll,
+	maxRoll,
 } ) => {
 
 	const ref = useRef( null );
@@ -62,10 +83,29 @@ const MapContainer = ( {
 
 	width = useDefaultWidth( width );
 	height = height || 200;
+
 	center = center && Array.isArray( center ) && center.length === 2 ? center : [52.5, 13.4];
-	zoom = zoom || 12;
-	minZoom = minZoom || 3;
-	maxZoom = maxZoom || 50;
+
+	moveEnabled = isBoolean( moveEnabled ) || isNumber( moveEnabled ) ? ( !! moveEnabled ? 1 : 0 ) : 1;
+	rotationEnabled = isBoolean( rotationEnabled ) || isNumber( rotationEnabled ) ? ( !! rotationEnabled ? 1 : 0 ) : 1;
+	zoomEnabled = isBoolean( zoomEnabled ) || isNumber( zoomEnabled ) ? ( !! zoomEnabled ? 1 : 0 ) : 1;
+	tiltEnabled = isBoolean( tiltEnabled ) || isNumber( tiltEnabled ) ? ( !! tiltEnabled ? 1 : 0 ) : 1;
+
+	zoomLevel = isNumber( zoomLevel ) ? parseInt( zoomLevel, 10 ) : 12;
+	minZoom = isNumber( minZoom ) ? parseInt( minZoom, 10 ) : 3;
+	maxZoom = isNumber( maxZoom ) ? parseInt( maxZoom, 10 ) : 20;
+
+	tilt = isNumber( tilt ) ? parseFloat( tilt, 10 ) : 0;
+	minTilt = isNumber( minTilt ) ? parseFloat( minTilt, 10 ) : 0;
+	maxTilt = isNumber( maxTilt ) ? parseFloat( maxTilt, 10 ) : 65;
+
+	bearing = isNumber( bearing ) ? parseFloat( bearing, 10 ) : 0;
+	minBearing = isNumber( minBearing ) ? parseFloat( minBearing, 10 ) : -180;
+	maxBearing = isNumber( maxBearing ) ? parseFloat( maxBearing, 10 ) : 180;
+
+	roll = isNumber( roll ) ? parseFloat( roll, 10 ) : 0;
+	minRoll = isNumber( minRoll ) ? parseFloat( minRoll, 10 ) : -180;
+	maxRoll = isNumber( maxRoll ) ? parseFloat( maxRoll, 10 ) : 180;
 
 	useEffect( () => {
 		setMapViewNativeTag( findNodeHandle( ref.current ) );
@@ -77,29 +117,111 @@ const MapContainer = ( {
 		}
 	}, [mapViewNativeTag] );
 
-	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setZoom( mapViewNativeTag, zoom );
-		}
-	}, [zoom] );
 
-	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setMinZoom( mapViewNativeTag, minZoom );
-		}
-	}, [minZoom] );
-
-	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setMaxZoom( mapViewNativeTag, maxZoom );
-		}
-	}, [maxZoom] );
-
+	// center changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
 			MapContainerModule.setCenter( mapViewNativeTag, center );
 		}
 	}, [center.join( '' )] );
+	// moveEnabled changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'moveEnabled', isBoolean( moveEnabled ) || isNumber( moveEnabled ) ? ( !! moveEnabled ? 1 : 0 ) : 1 );
+		}
+	}, [moveEnabled] );
+	// tiltEnabled changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'tiltEnabled', isBoolean( tiltEnabled ) || isNumber( tiltEnabled ) ? ( !! tiltEnabled ? 1 : 0 ) : 1 );
+		}
+	}, [tiltEnabled] );
+	// rotationEnabled changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'rotationEnabled', isBoolean( rotationEnabled ) || isNumber( rotationEnabled ) ? ( !! rotationEnabled ? 1 : 0 ) : 1 );
+		}
+	}, [rotationEnabled] );
+	// zoomEnabled changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'zoomEnabled', isBoolean( zoomEnabled ) || isNumber( zoomEnabled ) ? ( !! zoomEnabled ? 1 : 0 ) : 1 );
+		}
+	}, [zoomEnabled] );
+	// zoomLevel changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setZoomLevel( mapViewNativeTag, zoomLevel );
+		}
+	}, [zoomLevel] );
+	// minZoom changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setMinZoom( mapViewNativeTag, minZoom );
+		}
+	}, [minZoom] );
+	// maxZoom changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setMaxZoom( mapViewNativeTag, maxZoom );
+		}
+	}, [maxZoom] );
+	// tilt changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'tilt', tilt );
+		}
+	}, [tilt] );
+	// minTilt changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'minTilt', minTilt );
+		}
+	}, [minTilt] );
+	// maxTilt changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'maxTilt', maxTilt );
+		}
+	}, [maxTilt] );
+
+	// bearing changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'bearing', bearing );
+		}
+	}, [bearing] );
+	// minBearing changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'minBearing', minBearing );
+		}
+	}, [minBearing] );
+	// maxBearing changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'maxBearing', maxBearing );
+		}
+	}, [maxBearing] );
+
+	// roll changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'roll', roll );
+		}
+	}, [roll] );
+	// minRoll changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'minRoll', minRoll );
+		}
+	}, [minRoll] );
+	// maxRoll changed.
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setViewport( mapViewNativeTag, 'maxRoll', maxRoll );
+		}
+	}, [maxRoll] );
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
@@ -144,26 +266,63 @@ const MapContainer = ( {
 	return <ScrollView scrollEnabled={ false }>
 		<MapViewManager
 			ref={ ref }
+
 			width={ width }
 			height={ height }
 			widthForLayoutSize={ PixelRatio.getPixelSizeForLayoutSize( width ) }
 			heightForLayoutSize={ PixelRatio.getPixelSizeForLayoutSize( height ) }
+
 			center={ center }
-			zoom={ zoom }
-			minZoom={ minZoom }
-			maxZoom={ maxZoom }
+
+			moveEnabled = { moveEnabled }
+			tiltEnabled = { tiltEnabled }
+			rotationEnabled = { rotationEnabled }
+			zoomEnabled = { zoomEnabled }
+
+			zoomLevel = { zoomLevel }
+			minZoom = { minZoom }
+			maxZoom = { maxZoom }
+
+			tilt = { tilt }
+			minTilt = { minTilt }
+			maxTilt = { maxTilt }
+
+			bearing = { bearing }
+			minBearing = { minBearing }
+			maxBearing = { maxBearing }
+
+			roll = { roll }
+			minRoll = { minRoll }
+			maxRoll = { maxRoll }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;
 };
 
 MapContainer.propTypes = {
+	mapViewNativeTag: PropTypes.number,
+	setMapViewNativeTag: PropTypes.func,
+	onPause: PropTypes.func,
+	onResume: PropTypes.func,
 	width: PropTypes.number,
 	height: PropTypes.number,
 	center: MapPropTypes.latLong,
+	moveEnabled: PropTypes.bool,
+	tiltEnabled: PropTypes.bool,
+	rotationEnabled: PropTypes.bool,
+	zoomEnabled: PropTypes.bool,
 	zoom: PropTypes.number,
 	minZoom: PropTypes.number,
 	maxZoom: PropTypes.number,
+	tilt: PropTypes.number,
+	minTilt: PropTypes.number,
+	maxTilt: PropTypes.number,
+	bearing: PropTypes.number,
+	minBearing: PropTypes.number,
+	maxBearing: PropTypes.number,
+	roll: PropTypes.number,
+	minRoll: PropTypes.number,
+	maxRoll: PropTypes.number,
 };
 
 export default MapContainer;
