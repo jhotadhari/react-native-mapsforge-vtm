@@ -10,6 +10,7 @@ import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
@@ -22,6 +23,9 @@ import org.oscim.core.GeoPoint;
 import org.oscim.core.MapPosition;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 //import org.mapsforge.core.model.LatLong;
 //import org.mapsforge.core.model.Point;
@@ -73,6 +77,89 @@ public class Utils {
         latLongArray.pushDouble( mapPosition.getLongitude() );
         return latLongArray;
     }
+
+	public static ReadableMap getEmptyReadableMap() {
+		return new ReadableMap() {
+			@NonNull
+			@Override
+			public Iterator<Map.Entry<String, Object>> getEntryIterator() {
+				return null;
+			}
+
+			@Nullable
+			@Override
+			public ReadableArray getArray(@NonNull String s) {
+				return null;
+			}
+
+			@Override
+			public boolean getBoolean(@NonNull String s) {
+				return false;
+			}
+
+			@Override
+			public double getDouble(@NonNull String s) {
+				return 0;
+			}
+
+			@NonNull
+			@Override
+			public Dynamic getDynamic(@NonNull String s) {
+				return null;
+			}
+
+			@Override
+			public int getInt(@NonNull String s) {
+				return 0;
+			}
+
+			@Override
+			public long getLong(@NonNull String s) {
+				return 0;
+			}
+
+			@Nullable
+			@Override
+			public ReadableMap getMap(@NonNull String s) {
+				return null;
+			}
+
+			@Nullable
+			@Override
+			public String getString(@NonNull String s) {
+				return "";
+			}
+
+			@NonNull
+			@Override
+			public ReadableType getType(@NonNull String s) {
+				return null;
+			}
+
+			@Override
+			public boolean hasKey(@NonNull String s) {
+				return false;
+			}
+
+			@Override
+			public boolean isNull(@NonNull String s) {
+				return false;
+			}
+
+			@NonNull
+			@Override
+			public ReadableMapKeySetIterator keySetIterator() {
+				return null;
+			}
+
+			@NonNull
+			@Override
+			public HashMap<String, Object> toHashMap() {
+				return null;
+			}
+		};
+	}
+
 
 	public static ReadableArray getEmptyReadableArray() {
 		return new ReadableArray() {

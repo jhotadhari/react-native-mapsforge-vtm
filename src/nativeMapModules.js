@@ -74,6 +74,17 @@ export const MapLayerPathModule = NativeModules.MapLayerPathModule
 		},
 	);
 
+export const MapLayerPathSlopeGradientModule = NativeModules.MapLayerPathSlopeGradientModule
+	? NativeModules.MapLayerPathSlopeGradientModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);
+
 // export const MapMarkerModule = NativeModules.MapMarkerModule
 // 	? NativeModules.MapMarkerModule
 // 	: new Proxy(

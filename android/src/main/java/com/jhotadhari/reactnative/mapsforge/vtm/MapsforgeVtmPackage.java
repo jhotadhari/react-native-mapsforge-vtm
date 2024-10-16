@@ -28,6 +28,7 @@ public class MapsforgeVtmPackage implements ReactPackage {
         modules.add(new MapLayerMBTilesBitmapModule(reactContext));
         modules.add(new MapLayerScalebarModule(reactContext));
         modules.add(new MapLayerPathModule(reactContext));
+        modules.add(new MapLayerPathSlopeGradientModule(reactContext));
 //        modules.add(new MapMarkerModule(reactContext));
 //        modules.add(new MapPolylineModule(reactContext));
         return modules;

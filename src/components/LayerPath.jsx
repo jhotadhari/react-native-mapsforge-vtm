@@ -69,6 +69,8 @@ LayerPath.isMapLayer = true;
 LayerPath.propTypes = {
 	mapViewNativeTag: PropTypes.number,
 	reactTreeIndex: PropTypes.number,
+	positions: PropTypes.array,
+	filePath: PropTypes.string,
 };
 
 export default LayerPath;

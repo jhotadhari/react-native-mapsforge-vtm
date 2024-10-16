@@ -28,6 +28,7 @@ import {
 	LayerBitmapTile,
 	LayerMBTilesBitmap,
 	LayerScalebar,
+	LayerPathSlopeGradient,
 	LayerPath,
 	// LayerDownload,
 	// LayerHillshading,
@@ -121,7 +122,7 @@ const App = () => {
 
 
 
-	const [randomCenter,setRandomCenter] = useState( [-12.787, -74.973] );
+	const [randomCenter,setRandomCenter] = useState( [-12.65, -75.239] );
 	const doNewRandomCenter = () => setRandomCenter( [
 		randomNumber( -12, -13 ),	// lat
 		randomNumber( -74, -75 ),	// long
@@ -164,6 +165,9 @@ const App = () => {
 
 	const [renderOverlays, setRenderOverlays] = useState( [] );
 	const [renderTheme, setRenderTheme] = useState( renderThemeOptions.find( o => o.label === 'Alti' ).value );
+
+
+	const [strokeWidth, setStrokeWidth] = useState( 4 );
 
 
 
@@ -332,17 +336,18 @@ const App = () => {
 							title="rand"
 							disabled={ promiseQueueState > 0 }
 						/>
+						<Button
+							onPress={ () => setStrokeWidth( strokeWidth + 1 ) }
+							title="+"
+							disabled={ promiseQueueState > 0 }
+						/>
+						<Button
+							onPress={ () => setStrokeWidth( Math.max( 0, strokeWidth -1 ) ) }
+							title="-"
+							disabled={ promiseQueueState > 0 || strokeWidth == 0 }
+						/>
+
 						{/*
-						<Button
-							onPress={ () => MapContainerModule.zoomIn( mainMapViewId ) }
-							title="z +"
-							disabled={ promiseQueueState > 0 }
-						/>
-						<Button
-							onPress={ () => MapContainerModule.zoomOut( mainMapViewId ) }
-							title="z -"
-							disabled={ promiseQueueState > 0 }
-						/>
 						<Button
 							onPress={ () => doNewRandomZoom() }
 							title="z rand"
@@ -419,10 +424,10 @@ const App = () => {
 
 
 				{ mapHeight && <MapContainer
-					width={ randomViewportVal }
-					height={ randomViewportVal }
+					// width={ width }
+					height={ mapHeight }
 					center={ randomCenter }
-					zoomLevel={ randomZoom }
+					zoomLevel={ 12 }
 					mapViewNativeTag={ mainMapViewId }
 					setMapViewNativeTag={ setMainMapViewId }
 					minZoom={ randomMinZoom }
@@ -459,37 +464,31 @@ const App = () => {
 						cacheSize={ 10 * 1024 * 1024 }
 					/> } */}
 
-					{ showLayerBitmapTile && <LayerMBTilesBitmap
+					{/* { showLayerBitmapTile && <LayerMBTilesBitmap
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
-					/> }
+					/> } */}
 
-					{/*
-					{ showLayerMapsforge && <LayerMapsforge
+					<LayerMapsforge
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
 						renderTheme={ renderTheme }
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
-					/> }
-
-					{ showLayerMapsforge && <LayerMapsforge
-						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Panama_oam.osm.map' }
-						renderTheme={ renderTheme }
-						renderStyle={ renderStyle }
-						renderOverlays={ renderOverlays }
-					/> }
-					*/}
+					/>
 
 
 
-					<LayerPath
-						// positions={ [
-						// 	[-12, -74],
-						// 	[-13, -75],
-						// 	[-13, -74],
-						// 	[-13, -73],
-						// 	[-12, -73],
-						// ] }
-						filePath={ '/storage/emulated/0/Android/media/jhotadhari.reactnative.mapsforge.vtm.example/dummy/randomTrack.gpx' }
+					<LayerPathSlopeGradient
+						strokeWidth={ strokeWidth }
+						slopeColors={ [
+							[-25, '#000a70'],
+							[-10, '#0000ff'],
+							[-5, '#01c2ff'],
+							[0, '#35fd2d'],
+							[5, '#f9ff00'],
+							[10, '#ff0000'],
+							[25, '#810500'],
+						] }
+						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-09 0817__20241009_0817.gpx' }
 					/>
 
 

@@ -28,13 +28,13 @@ import io.ticofab.androidgpxparser.parser.domain.TrackPoint;
 
 public class MapLayerPathModule extends MapLayerBase {
 
-    public String getName() {
-        return "MapLayerPathModule";
-    }
+	public String getName() {
+		return "MapLayerPathModule";
+	}
 
-    MapLayerPathModule(ReactApplicationContext context) {
-        super(context);
-    }
+	MapLayerPathModule(ReactApplicationContext context) {
+		super(context);
+	}
 
 	protected static List positionsToPointsList( ReadableArray positions ) {
 		List<GeoPoint> pts = new ArrayList<>();
@@ -65,22 +65,22 @@ public class MapLayerPathModule extends MapLayerBase {
 		);
 	}
 
-    @ReactMethod
-    public void createLayer(
+	@ReactMethod
+	public void createLayer(
 		int reactTag,
 		ReadableArray positions,
 		String filePath,
 		int reactTreeIndex,
 		Promise promise
-    ) {
-        try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+	) {
+		try {
+			MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
-            if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
+			if ( mapFragment == null || null == mapView ) {
+				promise.resolve( false );
+				return;
+			}
 
 			LineStyle lineStyle = new LineStyle( Color.parseColor("#ff0000"), 7 );
 			PathLayer pathLayer = new PathLayer( mapView.map(), lineStyle );
@@ -96,7 +96,7 @@ public class MapLayerPathModule extends MapLayerBase {
 						InputStream in = new FileInputStream(gpxFile);
 						parsedGpx = parser.parse(in);
 					} catch (IOException | XmlPullParserException e) {
-                        e.printStackTrace();
+						e.printStackTrace();
 						promise.resolve( false );
 						return;
 					}
@@ -123,19 +123,19 @@ public class MapLayerPathModule extends MapLayerBase {
 			mapView.map().updateMap(true);
 
 			// Store layer
-            int hash = pathLayer.hashCode();
+			int hash = pathLayer.hashCode();
 			layers.put( hash, pathLayer );
 
 			// Resolve layer hash
-            promise.resolve( hash );
-        } catch(Exception e) {
+			promise.resolve( hash );
+		} catch(Exception e) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
-        }
-    }
+			promise.reject("Create Event Error", e);
+		}
+	}
 
-    @ReactMethod
-    public void removeLayer(int reactTag, int hash, Promise promise) {
+	@ReactMethod
+	public void removeLayer(int reactTag, int hash, Promise promise) {
 		super.removeLayer( reactTag, hash, promise );
 	}
 
