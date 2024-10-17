@@ -100,6 +100,9 @@ dependencies {
 	// gpx parser
 	implementation 'com.github.ticofab:android-gpx-parser:2.3.1'
 
+	// simplify-java - Simplification of a 2D-polyline or a 3D-polyline
+	implementation 'com.goebl:simplify:1.0.0'
+
 	// https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
 	implementation 'com.github.mapsforge.vtm:vtm:0.22.0'
 	implementation 'com.github.mapsforge.vtm:vtm-themes:0.22.0'

@@ -10,7 +10,7 @@ import PropTypes from 'prop-types';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
-import { isArray, isNumber, isString } from 'lodash-es';
+import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
 
 const LayerPathSlopeGradient = ( {
 	mapViewNativeTag,
@@ -19,6 +19,9 @@ const LayerPathSlopeGradient = ( {
 	strokeWidth,
 	slopeColors,
 	slopeSimplificationTolerance,
+	responseInclude,
+	onCreate,
+	onRemove,
 	reactTreeIndex,
 } ) => {
 
@@ -29,7 +32,7 @@ const LayerPathSlopeGradient = ( {
 	positions = isArray( positions ) ? positions : [];
 	filePath = isString( filePath ) && filePath.length > 0 ? filePath : '';
 	strokeWidth = isNumber( strokeWidth ) && !! strokeWidth ? parseInt( strokeWidth, 10 ) : 4;
-	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 0.0005;
+	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 5;
 	slopeColors = isArray( slopeColors ) ? slopeColors.sort( ( a, b ) => {
 		if ( a[0] < b[0] ) {
 		  	return -1;
@@ -38,7 +41,24 @@ const LayerPathSlopeGradient = ( {
 		  	return 1;
 		}
 		return 0;
-	} ) : [];
+	} ) : [
+        [-25, '#000a70'],
+        [-10, '#0000ff'],
+        [-5, '#01c2ff'],
+        [0, '#35fd2d'],
+        [5, '#f9ff00'],
+        [10, '#ff0000'],
+        [25, '#810500'],
+    ];
+	responseInclude = isArray( responseInclude )
+		? responseInclude
+		: ( isObject( responseInclude )
+			? Object.keys( responseInclude ).map( key => !! responseInclude[key] ? key : false ).filter( a => !! a )
+			: []
+		)
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+
 
 	const createLayer = () => {
 		setHash( false );
@@ -50,11 +70,13 @@ const LayerPathSlopeGradient = ( {
 				strokeWidth,
 				slopeColors,
 				slopeSimplificationTolerance,
+				responseInclude,
 				reactTreeIndex,
-			).then( newHash => {
-				if ( newHash ) {
-					setHash( parseInt( newHash, 10 ) );
+			).then( response => {
+				if ( response.hash ) {
+					setHash( parseInt( response.hash, 10 ) );
 					setRandom( Math.random() );
+					onCreate( response );
 				}
 
 			} );
@@ -91,6 +113,7 @@ const LayerPathSlopeGradient = ( {
                     if ( removedHash ) {
                         setHash( null )
                         setTriggerCreateNew( Math.random() );
+						onRemove( { removedHash } )
                     }
                 } );
             } );

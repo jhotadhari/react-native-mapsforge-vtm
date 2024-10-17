@@ -73,7 +73,7 @@ public class Utils {
 
     public static WritableArray mapPositionToArray( MapPosition mapPosition ) {
         WritableArray latLongArray = new WritableNativeArray();
-        latLongArray.pushDouble( mapPosition.getLatitude() );
+        latLongArray.pushDouble( mapPosition.getLatitude() );	// ??? maybe other way around, should do everywhere same order!!!
         latLongArray.pushDouble( mapPosition.getLongitude() );
         return latLongArray;
     }
