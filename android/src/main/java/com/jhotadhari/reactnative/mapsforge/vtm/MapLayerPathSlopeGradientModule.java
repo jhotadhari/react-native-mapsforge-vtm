@@ -35,6 +35,7 @@ import java.util.Map;
 import io.ticofab.androidgpxparser.parser.GPXParser;
 import io.ticofab.androidgpxparser.parser.domain.Gpx;
 import io.ticofab.androidgpxparser.parser.domain.TrackPoint;
+import io.vacco.savitzkygolay.SgFilter;
 
 public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
@@ -124,7 +125,8 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			"",
 			4,
 			Utils.getEmptyReadableArray(),
-			5,
+			7,
+			9,
 			Utils.getEmptyReadableArray(),
 			reactTreeIndex,
 			promise
@@ -139,6 +141,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		int strokeWidth,
 		ReadableArray slopeColors,
 		double slopeSimplificationTolerance,
+		int flattenWindowSize,
 		ReadableArray responseInclude,
 		int reactTreeIndex,
 		Promise promise
@@ -185,6 +188,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				strokeWidth,
 				setupGradient( slopeColors ),
 				slopeSimplificationTolerance,
+				flattenWindowSize,
 				layer,
 				responseIncludeList,
 				params
@@ -222,27 +226,26 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		int strokeWidth,
 		Gradient gradient,
 		double slopeSimplificationTolerance,
+		int flattenWindowSize,
 		VectorLayer layer,
 		List<String> responseIncludeList,
 		WritableMap responseParams
 	) {
 
-		// ??? TODO flatten after simplifiing
-
 		WritableArray coordinatesResponseArray = new WritableNativeArray();
 
-		double slope = 0;
-		// Map of slopes for simplified coordinates. And set first slope match. Keyed by their index within original coordinates.
+		// Map of slopes for simplified coordinates. Keyed by their index within original coordinates.
 		Map<Integer, Double> simplifiedSlopes = new HashMap<>();
+		// Set slope match for first coordinate.
+		double slope = 0;
 
-		if ( slopeSimplificationTolerance > 0 ) {
+		if ( slopeSimplificationTolerance > 0 || ( ( flattenWindowSize & 1) != 0 && flattenWindowSize > 5 ) ) {
 
-			Simplify<CoordPoint> simplify = new Simplify<CoordPoint>( new CoordPoint[0] );
-
-			CoordPoint[] coordinatePoints = new CoordPoint[coordinates.length];
-
+			// Create coordinatesSimplified array. This array might be simplified and flattened.
+			CoordPoint[] coordinatesSimplified = new CoordPoint[coordinates.length];
 			double accumulatedDistance = 0;
 			for ( int i = 0; i < coordinates.length; i++ ) {
+				// Accumulate distance.
 				double distanceToLast =  i == 0
 					? 0
 					: new GeoPoint(
@@ -253,15 +256,15 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 					(double) coordinates[i-1].x
 				) );
 				accumulatedDistance += distanceToLast;
-
-				coordinatePoints[i] = new CoordPoint(
+				// Init CoordPoint and add to coordinatesSimplified array.
+				coordinatesSimplified[i] = new CoordPoint(
 					i,
 					(double) coordinates[i].x,
 					(double) coordinates[i].y,
 					(double) coordinates[i].z,
 					(double) accumulatedDistance
 				);
-
+				// Maybe add coordinates to response.
 				if ( responseIncludeList.contains( "coordinates" ) ) {
 					WritableArray latLongAlt = new WritableNativeArray();
 					// ??? maybe other way around, should do everywhere same order!!!
@@ -273,8 +276,30 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				}
 			}
 
-			CoordPoint[] coordinatesSimplified = simplify.simplify( coordinatePoints, slopeSimplificationTolerance, true );
+			// Simplify coordinatesSimplified.
+			if ( slopeSimplificationTolerance > 0 ) {
+				Simplify<CoordPoint> simplify = new Simplify<CoordPoint>( new CoordPoint[0] );
+				coordinatesSimplified = simplify.simplify( coordinatesSimplified, slopeSimplificationTolerance, true );
+			}
 
+			// Flatten altitude noise in coordinatesSimplified.
+			if ( ( flattenWindowSize & 1) != 0 && flattenWindowSize > 5 ) {	// Must be odd and >= 5
+				float[] xs = new float[coordinatesSimplified.length];
+				float[] ys = new float[coordinatesSimplified.length];
+				float[] altsFlattened = new float[coordinatesSimplified.length];
+				for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
+					xs[i] = (float) coordinatesSimplified[i].accumulatedDistance;
+					ys[i] = (float) coordinatesSimplified[i].alt;
+				}
+				SgFilter sgf = new SgFilter( flattenWindowSize );
+				sgf.process(ys, xs, altsFlattened);
+				for ( int i = 0; i < altsFlattened.length; i++ ) {
+					Float alt = (Float) altsFlattened[i];
+					coordinatesSimplified[i].setAlt( alt.doubleValue() );
+				}
+			}
+
+			// Calc slope for coordinatesSimplified. (Uses distance between points of full coordinates array)
 			for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
 				if ( i != 0 ) {
 					double distance = coordinatesSimplified[i].accumulatedDistance - coordinatesSimplified[i-1].accumulatedDistance;
@@ -290,6 +315,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				}
 			}
 
+			// Maybe add coordinatesSimplified to response.
 			if ( responseIncludeList.contains( "coordinatesSimplified" ) ) {
 				WritableArray coordinatesSimplifiedResponseArray = new WritableNativeArray();
 				for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
@@ -297,7 +323,6 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				}
 				responseParams.putArray( "coordinatesSimplified", coordinatesSimplifiedResponseArray );
 			}
-
 		}
 
 		// Draw the path, but maybe use simplified slopes (if slopeSimplificationTolerance greater 0).
@@ -333,7 +358,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		// Maybe add coordinates to promise response.
 		if ( responseIncludeList.contains( "coordinates" ) ) {
 			// if simplification happend, then this loop is already done. Otherwise do it again.
-			if ( 0 == coordinatesResponseArray.size() ) {
+			if ( coordinates.length > 0 && 0 == coordinatesResponseArray.size() ) {
 				double accumulatedDistance = 0;
 				for (int i = 0; i < coordinates.length; i++) {
 					double distanceToLast = i == 0
@@ -361,6 +386,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 	}
 
+	// Implements Point, so Simplify can use an array of these.
 	private static class CoordPoint implements Point {
 
 		int index;		// index within original coordinates
@@ -390,6 +416,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		public void setSlope( double slope ) {
 			this.slope = slope;
+		}
+
+		public void setAlt( double alt ) {
+			this.alt = alt;
 		}
 
 		public void setDistanceLast( double distanceLast ) {

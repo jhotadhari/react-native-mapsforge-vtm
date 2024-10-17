@@ -103,6 +103,9 @@ dependencies {
 	// simplify-java - Simplification of a 2D-polyline or a 3D-polyline
 	implementation 'com.goebl:simplify:1.0.0'
 
+	// savitzky–golay filter - smoothing data
+	implementation("io.vacco.savitzky-golay:savitzky-golay:1.0.1")
+
 	// https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
 	implementation 'com.github.mapsforge.vtm:vtm:0.22.0'
 	implementation 'com.github.mapsforge.vtm:vtm-themes:0.22.0'

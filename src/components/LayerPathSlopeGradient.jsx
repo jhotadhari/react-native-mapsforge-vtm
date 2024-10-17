@@ -19,6 +19,7 @@ const LayerPathSlopeGradient = ( {
 	strokeWidth,
 	slopeColors,
 	slopeSimplificationTolerance,
+	flattenWindowSize,
 	responseInclude,
 	onCreate,
 	onRemove,
@@ -32,7 +33,8 @@ const LayerPathSlopeGradient = ( {
 	positions = isArray( positions ) ? positions : [];
 	filePath = isString( filePath ) && filePath.length > 0 ? filePath : '';
 	strokeWidth = isNumber( strokeWidth ) && !! strokeWidth ? parseInt( strokeWidth, 10 ) : 4;
-	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 5;
+	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 7;
+	flattenWindowSize = isNumber( flattenWindowSize ) && flattenWindowSize % 2 != 0 && flattenWindowSize > 5 ? flattenWindowSize : 9;
 	slopeColors = isArray( slopeColors ) ? slopeColors.sort( ( a, b ) => {
 		if ( a[0] < b[0] ) {
 		  	return -1;
@@ -70,6 +72,7 @@ const LayerPathSlopeGradient = ( {
 				strokeWidth,
 				slopeColors,
 				slopeSimplificationTolerance,
+				flattenWindowSize,
 				responseInclude,
 				reactTreeIndex,
 			).then( response => {
@@ -130,6 +133,7 @@ const LayerPathSlopeGradient = ( {
 			: null
 		),
 		slopeSimplificationTolerance,
+		flattenWindowSize,
 	] );
 
 	return null;
