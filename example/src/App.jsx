@@ -18,6 +18,9 @@ import {
 	View,
 	NativeEventEmitter,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+console.log( 'debug GestureHandlerRootView', GestureHandlerRootView ); // debug
 
 /**
  * react-native-mapsforge dependencies
@@ -44,6 +47,7 @@ const { MapContainerModule } = nativeMapModules;
 /**
  * Internal dependencies
  */
+import ChartWrapper from './components/ChartWrapper.jsx';
 import PickerModalControl from './components/PickerModalControl.jsx';
 import usePermissionsOk from './compose/usePermissionsOk.jsx';
 import { randomNumber } from './utils';
@@ -116,44 +120,44 @@ const App = () => {
 	const { permissionsOk, requestPermission } = usePermissionsOk();
 
 
-	const [barTopHeight,setBarTopHeight] = useState( null );
-	const [barBottomHeight,setBottomTopHeight] = useState( null );
+	const [barTopHeight,setBarTopHeight] = useState( 0 );
+	const [barBottomHeight,setBottomTopHeight] = useState( 0 );
 
 
 
 
-	const [randomCenter,setRandomCenter] = useState( [-12.65, -75.239] );
-	const doNewRandomCenter = () => setRandomCenter( [
-		randomNumber( -12, -13 ),	// lat
-		randomNumber( -74, -75 ),	// long
-	] );
+	// const [randomCenter,setRandomCenter] = useState( [-12.65, -75.239] );
+	// const doNewRandomCenter = () => setRandomCenter( [
+	// 	randomNumber( -12, -13 ),	// lat
+	// 	randomNumber( -74, -75 ),	// long
+	// ] );
 
-	const [randomZoom,setRandomZoom] = useState( 8 );
-	const doNewRandomZoom = () => setRandomZoom( Math.round( randomNumber( 8, 16 ) ) );
+	// const [randomZoom,setRandomZoom] = useState( 8 );
+	// const doNewRandomZoom = () => setRandomZoom( Math.round( randomNumber( 8, 16 ) ) );
 
-	const [randomMinZoom,setRandomMinZoom] = useState( 2 );
-	const doNewRandomMinZoom = () => setRandomMinZoom( Math.round( randomNumber( 5, 20 ) ) );
+	// const [randomMinZoom,setRandomMinZoom] = useState( 2 );
+	// const doNewRandomMinZoom = () => setRandomMinZoom( Math.round( randomNumber( 5, 20 ) ) );
 
-	const [randomMaxZoom,setRandomMaxZoom] = useState( 20 );
-	const doNewRandomMaxZoom = () => setRandomMaxZoom( Math.round( randomNumber( 5, 20 ) ) );
-
-
-	const [randomViewportVal,setRandomViewportVal] = useState( 0 );
-	const doNewViewportVal = () => setRandomViewportVal( Math.round( randomNumber( 200, 400 ) ) );
+	// const [randomMaxZoom,setRandomMaxZoom] = useState( 20 );
+	// const doNewRandomMaxZoom = () => setRandomMaxZoom( Math.round( randomNumber( 5, 20 ) ) );
 
 
+	// const [randomViewportVal,setRandomViewportVal] = useState( 0 );
+	// const doNewViewportVal = () => setRandomViewportVal( Math.round( randomNumber( 200, 400 ) ) );
 
 
-	const [moveEnabled,setMoveEnabled] = useState( true );
-	const [tiltEnabled,setTiltEnabled] = useState( true );
-	const [rotationEnabled,setRotationEnabled] = useState( true );
-	const [zoomEnabled,setZoomEnabled] = useState( true );
+
+
+	// const [moveEnabled,setMoveEnabled] = useState( true );
+	// const [tiltEnabled,setTiltEnabled] = useState( true );
+	// const [rotationEnabled,setRotationEnabled] = useState( true );
+	// const [zoomEnabled,setZoomEnabled] = useState( true );
 
 
 	const promiseQueueState = usePromiseQueueState();
 
 	// const [mapFile, setMapFile] = useState( mapFileOptions[0].value );
-	const [showLayerMapsforge, setShowLayerMapsforge] = useState( true );
+	// const [showLayerMapsforge, setShowLayerMapsforge] = useState( true );
 	const [showLayerBitmapTile, setShowLayerBitmapTile] = useState( true );
 	// const [showMarkers, setShowMarkers] = useState( true );
 
@@ -163,12 +167,38 @@ const App = () => {
 
 	const [renderOverlayOptions, setRenderOverlayOptions] = useState( [] );
 
-	const [renderOverlays, setRenderOverlays] = useState( [] );
+	const [renderOverlays, setRenderOverlays] = useState( [
+		'alti-background-h',
+		'alti-buildings-h',
+		'alti-car-h',
+		'alti-shops-h',
+		'alti-accommodation-h',
+		'alti-emergency-h',
+		'alti-sports-h',
+		'alti-borders-h',
+		'alti-landscapefeat-h',
+		'alti-amenities-h',
+		'alti-settlements-h',
+		'alti-acc_allowed-h',
+		'alti-tourism-h',
+		'alti-h_s_routes',
+		'alti-road_surfaces-h',
+		'alti-waymarks',
+		'alti-barriers-h',
+		'alti-pubtrans-h',
+		'alti-restaurants-h',
+		'alti-h_routes',
+	] );
 	const [renderTheme, setRenderTheme] = useState( renderThemeOptions.find( o => o.label === 'Alti' ).value );
 
 
-	const [strokeWidth, setStrokeWidth] = useState( 4 );
+	const [coordinates, setCoordinates] = useState( [] );
+	const [coordinatesSimplified, setCoordinatesSimplified] = useState( [] );
 
+
+
+	const [slopeSimplificationTolerance, setSlopeSimplificationTolerance] = useState( 7 );
+	const [flattenWindowSize, setFlattenWindowSize] = useState( 9 );
 
 
 
@@ -240,7 +270,6 @@ const App = () => {
 		if ( ! renderStyle && renderStyleDefaultId ) {
 			setRenderStyle( renderStyleDefaultId );
 		}
-
 		if ( ! renderOverlayOptions.length ) {
 			const renderStyleOptions_ = renderStyleOptions.find( opt => opt.value === renderStyle );
 			if ( undefined !== renderStyleOptions_ ) {
@@ -250,8 +279,6 @@ const App = () => {
 						label: renderStyleOptions_.options[value],
 					};
 				} );
-
-				// console.log( 'debug test newItems', newItems ); // debug
 				setRenderOverlayOptions( newItems );
 			}
 		}
@@ -267,11 +294,18 @@ const App = () => {
 		height,
 	} = useWindowDimensions();
 
-	const mapHeight = barTopHeight && barBottomHeight
-		? height - barTopHeight - barBottomHeight
-		: null;
+	const mapHeight = height - barTopHeight - barBottomHeight;
+
+
+		console.log( 'debug mapHeight', mapHeight ); // debug
+
+
+	// ??? TODO hillshading layer.
+	// 		see vtm MBTilesBitmapTileDataSource, MBTilesTileDataSource, ITileDataSource
+	// 		see mapsforge MemoryCachingHgtReaderTileSource.getHillshadingBitmap
 
 	return (
+		<GestureHandlerRootView style={{ flex: 1 }}>
 		<SafeAreaView style={ {
 			...style,
 			height,
@@ -326,200 +360,62 @@ const App = () => {
 						style={ {
 							flexDirection: 'row',
 							width,
-							justifyContent: 'space-evenly',
+							justifyContent: 'space-around',
 							alignItems: 'center',
 							marginBottom: 10,
 						} }
 					>
+
+
+						<Text style={ {width: 100} }>Simplification</Text>
+
+						<Text style={ {width: 30} }>{ slopeSimplificationTolerance }</Text>
+
 						<Button
-							onPress={ () => doNewViewportVal() }
-							title="rand"
+							onPress={ () => setSlopeSimplificationTolerance( slopeSimplificationTolerance + 1 ) }
+							title="  +  "
 							disabled={ promiseQueueState > 0 }
 						/>
 						<Button
-							onPress={ () => setStrokeWidth( strokeWidth + 1 ) }
-							title="+"
-							disabled={ promiseQueueState > 0 }
+							onPress={ () => setSlopeSimplificationTolerance( Math.max( 0, slopeSimplificationTolerance -1 ) ) }
+							title="  -  "
+							disabled={ promiseQueueState > 0 || slopeSimplificationTolerance == 0 }
 						/>
-						<Button
-							onPress={ () => setStrokeWidth( Math.max( 0, strokeWidth -1 ) ) }
-							title="-"
-							disabled={ promiseQueueState > 0 || strokeWidth == 0 }
-						/>
-
-						{/*
-						<Button
-							onPress={ () => doNewRandomZoom() }
-							title="z rand"
-							disabled={ promiseQueueState > 0 }
-						/>
-						<Button
-							onPress={ () => doNewRandomMinZoom() }
-							title="z min rand"
-							disabled={ promiseQueueState > 0 }
-						/>
-						<Button
-							onPress={ () => doNewRandomMaxZoom() }
-							title="z max rand"
-							disabled={ promiseQueueState > 0 }
-						/>
-
-						<Button
-							onPress={ () => {
-								setShowLayerMapsforge( ! showLayerMapsforge );
-							} }
-							title="Toggle Vector"
-							disabled={ promiseQueueState > 0 }
-						/>
-
-						<Button
-							onPress={ () => {
-								setShowLayerBitmapTile( ! showLayerBitmapTile );
-							} }
-							title="Toggle Bitmap"
-							disabled={ promiseQueueState > 0 }
-						/> */}
-
-
-						{/* <Button
-							onPress={ () => {
-								setMoveEnabled( ! moveEnabled );
-							} }
-							title="Toggle move"
-							disabled={ promiseQueueState > 0 }
-						/>
-
-
-						<Button
-							onPress={ () => {
-								setTiltEnabled( ! tiltEnabled );
-							} }
-							title="Toggle tilt"
-							disabled={ promiseQueueState > 0 }
-						/>
-
-
-						<Button
-							onPress={ () => {
-								setRotationEnabled( ! rotationEnabled );
-							} }
-							title="Toggle rotation"
-							disabled={ promiseQueueState > 0 }
-						/>
-
-
-						<Button
-							onPress={ () => {
-								setZoomEnabled( ! zoomEnabled );
-							} }
-							title="Toggle zoom"
-							disabled={ promiseQueueState > 0 }
-						/> */}
-
-
 
 
 					</View>
-				</View>
 
 
-				{ mapHeight && <MapContainer
-					// width={ width }
-					height={ mapHeight }
-					center={ randomCenter }
-					zoomLevel={ 12 }
-					mapViewNativeTag={ mainMapViewId }
-					setMapViewNativeTag={ setMainMapViewId }
-					minZoom={ randomMinZoom }
-					maxZoom={ randomMaxZoom }
-
-
-					// bearing={ randomViewportVal }
-
-
-
-					moveEnabled = { moveEnabled }
-					tiltEnabled = { tiltEnabled }
-					rotationEnabled = { rotationEnabled }
-					zoomEnabled = { zoomEnabled }
-
-
-
-
-					onPause={ result => {
-						console.log( 'debug lifecycle event onPause', result );
-					} }
-					onResume={ result => {
-						console.log( 'debug lifecycle event onResume', result );
-					} }
-				>
-
-					{/* <MapEvents
-						nativeTag={ mainMapViewId }
-					/> */}
-
-
-					{/* { showLayerBitmapTile && <LayerBitmapTile
-						url={ 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}' }
-						cacheSize={ 10 * 1024 * 1024 }
-					/> } */}
-
-					{/* { showLayerBitmapTile && <LayerMBTilesBitmap
-						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
-					/> } */}
-
-					<LayerMapsforge
-						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
-						renderTheme={ renderTheme }
-						renderStyle={ renderStyle }
-						renderOverlays={ renderOverlays }
-					/>
-
-
-
-					<LayerPathSlopeGradient
-						strokeWidth={ strokeWidth }
-						slopeColors={ [
-							[-25, '#000a70'],
-							[-10, '#0000ff'],
-							[-5, '#01c2ff'],
-							[0, '#35fd2d'],
-							[5, '#f9ff00'],
-							[10, '#ff0000'],
-							[25, '#810500'],
-						] }
-						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-09 0817__20241009_0817.gpx' }
-					/>
-
-
-					{/* }
-					{ showMarkers && [...locations].map( ( latLong, index ) => <Marker
-						latLong={ latLong }
-						key={ index }
-						tabDistanceThreshold={ 80 }
-						icon={ icons[iconIndex] }
-						onTab={ res => {
-							console.log( 'debug Marker res', res ); // debug
+					<View
+						style={ {
+							flexDirection: 'row',
+							width,
+							justifyContent: 'space-around',
+							alignItems: 'center',
+							marginBottom: 10,
 						} }
-					/> ) } */}
+					>
 
-					<LayerScalebar/>
+						<Text style={ {width: 100} }>Flattening</Text>
+						<Text style={ {width: 30} }>{ flattenWindowSize }</Text>
 
-				</MapContainer> }
 
 
-				<View
-					onLayout={ e => {
-						const { height } = e.nativeEvent.layout;
-						setBottomTopHeight( height );
-					} }
-					style={ {
-						...style,
-						position: 'relative',
-						width,
-						paddingTop: 10,
-					} }
-				>
+						<Button
+							onPress={ () => setFlattenWindowSize( flattenWindowSize + 2 ) }
+							title="  +  "
+							disabled={ promiseQueueState > 0 }
+						/>
+						<Button
+							onPress={ () => setFlattenWindowSize( Math.max( 5, flattenWindowSize - 2 ) ) }
+							title="  -  "
+							disabled={ promiseQueueState > 0 || flattenWindowSize == 5 }
+						/>
+
+					</View>
+
+
+					{/*
 
 					<View
 						style={ {
@@ -578,7 +474,129 @@ const App = () => {
 							} }
 							closeOnChange={ false }
 						/>
-					</View>
+					</View> */}
+
+				</View>
+
+
+				{ mapHeight && <MapContainer
+					// width={ width }
+					height={ mapHeight }
+					center={ [-12.65, -75.239] }	// ??? maybe other way around, should do everywhere same order!!!
+					zoomLevel={ 12 }
+					mapViewNativeTag={ mainMapViewId }
+					setMapViewNativeTag={ setMainMapViewId }
+					minZoom={ 2 }
+					maxZoom={ 20 }
+
+
+					tiltEnabled = { false }
+					rotationEnabled = { false }
+
+
+
+					onPause={ result => {
+						console.log( 'debug lifecycle event onPause', result );
+					} }
+					onResume={ result => {
+						console.log( 'debug lifecycle event onResume', result );
+					} }
+				>
+
+					{/* <MapEvents
+						nativeTag={ mainMapViewId }
+					/> */}
+
+
+					{/* { showLayerBitmapTile && <LayerBitmapTile
+						url={ 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}' }
+						cacheSize={ 10 * 1024 * 1024 }
+					/> } */}
+
+
+					{ showLayerBitmapTile && <LayerMBTilesBitmap
+						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
+					/> }
+
+					<LayerMapsforge
+						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
+						renderTheme={ renderTheme }
+						renderStyle={ renderStyle }
+						renderOverlays={ renderOverlays }
+					/>
+
+					<LayerPathSlopeGradient
+						slopeSimplificationTolerance={ slopeSimplificationTolerance }
+						flattenWindowSize={ flattenWindowSize }
+						onCreate={ response => {
+
+							console.log( 'debug response', response ); // debug
+
+							if ( response.coordinates ) {
+								setCoordinates( response.coordinates );
+							}
+							if ( response.coordinatesSimplified ) {
+								setCoordinatesSimplified( response.coordinatesSimplified );
+							}
+						} }
+						onRemove={ () => {
+							setCoordinates( [] );
+							setCoordinatesSimplified( [] );
+						} }
+						responseInclude={ {
+							coordinates: true,
+							coordinatesSimplified: true,
+						} }
+						filePath={ '/storage/emulated/0/Android/media/jhotadhari.reactnative.mapsforge.vtm.example/dummy/randomTrack.gpx' }
+					/>
+					{/* <LayerPathSlopeGradient
+						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-08 0900__20241008_0900.gpx' }
+					/>
+
+					<LayerPathSlopeGradient
+						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-07 1000__20241007_1000.gpx' }
+					/>
+
+					<LayerPathSlopeGradient
+						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-06 1026__20241006_1026.gpx' }
+					/> */}
+
+
+
+					{/* }
+					{ showMarkers && [...locations].map( ( latLong, index ) => <Marker
+						latLong={ latLong }
+						key={ index }
+						tabDistanceThreshold={ 80 }
+						icon={ icons[iconIndex] }
+						onTab={ res => {
+							console.log( 'debug Marker res', res ); // debug
+						} }
+					/> ) } */}
+
+					<LayerScalebar/>
+
+				</MapContainer> }
+
+
+				<View
+					onLayout={ e => {
+						const { height } = e.nativeEvent.layout;
+						setBottomTopHeight( height );
+					} }
+					style={ {
+						...style,
+						position: 'relative',
+						width,
+						// paddingTop: 10,
+					} }
+				>
+
+					<ChartWrapper
+						coordinates={ coordinates }
+						coordinatesSimplified={ coordinatesSimplified }
+					/>
+
 				</View>
 
 			</View> }
@@ -651,6 +669,8 @@ const App = () => {
 
 			{/* </View> */}
 		</SafeAreaView>
+
+		</GestureHandlerRootView>
 	);
 };
 
