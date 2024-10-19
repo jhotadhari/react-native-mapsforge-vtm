@@ -1,7 +1,6 @@
 // replace with your package
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
-import android.util.Log;
 import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;

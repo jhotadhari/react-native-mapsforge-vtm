@@ -1,26 +1,18 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
-
-import android.content.DialogInterface;
-import android.util.Log;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.android.tiling.source.mbtiles.MBTilesBitmapTileSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileSource;
 import org.oscim.backend.canvas.Color;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
-import org.oscim.tiling.source.OkHttpEngine;
-import org.oscim.tiling.source.bitmap.BitmapTileSource;
 
 import java.io.File;
-import java.net.URL;
-import java.util.Collections;
-
-import okhttp3.Cache;
-import okhttp3.OkHttpClient;
 
 public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 
@@ -28,7 +20,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
         return "MapLayerMBTilesBitmapModule";
     }
 
-    MapLayerMBTilesBitmapModule(ReactApplicationContext context) {
+    public MapLayerMBTilesBitmapModule(ReactApplicationContext context) {
         super(context);
     }
 

@@ -1,6 +1,4 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
-
-import android.util.Log;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -8,6 +6,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.UiThreadUtil;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
@@ -15,7 +14,7 @@ import org.oscim.core.MapPosition;
 
 public class MapContainerModule extends ReactContextBaseJavaModule {
 
-    MapContainerModule(ReactApplicationContext context) {
+    public MapContainerModule(ReactApplicationContext context) {
         super(context);
     }
 

@@ -13,10 +13,9 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,9 +23,12 @@ import android.view.ViewGroup;
 
 import androidx.fragment.app.Fragment;
 
-import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
+import com.jhotadhari.reactnative.mapsforge.vtm.HardwareKeyListener;
+import com.jhotadhari.reactnative.mapsforge.vtm.R;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import android.widget.RelativeLayout;
 

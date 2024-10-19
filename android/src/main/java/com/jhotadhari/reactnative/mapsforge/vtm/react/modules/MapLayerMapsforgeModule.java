@@ -1,16 +1,16 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.net.Uri;
-import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 //import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 //import org.mapsforge.map.android.util.AndroidUtil;
@@ -32,35 +32,21 @@ import com.facebook.react.bridge.WritableNativeMap;
 //import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
 
 import org.oscim.android.MapView;
-import org.oscim.backend.CanvasAdapter;
-import org.oscim.core.MapPosition;
-import org.oscim.core.Tile;
 import org.oscim.layers.GroupLayer;
-import org.oscim.layers.Layer;
-import org.oscim.layers.tile.TileLoader;
-import org.oscim.layers.tile.TileManager;
 import org.oscim.layers.tile.buildings.BuildingLayer;
 import org.oscim.layers.tile.vector.OsmTileLayer;
 import org.oscim.layers.tile.vector.VectorTileLayer;
 import org.oscim.layers.tile.vector.labeling.LabelLayer;
-import org.oscim.renderer.GLViewport;
-import org.oscim.scalebar.DefaultMapScaleBar;
-import org.oscim.scalebar.ImperialUnitAdapter;
-import org.oscim.scalebar.MapScaleBarLayer;
-import org.oscim.scalebar.MetricUnitAdapter;
 import org.oscim.theme.IRenderTheme;
-import org.oscim.theme.RenderTheme;
 import org.oscim.theme.ThemeLoader;
 import org.oscim.theme.XmlRenderThemeMenuCallback;
 import org.oscim.theme.XmlRenderThemeStyleLayer;
 import org.oscim.theme.XmlRenderThemeStyleMenu;
 import org.oscim.theme.internal.VtmThemes;
 import org.oscim.tiling.source.mapfile.MapFileTileSource;
-import org.oscim.tiling.source.mapfile.MapInfo;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -71,7 +57,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
         return "MapLayerMapsforgeModule";
     }
 
-    MapLayerMapsforgeModule(ReactApplicationContext context) {
+    public MapLayerMapsforgeModule(ReactApplicationContext context) {
         super(context);
     }
 

@@ -1,9 +1,10 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.layers.Layer;
@@ -17,7 +18,7 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
 	protected Map<Integer, Layer> layers = new HashMap<>();
 
-    MapLayerBase(ReactApplicationContext context) {
+    public MapLayerBase(ReactApplicationContext context) {
         super(context);
     }
 

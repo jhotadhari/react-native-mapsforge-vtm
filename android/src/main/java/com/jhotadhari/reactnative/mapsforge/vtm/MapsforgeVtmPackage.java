@@ -4,6 +4,15 @@ import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.uimanager.ViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerHillshadingModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapContainerModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerBitmapTileModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMBTilesBitmapModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMapsforgeModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathSlopeGradientModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerScalebarModule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +35,7 @@ public class MapsforgeVtmPackage implements ReactPackage {
         modules.add(new MapLayerMapsforgeModule(reactContext));
         modules.add(new MapLayerBitmapTileModule(reactContext));
         modules.add(new MapLayerMBTilesBitmapModule(reactContext));
+        modules.add(new MapLayerHillshadingModule(reactContext));
         modules.add(new MapLayerScalebarModule(reactContext));
         modules.add(new MapLayerPathModule(reactContext));
         modules.add(new MapLayerPathSlopeGradientModule(reactContext));

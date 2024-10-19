@@ -1,7 +1,5 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
@@ -15,8 +13,8 @@ import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
