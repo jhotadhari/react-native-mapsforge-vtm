@@ -31,7 +31,7 @@ import {
 	LayerPathSlopeGradient,
 	LayerPath,
 	// LayerDownload,
-	// LayerHillshading,
+	LayerHillshading,
 	// Marker,
 	// Polyline,
 	usePromiseQueueState,
@@ -163,7 +163,28 @@ const App = () => {
 
 	const [renderOverlayOptions, setRenderOverlayOptions] = useState( [] );
 
-	const [renderOverlays, setRenderOverlays] = useState( [] );
+	const [renderOverlays, setRenderOverlays] = useState( [
+		'alti-background-h',
+		'alti-buildings-h',
+		'alti-car-h',
+		'alti-shops-h',
+		'alti-accommodation-h',
+		'alti-emergency-h',
+		'alti-sports-h',
+		'alti-borders-h',
+		'alti-landscapefeat-h',
+		'alti-amenities-h',
+		'alti-settlements-h',
+		'alti-acc_allowed-h',
+		'alti-tourism-h',
+		'alti-h_s_routes',
+		'alti-road_surfaces-h',
+		'alti-waymarks',
+		'alti-barriers-h',
+		'alti-pubtrans-h',
+		'alti-restaurants-h',
+		'alti-h_routes',
+	] );
 	const [renderTheme, setRenderTheme] = useState( renderThemeOptions.find( o => o.label === 'Alti' ).value );
 
 
@@ -464,9 +485,9 @@ const App = () => {
 						cacheSize={ 10 * 1024 * 1024 }
 					/> } */}
 
-					{/* { showLayerBitmapTile && <LayerMBTilesBitmap
+					<LayerMBTilesBitmap
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
-					/> } */}
+					/>
 
 					<LayerMapsforge
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
@@ -475,6 +496,19 @@ const App = () => {
 						renderOverlays={ renderOverlays }
 					/>
 
+					<LayerHillshading
+						hgtDirPath="/storage/emulated/0/Documents/orux/dem"
+						cacheSize={ 512 }
+						zoomMin={ 2 }
+						zoomMax={ randomMaxZoom }
+						shadingAlgorithm={ LayerHillshading.shadingAlgorithms.SIMPLE }
+
+						magnitude={ 90 }
+						shadingAlgorithmOptions={ {
+							linearity: -1,
+							scale: 1,
+						} }
+					/>
 
 
 					<LayerPathSlopeGradient

@@ -10,20 +10,25 @@ import org.mapsforge.core.util.MercatorProjection;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.graphics.AndroidHillshadingBitmap;
 import org.mapsforge.map.layer.hills.DemFolderFS;
-import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
 import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
+import org.mapsforge.map.layer.hills.ShadingAlgorithm;
+import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.mapsforge.map.layer.renderer.HillshadingContainer;
 import org.mapsforge.map.layer.renderer.ShapeContainer;
 import org.oscim.android.canvas.AndroidBitmap;
 import org.oscim.backend.CanvasAdapter;
 import org.oscim.core.Point;
+import org.oscim.core.Tile;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.map.Viewport;
+import org.oscim.tiling.ITileCache;
 import org.oscim.tiling.ITileDataSink;
 import org.oscim.tiling.ITileDataSource;
 import org.oscim.tiling.QueryResult;
 import org.oscim.tiling.TileSource;
+import org.oscim.tiling.source.ITileDecoder;
+import org.oscim.utils.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,22 +36,43 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 public class HillshadingTileSource extends TileSource {
+	private static final Logger log = LoggerFactory.getLogger( HillshadingTileSource.class );
 
 	private final String mHgtDirPath;
 
+	private final ShadingAlgorithm mShadingAlgorithm;
+	private final short mMagnitude;
+
 	public HillshadingTileSource( String hgtDirPath ) {
-		this( hgtDirPath, Viewport.MIN_ZOOM_LEVEL, Viewport.MAX_ZOOM_LEVEL );
+		this(
+			hgtDirPath,
+			Viewport.MIN_ZOOM_LEVEL,
+			Viewport.MAX_ZOOM_LEVEL,
+			new SimpleShadingAlgorithm( -1d, 1d ),
+			(short) 90
+		);
 	}
 
-	public HillshadingTileSource( String hgtDirPath, int zoomMin, int zoomMax ) {
+	public HillshadingTileSource(
+		String hgtDirPath,
+		int zoomMin,
+		int zoomMax,
+		ShadingAlgorithm shadingAlgorithm,
+		short magnitude
+	) {
 		super( zoomMin, zoomMax );
 		mHgtDirPath = hgtDirPath;
+		mShadingAlgorithm = shadingAlgorithm;
+
+		mMagnitude = magnitude;
 	}
 
 	public String getHgtDirPath() {
@@ -54,7 +80,14 @@ public class HillshadingTileSource extends TileSource {
 	}
 	@Override
 	public ITileDataSource getDataSource() {
-		return new HillshadingTileDataSource(this );
+		return new HillshadingTileDataSource(
+			this,
+			new TileDecoder(),
+
+			mShadingAlgorithm,
+
+			mMagnitude
+		);
 	}
 
 	@Override
@@ -67,26 +100,49 @@ public class HillshadingTileSource extends TileSource {
 		getDataSource().dispose();
 	}
 
+	public static class TileDecoder implements ITileDecoder {
+
+		@Override
+		public boolean decode(Tile tile, ITileDataSink sink, InputStream is)
+			throws IOException {
+
+			org.oscim.backend.canvas.Bitmap bitmap = CanvasAdapter.decodeBitmap(is);
+			if ( ! bitmap.isValid() ) {
+				log.debug("{} invalid bitmap", tile);
+				return false;
+			}
+			sink.setTileImage(bitmap);
+
+			return true;
+		}
+	}
+
 	protected class HillshadingTileDataSource implements ITileDataSource {
-		private static final Logger log = LoggerFactory.getLogger( HillshadingTileDataSource.class );
 		protected final HillshadingTileSource mTileSource;
 		protected final HillsRenderConfig hillsCfg;
 		protected final short mMagnitude;
+		protected final ITileDecoder mTileDecoder;
 
-		public HillshadingTileDataSource( HillshadingTileSource hillshadingTileSource ) {
+		public HillshadingTileDataSource(
+			HillshadingTileSource hillshadingTileSource,
+			ITileDecoder tileDecoder,
+			ShadingAlgorithm shadingAlgorithm,
+			short magnitude
+		) {
 			mTileSource = hillshadingTileSource;
-			mMagnitude = 90;
+			mMagnitude = magnitude;
 
 			MemoryCachingHgtReaderTileSource hgtReaderTileSource = new MemoryCachingHgtReaderTileSource(
 				new DemFolderFS( getDemFolder( mTileSource.getHgtDirPath() ) ),
-				new DiffuseLightShadingAlgorithm( 30f ),
-//				new SimpleShadingAlgorithm( -1d, 1d ),
+				shadingAlgorithm,
 				AndroidGraphicFactory.INSTANCE
 			);
 
 			hgtReaderTileSource.setEnableInterpolationOverlap( true );
 			hillsCfg = new HillsRenderConfig( hgtReaderTileSource );
 			hillsCfg.indexOnThread();
+			mTileDecoder = tileDecoder;
+
 		}
 
 		private static File getDemFolder( String hgtDirPath ) {
@@ -101,14 +157,54 @@ public class HillshadingTileSource extends TileSource {
 		public void query( final MapTile tile, final ITileDataSink sink ) {
 			QueryResult res = QueryResult.FAILED;
 
-			// Mostly copy of org.mapsforge.map.rendertheme.renderinstruction.Hillshading render method.
-			// See https://github.com/mapsforge/mapsforge/blob/e45c41dc46cdfdf0770d687adee8f6d051511f5e/mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/renderinstruction/Hillshading.java#L57
-			try {
+			// Out of zoom bounds, load nothing.
+			byte zoomLevel = tile.zoomLevel;
+			if ( tile.zoomLevel > mTileSource.getZoomLevelMax() || zoomLevel < mTileSource.getZoomLevelMin() ) {
+				res = QueryResult.SUCCESS;
+			}
 
-				float effectiveMagnitude = Math.min( Math.max( 0f, mMagnitude * hillsCfg.getMaginuteScaleFactor() ), 255f) / 255f;
-				byte zoomLevel = tile.zoomLevel;
-				if ( zoomLevel > mTileSource.getZoomLevelMax() || zoomLevel < mTileSource.getZoomLevelMin() )	// ??? from react props
-					return;
+			// Maybe try to load from cache.
+			res = mTileSource.tileCache != null && res == QueryResult.FAILED ? loadFromCache( tile, sink, mTileSource.tileCache ) : res;
+
+			// Create a new hillshading tile.
+			res = res == QueryResult.FAILED ? loadNew( tile, sink, mTileSource.tileCache ) : res;
+
+			sink.completed( res );
+		}
+
+		/**
+		 * Load hillshading tile from cache and set the sink.
+		 * Mostly copy of org.oscim.tiling.source.UrlTileDataSource query method.
+		 */
+		protected QueryResult loadFromCache( final MapTile tile, final ITileDataSink sink, ITileCache cache ) {
+			if ( cache != null ) {
+				ITileCache.TileReader c = cache.getTile( tile );
+				if ( c != null ) {
+					InputStream is = c.getInputStream();
+					try {
+						if ( mTileDecoder.decode( tile, sink, is ) ) {
+							return QueryResult.SUCCESS;
+						}
+					} catch (IOException e) {
+						log.debug( "{} Cache read: {}", tile, e );
+					} finally {
+						IOUtils.closeQuietly(is);
+					}
+				}
+			}
+			return QueryResult.FAILED;
+		}
+
+		/**
+		 * Create new hillshading tile from hgt files and set the sink.
+		 * Mostly copy of org.mapsforge.map.rendertheme.renderinstruction.Hillshading render method.
+		 * @See https://github.com/mapsforge/mapsforge/blob/e45c41dc46cdfdf0770d687adee8f6d051511f5e/mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/renderinstruction/Hillshading.java#L57
+		 */
+		protected QueryResult loadNew( final MapTile tile, final ITileDataSink sink, ITileCache cache ) {
+			ITileCache.TileWriter cacheWriter = null;
+			QueryResult res = QueryResult.FAILED;
+			try {
+				float effectiveMagnitude = Math.min( Math.max( 0f, mMagnitude * hillsCfg.getMaginuteScaleFactor() ), 255f ) / 255f;
 
 				Point origin = tile.getOrigin();
 				double maptileTopLat = MercatorProjection.pixelYToLatitude( (long) origin.y, tile.mapSize );
@@ -237,6 +333,7 @@ public class HillshadingTileSource extends TileSource {
 				Bitmap androidBitmapResult = Bitmap.createBitmap( tile.SIZE, tile.SIZE, Bitmap.Config.ARGB_8888 );
 				android.graphics.Canvas androidCanvasResult = new android.graphics.Canvas( androidBitmapResult );
 				// Loop shaded parts and puzzle them together.
+				int heightCount = 0;
 				int left = 0;
 				for ( Integer lng : androidBitmapsLngs.keySet() ) {
 					Map<Integer, Bitmap> lats = androidBitmapsLngs.get( lng );
@@ -246,29 +343,56 @@ public class HillshadingTileSource extends TileSource {
 						Bitmap bitmapPart = lats.get( lat );
 						androidCanvasResult.drawBitmap(
 							bitmapPart,
-							left, 		// left
-							top, 		// top
+							left,
+							top,
 							null
 						);
 						top += bitmapPart.getHeight();
 						lastWidth = bitmapPart.getWidth();
+						if ( left == 0 ) {
+							heightCount += bitmapPart.getHeight();
+						}
 					}
 					left += lastWidth;
 				}
+				// Crop image to its content. On some zoomLevels one or two pixels missing.
+				Bitmap androidBitmapResultCropped = Bitmap.createBitmap(
+					androidBitmapResult,
+					0,								// start x
+					0,									// start y
+					Math.min( tile.SIZE, left ),		// width
+					Math.min( tile.SIZE, heightCount )	// height
+				);
 				// Convert to vtmCanvasBitmap and set it to sink.
-				AndroidBitmap vtmCanvasBitmapResult = androidBitmapToVtmCanvasBitmap( androidBitmapResult );
+				AndroidBitmap vtmCanvasBitmapResult = androidBitmapToVtmCanvasBitmap( androidBitmapResultCropped );
+				// Fix size, scale up to desired tile size.
+				vtmCanvasBitmapResult.scaleTo( tile.SIZE, tile.SIZE );
 				if ( ! vtmCanvasBitmapResult.isValid() ) {
 					log.debug("{} invalid bitmap", tile);
 				} else {
+					// Set sink
 					sink.setTileImage( vtmCanvasBitmapResult );
+					// Write to cache file.
+					if ( cache != null ) {
+						cacheWriter = cache.writeTile( tile );
+						OutputStream outputStream = cacheWriter.getOutputStream();
+						try {
+							byte[] pngBytes  = vtmCanvasBitmapResult.getPngEncodedData();
+							outputStream.write( pngBytes );
+						} catch ( IOException e ) {
+							log.error(e.toString(), e);
+						}
+					}
 					res = QueryResult.SUCCESS;
 				}
-
 			} catch ( Throwable t ) {
 				log.error( t.toString(), t );
 			} finally {
-				sink.completed( res );
+				if ( cacheWriter != null ) {
+					cacheWriter.complete( res == QueryResult.SUCCESS );
+				}
 			}
+			return res;
 		}
 
 		public static android.graphics.Bitmap convertMfTileBitmapToAndroidBitmap( org.mapsforge.core.graphics.TileBitmap mfTileBitmap ) throws IOException {
