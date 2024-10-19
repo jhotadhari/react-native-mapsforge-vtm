@@ -61,7 +61,6 @@ const LayerPathSlopeGradient = ( {
 	onCreate = isFunction( onCreate ) ? onCreate : null;
 	onRemove = isFunction( onRemove ) ? onRemove : null;
 
-
 	const createLayer = () => {
 		setHash( false );
 		promiseQueue.enqueue( () => {
@@ -79,7 +78,7 @@ const LayerPathSlopeGradient = ( {
 				if ( response.hash ) {
 					setHash( parseInt( response.hash, 10 ) );
 					setRandom( Math.random() );
-					onCreate( response );
+					isFunction( onCreate ) ? onCreate( response ) : null;
 				}
 
 			} );
@@ -116,7 +115,7 @@ const LayerPathSlopeGradient = ( {
                     if ( removedHash ) {
                         setHash( null )
                         setTriggerCreateNew( Math.random() );
-						onRemove( { removedHash } )
+						isFunction( onRemove ) ? onRemove( { removedHash } ) : null;
                     }
                 } );
             } );

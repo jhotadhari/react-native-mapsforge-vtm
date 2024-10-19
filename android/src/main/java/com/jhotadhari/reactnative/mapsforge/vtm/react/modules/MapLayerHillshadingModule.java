@@ -3,12 +3,18 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.tileSource.HillshadingTileSource;
 
+import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
+import org.mapsforge.map.layer.hills.ShadingAlgorithm;
+import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.oscim.android.MapView;
+import org.oscim.android.cache.TileCache;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
+import org.oscim.tiling.ITileCache;
 
 public class MapLayerHillshadingModule extends MapLayerBase {
 
@@ -20,9 +26,32 @@ public class MapLayerHillshadingModule extends MapLayerBase {
         super(context);
     }
 
+	@Override
+	public void createLayer(int reactTag, int reactTreeIndex, Promise promise) {
+		createLayer(
+			reactTag,
+			"",
+			(int) 6,
+			(int) 20,
+			"",
+			Utils.getEmptyReadableMap(),
+			(int) 90,
+			(int) 64,
+			reactTreeIndex,
+			promise
+		);
+	}
+
     @ReactMethod
     public void createLayer(
             int reactTag,
+			String hgtDirPath,
+			int zoomMin,
+			int zoomMax,
+			String shadingAlgorithmKey,
+			ReadableMap shadingAlgorithmOptions,
+			int magnitude,
+			int cacheSize,
             int reactTreeIndex,
             Promise promise
     ) {
@@ -35,19 +64,42 @@ public class MapLayerHillshadingModule extends MapLayerBase {
                 return;
             }
 
+			double linearity = shadingAlgorithmOptions.getDouble( "linearity" );
+			double scale = shadingAlgorithmOptions.getDouble( "scale" );
+			Double heightAngle = (Double) shadingAlgorithmOptions.getDouble( "heightAngle" );
 
-			// ??? react props
-			String hgtDirPath = "/storage/emulated/0/Documents/orux/dem";
-			HillshadingTileSource tileSource = new HillshadingTileSource( hgtDirPath );
+			String dbname = "hillshading_" + shadingAlgorithmKey;
+			ShadingAlgorithm shadingAlgorithm;
+			switch ( shadingAlgorithmKey ) {
+				case "DiffuseLightShadingAlgorithm":
+					shadingAlgorithm = new DiffuseLightShadingAlgorithm( heightAngle.floatValue() );
+					dbname += "_" + String.valueOf( heightAngle );
+					break;
+				default: {
+					shadingAlgorithm = new SimpleShadingAlgorithm( linearity, scale );
+					dbname += "_" + String.valueOf( linearity ) + "_" + String.valueOf( scale );
+				}
+			}
 
-			// ??? add int zoomMin, int zoomMax, int overZoom
-			// add react props for new DiffuseLightShadingAlgorithm( 30f ),
-			// add react props for new SimpleShadingAlgorithm( -1d, 1d ),h
-			// add react props for magnitude  ??? 
+			HillshadingTileSource tileSource = new HillshadingTileSource(
+				hgtDirPath,
+				zoomMin,
+				zoomMax,
+				shadingAlgorithm,
+				(short) magnitude
+			);
 
+			if ( cacheSize > 0 ) {
+				ITileCache mCache = new TileCache(
+					getCurrentActivity(),
+					getReactApplicationContext().getExternalCacheDir().getAbsolutePath(),
+					dbname
+				);
+				mCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+				tileSource.setCache( mCache );
+			}
 
 			BitmapTileLayer layer = new BitmapTileLayer( mapView.map(), tileSource );
-
 
 			mapView.map().layers().add(
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),

@@ -525,7 +525,19 @@ const App = () => {
 						renderOverlays={ renderOverlays }
 					/>
 
-					<LayerHillshading/>
+					<LayerHillshading
+						hgtDirPath="/storage/emulated/0/Documents/orux/dem"
+						cacheSize={ 512 }
+						zoomMin={ 2 }
+						zoomMax={ randomMaxZoom }
+						shadingAlgorithm={ LayerHillshading.shadingAlgorithms.SIMPLE }
+
+						magnitude={ 90 }
+						shadingAlgorithmOptions={ {
+							linearity: -1,
+							scale: 1,
+						} }
+					/>
 
 					<LayerPathSlopeGradient
 						slopeSimplificationTolerance={ slopeSimplificationTolerance }
