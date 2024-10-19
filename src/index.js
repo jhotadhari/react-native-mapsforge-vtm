@@ -4,6 +4,7 @@
 import MapContainer from './components/MapContainer.jsx';
 import LayerMapsforge from './components/LayerMapsforge.jsx';
 import LayerBitmapTile from './components/LayerBitmapTile.jsx';
+import LayerHillshading from './components/LayerHillshading.jsx';
 import LayerMBTilesBitmap from './components/LayerMBTilesBitmap.jsx';
 import LayerScalebar from './components/LayerScalebar.jsx';
 import LayerPath from './components/LayerPath.jsx';
@@ -21,6 +22,7 @@ export {
 	MapContainer,
 	LayerMapsforge,
 	LayerBitmapTile,
+	LayerHillshading,
 	LayerMBTilesBitmap,
 	LayerScalebar,
 	LayerPath,
