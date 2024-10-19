@@ -4,6 +4,14 @@ import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.uimanager.ViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapContainerModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerBitmapTileModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMBTilesBitmapModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMapsforgeModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathSlopeGradientModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerScalebarModule;
 
 import java.util.ArrayList;
 import java.util.Arrays;

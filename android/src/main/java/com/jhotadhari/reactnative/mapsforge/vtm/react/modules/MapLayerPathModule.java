@@ -1,12 +1,12 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
-
-import android.util.Log;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableType;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
@@ -32,7 +32,7 @@ public class MapLayerPathModule extends MapLayerBase {
 		return "MapLayerPathModule";
 	}
 
-	MapLayerPathModule(ReactApplicationContext context) {
+	public MapLayerPathModule(ReactApplicationContext context) {
 		super(context);
 	}
 

@@ -1,4 +1,4 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.util.Log;
 
@@ -13,6 +13,9 @@ import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.goebl.simplify.Simplify;
 import com.goebl.simplify.Point;
+import com.jhotadhari.reactnative.mapsforge.vtm.Gradient;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.oscim.android.MapView;
@@ -43,11 +46,11 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
         return "MapLayerPathSlopeGradientModule";
     }
 
-	MapLayerPathSlopeGradientModule(ReactApplicationContext context) {
+	public MapLayerPathSlopeGradientModule(ReactApplicationContext context) {
 		super(context);
 	}
 
-	protected static Gradient setupGradient( ReadableArray slopeColors ) {
+	protected static Gradient setupGradient(ReadableArray slopeColors ) {
 		float[] positions = new float[slopeColors.size()];
 		int[] colors = new int[slopeColors.size()];
 		for ( int i = 0; i < slopeColors.size(); i++ ) {

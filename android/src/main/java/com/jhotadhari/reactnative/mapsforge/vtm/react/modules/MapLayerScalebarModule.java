@@ -1,8 +1,10 @@
-package com.jhotadhari.reactnative.mapsforge.vtm;
+package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.backend.CanvasAdapter;
@@ -18,7 +20,7 @@ public class MapLayerScalebarModule extends MapLayerBase {
         return "MapLayerScalebarModule";
     }
 
-    MapLayerScalebarModule(ReactApplicationContext context) {
+	public MapLayerScalebarModule(ReactApplicationContext context) {
         super(context);
     }
 
