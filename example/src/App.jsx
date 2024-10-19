@@ -34,7 +34,7 @@ import {
 	LayerPathSlopeGradient,
 	LayerPath,
 	// LayerDownload,
-	// LayerHillshading,
+	LayerHillshading,
 	// Marker,
 	// Polyline,
 	usePromiseQueueState,
@@ -524,6 +524,8 @@ const App = () => {
 						renderStyle={ renderStyle }
 						renderOverlays={ renderOverlays }
 					/>
+
+					<LayerHillshading/>
 
 					<LayerPathSlopeGradient
 						slopeSimplificationTolerance={ slopeSimplificationTolerance }
