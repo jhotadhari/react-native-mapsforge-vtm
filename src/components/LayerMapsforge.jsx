@@ -12,6 +12,9 @@ import promiseQueue from '../promiseQueue';
 import usePrevious from '../compose/usePrevious';
 import useRenderStyleOptions from '../compose/useRenderStyleOptions';
 import { MapLayerMapsforgeModule } from '../nativeMapModules';
+import { isFunction } from 'lodash-es';
+
+const Module = MapLayerMapsforgeModule;
 
 const LayerMapsforge = ( {
 	mapViewNativeTag,
@@ -20,6 +23,9 @@ const LayerMapsforge = ( {
 	renderStyle,
 	renderOverlays,
 	reactTreeIndex,
+	onCreate,
+	onRemove,
+	onChange,
 } ) => {
 
 	mapFile = mapFile || '';
@@ -38,10 +44,14 @@ const LayerMapsforge = ( {
 		nativeTag: mapViewNativeTag,
 	} ) );
 
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerMapsforgeModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
 				mapFile,
 				renderTheme,
@@ -52,6 +62,10 @@ const LayerMapsforge = ( {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					);
 				}
 
 			} );
@@ -65,11 +79,15 @@ const LayerMapsforge = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerMapsforgeModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
 					);
-				} );
+				} ).then( removedUuid => {
+                    if ( removedUuid ) {
+						isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+                    }
+                } );
 			}
 		};
 	}, [
@@ -91,7 +109,7 @@ const LayerMapsforge = ( {
 				}
 				if ( shouldRecreate ) {
 					promiseQueue.enqueue( () => {
-						MapLayerMapsforgeModule.removeLayer(
+						Module.removeLayer(
 							mapViewNativeTag,
 							uuid
 						).then( removedUuid => {

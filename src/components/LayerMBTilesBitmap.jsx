@@ -12,6 +12,8 @@ import promiseQueue from '../promiseQueue';
 import { MapLayerMBTilesBitmapModule } from '../nativeMapModules';
 import { isNumber, isFunction } from 'lodash-es';
 
+const Module = MapLayerMBTilesBitmapModule;
+
 const LayerMBTilesBitmap = ( {
 	mapViewNativeTag,
 	reactTreeIndex,
@@ -30,13 +32,15 @@ const LayerMBTilesBitmap = ( {
 	mapFile = mapFile || '';
     alpha = isNumber( alpha ) ? alpha : 256,
 	transparentColor = transparentColor || '';
+
 	onCreate = isFunction( onCreate ) ? onCreate : null;
 	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
 
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerMBTilesBitmapModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
                 mapFile,
                 parseInt( alpha, 10 ),
@@ -46,7 +50,10 @@ const LayerMBTilesBitmap = ( {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
-					isFunction( onCreate ) && null === triggerCreateNew ? onCreate( response ) : null;
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					);
 				}
 
 			} );
@@ -60,13 +67,13 @@ const LayerMBTilesBitmap = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerMBTilesBitmapModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
 					);
 				} ).then( removedUuid => {
                     if ( removedUuid ) {
-						isFunction( onRemove ) ? onRemove( { removedUuid } ) : null;
+						isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
                     }
                 } );
 			}
@@ -74,19 +81,19 @@ const LayerMBTilesBitmap = ( {
 	}, [
 		mapViewNativeTag,
 		!! uuid,
+		triggerCreateNew,
 	] );
 
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerMBTilesBitmapModule.removeLayer(
+                Module.removeLayer(
                     mapViewNativeTag,
                     uuid
                 ).then( removedUuid => {
                     if ( removedUuid ) {
                         setUuid( null )
                         setTriggerCreateNew( Math.random() );
-						isFunction( onChange ) ? onChange( { uuid: removedUuid } ) : null;
                     }
                 } );
             } );

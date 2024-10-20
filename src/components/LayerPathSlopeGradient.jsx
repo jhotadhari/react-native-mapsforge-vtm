@@ -20,6 +20,8 @@ const responseIncludeDefaults = {
 	coordinatesSimplified: 0,
 };
 
+const Module = MapLayerPathSlopeGradientModule;
+
 const LayerPathSlopeGradient = ( {
 	mapViewNativeTag,
 	positions,
@@ -65,6 +67,7 @@ const LayerPathSlopeGradient = ( {
 	responseInclude = isObject( responseInclude )
 		? { ...responseIncludeDefaults, ...responseInclude }
 		: responseIncludeDefaults;
+
 	onCreate = isFunction( onCreate ) ? onCreate : null;
 	onRemove = isFunction( onRemove ) ? onRemove : null;
 	onChange = isFunction( onChange ) ? onChange : null;
@@ -72,7 +75,7 @@ const LayerPathSlopeGradient = ( {
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerPathSlopeGradientModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
 				positions,
 				filePath,
@@ -86,7 +89,10 @@ const LayerPathSlopeGradient = ( {
 				if ( response.uuid ) {
 					setUuid( response.uuid );
 					setRandom( Math.random() );
-					isFunction( onCreate ) ? onCreate( response ) : null;
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( response ) : null
+						: isFunction( onChange ) ? onChange( response ) : null
+					);
 				}
 
 			} );
@@ -100,11 +106,15 @@ const LayerPathSlopeGradient = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerPathSlopeGradientModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
 					);
-				} );
+				} ).then( removedUuid => {
+                    if ( removedUuid ) {
+						isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+                    }
+                } );
 			}
 		};
 	}, [
@@ -116,7 +126,7 @@ const LayerPathSlopeGradient = ( {
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerPathSlopeGradientModule.updateStrokeWidth(
+                Module.updateStrokeWidth(
                     mapViewNativeTag,
                     uuid,
 					strokeWidth,
@@ -131,7 +141,7 @@ const LayerPathSlopeGradient = ( {
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerPathSlopeGradientModule.updateSlopeColors(
+                Module.updateSlopeColors(
 					mapViewNativeTag,
 					uuid,
 					strokeWidth,
@@ -150,7 +160,7 @@ const LayerPathSlopeGradient = ( {
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerPathSlopeGradientModule.updateCoordinatesSimplified(
+                Module.updateCoordinatesSimplified(
 					mapViewNativeTag,
 					uuid,
 					strokeWidth,
@@ -170,14 +180,13 @@ const LayerPathSlopeGradient = ( {
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerPathSlopeGradientModule.removeLayer(
+                Module.removeLayer(
                     mapViewNativeTag,
                     uuid
-                ).then( removedHash => {
-                    if ( removedHash ) {
+                ).then( removedUuid => {
+                    if ( removedUuid ) {
                         setUuid( null )
                         setTriggerCreateNew( Math.random() );
-						isFunction( onRemove ) ? onRemove( { removedHash } ) : null;
                     }
                 } );
             } );

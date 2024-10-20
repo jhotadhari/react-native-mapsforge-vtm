@@ -10,25 +10,41 @@ import PropTypes from 'prop-types';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerScalebarModule } from '../nativeMapModules';
+import { isFunction } from 'lodash-es';
+
+const Module = MapLayerScalebarModule;
 
 const LayerScalebar = ( {
 	mapViewNativeTag,
 	reactTreeIndex,
+	onCreate,
+	onRemove,
+	onChange,
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
 	const [uuid, setUuid] = useRefState( null );
 
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerScalebarModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
 				reactTreeIndex,
 			).then( newUuid => {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
+
+					// ( null === triggerCreateNew
+					// 	? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+					// 	: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					// );
+					isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null;
 				}
 
 			} );
@@ -42,10 +58,14 @@ const LayerScalebar = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerScalebarModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
 				} );
 			}
 		};

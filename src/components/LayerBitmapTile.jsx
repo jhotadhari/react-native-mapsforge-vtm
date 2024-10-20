@@ -10,7 +10,9 @@ import PropTypes from 'prop-types';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerBitmapTileModule } from '../nativeMapModules';
-import { isNumber } from 'lodash-es';
+import { isNumber, isFunction } from 'lodash-es';
+
+const Module = MapLayerBitmapTileModule;
 
 const LayerBitmapTile = ( {
 	mapViewNativeTag,
@@ -19,20 +21,28 @@ const LayerBitmapTile = ( {
     zoomMin,
     zoomMax,
     cacheSize,
+	onCreate,
+	onRemove,
+	onChange,
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
 	const [uuid, setUuid] = useRefState( null );
+	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	url = url || 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png';
     zoomMin = isNumber( zoomMin ) ? zoomMin : 1,
     zoomMax = isNumber( zoomMax ) ? zoomMax : 20,
 	cacheSize = isNumber( cacheSize ) ? cacheSize : 0 * 1024 * 1024;
 
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerBitmapTileModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
                 url,
 				parseInt( zoomMin, 10 ),
@@ -43,6 +53,10 @@ const LayerBitmapTile = ( {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					);
 				}
 
 			} );
@@ -56,16 +70,41 @@ const LayerBitmapTile = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerBitmapTileModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
 		!! uuid,
+	] );
+
+	useEffect( () => {
+		if ( mapViewNativeTag && uuid ) {
+            promiseQueue.enqueue( () => {
+                Module.removeLayer(
+                    mapViewNativeTag,
+                    uuid
+                ).then( removedUuid => {
+                    if ( removedUuid ) {
+                        setUuid( null )
+                        setTriggerCreateNew( Math.random() );
+                    }
+                } );
+            } );
+		}
+	}, [
+		url,
+		zoomMin,
+		zoomMax,
+		cacheSize,
 	] );
 
 	return null;

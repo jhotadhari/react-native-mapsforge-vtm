@@ -12,23 +12,33 @@ import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
 import { isArray, isString } from 'lodash-es';
 
+const Module = MapLayerPathModule;
+
 const LayerPath = ( {
 	mapViewNativeTag,
 	positions,
 	filePath,
 	reactTreeIndex,
+	onCreate,
+	onRemove,
+	onChange,
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
 	const [uuid, setUuid] = useRefState( null );
+	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	positions = isArray( positions ) ? positions : [];
 	filePath = isString( filePath ) && filePath.length > 0 ? filePath : '';
 
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerPathModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
 				positions,
 				filePath,
@@ -37,6 +47,10 @@ const LayerPath = ( {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					);
 				}
 
 			} );
@@ -50,16 +64,43 @@ const LayerPath = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerPathModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
 		!! uuid,
+		triggerCreateNew,
+	] );
+
+	useEffect( () => {
+		if ( mapViewNativeTag && uuid ) {
+            promiseQueue.enqueue( () => {
+                Module.removeLayer(
+                    mapViewNativeTag,
+                    uuid
+                ).then( removedUuid => {
+                    if ( removedUuid ) {
+                        setUuid( null )
+                        setTriggerCreateNew( Math.random() );
+                    }
+                } );
+            } );
+		}
+	}, [
+		( positions && Array.isArray( positions ) && positions.length
+			? positions.join( '' )
+			: null
+		),
+		filePath,
 	] );
 
 	return null;

@@ -10,7 +10,9 @@ import PropTypes from 'prop-types';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerHillshadingModule } from '../nativeMapModules';
-import { isNumber, isObject, isString } from 'lodash-es';
+import { isNumber, isObject, isString, isFunction } from 'lodash-es';
+
+const Module = MapLayerHillshadingModule;
 
 const shadingAlgorithms = {
 	SIMPLE: 'SimpleShadingAlgorithm',
@@ -33,6 +35,9 @@ const LayerHillshading = ( {
 	magnitude,
 	cacheSize,
 	reactTreeIndex,
+	onCreate,
+	onRemove,
+	onChange,
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
@@ -49,10 +54,14 @@ const LayerHillshading = ( {
 	magnitude = isNumber( magnitude ) ? Math.round( magnitude ) : 90;
 	cacheSize = isNumber( cacheSize ) ? Math.round( cacheSize ) : 64;
 
+	onCreate = isFunction( onCreate ) ? onCreate : null;
+	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			MapLayerHillshadingModule.createLayer(
+			Module.createLayer(
 				mapViewNativeTag,
 				hgtDirPath,
 				zoomMin,
@@ -66,6 +75,10 @@ const LayerHillshading = ( {
 				if ( newUuid ) {
 					setUuid( newUuid );
 					setRandom( Math.random() );
+					( null === triggerCreateNew
+						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
+						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+					);
 				}
 
 			} );
@@ -79,10 +92,14 @@ const LayerHillshading = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					MapLayerHillshadingModule.removeLayer(
+					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
 				} );
 			}
 		};
@@ -92,18 +109,16 @@ const LayerHillshading = ( {
 		triggerCreateNew,
 	] );
 
-
 	useEffect( () => {
 		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
-                MapLayerHillshadingModule.removeLayer(
+                Module.removeLayer(
                     mapViewNativeTag,
                     uuid
                 ).then( removedUuid => {
                     if ( removedUuid ) {
                         setUuid( null )
                         setTriggerCreateNew( Math.random() );
-						isFunction( onRemove ) ? onRemove( { removedUuid } ) : null;
                     }
                 } );
             } );
