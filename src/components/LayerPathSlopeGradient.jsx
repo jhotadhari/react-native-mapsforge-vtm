@@ -12,6 +12,14 @@ import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
 import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
 
+// 0	never include in response.
+// 1	include in response on create.
+// 2	include in response on change.
+const responseIncludeDefaults = {
+	coordinates: 0,
+	coordinatesSimplified: 0,
+};
+
 const LayerPathSlopeGradient = ( {
 	mapViewNativeTag,
 	positions,
@@ -23,11 +31,12 @@ const LayerPathSlopeGradient = ( {
 	responseInclude,
 	onCreate,
 	onRemove,
+	onChange,
 	reactTreeIndex,
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
-	const [hash, setHash] = useRefState( null );
+	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	positions = isArray( positions ) ? positions : [];
@@ -35,15 +44,7 @@ const LayerPathSlopeGradient = ( {
 	strokeWidth = isNumber( strokeWidth ) && !! strokeWidth ? parseInt( strokeWidth, 10 ) : 4;
 	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 7;
 	flattenWindowSize = isNumber( flattenWindowSize ) && flattenWindowSize % 2 != 0 && flattenWindowSize > 5 ? flattenWindowSize : 9;
-	slopeColors = isArray( slopeColors ) ? slopeColors.sort( ( a, b ) => {
-		if ( a[0] < b[0] ) {
-		  	return -1;
-		}
-		if ( a[0] > b[0] ) {
-		  	return 1;
-		}
-		return 0;
-	} ) : [
+	slopeColors = isArray( slopeColors ) && slopeColors.length > 0 ? slopeColors : [
         [-25, '#000a70'],
         [-10, '#0000ff'],
         [-5, '#01c2ff'],
@@ -52,17 +53,24 @@ const LayerPathSlopeGradient = ( {
         [10, '#ff0000'],
         [25, '#810500'],
     ];
-	responseInclude = isArray( responseInclude )
-		? responseInclude
-		: ( isObject( responseInclude )
-			? Object.keys( responseInclude ).map( key => !! responseInclude[key] ? key : false ).filter( a => !! a )
-			: []
-		)
+	slopeColors = [...slopeColors].sort( ( a, b ) => {
+		if ( a[0] < b[0] ) {
+		  	return -1;
+		}
+		if ( a[0] > b[0] ) {
+		  	return 1;
+		}
+		return 0;
+	} );
+	responseInclude = isObject( responseInclude )
+		? { ...responseIncludeDefaults, ...responseInclude }
+		: responseIncludeDefaults;
 	onCreate = isFunction( onCreate ) ? onCreate : null;
 	onRemove = isFunction( onRemove ) ? onRemove : null;
+	onChange = isFunction( onChange ) ? onChange : null;
 
 	const createLayer = () => {
-		setHash( false );
+		setUuid( false );
 		promiseQueue.enqueue( () => {
 			MapLayerPathSlopeGradientModule.createLayer(
 				mapViewNativeTag,
@@ -75,8 +83,8 @@ const LayerPathSlopeGradient = ( {
 				responseInclude,
 				reactTreeIndex,
 			).then( response => {
-				if ( response.hash ) {
-					setHash( parseInt( response.hash, 10 ) );
+				if ( response.uuid ) {
+					setUuid( response.uuid );
 					setRandom( Math.random() );
 					isFunction( onCreate ) ? onCreate( response ) : null;
 				}
@@ -86,34 +94,88 @@ const LayerPathSlopeGradient = ( {
 	};
 
 	useEffect( () => {
-		if ( hash === null && mapViewNativeTag ) {
+		if ( uuid === null && mapViewNativeTag ) {
 			createLayer();
 		}
 		return () => {
-			if ( hash && mapViewNativeTag ) {
+			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
 					MapLayerPathSlopeGradientModule.removeLayer(
 						mapViewNativeTag,
-						hash
+						uuid
 					);
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
-		!! hash,
+		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && hash ) {
+		if ( mapViewNativeTag && uuid ) {
+            promiseQueue.enqueue( () => {
+                MapLayerPathSlopeGradientModule.updateStrokeWidth(
+                    mapViewNativeTag,
+                    uuid,
+					strokeWidth,
+					responseInclude,
+                ).then( response => {
+					isFunction( onChange ) ? onChange( response ) : null;
+                } );
+            } );
+		}
+	}, [strokeWidth] );
+
+	useEffect( () => {
+		if ( mapViewNativeTag && uuid ) {
+            promiseQueue.enqueue( () => {
+                MapLayerPathSlopeGradientModule.updateSlopeColors(
+					mapViewNativeTag,
+					uuid,
+					strokeWidth,
+					slopeColors,
+					responseInclude,
+                ).then( response => {
+					isFunction( onChange ) ? onChange( response ) : null;
+                } );
+            } );
+		}
+	}, [ slopeColors && Array.isArray( slopeColors ) && slopeColors.length
+		? [...slopeColors].map( entry => entry.join( '' ) ).join( '' )
+		: null
+	] );
+
+	useEffect( () => {
+		if ( mapViewNativeTag && uuid ) {
+            promiseQueue.enqueue( () => {
+                MapLayerPathSlopeGradientModule.updateCoordinatesSimplified(
+					mapViewNativeTag,
+					uuid,
+					strokeWidth,
+					slopeSimplificationTolerance,
+					flattenWindowSize,
+					responseInclude,
+                ).then( response => {
+					isFunction( onChange ) ? onChange( response ) : null;
+                } );
+            } );
+		}
+	}, [
+		slopeSimplificationTolerance,
+		flattenWindowSize,
+	] );
+
+	useEffect( () => {
+		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
                 MapLayerPathSlopeGradientModule.removeLayer(
                     mapViewNativeTag,
-                    hash
+                    uuid
                 ).then( removedHash => {
                     if ( removedHash ) {
-                        setHash( null )
+                        setUuid( null )
                         setTriggerCreateNew( Math.random() );
 						isFunction( onRemove ) ? onRemove( { removedHash } ) : null;
                     }
@@ -126,13 +188,7 @@ const LayerPathSlopeGradient = ( {
 			: null
 		),
 		filePath,
-		strokeWidth,
-		( slopeColors && Array.isArray( slopeColors ) && slopeColors.length
-			? [...slopeColors].map( entry => entry.join( '' ) ).join( '' )
-			: null
-		),
-		slopeSimplificationTolerance,
-		flattenWindowSize,
+		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
 	] );
 
 	return null;
@@ -147,6 +203,11 @@ LayerPathSlopeGradient.propTypes = {
 	strokeWidth: PropTypes.number,
 	slopeColors: PropTypes.array,
 	slopeSimplificationTolerance: PropTypes.number,
+	flattenWindowSize: PropTypes.number,
+	responseInclude: PropTypes.object,
+	onCreate: PropTypes.func,
+	onRemove: PropTypes.func,
+	onChange: PropTypes.func,
 };
 
 export default LayerPathSlopeGradient;

@@ -199,6 +199,20 @@ const App = () => {
 
 	const [slopeSimplificationTolerance, setSlopeSimplificationTolerance] = useState( 7 );
 	const [flattenWindowSize, setFlattenWindowSize] = useState( 9 );
+	const [strokeWidth, setStrokeWidth] = useState( 4 );
+	const [slopeColors, setSlopeColors] = useState( [
+		[-25, '#000a70'],
+		[-10, '#0000ff'],
+		[-5, '#01c2ff'],
+		[0, '#35fd2d'],
+		[5, '#f9ff00'],
+		[10, '#ff0000'],
+		[25, '#810500'],
+	] );
+	const swapSlopeColors = () => {
+		const newSlopeColors = [...slopeColors].reverse().map( ( arr, index ) => ( [slopeColors[index][0],arr[1]] ) );
+		setSlopeColors( newSlopeColors );
+	};
 
 
 
@@ -297,15 +311,12 @@ const App = () => {
 	const mapHeight = height - barTopHeight - barBottomHeight;
 
 
-		console.log( 'debug mapHeight', mapHeight ); // debug
-
-
 	// ??? TODO hillshading layer.
 	// 		see vtm MBTilesBitmapTileDataSource, MBTilesTileDataSource, ITileDataSource
 	// 		see mapsforge MemoryCachingHgtReaderTileSource.getHillshadingBitmap
 
 	return (
-		<GestureHandlerRootView style={{ flex: 1 }}>
+		// <GestureHandlerRootView style={{ flex: 1 }}>
 		<SafeAreaView style={ {
 			...style,
 			height,
@@ -414,6 +425,56 @@ const App = () => {
 
 					</View>
 
+					<View
+						style={ {
+							flexDirection: 'row',
+							width,
+							justifyContent: 'space-around',
+							alignItems: 'center',
+							marginBottom: 10,
+						} }
+					>
+
+						<Text style={ {width: 100} }>strokeWidth</Text>
+						<Text style={ {width: 30} }>{ strokeWidth }</Text>
+
+
+						<Button
+							onPress={ () => setStrokeWidth( strokeWidth + 1 ) }
+							title="  +  "
+							disabled={ promiseQueueState > 0 }
+						/>
+						<Button
+							onPress={ () => setStrokeWidth( Math.max( 0, strokeWidth - 1 ) ) }
+							title="  -  "
+							disabled={ promiseQueueState > 0 || strokeWidth == 0 }
+						/>
+
+					</View>
+
+
+					<View
+						style={ {
+							flexDirection: 'row',
+							width,
+							justifyContent: 'space-around',
+							alignItems: 'center',
+							marginBottom: 10,
+						} }
+					>
+
+						<Text style={ {width: 100} }>slopeColors</Text>
+						<Text style={ {width: 30} }></Text>
+
+
+						<Button
+							onPress={ () => swapSlopeColors() }
+							title="swap"
+							disabled={ promiseQueueState > 0 }
+						/>
+
+					</View>
+
 
 					{/*
 
@@ -514,9 +575,9 @@ const App = () => {
 					/> } */}
 
 
-					{ showLayerBitmapTile && <LayerMBTilesBitmap
+					{/* { showLayerBitmapTile && <LayerMBTilesBitmap
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/OAM-World-1-10-J70.mbtiles' }
-					/> }
+					/> } */}
 
 					<LayerMapsforge
 						mapFile={ '/storage/emulated/0/Documents/orux/mapfiles/Peru-Ecuador_oam.osm.map' }
@@ -525,27 +586,35 @@ const App = () => {
 						renderOverlays={ renderOverlays }
 					/>
 
-					<LayerHillshading
+					{/* <LayerHillshading
 						hgtDirPath="/storage/emulated/0/Documents/orux/dem"
 						cacheSize={ 512 }
 						zoomMin={ 2 }
-						zoomMax={ randomMaxZoom }
+						zoomMax={ 20 }
 						shadingAlgorithm={ LayerHillshading.shadingAlgorithms.SIMPLE }
-
 						magnitude={ 90 }
 						shadingAlgorithmOptions={ {
 							linearity: -1,
 							scale: 1,
 						} }
-					/>
+					/> */}
 
 					<LayerPathSlopeGradient
 						slopeSimplificationTolerance={ slopeSimplificationTolerance }
 						flattenWindowSize={ flattenWindowSize }
+						strokeWidth={ strokeWidth }
+						slopeColors={ slopeColors }
 						onCreate={ response => {
+							if ( response.coordinates ) {
+								setCoordinates( response.coordinates );
+							}
+							if ( response.coordinatesSimplified ) {
+								setCoordinatesSimplified( response.coordinatesSimplified );
+							}
+						} }
+						onChange={ response => {
 
 							console.log( 'debug response', response ); // debug
-
 							if ( response.coordinates ) {
 								setCoordinates( response.coordinates );
 							}
@@ -558,11 +627,13 @@ const App = () => {
 							setCoordinatesSimplified( [] );
 						} }
 						responseInclude={ {
-							coordinates: true,
-							coordinatesSimplified: true,
+							coordinates: 1,
+							coordinatesSimplified: 2,
 						} }
 						filePath={ '/storage/emulated/0/Android/media/jhotadhari.reactnative.mapsforge.vtm.example/dummy/randomTrack.gpx' }
 					/>
+
+
 					{/* <LayerPathSlopeGradient
 						filePath={ '/storage/emulated/0/Documents/orux/tracklogs/2024-10-08 0900__20241008_0900.gpx' }
 					/>
@@ -588,7 +659,7 @@ const App = () => {
 						} }
 					/> ) } */}
 
-					<LayerScalebar/>
+					{/* <LayerScalebar/> */}
 
 				</MapContainer> }
 
@@ -684,7 +755,7 @@ const App = () => {
 			{/* </View> */}
 		</SafeAreaView>
 
-		</GestureHandlerRootView>
+		// </GestureHandlerRootView>
 	);
 };
 
