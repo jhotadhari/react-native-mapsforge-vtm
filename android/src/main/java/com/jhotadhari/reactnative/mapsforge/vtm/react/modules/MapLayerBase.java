@@ -16,7 +16,7 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
     abstract public String getName();
 
-	protected Map<Integer, Layer> layers = new HashMap<>();
+	protected Map<String, Layer> layers = new HashMap<>();
 
     public MapLayerBase(ReactApplicationContext context) {
         super(context);
@@ -29,8 +29,34 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 		Promise promise
 	);
 
+	protected int getLayerIndexInMapLayers(
+		int reactTag,
+		String uuid
+	) {
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+		if ( null == mapView ) {
+			return -1;
+		}
+
+		Layer layer = layers.get( uuid );
+		if ( null == layer ) {
+			return -1;
+		}
+
+		int layerIndex = -1;
+		int i = 0;
+		while ( layerIndex == -1 || i < mapView.map().layers().size() ) {
+			if ( layer == mapView.map().layers().get( i ) ) {
+				layerIndex = i;
+			}
+			i++;
+		}
+		return layerIndex;
+	}
+
+
     @ReactMethod
-    public void removeLayer(int reactTag, int hash, Promise promise) {
+    public void removeLayer( int reactTag, String uuid, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
@@ -38,32 +64,20 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
                 return;
             }
 
-			Layer layer = layers.get( hash );
-
-			if ( null == layer )  {
-				promise.resolve( false );
-				return;
-			}
-
 			// Remove layer from map.
-			int layerIndex = -1;
-			for ( int i = 0; i < mapView.map().layers().size(); i++ ) {
-				if ( layer == mapView.map().layers().get( i ) ) {
-					layerIndex = i;
-				}
-			}
+			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( layerIndex != -1 ) {
 				mapView.map().layers().remove( layerIndex );
 			}
 
 			// Remove layer from layers.
-			layers.remove( hash );
+			layers.remove( uuid );
 
 			// Trigger map update.
-			mapView.map().updateMap();
+			mapView.map().updateMap( true );
 
-			// Resolve hash
-			promise.resolve( hash );
+			// Resolve uuid
+			promise.resolve( uuid );
         } catch(Exception e) {
             promise.reject("Remove Layer Error", e);
         }

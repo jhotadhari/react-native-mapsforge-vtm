@@ -14,6 +14,7 @@ import org.oscim.tiling.source.bitmap.BitmapTileSource;
 import java.io.File;
 import java.net.URL;
 import java.util.Collections;
+import java.util.UUID;
 
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
@@ -28,22 +29,8 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
         super(context);
     }
 
-	@ReactMethod
-    public void createLayer(
-            int reactTag,
-            int reactTreeIndex,
-            Promise promise
-    ) {
-		createLayer(
-			reactTag,
-			"",
-			1,
-			20,
-			0,
-			reactTreeIndex,
-			promise
-		);
-	}
+	// This constructor should not be called. It's just existing to overwrite the parent constructor.
+    public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
 
     @ReactMethod
     public void createLayer(
@@ -97,11 +84,11 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			mapView.map().updateMap();
 
 			// Store layer
-            int hash = mBitmapLayer.hashCode();
-			layers.put( hash, mBitmapLayer );
+			String uuid = UUID.randomUUID().toString();
+			layers.put( uuid, mBitmapLayer );
 
-			// Resolve layer hash
-            promise.resolve( hash );
+			// Resolve layer uuid
+            promise.resolve( uuid );
         } catch( Exception e ) {
 			e.printStackTrace();
             promise.reject("Create Event Error", e);
@@ -109,8 +96,8 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
     }
 
 	@ReactMethod
-	public void removeLayer(int reactTag, int hash, Promise promise) {
-		super.removeLayer( reactTag, hash, promise );
+	public void removeLayer(int reactTag, String uuid, Promise promise) {
+		super.removeLayer( reactTag, uuid, promise );
 	}
 
 }

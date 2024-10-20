@@ -17,17 +17,17 @@ const LayerScalebar = ( {
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
-	const [hash, setHash] = useRefState( null );
+	const [uuid, setUuid] = useRefState( null );
 
 	const createLayer = () => {
-		setHash( false );
+		setUuid( false );
 		promiseQueue.enqueue( () => {
 			MapLayerScalebarModule.createLayer(
 				mapViewNativeTag,
 				reactTreeIndex,
-			).then( newHash => {
-				if ( newHash ) {
-					setHash( parseInt( newHash, 10 ) );
+			).then( newUuid => {
+				if ( newUuid ) {
+					setUuid( newUuid );
 					setRandom( Math.random() );
 				}
 
@@ -36,22 +36,22 @@ const LayerScalebar = ( {
 	};
 
 	useEffect( () => {
-		if ( hash === null && mapViewNativeTag ) {
+		if ( uuid === null && mapViewNativeTag ) {
 			createLayer();
 		}
 		return () => {
-			if ( hash && mapViewNativeTag ) {
+			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
 					MapLayerScalebarModule.removeLayer(
 						mapViewNativeTag,
-						hash
+						uuid
 					);
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
-		!! hash,
+		!! uuid,
 	] );
 
 	return null;

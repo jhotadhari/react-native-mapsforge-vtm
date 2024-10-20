@@ -36,7 +36,7 @@ const LayerHillshading = ( {
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
-	const [hash, setHash] = useRefState( null );
+	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	hgtDirPath = hgtDirPath || "";
@@ -50,7 +50,7 @@ const LayerHillshading = ( {
 	cacheSize = isNumber( cacheSize ) ? Math.round( cacheSize ) : 64;
 
 	const createLayer = () => {
-		setHash( false );
+		setUuid( false );
 		promiseQueue.enqueue( () => {
 			MapLayerHillshadingModule.createLayer(
 				mapViewNativeTag,
@@ -62,9 +62,9 @@ const LayerHillshading = ( {
 				magnitude,
 				cacheSize,
 				reactTreeIndex,
-			).then( newHash => {
-				if ( newHash ) {
-					setHash( parseInt( newHash, 10 ) );
+			).then( newUuid => {
+				if ( newUuid ) {
+					setUuid( newUuid );
 					setRandom( Math.random() );
 				}
 
@@ -73,37 +73,37 @@ const LayerHillshading = ( {
 	};
 
 	useEffect( () => {
-		if ( hash === null && mapViewNativeTag ) {
+		if ( uuid === null && mapViewNativeTag ) {
 			createLayer();
 		}
 		return () => {
-			if ( hash && mapViewNativeTag ) {
+			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
 					MapLayerHillshadingModule.removeLayer(
 						mapViewNativeTag,
-						hash
+						uuid
 					);
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
-		!! hash,
+		!! uuid,
 		triggerCreateNew,
 	] );
 
 
 	useEffect( () => {
-		if ( mapViewNativeTag && hash ) {
+		if ( mapViewNativeTag && uuid ) {
             promiseQueue.enqueue( () => {
                 MapLayerHillshadingModule.removeLayer(
                     mapViewNativeTag,
-                    hash
-                ).then( removedHash => {
-                    if ( removedHash ) {
+                    uuid
+                ).then( removedUuid => {
+                    if ( removedUuid ) {
                         setUuid( null )
                         setTriggerCreateNew( Math.random() );
-						isFunction( onRemove ) ? onRemove( { removedHash } ) : null;
+						isFunction( onRemove ) ? onRemove( { removedUuid } ) : null;
                     }
                 } );
             } );

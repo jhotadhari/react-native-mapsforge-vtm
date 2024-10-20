@@ -22,7 +22,7 @@ const LayerBitmapTile = ( {
 } ) => {
 
 	const [random, setRandom] = useState( 0 );
-	const [hash, setHash] = useRefState( null );
+	const [uuid, setUuid] = useRefState( null );
 
 	url = url || 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png';
     zoomMin = isNumber( zoomMin ) ? zoomMin : 1,
@@ -30,7 +30,7 @@ const LayerBitmapTile = ( {
 	cacheSize = isNumber( cacheSize ) ? cacheSize : 0 * 1024 * 1024;
 
 	const createLayer = () => {
-		setHash( false );
+		setUuid( false );
 		promiseQueue.enqueue( () => {
 			MapLayerBitmapTileModule.createLayer(
 				mapViewNativeTag,
@@ -39,9 +39,9 @@ const LayerBitmapTile = ( {
 				parseInt( zoomMax, 10 ),
                 parseInt( cacheSize, 10 ),
 				parseInt( reactTreeIndex, 10 ),
-			).then( newHash => {
-				if ( newHash ) {
-					setHash( parseInt( newHash, 10 ) );
+			).then( newUuid => {
+				if ( newUuid ) {
+					setUuid( newUuid );
 					setRandom( Math.random() );
 				}
 
@@ -50,22 +50,22 @@ const LayerBitmapTile = ( {
 	};
 
 	useEffect( () => {
-		if ( hash === null && mapViewNativeTag ) {
+		if ( uuid === null && mapViewNativeTag ) {
 			createLayer();
 		}
 		return () => {
-			if ( hash && mapViewNativeTag ) {
+			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
 					MapLayerBitmapTileModule.removeLayer(
 						mapViewNativeTag,
-						hash
+						uuid
 					);
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
-		!! hash,
+		!! uuid,
 	] );
 
 	return null;

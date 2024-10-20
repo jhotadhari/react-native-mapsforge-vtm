@@ -14,6 +14,8 @@ import org.oscim.scalebar.ImperialUnitAdapter;
 import org.oscim.scalebar.MapScaleBarLayer;
 import org.oscim.scalebar.MetricUnitAdapter;
 
+import java.util.UUID;
+
 public class MapLayerScalebarModule extends MapLayerBase {
 
     public String getName() {
@@ -55,11 +57,11 @@ public class MapLayerScalebarModule extends MapLayerBase {
 			// ??? bug, somehow need to trigger update map to show the scalebar.
 
 			// Store layer
-            int hash = mapScaleBarLayer.hashCode();
-			layers.put( hash, mapScaleBarLayer );
+			String uuid = UUID.randomUUID().toString();
+			layers.put( uuid, mapScaleBarLayer );
 
-			// Resolve layer hash
-            promise.resolve( hash );
+			// Resolve layer uuid
+            promise.resolve( uuid );
         } catch(Exception e) {
 			e.printStackTrace();
             promise.reject("Create Event Error", e);
@@ -67,8 +69,8 @@ public class MapLayerScalebarModule extends MapLayerBase {
     }
 
     @ReactMethod
-    public void removeLayer(int reactTag, int hash, Promise promise) {
-		super.removeLayer( reactTag, hash, promise );
+    public void removeLayer(int reactTag, String uuid, Promise promise) {
+		super.removeLayer( reactTag, uuid, promise );
 	}
 
 }

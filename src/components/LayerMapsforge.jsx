@@ -30,7 +30,7 @@ const LayerMapsforge = ( {
 	const renderStylePrev = usePrevious( renderStyle );
 
 	const [random, setRandom] = useState( 0 );
-	const [hash, setHash] = useRefState( null );
+	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	const { renderStyleDefaultId } = useRenderStyleOptions( ( {
@@ -39,7 +39,7 @@ const LayerMapsforge = ( {
 	} ) );
 
 	const createLayer = () => {
-		setHash( false );
+		setUuid( false );
 		promiseQueue.enqueue( () => {
 			MapLayerMapsforgeModule.createLayer(
 				mapViewNativeTag,
@@ -48,9 +48,9 @@ const LayerMapsforge = ( {
 				renderStyle,
 				renderOverlays,
 				reactTreeIndex,
-			).then( newHash => {
-				if ( newHash ) {
-					setHash( parseInt( newHash, 10 ) );
+			).then( newUuid => {
+				if ( newUuid ) {
+					setUuid( newUuid );
 					setRandom( Math.random() );
 				}
 
@@ -59,28 +59,28 @@ const LayerMapsforge = ( {
 	};
 
 	useEffect( () => {
-		if ( hash === null && mapViewNativeTag && mapFile ) {
+		if ( uuid === null && mapViewNativeTag && mapFile ) {
 			createLayer();
 		}
 		return () => {
-			if ( hash && mapViewNativeTag ) {
+			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
 					MapLayerMapsforgeModule.removeLayer(
 						mapViewNativeTag,
-						hash
+						uuid
 					);
 				} );
 			}
 		};
 	}, [
 		mapViewNativeTag,
-		!! hash,
+		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
 		if ( mapViewNativeTag ) {
-			if ( hash ) {
+			if ( uuid ) {
 				let shouldRecreate = true;
 				if (
 					renderStyle !== renderStylePrev
@@ -93,16 +93,16 @@ const LayerMapsforge = ( {
 					promiseQueue.enqueue( () => {
 						MapLayerMapsforgeModule.removeLayer(
 							mapViewNativeTag,
-							hash
-						).then( removedHash => {
-							if ( removedHash ) {
-								setHash( null )
+							uuid
+						).then( removedUuid => {
+							if ( removedUuid ) {
+								setUuid( null )
 								setTriggerCreateNew( Math.random() );
 							}
 						} );
 					} );
 				}
-			} else if ( hash === null && mapFile ) {
+			} else if ( uuid === null && mapFile ) {
 				setTriggerCreateNew( Math.random() );
 			}
 		}

@@ -1,9 +1,5 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
-import android.graphics.Bitmap;
-import android.graphics.RenderNode;
-import android.util.Log;
-
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -24,13 +20,10 @@ import org.locationtech.jts.geom.Coordinate;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
-import org.oscim.core.MapPosition;
 import org.oscim.layers.Layer;
 import org.oscim.layers.vector.VectorLayer;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
-import org.oscim.renderer.LayerRenderer;
-import org.oscim.renderer.MapRenderer;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
@@ -38,13 +31,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map;
-import java.util.TreeMap;
-
 import java.util.UUID;
 
 import io.ticofab.androidgpxparser.parser.GPXParser;
@@ -185,7 +174,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			VectorLayer vectorLayer = new VectorLayer( mapView.map() );
 
 			// Store layer.
-			String uuid = UUID.randomUUID().toString();UUID.randomUUID().toString();
+			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, vectorLayer );
 
 			// Convert input params to coordinates
@@ -347,31 +336,6 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		return coordinatesSimplified;
 	}
 
-	protected int getVectorLayerIndex(
-		int reactTag,
-		String uuid
-	) {
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-		if ( null == mapView ) {
-			return -1;
-		}
-
-		VectorLayer vectorLayerOld = layers.get( uuid );
-		if ( null == vectorLayerOld ) {
-			return -1;
-		}
-
-		int layerIndex = -1;
-		int i = 0;
-		while ( layerIndex == -1 || i < mapView.map().layers().size() ) {
-			if ( vectorLayerOld == mapView.map().layers().get( i ) ) {
-				layerIndex = i;
-			}
-			i++;
-		}
-		return layerIndex;
-	}
-
 	@ReactMethod
 	public void updateCoordinatesSimplified(
 		int reactTag,
@@ -391,7 +355,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				return;
 			}
 
-			int layerIndex = getVectorLayerIndex( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error updateCoordinatesSimplified", "Layer not found" );
 				return;
@@ -451,7 +415,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				return;
 			}
 
-			int layerIndex = getVectorLayerIndex( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error updateStrokeWidth", "Layer not found" );
 				return;
@@ -499,7 +463,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				return;
 			}
 
-			int layerIndex = getVectorLayerIndex( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error updateStrokeWidth", "Layer not found" );
 				return;
@@ -720,54 +684,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		coordinatesMap.remove( uuid );
 		coordinatesSimplifiedMap.remove( uuid );
 		gradients.remove( uuid );
-
-
-
-
-
-		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
-			}
-
-			Layer layer = layers.get( uuid );
-
-			if ( null == layer )  {
-				promise.resolve( false );
-				return;
-			}
-
-			// Remove layer from map.
-			int layerIndex = -1;
-			for ( int i = 0; i < mapView.map().layers().size(); i++ ) {
-				if ( layer == mapView.map().layers().get( i ) ) {
-					layerIndex = i;
-				}
-			}
-			if ( layerIndex != -1 ) {
-				mapView.map().layers().remove( layerIndex );
-			}
-
-			// Remove layer from layers.
-			layers.remove( uuid );
-
-			// Trigger map update.
-			mapView.map().updateMap();
-
-			// Resolve uuid
-			promise.resolve( uuid );
-		} catch(Exception e) {
-			promise.reject("Remove Layer Error", e);
-		}
-
-
-
-
-
-
-//		super.removeLayer( reactTag, uuid, promise );
+		super.removeLayer( reactTag, uuid, promise );
 	}
 
 }

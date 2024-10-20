@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import io.ticofab.androidgpxparser.parser.GPXParser;
 import io.ticofab.androidgpxparser.parser.domain.Gpx;
@@ -50,20 +51,8 @@ public class MapLayerPathModule extends MapLayerBase {
 		return pts;
 	}
 
-	@ReactMethod
-	public void createLayer(
-		int reactTag,
-		int reactTreeIndex,
-		Promise promise
-	) {
-		createLayer(
-			reactTag,
-			Utils.getEmptyReadableArray(),
-			"",
-			reactTreeIndex,
-			promise
-		);
-	}
+	// This constructor should not be called. It's just existing to overwrite the parent constructor.
+	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
 
 	@ReactMethod
 	public void createLayer(
@@ -123,11 +112,11 @@ public class MapLayerPathModule extends MapLayerBase {
 			mapView.map().updateMap(true);
 
 			// Store layer
-			int hash = pathLayer.hashCode();
-			layers.put( hash, pathLayer );
+			String uuid = UUID.randomUUID().toString();
+			layers.put( uuid, pathLayer );
 
 			// Resolve layer hash
-			promise.resolve( hash );
+			promise.resolve( uuid );
 		} catch(Exception e) {
 			e.printStackTrace();
 			promise.reject("Create Event Error", e);
@@ -135,8 +124,8 @@ public class MapLayerPathModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void removeLayer(int reactTag, int hash, Promise promise) {
-		super.removeLayer( reactTag, hash, promise );
+	public void removeLayer(int reactTag, String uuid, Promise promise) {
+		super.removeLayer( reactTag, uuid, promise );
 	}
 
 }
