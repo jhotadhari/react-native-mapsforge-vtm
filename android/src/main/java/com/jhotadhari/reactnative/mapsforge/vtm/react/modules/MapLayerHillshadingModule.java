@@ -68,7 +68,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			double scale = shadingAlgorithmOptions.getDouble( "scale" );
 			Double heightAngle = (Double) shadingAlgorithmOptions.getDouble( "heightAngle" );
 
-			String dbname = "hillshading_" + shadingAlgorithmKey;
+			String dbname = "hillshading_" + shadingAlgorithmKey + "_" + String.valueOf( magnitude );
 			ShadingAlgorithm shadingAlgorithm;
 			switch ( shadingAlgorithmKey ) {
 				case "DiffuseLightShadingAlgorithm":

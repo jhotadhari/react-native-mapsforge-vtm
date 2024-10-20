@@ -37,6 +37,7 @@ const LayerHillshading = ( {
 
 	const [random, setRandom] = useState( 0 );
 	const [hash, setHash] = useRefState( null );
+	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
 	hgtDirPath = hgtDirPath || "";
 	zoomMin = isNumber( zoomMin ) ? Math.round( zoomMin ) : 6;
@@ -87,12 +88,32 @@ const LayerHillshading = ( {
 		};
 	}, [
 		mapViewNativeTag,
+		!! hash,
+		triggerCreateNew,
+	] );
+
+
+	useEffect( () => {
+		if ( mapViewNativeTag && hash ) {
+            promiseQueue.enqueue( () => {
+                MapLayerHillshadingModule.removeLayer(
+                    mapViewNativeTag,
+                    hash
+                ).then( removedHash => {
+                    if ( removedHash ) {
+                        setUuid( null )
+                        setTriggerCreateNew( Math.random() );
+						isFunction( onRemove ) ? onRemove( { removedHash } ) : null;
+                    }
+                } );
+            } );
+		}
+	}, [
 		hgtDirPath,
 		zoomMin,
 		zoomMax,
 		shadingAlgorithm,
-		shadingAlgorithmOptions,
-		!! hash,
+		Object.keys( shadingAlgorithmOptions ).map( key => key + shadingAlgorithmOptions[key] ).join( '' ),
 	] );
 
 	return null;
