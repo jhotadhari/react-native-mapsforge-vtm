@@ -23,6 +23,7 @@ import android.view.ViewGroup;
 
 import androidx.fragment.app.Fragment;
 
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
@@ -63,7 +64,7 @@ public class MapFragment extends Fragment {
 	protected static double propWidthForLayoutSize = 200;
 	protected static double propHeightForLayoutSize = 200;
 
-	protected GeoPoint propCenterGeoPoint;
+	protected ReadableMap propCenter;
 
 	protected static boolean propMoveEnabled = true;
 	protected static boolean propRotationEnabled = true;
@@ -103,7 +104,7 @@ public class MapFragment extends Fragment {
 		double widthForLayoutSize,
 		double heightForLayoutSize,
 
-		ArrayList center,
+		ReadableMap center,
 
 		boolean moveEnabled,
 		boolean rotationEnabled,
@@ -137,10 +138,7 @@ public class MapFragment extends Fragment {
 		propHeightForLayoutSize = heightForLayoutSize;
 		propWidthForLayoutSize = widthForLayoutSize;
 
-        propCenterGeoPoint = new GeoPoint(
-            (double) center.get(0),
-            (double) center.get(1)
-        );
+        propCenter = center;
 
 		propMoveEnabled = moveEnabled;
 		propRotationEnabled = rotationEnabled;
@@ -234,7 +232,7 @@ public class MapFragment extends Fragment {
 			mapView = initMapView( v );
 
 			// Initial position and zoomLevel.
-			MapPosition mapPosition = new MapPosition( propCenterGeoPoint.getLatitude(), propCenterGeoPoint.getLongitude(), 1 );
+			MapPosition mapPosition = new MapPosition( propCenter.getDouble( "lat" ), propCenter.getDouble( "lng" ), 1 );
 
 			mapPosition.setZoomLevel( propZoomLevel );
 			mapView.map().setMapPosition( mapPosition );
@@ -300,9 +298,7 @@ public class MapFragment extends Fragment {
 	protected WritableMap getResponseBase() {
 		WritableMap params = new WritableNativeMap();
 		params.putInt( "nativeTag", this.getId() );
-
 		MapPosition mapPosition = mapView.map().getMapPosition();
-		params.putArray( "center", Utils.mapPositionToArray( mapPosition ) );
 		params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		params.putDouble( "zoom", mapPosition.getZoom() );
 		params.putDouble( "scale", mapPosition.getScale() );
@@ -310,14 +306,19 @@ public class MapFragment extends Fragment {
 		params.putDouble( "bearing", mapPosition.getBearing() );
 		params.putDouble( "roll", mapPosition.getRoll() );
 		params.putDouble( "tilt", mapPosition.getTilt() );
+		// center
+		WritableMap center = new WritableNativeMap();
+		center.putDouble( "lng", mapPosition.getLongitude() );
+		center.putDouble( "lat", mapPosition.getLatitude() );
 		if ( null != hgtReader ) {
-			Short altitude = hgtReader.getAltitudeAtPosition( mapPosition.getLongitude(), mapPosition.getLatitude());
+			Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
 			if ( null == altitude ) {
-				params.putNull( "centerAltitude" );
+				center.putNull( "alt" );
 			} else {
-				params.putDouble( "centerAltitude", altitude.doubleValue() );
+				center.putDouble( "alt", altitude.doubleValue() );
 			}
 		}
+		params.putMap( "center", center );
 		return params;
 	}
 

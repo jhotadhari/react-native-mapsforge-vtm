@@ -20,11 +20,11 @@ import PropTypes from 'prop-types';
 /**
  * Internal dependencies
  */
-import MapPropTypes from '../MapPropTypes';
 import { MapViewManager } from './MapViewManager.jsx';
 import useMapLayersCreated from '../compose/useMapLayersCreated.js';
 import { MapContainerModule } from '../nativeMapModules';
-import { isBoolean, isNumber, isString } from 'lodash-es';
+import { isBoolean, isNumber, isObject, isString } from 'lodash-es';
+import { isValidPosition } from '../utils.js';
 
 const createFragment = mapViewNativeTag =>
 	UIManager.dispatchViewManagerCommand(
@@ -86,7 +86,10 @@ const MapContainer = ( {
 	width = useDefaultWidth( width );
 	height = height || 200;
 
-	center = center && Array.isArray( center ) && center.length === 2 ? center : [52.5, 13.4];
+	center = isValidPosition( center ) ? center : {
+		lng: -77.605,
+		lat: -9.118,
+	};
 
 	moveEnabled = isBoolean( moveEnabled ) || isNumber( moveEnabled ) ? ( !! moveEnabled ? 1 : 0 ) : 1;
 	rotationEnabled = isBoolean( rotationEnabled ) || isNumber( rotationEnabled ) ? ( !! rotationEnabled ? 1 : 0 ) : 1;
@@ -127,7 +130,7 @@ const MapContainer = ( {
 		if ( mapLayersCreated && mapViewNativeTag ) {
 			MapContainerModule.setCenter( mapViewNativeTag, center );
 		}
-	}, [center.join( '' )] );
+	}, [Object.keys( center ).filter( a => ['lng','lat'].includes( a ) ).join( '' )] );
 	// moveEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
@@ -312,7 +315,7 @@ MapContainer.propTypes = {
 	onResume: PropTypes.func,
 	width: PropTypes.number,
 	height: PropTypes.number,
-	center: MapPropTypes.latLong,
+	center: PropTypes.object,
 	moveEnabled: PropTypes.bool,
 	tiltEnabled: PropTypes.bool,
 	rotationEnabled: PropTypes.bool,

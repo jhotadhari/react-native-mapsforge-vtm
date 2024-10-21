@@ -52,7 +52,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	protected Map<String, VectorLayer> layers = new HashMap<>();
-	protected Map<String, Coordinate[]> coordinatesMap = new HashMap<>();
+	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
 	protected Map<String, CoordPoint[]> coordinatesSimplifiedMap = new HashMap<>();
 	protected Map<String, Gradient> gradients = new HashMap<>();
 
@@ -74,24 +74,24 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		);
 	}
 
-	protected static Coordinate[] readableArrayToCoordinates( ReadableArray positions ) {
-		Coordinate[] coordinates = new Coordinate[positions.size()];
+	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray positions ) {
+		Coordinate[] jtsCoordinates = new Coordinate[positions.size()];
 		for ( int i = 0; i < positions.size(); i++ ) {
 			ReadableType readableType = positions.getType( i );
-			if ( readableType == ReadableType.Array ) {
-				ArrayList<Object> arrList = positions.getArray( i ).toArrayList();
-				coordinates[i] = new Coordinate(
-					(double) arrList.get( 0 ),
-					(double) arrList.get( 1 ),
-					(double) ( arrList.size() > 2 ? arrList.get( 2 ) : 0 )
+			if ( readableType == ReadableType.Map ) {
+				ReadableMap position = positions.getMap( i );
+				jtsCoordinates[i] = new Coordinate(
+					(double) position.getDouble( "lng" ),
+					(double) position.getDouble( "lat" ),
+					(double) ( position.hasKey( "alt" ) ? position.getDouble( "alt" ) : 0 )
 				);
 			}
 		}
-		return coordinates;
+		return jtsCoordinates;
 	}
 
-	protected static Coordinate[] loadGpx( String filePath, Promise promise ) {
-		Coordinate[] coordinates = new Coordinate[0];
+	protected static Coordinate[] loadGpxToJtsCoordinates( String filePath, Promise promise ) {
+		Coordinate[] jtsCoordinates = new Coordinate[0];
 		File gpxFile = new File( filePath );
 		if( gpxFile.exists() ) {
 			GPXParser parser = new GPXParser();
@@ -102,24 +102,24 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			} catch ( IOException | XmlPullParserException e ) {
 				e.printStackTrace();
 				promise.resolve( false );
-				return coordinates;
+				return jtsCoordinates;
 			}
 			if ( parsedGpx == null ) {
 				promise.resolve(false );
-				return coordinates;
+				return jtsCoordinates;
 			}
 			List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
-			coordinates = new Coordinate[points.size()];
+			jtsCoordinates = new Coordinate[points.size()];
 			for ( int i = 0; i < points.size(); i++) {
 				TrackPoint point = (TrackPoint) points.get( i );
-				coordinates[i] = new Coordinate(
+				jtsCoordinates[i] = new Coordinate(
 					point.getLongitude(),
 					point.getLatitude(),
 					point.getElevation()
 				);
 			}
 		}
-		return coordinates;
+		return jtsCoordinates;
 	}
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
@@ -134,7 +134,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		CoordPoint[] coordinatesSimplified = new CoordPoint[0];
 		if ( slopeSimplificationTolerance > 0 || ( ( flattenWindowSize & 1 ) != 0 && flattenWindowSize > 5 ) ) {
 			coordinatesSimplified = getCoordinatesSimplified(
-				coordinatesMap.get( uuid ),
+				originalJtsCoordinatesMap.get( uuid ),
 				slopeSimplificationTolerance,
 				flattenWindowSize,
 				shouldAddCoordinatesToResponse
@@ -177,16 +177,16 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, vectorLayer );
 
-			// Convert input params to coordinates
-			Coordinate[] coordinates = new Coordinate[0];
+			// Convert input params to jtsCoordinates
+			Coordinate[] jtsCoordinates = new Coordinate[0];
 			if ( null != positions && positions.size() > 0 ) {
-				coordinates = readableArrayToCoordinates( positions );
+				jtsCoordinates = readableArrayToJtsCoordinates( positions );
 			} else if ( filePath != null && filePath.length() > 0 && filePath.startsWith( "/" ) && filePath.endsWith( ".gpx" ) ) {
-				coordinates = loadGpx( filePath, promise );
+				jtsCoordinates = loadGpxToJtsCoordinates( filePath, promise );
 			}
 
 			// Store coordinates
-			coordinatesMap.put( uuid, coordinates );
+			originalJtsCoordinatesMap.put( uuid, jtsCoordinates );
 
 			// Setup gradient and store it.
 			Gradient gradient = setupGradient( slopeColors );
@@ -204,17 +204,15 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			}
 
 			drawLineForCoordinates(
-				coordinates,
+				jtsCoordinates,
 				strokeWidth,
 				uuid,
-				vectorLayer,
-				responseInclude,
-				responseParams
+				vectorLayer
 			);
 
 			// Maybe add coordinates to promise response.
 			if ( responseInclude.getInt( "coordinates" ) > 0 ) {
-				addCoordinatesToResponse( coordinates, responseParams );
+				addCoordinatesToResponse( jtsCoordinates, responseParams );
 			}
 
 			// Add layer to map
@@ -233,15 +231,15 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
         }
     }
 
-	protected static double getSlopeBetweenCoordinates( Coordinate coordinate, Coordinate coordinateLast ) {
+	protected static double getSlopeBetweenCoordinates( Coordinate jtsCoordinate, Coordinate jtsCoordinatePrev ) {
 		double distance = new GeoPoint(
-			(double) coordinate.y,
-			(double) coordinate.x
+			(double) jtsCoordinate.y,
+			(double) jtsCoordinate.x
 		).sphericalDistance( new GeoPoint(
-			(double) coordinateLast.y,
-			(double) coordinateLast.x
+			(double) jtsCoordinatePrev.y,
+			(double) jtsCoordinatePrev.x
 		) );
-		return ( coordinate.z - coordinateLast.z ) / distance * 100;
+		return ( jtsCoordinate.z - jtsCoordinatePrev.z ) / distance * 100;
 	}
 
 	// Map of slopes for simplified coordinates. Keyed by their index within original coordinates.
@@ -258,43 +256,42 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	private CoordPoint[] getCoordinatesSimplified(
-		Coordinate[] coordinates,
+		Coordinate[] jtsCoordinates,
 		double slopeSimplificationTolerance,
 		int flattenWindowSize,
 		boolean shouldAddCoordinatesToResponse
 	) {
 
 		// Create coordinatesSimplified array. This array might be simplified and flattened.
-		CoordPoint[] coordinatesSimplified = new CoordPoint[coordinates.length];
+		CoordPoint[] coordinatesSimplified = new CoordPoint[jtsCoordinates.length];
 		double accumulatedDistance = 0;
-		for ( int i = 0; i < coordinates.length; i++ ) {
+		for ( int i = 0; i < jtsCoordinates.length; i++ ) {
 			// Accumulate distance.
 			double distanceToLast =  i == 0
 				? 0
 				: new GeoPoint(
-				(double) coordinates[i].y,
-				(double) coordinates[i].x
+				(double) jtsCoordinates[i].y,
+				(double) jtsCoordinates[i].x
 			).sphericalDistance( new GeoPoint(
-				(double) coordinates[i-1].y,
-				(double) coordinates[i-1].x
+				(double) jtsCoordinates[i-1].y,
+				(double) jtsCoordinates[i-1].x
 			) );
 			accumulatedDistance += distanceToLast;
 			// Init CoordPoint and add to coordinatesSimplified array.
 			coordinatesSimplified[i] = new CoordPoint(
 				i,
-				(double) coordinates[i].x,
-				(double) coordinates[i].y,
-				(double) coordinates[i].z,
+				(double) jtsCoordinates[i].x,
+				(double) jtsCoordinates[i].y,
+				(double) jtsCoordinates[i].z,
 				(double) accumulatedDistance
 			);
 			// Maybe add coordinates to response.
 			if ( shouldAddCoordinatesToResponse ) {
 				WritableArray coordinatesResponseArray = new WritableNativeArray();
 				WritableArray latLongAlt = new WritableNativeArray();
-				// ??? maybe other way around, should do everywhere same order!!!
-				latLongAlt.pushDouble( (double) coordinates[i].x );
-				latLongAlt.pushDouble( (double) coordinates[i].y );
-				latLongAlt.pushDouble( (double) coordinates[i].z );
+				latLongAlt.pushDouble( (double) jtsCoordinates[i].x );
+				latLongAlt.pushDouble( (double) jtsCoordinates[i].y );
+				latLongAlt.pushDouble( (double) jtsCoordinates[i].z );
 				latLongAlt.pushDouble( (double) accumulatedDistance );
 				coordinatesResponseArray.pushArray( latLongAlt );
 			}
@@ -378,12 +375,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			// draw new
 			drawLineForCoordinates(
-				coordinatesMap.get( uuid ),
+				originalJtsCoordinatesMap.get( uuid ),
 				strokeWidth,
 				uuid,
-				vectorLayerNew,
-				responseInclude,
-				responseParams
+				vectorLayerNew
 			);
 
 			// Replace old vectorLayer with new one on map.
@@ -397,7 +392,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			}
 			// Maybe add coordinates to promise response.
 			if ( responseInclude.getInt( "coordinates" ) > 1 ) {
-				addCoordinatesToResponse( coordinatesMap.get( uuid ), responseParams );
+				addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
 			promise.reject("Error updateCoordinatesSimplified ", e );
@@ -426,12 +421,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			// draw new
 			drawLineForCoordinates(
-				coordinatesMap.get( uuid ),
+				originalJtsCoordinatesMap.get( uuid ),
 				strokeWidth,
 				uuid,
-				vectorLayerNew,
-				responseInclude,
-				responseParams
+				vectorLayerNew
 			);
 
 			// Replace old vectorLayer with new one on map.
@@ -445,7 +438,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			}
 			// Maybe add coordinates to promise response.
 			if ( responseInclude.getInt( "coordinates" ) > 1 ) {
-				addCoordinatesToResponse( coordinatesMap.get( uuid ), responseParams );
+				addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
 			promise.reject("Error updateStrokeWidth ", e );
@@ -478,12 +471,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			// draw new
 			drawLineForCoordinates(
-				coordinatesMap.get( uuid ),
+				originalJtsCoordinatesMap.get( uuid ),
 				strokeWidth,
 				uuid,
-				vectorLayerNew,
-				responseInclude,
-				responseParams
+				vectorLayerNew
 			);
 
 			// Replace old vectorLayer with new one on map.
@@ -497,7 +488,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			}
 			// Maybe add coordinates to promise response.
 			if ( responseInclude.getInt( "coordinates" ) > 1 ) {
-				addCoordinatesToResponse( coordinatesMap.get( uuid ), responseParams );
+				addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
 			promise.reject("Error updateStrokeWidth ", e );
@@ -506,21 +497,19 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	protected void drawLineForCoordinates(
-		Coordinate[] coordinates,
+		Coordinate[] jtsCoordinates,
 		int strokeWidth,
 		String uuid,
-		VectorLayer vectorLayer,
-		ReadableMap responseInclude,
-		WritableMap responseParams
+		VectorLayer vectorLayer
 	) {
-		if ( null == coordinates || coordinates.length == 0 ) {
+		if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
 			return;
 		}
 
 		// Draw the path, but maybe use simplified slopes (if slopeSimplificationTolerance greater 0).
 		Map<Integer, Double> simplifiedSlopes = getSimplifiedSlopes( coordinatesSimplifiedMap.get( uuid ) );
 		double slope = 0;
-		for (int i = 0; i < coordinates.length; i++) {
+		for (int i = 0; i < jtsCoordinates.length; i++) {
 			if ( i != 0 ) {
 				// Get slope
 				if ( ! simplifiedSlopes.isEmpty() ) {
@@ -530,7 +519,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 						slope = newSlope;
 					}
 				} else {
-					slope = getSlopeBetweenCoordinates( coordinates[i], coordinates[i-1] );
+					slope = getSlopeBetweenCoordinates( jtsCoordinates[i], jtsCoordinates[i-1] );
 				}
 				// Get color for slope.
 				if ( gradients.containsKey( uuid ) ) {
@@ -539,10 +528,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 					if ( strokeColor != 0 ) {
 						// Add new line segment to vectorLayer.
 						double[] segment = new double[4];
-						segment[0] = coordinates[i].x;
-						segment[1] = coordinates[i].y;
-						segment[2] = coordinates[i-1].x;
-						segment[3] = coordinates[i-1].y;
+						segment[0] = jtsCoordinates[i].x;
+						segment[1] = jtsCoordinates[i].y;
+						segment[2] = jtsCoordinates[i-1].x;
+						segment[3] = jtsCoordinates[i-1].y;
 						vectorLayer.add( new LineDrawable(
 							segment,
 							Style.builder().strokeWidth( strokeWidth ).strokeColor( strokeColor ).build()
@@ -560,7 +549,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	) {
 		WritableArray coordinatesSimplifiedResponseArray = new WritableNativeArray();
 		for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
-			coordinatesSimplifiedResponseArray.pushArray( coordinatesSimplified[i].toResponseArray() );
+			coordinatesSimplifiedResponseArray.pushMap( coordinatesSimplified[i].toResponseMap() );
 		}
 		responseParams.putArray( "coordinatesSimplified", coordinatesSimplifiedResponseArray );
 	}
@@ -583,13 +572,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 					(double) coordinates[i-1].x
 				) );
 				accumulatedDistance += distanceToLast;
-				WritableArray latLongAlt = new WritableNativeArray();
-				// ??? maybe other way around, should do everywhere same order!!!
-				latLongAlt.pushDouble( (double) coordinates[i].x );
-				latLongAlt.pushDouble( (double) coordinates[i].y );
-				latLongAlt.pushDouble( (double) coordinates[i].z );
-				latLongAlt.pushDouble( (double) accumulatedDistance );
-				coordinatesResponseArray.pushArray( latLongAlt );
+				WritableMap position = new WritableNativeMap();
+				position.putDouble( "lng", (double) coordinates[i].x );
+				position.putDouble( "lat", (double) coordinates[i].y );
+				position.putDouble( "alt", (double) coordinates[i].z );
+				position.putDouble( "distance", (double) accumulatedDistance );
+				coordinatesResponseArray.pushMap( position );
 			}
 			// Add to responseParams.
 			responseParams.putArray( "coordinates", coordinatesResponseArray );
@@ -604,7 +592,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		double lon;		// longitude
 		double alt; 	// altitude
 		double accumulatedDistance; // accumulated distance
-		double distanceLast;	//
+		double distancePrev;	//
 		double slope;	//
 
 		private CoordPoint(
@@ -613,14 +601,13 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			double lon,
 			double alt,
 			double accumulatedDistance
-
 		) {
 			this.index = index;
 			this.lat = lat;
 			this.lon = lon;
 			this.alt = alt;
 			this.accumulatedDistance = accumulatedDistance;
-			this.distanceLast = 0;
+			this.distancePrev = 0;
 			this.slope = 0;
 		}
 
@@ -633,7 +620,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		}
 
 		public void setDistanceLast( double distanceLast ) {
-			this.distanceLast = distanceLast;
+			this.distancePrev = distanceLast;
 		}
 
 		@Override
@@ -648,17 +635,17 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		@Override
 		public String toString() {
-			return "[" + "index=" + index + " lat=" + lat + ", lon=" + lon + ", alt=" + alt + ", accumulatedDistance=" + accumulatedDistance + ", distanceLast=" + distanceLast + ", slope=" + slope + ']';
+			return "[" + "index=" + index + " lat=" + lat + ", lon=" + lon + ", alt=" + alt + ", accumulatedDistance=" + accumulatedDistance + ", distanceLast=" + distancePrev + ", slope=" + slope + ']';
 		}
 
-		public WritableArray toResponseArray() {
-			WritableArray latLongAlt = new WritableNativeArray();
-			// ??? maybe other way around, should do everywhere same order!!!
-			latLongAlt.pushDouble( lon );
-			latLongAlt.pushDouble( lat );
-			latLongAlt.pushDouble( alt );
-			latLongAlt.pushDouble( accumulatedDistance );
-			return latLongAlt;
+		public WritableMap toResponseMap() {
+			WritableMap position = new WritableNativeMap();
+			position.putDouble( "lon", lon );
+			position.putDouble( "lat", lat );
+			position.putDouble( "alt", alt );
+			position.putDouble( "distance", accumulatedDistance );
+			position.putDouble( "slope", slope );
+			return position;
 		}
 
 		@Override
@@ -681,7 +668,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
     @ReactMethod
     public void removeLayer( int reactTag, String uuid, Promise promise ) {
-		coordinatesMap.remove( uuid );
+		originalJtsCoordinatesMap.remove( uuid );
 		coordinatesSimplifiedMap.remove( uuid );
 		gradients.remove( uuid );
 		super.removeLayer( reactTag, uuid, promise );

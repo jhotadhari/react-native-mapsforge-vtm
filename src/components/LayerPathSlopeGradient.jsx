@@ -11,6 +11,7 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
 import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
+import { isValidPositions } from '../utils';
 
 // 0	never include in response.
 // 1	include in response on create.
@@ -41,7 +42,7 @@ const LayerPathSlopeGradient = ( {
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
-	positions = isArray( positions ) ? positions : [];
+	positions = isValidPositions( positions ) ? positions : [];
 	filePath = isString( filePath ) && filePath.length > 0 ? filePath : '';
 	strokeWidth = isNumber( strokeWidth ) && !! strokeWidth ? parseInt( strokeWidth, 10 ) : 4;
 	slopeSimplificationTolerance = isNumber( slopeSimplificationTolerance ) ? slopeSimplificationTolerance : 7;
@@ -193,7 +194,7 @@ const LayerPathSlopeGradient = ( {
 		}
 	}, [
 		( positions && Array.isArray( positions ) && positions.length
-			? positions.join( '' )
+			? [...positions].map( pos => pos.lng + pos.lat + pos?.alt ).join( '' )
 			: null
 		),
 		filePath,

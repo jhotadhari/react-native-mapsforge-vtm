@@ -2,6 +2,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.os.Build;
 
+import com.facebook.react.bridge.ReadableMap;
+
 import org.mapsforge.map.layer.hills.DemFile;
 import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.LazyFuture;
@@ -127,8 +129,10 @@ public class HgtReader {
 	 * Mostly copy of org.openstreetmap.josm.plugins.elevation.HgtReader readElevation
 	 * See https://github.com/JOSM/josm-plugins/blob/5026c5627f2cacfb2410505a869fd915211edf41/ElevationProfile/src/org/openstreetmap/josm/plugins/elevation/HgtReader.java#L148C26-L148C39
 	 */
-	public Short getAltitudeAtPosition( double lng, double lat ) {
+	public Short getAltitudeAtPosition( ReadableMap center ) {
 		Short altitude = null;
+		double lng = center.getDouble( "lng" );
+		double lat = center.getDouble( "lat" );
 		try {
 			Map<TileKey, HgtFileInfo> hgtFileInfoMap = hgtFiles.get();
 			if ( ! hgtFileInfoMap.isEmpty() ) {

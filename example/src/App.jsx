@@ -122,11 +122,11 @@ const App = () => {
 
 
 
-	const [randomCenter,setRandomCenter] = useState( [-12.65, -75.239] );
-	const doNewRandomCenter = () => setRandomCenter( [
-		randomNumber( -12, -13 ),	// lat
-		randomNumber( -74, -75 ),	// long
-	] );
+	// const [randomCenter,setRandomCenter] = useState( [-12.65, -75.239] );
+	// const doNewRandomCenter = () => setRandomCenter( [
+	// 	randomNumber( -12, -13 ),	// lat
+	// 	randomNumber( -74, -75 ),	// long
+	// ] );
 
 	const promiseQueueState = usePromiseQueueState();
 
@@ -285,8 +285,8 @@ const App = () => {
 						} }
 					>
 						<Button
-							onPress={ () => doNewRandomCenter() }
-							title="rand center"
+							// onPress={ () => doNewRandomCenter() }
+							title="nada"
 							disabled={ promiseQueueState > 0 }
 						/>
 					</View>
@@ -295,16 +295,20 @@ const App = () => {
 
 				{ mapHeight && <MapContainer
 					height={ mapHeight }
-					center={ randomCenter }
+					center={ {
+						lng: -75.239,
+						lat: -12.65,
+					} }
 					zoomLevel={ 12 }
 					mapViewNativeTag={ mainMapViewId }
 					setMapViewNativeTag={ setMainMapViewId }
 					minZoom={ 2 }
 					maxZoom={ 20 }
-					moveEnabled = { true }
-					tiltEnabled = { false }
-					rotationEnabled = { false }
-					zoomEnabled = { true }
+					moveEnabled={ true }
+					tiltEnabled={ false }
+					rotationEnabled={ false }
+					zoomEnabled={ true }
+					hgtDirPath="/storage/emulated/0/Documents/orux/dem"
 					onPause={ result => {
 						console.log( 'debug lifecycle event onPause', result );
 					} }
@@ -313,9 +317,9 @@ const App = () => {
 					} }
 				>
 
-					{/* <MapEvents
+					<MapEvents
 						nativeTag={ mainMapViewId }
-					/> */}
+					/>
 
 
 					{/* { showLayerBitmapTile && <LayerBitmapTile
@@ -349,6 +353,13 @@ const App = () => {
 
 
 					<LayerPathSlopeGradient
+						// responseInclude={ {
+						// 	// coordinates: 1,
+						// 	coordinatesSimplified: 1,
+						// } }
+						// onCreate={ response => {
+						// 	console.log( 'debug response', response ); // debug
+						// } }
 						strokeWidth={ 5 }
 						slopeColors={ [
 							[-25, '#000a70'],

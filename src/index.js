@@ -11,12 +11,12 @@ import LayerPath from './components/LayerPath.jsx';
 import LayerPathSlopeGradient from './components/LayerPathSlopeGradient.jsx';
 // import Marker from './components/Marker.jsx';
 // import Polyline from './components/Polyline.jsx';
-import MapPropTypes from './MapPropTypes';
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
 import usePromiseQueueState from './compose/usePromiseQueueState';
 import useMapEvents from './compose/useMapEvents';
 import promiseQueue from './promiseQueue';
 import * as nativeMapModules from './nativeMapModules';
+import * as utils from './utils';
 
 export {
 	MapContainer,
@@ -29,11 +29,11 @@ export {
 	LayerPathSlopeGradient,
 	// Marker,
 	// Polyline,
-	MapPropTypes,
 	useRenderStyleOptions,
 	usePromiseQueueState,
 	useMapEvents,
 	promiseQueue,
 	nativeMapModules,
+	utils,
 };
 

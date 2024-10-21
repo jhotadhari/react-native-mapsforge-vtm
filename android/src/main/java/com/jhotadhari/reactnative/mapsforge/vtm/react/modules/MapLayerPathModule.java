@@ -41,10 +41,10 @@ public class MapLayerPathModule extends MapLayerBase {
 		List<GeoPoint> pts = new ArrayList<>();
 		for (int index = 0; index < positions.size(); index++) {
 			ReadableType readableType = positions.getType(index);
-			if ( readableType == ReadableType.Array ) {
+			if ( readableType == ReadableType.Map ) {
 				pts.add( new GeoPoint(
-					(Double) positions.getArray( index ).toArrayList().get(0),
-					(Double) positions.getArray (index ).toArrayList().get(1)
+					(Double) positions.getMap( index ).getDouble( "lat" ),
+					(Double) positions.getMap( index ).getDouble( "lng" )
 				) );
 			}
 		}

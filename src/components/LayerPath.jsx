@@ -11,6 +11,7 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
 import { isArray, isString } from 'lodash-es';
+import { isValidPositions } from '../utils';
 
 const Module = MapLayerPathModule;
 
@@ -28,7 +29,7 @@ const LayerPath = ( {
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
 
-	positions = isArray( positions ) ? positions : [];
+	positions = isValidPositions( positions ) ? positions : [];
 	filePath = isString( filePath ) && filePath.length > 0 ? filePath : '';
 
 	onCreate = isFunction( onCreate ) ? onCreate : null;
@@ -97,7 +98,7 @@ const LayerPath = ( {
 		}
 	}, [
 		( positions && Array.isArray( positions ) && positions.length
-			? positions.join( '' )
+			? [...positions].map( pos => pos.lng + pos.lat ).join( '' )
 			: null
 		),
 		filePath,

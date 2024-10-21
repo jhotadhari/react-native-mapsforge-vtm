@@ -61,7 +61,11 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
                 promise.resolve( false );
                 return;
             }
-			GeoPoint geoPoint = Utils.arrayToGeoPoint( center );
+			GeoPoint geoPoint = new GeoPoint(
+				(double) center.toArrayList().get(0),
+				(double) center.toArrayList().get(1)
+			);
+
 			mapView.map().setMapPosition( new MapPosition(
 				geoPoint.getLatitude(),
 				geoPoint.getLongitude(),

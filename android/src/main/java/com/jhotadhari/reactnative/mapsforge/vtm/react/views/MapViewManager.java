@@ -12,6 +12,7 @@ import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
@@ -36,7 +37,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private double propWidthForLayoutSize;
 	private double propHeightForLayoutSize;
 
-	private ArrayList propCenter;
+	private ReadableMap propCenter;
 
 	private boolean propMoveEnabled;
 	private boolean propRotationEnabled;
@@ -136,8 +137,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	}
 
 	@ReactProp( name="center" )
-	public void setReactPropCenter( FrameLayout view, ReadableArray value ) {
-		propCenter = value.toArrayList();
+	public void setReactPropCenter( FrameLayout view, ReadableMap value ) {
+		propCenter = value;
 	}
 
 	@ReactPropGroup( names = {
