@@ -3,6 +3,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm.tileSource;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+
 import org.mapsforge.core.graphics.Canvas;
 import org.mapsforge.core.graphics.TileBitmap;
 import org.mapsforge.core.model.Rectangle;
@@ -133,7 +135,7 @@ public class HillshadingTileSource extends TileSource {
 			mMagnitude = magnitude;
 
 			MemoryCachingHgtReaderTileSource hgtReaderTileSource = new MemoryCachingHgtReaderTileSource(
-				new DemFolderFS( getDemFolder( mTileSource.getHgtDirPath() ) ),
+				new DemFolderFS( MapFragment.getDemFolder( mTileSource.getHgtDirPath() ) ),
 				shadingAlgorithm,
 				AndroidGraphicFactory.INSTANCE
 			);
@@ -143,14 +145,6 @@ public class HillshadingTileSource extends TileSource {
 			hillsCfg.indexOnThread();
 			mTileDecoder = tileDecoder;
 
-		}
-
-		private static File getDemFolder( String hgtDirPath ) {
-			File demFolder = new File( hgtDirPath );
-			if ( demFolder.exists() && demFolder.isDirectory() && demFolder.canRead() ) {
-				return demFolder;
-			}
-			return null;
 		}
 
 		@Override

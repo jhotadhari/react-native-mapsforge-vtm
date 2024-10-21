@@ -17,7 +17,11 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.annotations.ReactPropGroup;
+import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 
+import org.mapsforge.map.layer.hills.DemFolderFS;
+
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -55,6 +59,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private float propMinRoll;
 	private float propMaxRoll;
 
+	private String propHgtDirPath;
 
 	ReactApplicationContext reactContext;
 
@@ -223,6 +228,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		}
 	}
 
+	@ReactProp( name="hgtDirPath" )
+	public void setReactPropCenter( FrameLayout view, String value ) {
+		propHgtDirPath = value;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
@@ -256,7 +266,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 			propRoll,
 			propMinRoll,
-			propMaxRoll
+			propMaxRoll,
+
+			propHgtDirPath
 
 		);
 

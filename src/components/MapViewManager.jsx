@@ -23,6 +23,7 @@ export const MapViewManager = requireNativeComponent(
 			zoom: PropTypes.number,
 			minZoom: PropTypes.number,
 			maxZoom: PropTypes.number,
+			hgtDirPath: PropTypes.string,
 			...ViewPropTypes,
 		},
 	},

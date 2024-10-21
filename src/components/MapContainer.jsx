@@ -24,7 +24,7 @@ import MapPropTypes from '../MapPropTypes';
 import { MapViewManager } from './MapViewManager.jsx';
 import useMapLayersCreated from '../compose/useMapLayersCreated.js';
 import { MapContainerModule } from '../nativeMapModules';
-import { isBoolean, isNumber } from 'lodash-es';
+import { isBoolean, isNumber, isString } from 'lodash-es';
 
 const createFragment = mapViewNativeTag =>
 	UIManager.dispatchViewManagerCommand(
@@ -71,6 +71,8 @@ const MapContainer = ( {
 	roll,
 	minRoll,
 	maxRoll,
+
+	hgtDirPath,	// ??? TODO doesn't updated on change
 } ) => {
 
 	const ref = useRef( null );
@@ -106,6 +108,8 @@ const MapContainer = ( {
 	roll = isNumber( roll ) ? parseFloat( roll, 10 ) : 0;
 	minRoll = isNumber( minRoll ) ? parseFloat( minRoll, 10 ) : -180;
 	maxRoll = isNumber( maxRoll ) ? parseFloat( maxRoll, 10 ) : 180;
+
+	hgtDirPath = isString( hgtDirPath ) ? hgtDirPath : '';
 
 	useEffect( () => {
 		setMapViewNativeTag( findNodeHandle( ref.current ) );
@@ -294,6 +298,8 @@ const MapContainer = ( {
 			roll = { roll }
 			minRoll = { minRoll }
 			maxRoll = { maxRoll }
+
+			hgtDirPath = { hgtDirPath }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

@@ -29,21 +29,28 @@ import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
 import com.jhotadhari.reactnative.mapsforge.vtm.HardwareKeyListener;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 
 import android.widget.RelativeLayout;
 
+import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
 import org.oscim.core.MapPosition;
 import org.oscim.event.Event;
 import org.oscim.layers.Layer;
 import org.oscim.map.Map.UpdateListener;
+
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 
 public class MapFragment extends Fragment {
+
+	protected HgtReader hgtReader;
 
 
 	protected RelativeLayout relativeLayout;
@@ -75,6 +82,7 @@ public class MapFragment extends Fragment {
 	protected static float propRoll = 0;
 	protected static float propMinRoll = -180;
 	protected static float propMaxRoll = 180;
+	protected static String propHgtDirPath = "";
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -116,7 +124,9 @@ public class MapFragment extends Fragment {
 
 		float roll,
 		float minRoll,
-		float maxRoll
+		float maxRoll,
+
+		String hgtDirPath
 	) {
         super();
 
@@ -152,6 +162,8 @@ public class MapFragment extends Fragment {
 		propRoll = roll;
 		propMinRoll = minRoll;
 		propMaxRoll = maxRoll;
+
+		propHgtDirPath = hgtDirPath;
     }
 
     protected void addHardwareKeyListener() {
@@ -247,13 +259,17 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
+			// Init hgtReader
+			DemFolderFS demFolderFS = new DemFolderFS( getDemFolder( propHgtDirPath ) );
+			hgtReader = new HgtReader( demFolderFS );
+
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					if ( rateLimiter.tryAcquire() ) {
-						WritableMap params = getResponseBase();
-						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", params );
+						WritableMap params = null;
+						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase() );
 					}
 				}
 			} );
@@ -272,7 +288,6 @@ public class MapFragment extends Fragment {
 		}
     }
 
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 		view = inflater.inflate( R.layout.fragment_map, container, false );
@@ -287,7 +302,7 @@ public class MapFragment extends Fragment {
 		params.putInt( "nativeTag", this.getId() );
 
 		MapPosition mapPosition = mapView.map().getMapPosition();
-		params.putArray( "center",  Utils.mapPositionToArray( mapPosition ) );
+		params.putArray( "center", Utils.mapPositionToArray( mapPosition ) );
 		params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		params.putDouble( "zoom", mapPosition.getZoom() );
 		params.putDouble( "scale", mapPosition.getScale() );
@@ -295,8 +310,23 @@ public class MapFragment extends Fragment {
 		params.putDouble( "bearing", mapPosition.getBearing() );
 		params.putDouble( "roll", mapPosition.getRoll() );
 		params.putDouble( "tilt", mapPosition.getTilt() );
-
+		if ( null != hgtReader ) {
+			Short altitude = hgtReader.getAltitudeAtPosition( mapPosition.getLongitude(), mapPosition.getLatitude());
+			if ( null == altitude ) {
+				params.putNull( "centerAltitude" );
+			} else {
+				params.putDouble( "centerAltitude", altitude.doubleValue() );
+			}
+		}
 		return params;
+	}
+
+	public static File getDemFolder( String hgtDirPath ) {
+		File demFolder = new File( hgtDirPath );
+		if ( demFolder.exists() && demFolder.isDirectory() && demFolder.canRead() ) {
+			return demFolder;
+		}
+		return null;
 	}
 
     protected void sendLifecycleEvent( String type ) {
