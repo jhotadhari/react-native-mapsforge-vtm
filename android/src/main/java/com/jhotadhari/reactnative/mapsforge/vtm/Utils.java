@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.content.UriPermission;
+
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
@@ -9,6 +11,12 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
+
+import java.lang.reflect.Array;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.util.List;
 
 public class Utils {
 
@@ -49,4 +57,25 @@ public class Utils {
         ).emit( eventName, params );
     }
 
+	public static boolean hasScopedStoragePermission( ReactContext reactContext, String string, boolean checkWritePermission ) {
+		// list of all persisted permissions for our app
+		List<UriPermission> uriList = reactContext.getContentResolver().getPersistedUriPermissions();
+		try {
+			// Fake "document" to tree. "document" is first part of path.
+			URI jUri = new URI( string );
+			String[] pathArray= jUri.getPath().substring(1 ).split( "/" );
+			Array.set( pathArray, 0, "tree" );
+			String testString = jUri.getScheme() + "://" + jUri.getHost() + "/" + String.join( "/", pathArray );
+
+			for ( UriPermission uriPermission : uriList ) {
+				String uriString = URLDecoder.decode( uriPermission.getUri().toString() );
+				if ( ( uriString.startsWith( testString ) || testString.startsWith( uriString ) ) && uriPermission.isReadPermission() && ( ! checkWritePermission || uriPermission.isWritePermission() ) ) {
+					return true;
+				}
+			}
+		} catch ( URISyntaxException e ) {
+			e.printStackTrace();
+		}
+		return false;
+	}
 }

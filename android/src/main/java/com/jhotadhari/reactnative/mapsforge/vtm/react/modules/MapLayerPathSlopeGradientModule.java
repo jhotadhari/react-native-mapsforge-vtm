@@ -1,5 +1,9 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.net.Uri;
+
+import androidx.documentfile.provider.DocumentFile;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -20,7 +24,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
-import org.oscim.layers.Layer;
 import org.oscim.layers.vector.VectorLayer;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
@@ -30,6 +33,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +51,11 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
         return "MapLayerPathSlopeGradientModule";
     }
 
+	private final ReactApplicationContext mContext;
+
 	public MapLayerPathSlopeGradientModule(ReactApplicationContext context) {
 		super(context);
+		mContext = context;
 	}
 
 	protected Map<String, VectorLayer> layers = new HashMap<>();
@@ -90,34 +97,57 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		return jtsCoordinates;
 	}
 
-	protected static Coordinate[] loadGpxToJtsCoordinates( String filePath, Promise promise ) {
+	protected Coordinate[] loadGpxToJtsCoordinates( String filePath, Promise promise ) throws URISyntaxException, IOException {
 		Coordinate[] jtsCoordinates = new Coordinate[0];
-		File gpxFile = new File( filePath );
-		if( gpxFile.exists() ) {
-			GPXParser parser = new GPXParser();
-			Gpx parsedGpx = null;
-			try {
-				InputStream in = new FileInputStream( gpxFile );
-				parsedGpx = parser.parse(in);
-			} catch ( IOException | XmlPullParserException e ) {
-				e.printStackTrace();
-				promise.resolve( false );
-				return jtsCoordinates;
+
+		boolean permissionOk = Utils.hasScopedStoragePermission( mContext, filePath, false );
+		if ( ! permissionOk ) {
+			return null;
+		}
+
+		InputStream in = null;
+		if ( filePath.startsWith( "content://" ) ) {
+			DocumentFile dir = DocumentFile.fromSingleUri( mContext, Uri.parse( filePath ) );
+			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
+				return null;
 			}
-			if ( parsedGpx == null ) {
-				promise.resolve(false );
-				return jtsCoordinates;
+			in = mContext.getContentResolver().openInputStream( Uri.parse( filePath ) );
+			assert in != null;
+		}
+
+		if ( filePath.startsWith( "/" ) ) {
+			File gpxFile = new File( filePath );
+			if( ! gpxFile.exists() || ! gpxFile.isFile() ) {
+				return null;
 			}
-			List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
-			jtsCoordinates = new Coordinate[points.size()];
-			for ( int i = 0; i < points.size(); i++) {
-				TrackPoint point = (TrackPoint) points.get( i );
-				jtsCoordinates[i] = new Coordinate(
-					point.getLongitude(),
-					point.getLatitude(),
-					point.getElevation()
-				);
-			}
+			in = new FileInputStream( gpxFile );
+		}
+		if( in == null ) {
+			return null;
+		}
+
+		GPXParser parser = new GPXParser();
+		Gpx parsedGpx = null;
+		try {
+			parsedGpx = parser.parse( in );
+		} catch ( IOException | XmlPullParserException e ) {
+			e.printStackTrace();
+			promise.resolve( false );
+			return jtsCoordinates;
+		}
+		if ( parsedGpx == null ) {
+			promise.resolve(false );
+			return jtsCoordinates;
+		}
+		List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
+		jtsCoordinates = new Coordinate[points.size()];
+		for ( int i = 0; i < points.size(); i++) {
+			TrackPoint point = (TrackPoint) points.get( i );
+			jtsCoordinates[i] = new Coordinate(
+				point.getLongitude(),
+				point.getLatitude(),
+				point.getElevation()
+			);
 		}
 		return jtsCoordinates;
 	}
@@ -181,8 +211,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			Coordinate[] jtsCoordinates = new Coordinate[0];
 			if ( null != positions && positions.size() > 0 ) {
 				jtsCoordinates = readableArrayToJtsCoordinates( positions );
-			} else if ( filePath != null && filePath.length() > 0 && filePath.startsWith( "/" ) && filePath.endsWith( ".gpx" ) ) {
+			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
 				jtsCoordinates = loadGpxToJtsCoordinates( filePath, promise );
+			}
+			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
+				promise.reject("Create Event Error", "Unable to parse positions or gpx file");
+				return;
 			}
 
 			// Store coordinates

@@ -96,7 +96,7 @@ const LayerPathSlopeGradient = ( {
 					);
 				}
 
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		} );
 	};
 
