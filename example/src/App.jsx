@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 
 /**
- * react-native-mapsforge dependencies
+ * react-native-mapsforge-vtm dependencies
  */
 import {
 	MapContainer,
