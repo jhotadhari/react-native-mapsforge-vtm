@@ -1,6 +1,8 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.content.Context;
 import android.content.UriPermission;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
@@ -57,9 +59,9 @@ public class Utils {
         ).emit( eventName, params );
     }
 
-	public static boolean hasScopedStoragePermission( ReactContext reactContext, String string, boolean checkWritePermission ) {
+	public static boolean hasScopedStoragePermission( Context context, String string, boolean checkWritePermission ) {
 		// list of all persisted permissions for our app
-		List<UriPermission> uriList = reactContext.getContentResolver().getPersistedUriPermissions();
+		List<UriPermission> uriList = context.getContentResolver().getPersistedUriPermissions();
 		try {
 			// Fake "document" to tree. "document" is first part of path.
 			URI jUri = new URI( string );

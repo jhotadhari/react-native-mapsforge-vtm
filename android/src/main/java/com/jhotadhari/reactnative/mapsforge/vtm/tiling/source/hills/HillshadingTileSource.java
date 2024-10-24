@@ -1,7 +1,9 @@
-package com.jhotadhari.reactnative.mapsforge.vtm.tileSource;
+package com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
 
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
@@ -11,6 +13,7 @@ import org.mapsforge.core.model.Rectangle;
 import org.mapsforge.core.util.MercatorProjection;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.graphics.AndroidHillshadingBitmap;
+import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
@@ -53,8 +56,11 @@ public class HillshadingTileSource extends TileSource {
 	private final ShadingAlgorithm mShadingAlgorithm;
 	private final short mMagnitude;
 
-	public HillshadingTileSource( String hgtDirPath ) {
+	private final Context mContext;
+
+	public HillshadingTileSource( Context context, String hgtDirPath ) {
 		this(
+			context,
 			hgtDirPath,
 			Viewport.MIN_ZOOM_LEVEL,
 			Viewport.MAX_ZOOM_LEVEL,
@@ -64,6 +70,7 @@ public class HillshadingTileSource extends TileSource {
 	}
 
 	public HillshadingTileSource(
+		Context context,
 		String hgtDirPath,
 		int zoomMin,
 		int zoomMax,
@@ -71,6 +78,7 @@ public class HillshadingTileSource extends TileSource {
 		short magnitude
 	) {
 		super( zoomMin, zoomMax );
+		mContext = context;
 		mHgtDirPath = hgtDirPath;
 		mShadingAlgorithm = shadingAlgorithm;
 
@@ -134,8 +142,17 @@ public class HillshadingTileSource extends TileSource {
 			mTileSource = hillshadingTileSource;
 			mMagnitude = magnitude;
 
-			MemoryCachingHgtReaderTileSource hgtReaderTileSource = new MemoryCachingHgtReaderTileSource(
-				new DemFolderFS( MapFragment.getDemFolder( mTileSource.getHgtDirPath() ) ),
+			DemFolder demFolder = null;
+			if ( mTileSource.getHgtDirPath().startsWith( "content://" ) ) {
+				demFolder = new DemFolderSAF( hillshadingTileSource.mContext, mTileSource.getHgtDirPath() );
+			} else if ( mTileSource.getHgtDirPath().startsWith( "/" ) ) {
+				File demFolderFile = new File(  mTileSource.getHgtDirPath() );
+				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+					demFolder = new DemFolderFS( demFolderFile );
+				}
+			}
+			MemoryCachingHgtReaderTileSource hgtReaderTileSource = hgtReaderTileSource = new MemoryCachingHgtReaderTileSource(
+				demFolder,
 				shadingAlgorithm,
 				AndroidGraphicFactory.INSTANCE
 			);
@@ -144,7 +161,6 @@ public class HillshadingTileSource extends TileSource {
 			hillsCfg = new HillsRenderConfig( hgtReaderTileSource );
 			hillsCfg.indexOnThread();
 			mTileDecoder = tileDecoder;
-
 		}
 
 		@Override

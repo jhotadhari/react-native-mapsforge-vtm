@@ -1,12 +1,16 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.net.Uri;
+
+import androidx.documentfile.provider.DocumentFile;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-import com.jhotadhari.reactnative.mapsforge.vtm.tileSource.HillshadingTileSource;
+import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.HillshadingTileSource;
 
 import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
 import org.mapsforge.map.layer.hills.ShadingAlgorithm;
@@ -16,6 +20,7 @@ import org.oscim.android.cache.TileCache;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
 
+import java.io.File;
 import java.util.UUID;
 
 public class MapLayerHillshadingModule extends MapLayerBase {
@@ -24,9 +29,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
         return "MapLayerHillshadingModule";
     }
 
-    public MapLayerHillshadingModule(ReactApplicationContext context) {
-        super(context);
-    }
+    public MapLayerHillshadingModule(ReactApplicationContext context) { super(context); }
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
@@ -53,6 +56,23 @@ public class MapLayerHillshadingModule extends MapLayerBase {
                 return;
             }
 
+			if ( hgtDirPath.startsWith( "content://" ) ) {
+				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( hgtDirPath ) );
+				if ( dir == null || ! dir.exists() || ! dir.isDirectory() ) {
+					promise.reject( "Error", "hgtDirPath is not existing or not a directory" );
+				}
+				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), hgtDirPath, false ) ) {
+					promise.reject( "Error", "No scoped storage read permission for hgtDirPath" );
+				}
+			}
+
+			if ( hgtDirPath.startsWith( "/" ) ) {
+				File file = new File( hgtDirPath );
+				if( ! file.exists() || ! file.isDirectory() ) {
+					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" );
+				}
+			}
+
 			double linearity = shadingAlgorithmOptions.getDouble( "linearity" );
 			double scale = shadingAlgorithmOptions.getDouble( "scale" );
 			Double heightAngle = (Double) shadingAlgorithmOptions.getDouble( "heightAngle" );
@@ -71,6 +91,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			}
 
 			HillshadingTileSource tileSource = new HillshadingTileSource(
+				getReactApplicationContext(),
 				hgtDirPath,
 				zoomMin,
 				zoomMax,

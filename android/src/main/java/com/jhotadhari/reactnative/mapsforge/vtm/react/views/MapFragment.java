@@ -31,9 +31,11 @@ import com.jhotadhari.reactnative.mapsforge.vtm.HardwareKeyListener;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
+import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.DemFolderSAF;
 
 import android.widget.RelativeLayout;
 
+import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
@@ -258,8 +260,24 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
 			// Init hgtReader
-			DemFolderFS demFolderFS = new DemFolderFS( getDemFolder( propHgtDirPath ) );
-			hgtReader = new HgtReader( demFolderFS );
+			if ( ! propHgtDirPath.isEmpty() ) {
+				DemFolder demFolder = null;
+				if ( propHgtDirPath.startsWith( "content://" ) ) {
+
+					// ??? TODO check if can read, is dir, has permission ...
+
+					demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
+
+				} else if ( propHgtDirPath.startsWith( "/" ) ) {
+					File demFolderFile = new File( propHgtDirPath );
+					if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+						demFolder = new DemFolderFS( demFolderFile );
+					}
+				}
+				if ( null != demFolder ) {
+					hgtReader = new HgtReader( demFolder );
+				}
+			}
 
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
@@ -320,14 +338,6 @@ public class MapFragment extends Fragment {
 		}
 		params.putMap( "center", center );
 		return params;
-	}
-
-	public static File getDemFolder( String hgtDirPath ) {
-		File demFolder = new File( hgtDirPath );
-		if ( demFolder.exists() && demFolder.isDirectory() && demFolder.canRead() ) {
-			return demFolder;
-		}
-		return null;
 	}
 
     protected void sendLifecycleEvent( String type ) {
