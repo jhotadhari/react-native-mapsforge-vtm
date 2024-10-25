@@ -46,8 +46,7 @@ const LayerScalebar = ( {
 					// );
 					isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null;
 				}
-
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		} );
 	};
 

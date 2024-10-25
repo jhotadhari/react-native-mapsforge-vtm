@@ -68,7 +68,7 @@ const LayerMapsforge = ( {
 					);
 				}
 
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		} );
 	};
 
@@ -82,12 +82,12 @@ const LayerMapsforge = ( {
 					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
-				} ).then( removedUuid => {
-                    if ( removedUuid ) {
-						isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
-                    }
-                } );
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
+				} )
 			}
 		};
 	}, [
