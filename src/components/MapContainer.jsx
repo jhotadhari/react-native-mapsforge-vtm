@@ -72,7 +72,7 @@ const MapContainer = ( {
 	minRoll,
 	maxRoll,
 
-	hgtDirPath,	// ??? TODO doesn't updated on change
+	hgtDirPath,
 } ) => {
 
 	const ref = useRef( null );
@@ -229,6 +229,13 @@ const MapContainer = ( {
 			MapContainerModule.setViewport( mapViewNativeTag, 'maxRoll', maxRoll );
 		}
 	}, [maxRoll] );
+
+	// hgtDirPath
+	useEffect( () => {
+		if ( mapLayersCreated && mapViewNativeTag ) {
+			MapContainerModule.setHgtDirPath( mapViewNativeTag, hgtDirPath );
+		}
+	}, [hgtDirPath] );
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();

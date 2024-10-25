@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
@@ -215,6 +216,22 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 			promise.resolve(true);
 		} catch( Exception e ) {
 			promise.reject("setViewport Error", e);
+		}
+	}
+
+	@ReactMethod
+	public void setHgtDirPath(int reactTag, String hgtDirPath, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
+
+			if ( null == mapFragment ) {
+				promise.resolve( false );
+				return;
+			}
+			mapFragment.setPropHgtDirPath( hgtDirPath );
+			promise.resolve(true);
+		} catch( Exception e ) {
+			promise.reject("setHgtDirPath Error", e);
 		}
 	}
 

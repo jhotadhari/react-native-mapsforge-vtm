@@ -63,29 +63,29 @@ public class MapFragment extends Fragment {
 
     protected MapViewManager mapViewManager;
 
-	protected static double propWidthForLayoutSize = 200;
-	protected static double propHeightForLayoutSize = 200;
+	protected double propWidthForLayoutSize = 200;
+	protected double propHeightForLayoutSize = 200;
 
 	protected ReadableMap propCenter;
 
-	protected static boolean propMoveEnabled = true;
-	protected static boolean propRotationEnabled = true;
-	protected static boolean propZoomEnabled = true;
-	protected static boolean propTiltEnabled = true;
+	protected boolean propMoveEnabled = true;
+	protected boolean propRotationEnabled = true;
+	protected boolean propZoomEnabled = true;
+	protected boolean propTiltEnabled = true;
 
-	protected static int propZoomLevel = 12;
-	protected static int propMinZoom = 3;
-	protected static int propMaxZoom = 20;
-	protected static float propTilt = 0;
-	protected static float propMinTilt = 0;
-	protected static float propMaxTilt = 65;
-	protected static float propBearing = 0;
-	protected static float propMinBearing = -180;
-	protected static float propMaxBearing = 180;
-	protected static float propRoll = 0;
-	protected static float propMinRoll = -180;
-	protected static float propMaxRoll = 180;
-	protected static String propHgtDirPath = "";
+	protected int propZoomLevel = 12;
+	protected int propMinZoom = 3;
+	protected int propMaxZoom = 20;
+	protected float propTilt = 0;
+	protected float propMinTilt = 0;
+	protected float propMaxTilt = 65;
+	protected float propBearing = 0;
+	protected float propMinBearing = -180;
+	protected float propMaxBearing = 180;
+	protected float propRoll = 0;
+	protected float propMinRoll = -180;
+	protected float propMaxRoll = 180;
+	protected String propHgtDirPath = "";
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -228,7 +228,34 @@ public class MapFragment extends Fragment {
         }
     }
 
-    protected void createMapView(View v) {
+	public void setPropHgtDirPath(String hgtDirPath) {
+		propHgtDirPath = hgtDirPath;
+		setHgtReader();
+	}
+
+	protected void setHgtReader() {
+		// Init hgtReader
+		if ( ! propHgtDirPath.isEmpty() ) {
+			DemFolder demFolder = null;
+			if ( propHgtDirPath.startsWith( "content://" ) ) {
+
+				// ??? TODO check if can read, is dir, has permission ...
+
+				demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
+
+			} else if ( propHgtDirPath.startsWith( "/" ) ) {
+				File demFolderFile = new File( propHgtDirPath );
+				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+					demFolder = new DemFolderFS( demFolderFile );
+				}
+			}
+			if ( null != demFolder ) {
+				hgtReader = new HgtReader( demFolder );
+			}
+		}
+	}
+
+	protected void createMapView(View v) {
 		try {
 
 			mapView = initMapView( v );
@@ -259,25 +286,7 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
-			// Init hgtReader
-			if ( ! propHgtDirPath.isEmpty() ) {
-				DemFolder demFolder = null;
-				if ( propHgtDirPath.startsWith( "content://" ) ) {
-
-					// ??? TODO check if can read, is dir, has permission ...
-
-					demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
-
-				} else if ( propHgtDirPath.startsWith( "/" ) ) {
-					File demFolderFile = new File( propHgtDirPath );
-					if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
-						demFolder = new DemFolderFS( demFolderFile );
-					}
-				}
-				if ( null != demFolder ) {
-					hgtReader = new HgtReader( demFolder );
-				}
-			}
+			setHgtReader();
 
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
