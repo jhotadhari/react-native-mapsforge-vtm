@@ -107,6 +107,9 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
 				return null;
 			}
+			if ( ! Utils.hasScopedStoragePermission( context, filePath, false ) ) {
+				promise.reject( "Error", "No scoped storage read permission for filePath " + filePath );
+			}
 			in = context.getContentResolver().openInputStream( Uri.parse( filePath ) );
 			assert in != null;
 		}

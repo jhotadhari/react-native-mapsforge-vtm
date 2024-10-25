@@ -1,5 +1,9 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.net.Uri;
+
+import androidx.documentfile.provider.DocumentFile;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -76,31 +80,50 @@ public class MapLayerPathModule extends MapLayerBase {
 
 			if ( null != positions && positions.size() > 0 ) {
 				pathLayer.setPoints( positionsToPointsList( positions ) );
-			} else if ( filePath != null && filePath.length() > 0 && filePath.startsWith( "/" ) && filePath.endsWith( ".gpx" ) ) {
-				File gpxFile = new File( filePath );
-				if( gpxFile.exists() ) {
-					GPXParser parser = new GPXParser();
-					Gpx parsedGpx = null;
-					try {
-						InputStream in = new FileInputStream(gpxFile);
-						parsedGpx = parser.parse(in);
-					} catch (IOException | XmlPullParserException e) {
-						e.printStackTrace();
-						promise.resolve( false );
-						return;
+			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
+
+				InputStream in = null;
+				if ( filePath.startsWith( "content://" ) ) {
+					DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( filePath ) );
+					if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
+						promise.reject( "Error", "filePath does not exist or is not a file" );
 					}
-					if (parsedGpx == null) {
-						promise.resolve(false);
-						return;
-					} else {
-						List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
-						for (int index = 0; index < points.size(); index++) {
-							TrackPoint point = (TrackPoint) points.get( index );
-							pathLayer.addPoint( new GeoPoint(
-								(Double) point.getLatitude(),
-								(Double) point.getLongitude()
-							) );
-						}
+					if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), filePath, false ) ) {
+						promise.reject( "Error", "No scoped storage read permission for filePath " + filePath );
+					}
+					in = mapView.getContext().getContentResolver().openInputStream( Uri.parse( filePath ) );
+					assert in != null;
+				}
+
+				if ( filePath.startsWith( "/" ) ) {
+					File gpxFile = new File( filePath );
+					if( ! gpxFile.exists() || ! gpxFile.isFile() ) {
+						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath );
+					}
+					in = new FileInputStream( gpxFile );
+				}
+				if( in == null ) {
+					promise.reject( "Error", "Unable to load mapFile: " + filePath );
+				}
+
+				GPXParser parser = new GPXParser();
+				Gpx parsedGpx = null;
+				try {
+					parsedGpx = parser.parse(in);
+				} catch ( IOException | XmlPullParserException e) {
+					e.printStackTrace();
+					promise.reject( "Error", "Unable to load mapFile: " + filePath );
+				}
+				if (parsedGpx == null) {
+					promise.reject( "Error", "Unable to load mapFile: " + filePath );
+				} else {
+					List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
+					for (int index = 0; index < points.size(); index++) {
+						TrackPoint point = (TrackPoint) points.get( index );
+						pathLayer.addPoint( new GeoPoint(
+							(Double) point.getLatitude(),
+							(Double) point.getLongitude()
+						) );
 					}
 				}
 			}
@@ -119,7 +142,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			promise.resolve( uuid );
 		} catch(Exception e) {
 			e.printStackTrace();
-			promise.reject("Create Event Error", e);
+			promise.reject("Create Event Error", e );
 		}
 	}
 

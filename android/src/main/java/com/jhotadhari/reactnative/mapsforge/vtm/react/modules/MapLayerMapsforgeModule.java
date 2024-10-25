@@ -126,7 +126,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
 		if ( renderThemePath.startsWith( "/" ) ) {
 			File file = new File( renderThemePath );
-			if( ! file.exists() || ! file.isFile() ) {
+			if( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
 				promise.reject( "Error", "renderThemePath does not exist or is not a file" );
 			}
 		}
@@ -269,10 +269,10 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				Uri mapUri = Uri.parse( mapFileName );
 				DocumentFile dir = DocumentFile.fromSingleUri(mapView.getContext(), mapUri );
 				if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file" );
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
 				}
-				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), mapFileName, true ) ) {
-					promise.reject( "Error", "No scoped storage read permission for mapFileName" );
+				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), mapFileName, false ) ) {
+					promise.reject( "Error", "No scoped storage read permission for mapFileName" + mapFileName );
 				}
 				fis = ( FileInputStream ) mapFragment.getActivity().getContentResolver().openInputStream( mapUri );
 			}
@@ -280,12 +280,12 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			if ( mapFileName.startsWith( "/" ) ) {
 				File mapfile = new File( mapFileName );
 				if( ! mapfile.exists() || ! mapfile.isFile() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file" );
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
 				}
 				fis = new FileInputStream( mapFileName );
 			}
 			if ( fis == null ) {
-				promise.reject( "Error", "Unable to load mapFile" );
+				promise.reject( "Error", "Unable to load mapFile: " + mapFileName );
 			}
 			tileSource.setMapFileInputStream( fis );
 
