@@ -38,19 +38,19 @@ if ! [[ "$next_version" =~ $pat ]]; then
     exit 1
 fi
 
-# # new version should be higher then current version.
-# newest_version=$( git tag -l --sort=-version:refname 'v*' | head -n 1 |  sed -r 's/v//g' )
-# verlte() {
-#     [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
-# }
-# verlt() {
-#     [ "$1" = "$2" ] && return 1 || verlte $1 $2
+# new version should be higher then current version.
+newest_version=$( git tag -l --sort=-version:refname 'v*' | head -n 1 |  sed -r 's/v//g' )
+verlte() {
+    [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
+}
+verlt() {
+    [ "$1" = "$2" ] && return 1 || verlte $1 $2
 
-# }
-# if ! [ -z $( verlt $newest_version $next_version || echo "1") ]; then
-#     echo "New version should be higher then current version ${newest_version}"
-#     exit 1
-# fi
+}
+if ! [ -z $( verlt $newest_version $next_version || echo "1") ]; then
+    echo "New version should be higher then current version ${newest_version}"
+    exit 1
+fi
 
 # current branch should start with release*.
 release_branch=$( git rev-parse --abbrev-ref HEAD )
@@ -88,7 +88,7 @@ sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${ne
 git checkout develop
 git merge $release_branch --no-ff --commit --no-edit
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
-awk -i inplace "NR==${line}{print \"## [Unreleased]\n\"}1" CHANGELOG.md
+awk -i inplace "NR==${line}{print \"## Unreleased\n\"}1" CHANGELOG.md
 ./node_modules/.bin/changelog
 git add CHANGELOG.md
 git commit -m "Add Unreleased section to CHANGELOG.md"
