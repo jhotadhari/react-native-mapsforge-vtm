@@ -1,6 +1,9 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.content.Context;
 import android.net.Uri;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -47,6 +50,7 @@ import org.oscim.tiling.source.mapfile.MapFileTileSource;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,9 +62,18 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
         return "MapLayerMapsforgeModule";
     }
 
-    public MapLayerMapsforgeModule(ReactApplicationContext context) {
-        super(context);
-    }
+	public final String[] BUILT_IN_THEMES = {
+		"DEFAULT",
+		"BIKER",
+		"MOTORIDER",
+		"MOTORIDER_DARK",
+		"NEWTRON",
+		"OSMAGRAY",
+		"OSMARENDER",
+		"TRONRENDER",
+	};
+
+    public MapLayerMapsforgeModule(ReactApplicationContext context) { super(context); }
 
 	protected WritableMap parseRenderThemeOptions( XmlRenderThemeStyleMenu renderThemeStyleMenu ) {
 
@@ -100,15 +113,34 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		return response;
 	}
 
+	protected void checkRenderThemeValid( String renderThemePath, Promise promise ) {
+		if ( renderThemePath.startsWith( "content://" ) ) {
+			DocumentFile dir = DocumentFile.fromSingleUri( this.getReactApplicationContext(), Uri.parse( renderThemePath ) );
+			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
+				promise.reject( "Error", "renderThemePath is not existing or not a file" );
+			}
+			if ( ! Utils.hasScopedStoragePermission( this.getReactApplicationContext(), renderThemePath, false ) ) {
+				promise.reject( "Error", "No scoped storage read permission for renderThemePath" );
+			}
+		}
+
+		if ( renderThemePath.startsWith( "/" ) ) {
+			File file = new File( renderThemePath );
+			if( ! file.exists() || ! file.isFile() ) {
+				promise.reject( "Error", "renderThemePath does not exist or is not a file" );
+			}
+		}
+	}
+
     @ReactMethod
     public void getRenderThemeOptions( String renderThemePath, Promise promise ) {
         try {
-			// Check if file exists. Will false for built in themes.
-			File file = new File( renderThemePath );
-			if ( ! file.exists() ) {
+			checkRenderThemeValid( renderThemePath, promise );
+
+			if ( Arrays.asList( BUILT_IN_THEMES ).contains( renderThemePath )) {
 				promise.resolve( false );
-				return;
 			}
+
 			// Load theme, parse options and send response.
 			IRenderTheme theme = ThemeLoader.load(
 				renderThemePath,
@@ -131,10 +163,13 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			int reactTag,
             String renderThemePath,
             String renderStyle,
-            ReadableArray renderOverlays
+            ReadableArray renderOverlays,
+			Promise promise
     ) {
+
 		IRenderTheme theme;
 		ReactContext reactContext = this.getReactApplicationContext();
+		checkRenderThemeValid( renderThemePath, promise );
 		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 		switch( renderThemePath ) {
 			case "DEFAULT":
@@ -226,16 +261,32 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
                 promise.resolve( false );
                 return;
             }
-            File mapfile = new File( mapFileName );
-            if ( ! mapfile.exists() ) {
-                promise.resolve( false );
-                return;
-            }
 
 			// Tile source
-			Uri mapUri = Uri.parse("file://" + mapFileName );
 			MapFileTileSource tileSource = new MapFileTileSource();
-			FileInputStream fis = ( FileInputStream ) mapFragment.getActivity().getContentResolver().openInputStream( mapUri );
+			FileInputStream fis = null;
+			if ( mapFileName.startsWith( "content://" ) ) {
+				Uri mapUri = Uri.parse( mapFileName );
+				DocumentFile dir = DocumentFile.fromSingleUri(mapView.getContext(), mapUri );
+				if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
+					promise.reject( "Error", "mapFileName does not exist or is not a file" );
+				}
+				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), mapFileName, true ) ) {
+					promise.reject( "Error", "No scoped storage read permission for mapFileName" );
+				}
+				fis = ( FileInputStream ) mapFragment.getActivity().getContentResolver().openInputStream( mapUri );
+			}
+
+			if ( mapFileName.startsWith( "/" ) ) {
+				File mapfile = new File( mapFileName );
+				if( ! mapfile.exists() || ! mapfile.isFile() ) {
+					promise.reject( "Error", "mapFileName does not exist or is not a file" );
+				}
+				fis = new FileInputStream( mapFileName );
+			}
+			if ( fis == null ) {
+				promise.reject( "Error", "Unable to load mapFile" );
+			}
 			tileSource.setMapFileInputStream( fis );
 
 			// VectorTileLayer
@@ -250,7 +301,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			);
 
 			// Render theme
-			IRenderTheme theme = loadTheme( reactTag, renderThemePath, renderStyle, renderOverlays );
+			IRenderTheme theme = loadTheme( reactTag, renderThemePath, renderStyle, renderOverlays, promise );
 			tileLayer.setTheme( theme );
 
 			// Building layer
