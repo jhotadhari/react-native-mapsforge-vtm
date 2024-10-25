@@ -1,5 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.content.Context;
 import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
@@ -51,12 +52,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
         return "MapLayerPathSlopeGradientModule";
     }
 
-	private final ReactApplicationContext mContext;
-
-	public MapLayerPathSlopeGradientModule(ReactApplicationContext context) {
-		super(context);
-		mContext = context;
-	}
+	public MapLayerPathSlopeGradientModule(ReactApplicationContext context) { super(context); }
 
 	protected Map<String, VectorLayer> layers = new HashMap<>();
 	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
@@ -97,21 +93,21 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		return jtsCoordinates;
 	}
 
-	protected Coordinate[] loadGpxToJtsCoordinates( String filePath, Promise promise ) throws URISyntaxException, IOException {
+	protected Coordinate[] loadGpxToJtsCoordinates( Context context, String filePath, Promise promise ) throws URISyntaxException, IOException {
 		Coordinate[] jtsCoordinates = new Coordinate[0];
 
-		boolean permissionOk = Utils.hasScopedStoragePermission( mContext, filePath, false );
+		boolean permissionOk = Utils.hasScopedStoragePermission( context, filePath, false );
 		if ( ! permissionOk ) {
 			return null;
 		}
 
 		InputStream in = null;
 		if ( filePath.startsWith( "content://" ) ) {
-			DocumentFile dir = DocumentFile.fromSingleUri( mContext, Uri.parse( filePath ) );
+			DocumentFile dir = DocumentFile.fromSingleUri( context, Uri.parse( filePath ) );
 			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
 				return null;
 			}
-			in = mContext.getContentResolver().openInputStream( Uri.parse( filePath ) );
+			in = context.getContentResolver().openInputStream( Uri.parse( filePath ) );
 			assert in != null;
 		}
 
@@ -212,7 +208,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			if ( null != positions && positions.size() > 0 ) {
 				jtsCoordinates = readableArrayToJtsCoordinates( positions );
 			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
-				jtsCoordinates = loadGpxToJtsCoordinates( filePath, promise );
+				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
 				promise.reject("Create Event Error", "Unable to parse positions or gpx file");
