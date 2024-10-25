@@ -53,7 +53,7 @@ const useRenderStyleOptions = ( {
 						setRenderStyleDefault( defaultStyle.value );
 					}
 				}
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		}
 	}, [nativeTag, renderTheme] );
 

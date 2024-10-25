@@ -55,8 +55,7 @@ const LayerMBTilesBitmap = ( {
 						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
 					);
 				}
-
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		} );
 	};
 
@@ -70,12 +69,12 @@ const LayerMBTilesBitmap = ( {
 					Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					);
-				} ).then( removedUuid => {
-                    if ( removedUuid ) {
-						isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
-                    }
-                } );
+					).then( removedUuid => {
+						if ( removedUuid ) {
+							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+						}
+					} );
+				} );
 			}
 		};
 	}, [

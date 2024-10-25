@@ -58,8 +58,7 @@ const LayerBitmapTile = ( {
 						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
 					);
 				}
-
-			} );
+			} ).catch( err => console.log( 'ERROR', err ) );
 		} );
 	};
 
