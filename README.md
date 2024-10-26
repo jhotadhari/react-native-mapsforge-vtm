@@ -123,9 +123,13 @@ const App = () => {
             rotationEnabled={ false }
             zoomEnabled={ true }
             hgtDirPath={ '/storage/emulated/0/...' /* If you need altitude data of map center in MapEvents. Absolute path or content uri to dem directory. Bad performance with content uri */ }
-            onPause={ result => console.log( 'lifecycle event onPause', result ) } }
-            onResume={ result => console.log( 'lifecycle event onResume', result ) } }
+            onPause={ result => console.log( 'lifecycle event onPause', result ) }
+            onResume={ result => console.log( 'lifecycle event onResume', result ) }
          >
+
+            <MapEvents
+                nativeTag={ mainMapViewId }
+            />
 
             <LayerBitmapTile
                 url={ 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png' }
