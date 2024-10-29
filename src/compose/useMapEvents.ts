@@ -8,7 +8,10 @@ import { NativeEventEmitter } from 'react-native';
 const useMapEvents = ( {
 	nativeTag,
 	onMapEvent,
-} ) => {
+} : {
+	nativeTag: null | number,
+	onMapEvent?: null | ( ( result: object ) => void ),
+} ) : void => {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();

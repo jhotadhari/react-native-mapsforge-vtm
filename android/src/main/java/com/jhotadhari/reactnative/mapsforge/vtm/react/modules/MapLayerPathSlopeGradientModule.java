@@ -236,6 +236,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				addCoordinatesSimplifiedToResponse( coordinatesSimplified, responseParams );
 			}
 
+			// Draw line.
 			drawLineForCoordinates(
 				jtsCoordinates,
 				strokeWidth,

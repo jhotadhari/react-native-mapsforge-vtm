@@ -3,7 +3,12 @@
  */
 import { isArray, isObject } from "lodash-es";
 
-export const isValidPosition = position => {
+/**
+ * Internal dependencies
+ */
+import type { Location } from './types';
+
+export const isValidPosition = ( position: Location | undefined | null ) => {
     if ( ! isObject( position ) ) {
         return false;
     }
@@ -17,6 +22,6 @@ export const isValidPosition = position => {
     return true;
 };
 
-export const isValidPositions = positions => {
+export const isValidPositions = ( positions: ( Location[] | undefined | null ) ) => {
     return isArray( positions ) && -1 === positions.findIndex( pos => ! isValidPosition( pos ) )
 };

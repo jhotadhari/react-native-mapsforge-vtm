@@ -9,20 +9,20 @@
   },
   "dependencies": {
     "react": "18.3.1",
-    "react-native": "0.75.4",
-    "react-native-gesture-handler": "^2.20.0",
-    "react-native-responsive-linechart": "^5.7.1",
-    "react-native-root-modal": "^5.0.1",
-    "react-native-svg": "^15.8.0"
+    "react-native": "0.76.0",
+    "react-native-root-modal": "^5.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
-    "@babel/preset-env": "^7.20.0",
-    "@babel/runtime": "^7.20.0",
-    "@react-native/babel-preset": "0.75.4",
-    "@react-native/metro-config": "0.75.4",
-    "@react-native/typescript-config": "0.75.4",
-    "react-native-builder-bob": "^0.30.2"
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "15.0.0-alpha.2",
+    "@react-native-community/cli-platform-android": "15.0.0-alpha.2",
+    "@react-native-community/cli-platform-ios": "15.0.0-alpha.2",
+    "@react-native/babel-preset": "0.76.0",
+    "@react-native/metro-config": "0.76.0",
+    "@react-native/typescript-config": "0.76.0",
+    "react-native-builder-bob": "^0.30.3"
   },
   "engines": {
     "node": ">=18"

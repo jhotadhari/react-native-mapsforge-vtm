@@ -2,7 +2,6 @@ package jhotadhari.reactnative.mapsforge.vtm.example;
 
 import android.content.res.AssetManager;
 import android.os.Build;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -10,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class DummyContent {
 
@@ -20,52 +20,48 @@ public class DummyContent {
 		return null;
 	}
 
-	// https://gist.github.com/thinzaroo/5aef6e81638529a89995
-	private static void copyAssets( MainApplication app ) {
-		AssetManager assetManager = app.getAssets();
-		String[] files = null;
+	private static void copyAssets( MainApplication app, String parent ) {
 		try {
-			files = assetManager.list("dummy");
-		} catch (IOException e) {
-			Log.e("TTEST", e.getMessage() );
-			Log.e("TTEST", "Failed to get asset file list.", e);
-		}
-
-		for(String filename : files) {
-			InputStream in = null;
-			OutputStream out = null;
-			try {
-				in = assetManager.open("dummy/" + filename);
-				File outFile = new File(getMediaDirPath(app) + "/dummy/" + filename);
-				outFile.getParentFile().mkdirs();
-				out = new FileOutputStream(outFile);
-				copyFile(in, out);
-				in.close();
-				in = null;
-				out.flush();
-				out.close();
-				out = null;
-			} catch( IOException e) {
-				Log.e("TTEST", e.getMessage() );
-				Log.e("TTEST", "Failed to copy asset file: " + filename );
+			AssetManager assetManager = app.getAssets();
+			String[] files = assetManager.list( parent );
+			for ( int i = 0; i < Objects.requireNonNull( files ).length; i++ ) {
+				if ( Objects.requireNonNull( assetManager.list(parent + "/" + files[i] ) ).length > 0 ) {
+					copyAssets( app, parent + "/" + files[i] );
+				} else {
+					File file = new File( files[i] );
+					String[] parentArr = parent.split( "/" );
+					parentArr = Arrays.copyOfRange( parentArr, 1, parentArr.length );
+					File outFile = new File(getMediaDirPath( app ) + "/" + String.join( "/", parentArr ) + file.getAbsolutePath() );
+					if ( ! outFile.exists() ) {
+						InputStream in = assetManager.open( parent + file.getAbsolutePath() );;
+						OutputStream out = new FileOutputStream( outFile );;
+						outFile.getParentFile().mkdirs();
+						copyFile( in, out );
+						in.close();
+						out.flush();
+						out.close();
+					}
+				}
 			}
+		} catch ( IOException e ) {
+			e.printStackTrace();
 		}
 	}
 
-	private static void copyFile(InputStream in, OutputStream out) throws IOException {
+	private static void copyFile( InputStream in, OutputStream out ) throws IOException {
 		byte[] buffer = new byte[1024];
 		int read;
-		while((read = in.read(buffer)) != -1){
+		while( ( read = in.read( buffer ) ) != -1 ){
 			out.write(buffer, 0, read);
 		}
 	}
 
-	public static void maybeInit( MainApplication app ) {
-		File mediaDummyDir = new File(getMediaDirPath(app) + "/dummy" );
-		if ( ! mediaDummyDir.exists() ) {
-			copyAssets( app );
+	public static void init(MainApplication app ) {
+		File mediaDir = new File( getMediaDirPath( app ) );
+		if ( ! mediaDir.exists() ) {
+			mediaDir.mkdirs();
 		}
+		copyAssets( app, "dummy" );
 	}
-
 
 }

@@ -2,7 +2,6 @@
  * External dependencies
  */
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * Internal dependencies
@@ -14,13 +13,21 @@ import { isFunction } from 'lodash-es';
 
 const Module = MapLayerScalebarModule;
 
+export type LayerScalebarProps = {
+	mapViewNativeTag?: null | number;
+	reactTreeIndex: number;
+	onCreate?: null | ( ( result: object ) => void );
+	onRemove?: null | ( ( result: object ) => void );
+	onChange?: null | ( ( result: object ) => void );
+};
+
 const LayerScalebar = ( {
-	mapViewNativeTag,
+	mapViewNativeTag = null,
 	reactTreeIndex,
 	onCreate,
 	onRemove,
 	onChange,
-} ) => {
+} : LayerScalebarProps ) => {
 
 	const [random, setRandom] = useState( 0 );
 	const [uuid, setUuid] = useRefState( null );
@@ -32,13 +39,13 @@ const LayerScalebar = ( {
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			Module.createLayer(
+			return Module.createLayer(
 				mapViewNativeTag,
-				reactTreeIndex,
-			).then( newUuid => {
-				if ( newUuid ) {
-					setUuid( newUuid );
-					setRandom( Math.random() );
+				reactTreeIndex
+			).then( ( newUuid : string ) => {
+				if (newUuid) {
+					setUuid(newUuid);
+					setRandom(Math.random());
 
 					// ( null === triggerCreateNew
 					// 	? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
@@ -46,7 +53,7 @@ const LayerScalebar = ( {
 					// );
 					isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null;
 				}
-			} ).catch( err => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
 
@@ -57,10 +64,10 @@ const LayerScalebar = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					Module.removeLayer(
+					return Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					).then( removedUuid => {
+					).then( ( removedUuid: string ) => {
 						if ( removedUuid ) {
 							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
 						}
@@ -76,10 +83,5 @@ const LayerScalebar = ( {
 	return null;
 };
 LayerScalebar.isMapLayer = true;
-
-LayerScalebar.propTypes = {
-	mapViewNativeTag: PropTypes.number,
-	reactTreeIndex: PropTypes.number,
-};
 
 export default LayerScalebar;

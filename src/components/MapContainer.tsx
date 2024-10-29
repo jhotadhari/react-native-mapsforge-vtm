@@ -2,10 +2,14 @@
  * External dependencies
  */
 import React, {
+	Component,
 	cloneElement,
 	useEffect,
 	useRef,
 	useState,
+	type ComponentClass,
+	type Dispatch,
+	type SetStateAction,
 } from 'react';
 import {
 	PixelRatio,
@@ -15,107 +19,129 @@ import {
 	ScrollView,
 	NativeEventEmitter,
 } from 'react-native';
-import PropTypes from 'prop-types';
+import { get, isBoolean, isNumber } from 'lodash-es';
 
 /**
  * Internal dependencies
  */
-import { MapViewManager } from './MapViewManager.jsx';
-import useMapLayersCreated from '../compose/useMapLayersCreated.js';
+import MapViewManager from './MapViewManager';
+import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
-import { isBoolean, isNumber, isObject, isString } from 'lodash-es';
-import { isValidPosition } from '../utils.js';
+import { isValidPosition } from '../utils';
+import type { Location } from '../types';
 
-const createFragment = mapViewNativeTag =>
-	UIManager.dispatchViewManagerCommand(
-		mapViewNativeTag,
-		// we are calling the 'create' command
-		UIManager.MapViewManager.Commands.create.toString(),
-		[mapViewNativeTag],
-	);
+const createFragment = ( mapViewNativeTag: number ) : void => {
+	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
+	if ( create ) {
+		try {
+			UIManager.dispatchViewManagerCommand(
+				mapViewNativeTag,
+				create.toString(),
+				[mapViewNativeTag],
+			);
+		} catch ( e ) {
+			console.log( 'debug MapViewManagerCommands fuck', e );
+		}
+	}
+}
 
-const useDefaultWidth = propsWidth => {
+const useDefaultWidth = ( propsWidth: number | undefined ) => {
 	const { width } = useWindowDimensions();
 	return propsWidth || width;
 };
 
+export type MapContainerProps = {
+	children?: React.ReactNode;
+	mapViewNativeTag?: null | number;
+	setMapViewNativeTag?: null | Dispatch<SetStateAction<number | null>>;
+	onPause?: null | ( ( result: object ) => void );
+	onResume?: null | ( ( result: object ) => void );
+	width?: number;
+	height?: number;
+	center?: Location;
+	moveEnabled?: 1 | 0 | boolean;
+	tiltEnabled?: 1 | 0 | boolean
+	rotationEnabled?: 1 | 0 | boolean
+	zoomEnabled?: 1 | 0 | boolean
+	zoomLevel?: number;
+	minZoom?: number;
+	maxZoom?: number;
+	tilt?: number;
+	minTilt?: number;
+	maxTilt?: number;
+	bearing?: number;
+	minBearing?: number;
+	maxBearing?: number;
+	roll?: number;
+	minRoll?: number;
+	maxRoll?: number;
+	hgtDirPath?: string;
+};
+
+const defaultCenter : Location = {
+	lng: -77.605,
+	lat: -9.118,
+};
+
+const numOrBoolToNum = ( numOrBool: number | boolean | undefined, defaultVal: 1 | 0 ): ( 1 | 0 ) => {
+	return isBoolean( numOrBool ) || isNumber( numOrBool ) ? ( !! numOrBool ? 1 : 0 ) : defaultVal;
+};
+
 const MapContainer = ( {
 	children,
-	mapViewNativeTag,	// It's not possible to control the nativeTag. It's a prop just to lift the state up.
-	setMapViewNativeTag,
-	onPause,
-	onResume,
-
+	mapViewNativeTag = null,	// It's not possible to control the nativeTag. It's a prop just to lift the state up.
+	setMapViewNativeTag = null,
+	onPause = null,
+	onResume = null,
 	width,
-	height,
-
-	center,
-
+	height = 200,
+	center = defaultCenter,
 	moveEnabled,
 	tiltEnabled,
 	rotationEnabled,
 	zoomEnabled,
-
 	zoomLevel,
 	minZoom,
 	maxZoom,
+	tilt = 0,
+	minTilt = 0,
+	maxTilt = 65,
+	bearing = 0,
+	minBearing = -180,
+	maxBearing = 180,
+	roll = 0,
+	minRoll = -180,
+	maxRoll = 180,
+	hgtDirPath = '',
+} : MapContainerProps ) => {
 
-	tilt,
-	minTilt,
-	maxTilt,
+	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
 
-	bearing,
-	minBearing,
-	maxBearing,
-
-	roll,
-	minRoll,
-	maxRoll,
-
-	hgtDirPath,
-} ) => {
-
-	const ref = useRef( null );
-
-	const [mapViewNativeTag_, setMapViewNativeTag_] = useState( null );
+	const [mapViewNativeTag_, setMapViewNativeTag_] = useState< number | null >( null );
 	mapViewNativeTag = mapViewNativeTag ? mapViewNativeTag : mapViewNativeTag_;
 	setMapViewNativeTag = setMapViewNativeTag ? setMapViewNativeTag : setMapViewNativeTag_;
 
-	const mapLayersCreated = useMapLayersCreated( ref?.current?._nativeTag );
+	// const mapLayersCreated = useMapLayersCreated( ref?.current?.__nativeTag );
+	const mapLayersCreated = useMapLayersCreated( findNodeHandle( ref?.current ) );
 
 	width = useDefaultWidth( width );
-	height = height || 200;
 
-	center = isValidPosition( center ) ? center : {
-		lng: -77.605,
-		lat: -9.118,
-	};
+	center = isValidPosition( center ) ? center : defaultCenter;
 
-	moveEnabled = isBoolean( moveEnabled ) || isNumber( moveEnabled ) ? ( !! moveEnabled ? 1 : 0 ) : 1;
-	rotationEnabled = isBoolean( rotationEnabled ) || isNumber( rotationEnabled ) ? ( !! rotationEnabled ? 1 : 0 ) : 1;
-	zoomEnabled = isBoolean( zoomEnabled ) || isNumber( zoomEnabled ) ? ( !! zoomEnabled ? 1 : 0 ) : 1;
-	tiltEnabled = isBoolean( tiltEnabled ) || isNumber( tiltEnabled ) ? ( !! tiltEnabled ? 1 : 0 ) : 1;
+	moveEnabled = numOrBoolToNum( moveEnabled, 1 );
+	rotationEnabled = numOrBoolToNum( rotationEnabled, 1 );
+	zoomEnabled = numOrBoolToNum( zoomEnabled, 1 );
+	tiltEnabled = numOrBoolToNum( tiltEnabled, 1 );
 
-	zoomLevel = isNumber( zoomLevel ) ? parseInt( zoomLevel, 10 ) : 12;
-	minZoom = isNumber( minZoom ) ? parseInt( minZoom, 10 ) : 3;
-	maxZoom = isNumber( maxZoom ) ? parseInt( maxZoom, 10 ) : 20;
-
-	tilt = isNumber( tilt ) ? parseFloat( tilt, 10 ) : 0;
-	minTilt = isNumber( minTilt ) ? parseFloat( minTilt, 10 ) : 0;
-	maxTilt = isNumber( maxTilt ) ? parseFloat( maxTilt, 10 ) : 65;
-
-	bearing = isNumber( bearing ) ? parseFloat( bearing, 10 ) : 0;
-	minBearing = isNumber( minBearing ) ? parseFloat( minBearing, 10 ) : -180;
-	maxBearing = isNumber( maxBearing ) ? parseFloat( maxBearing, 10 ) : 180;
-
-	roll = isNumber( roll ) ? parseFloat( roll, 10 ) : 0;
-	minRoll = isNumber( minRoll ) ? parseFloat( minRoll, 10 ) : -180;
-	maxRoll = isNumber( maxRoll ) ? parseFloat( maxRoll, 10 ) : 180;
-
-	hgtDirPath = isString( hgtDirPath ) ? hgtDirPath : '';
+	zoomLevel = isNumber( zoomLevel ) ? Math.round( zoomLevel ) : 12;
+	minZoom = isNumber( minZoom ) ? Math.round( minZoom ) : 3;
+	maxZoom = isNumber( maxZoom ) ? Math.round( maxZoom ) : 20;
 
 	useEffect( () => {
-		setMapViewNativeTag( findNodeHandle( ref.current ) );
+		const nodeHandle = findNodeHandle( ref?.current );
+		if ( nodeHandle ) {
+			setMapViewNativeTag( nodeHandle );
+		}
 	}, [] );
 
 	useEffect( () => {
@@ -128,31 +154,32 @@ const MapContainer = ( {
 	// center changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
+			console.log( 'debug center', center ); // debug
 			MapContainerModule.setCenter( mapViewNativeTag, center );
 		}
-	}, [Object.keys( center ).filter( a => ['lng','lat'].includes( a ) ).join( '' )] );
+	}, [Object.values( center ).join( '' )] );
 	// moveEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'moveEnabled', isBoolean( moveEnabled ) || isNumber( moveEnabled ) ? ( !! moveEnabled ? 1 : 0 ) : 1 );
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'moveEnabled', moveEnabled );
 		}
 	}, [moveEnabled] );
 	// tiltEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'tiltEnabled', isBoolean( tiltEnabled ) || isNumber( tiltEnabled ) ? ( !! tiltEnabled ? 1 : 0 ) : 1 );
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'tiltEnabled', tiltEnabled );
 		}
 	}, [tiltEnabled] );
 	// rotationEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'rotationEnabled', isBoolean( rotationEnabled ) || isNumber( rotationEnabled ) ? ( !! rotationEnabled ? 1 : 0 ) : 1 );
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'rotationEnabled', rotationEnabled );
 		}
 	}, [rotationEnabled] );
 	// zoomEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'zoomEnabled', isBoolean( zoomEnabled ) || isNumber( zoomEnabled ) ? ( !! zoomEnabled ? 1 : 0 ) : 1 );
+			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'zoomEnabled', zoomEnabled );
 		}
 	}, [zoomEnabled] );
 	// zoomLevel changed.
@@ -260,17 +287,30 @@ const MapContainer = ( {
 		};
 	}, [mapViewNativeTag] );
 
-	let lastIndex = 0; // It starts with the MapFragment event layer.
-	const wrapChildren = () => ! children || ! ref?.current?._nativeTag ? null : React.Children.map( children, child => {
-		lastIndex = child?.type?.isMapLayer ? lastIndex + 1 : lastIndex;
-		const newChild = child && child.type ? cloneElement(
+	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
+	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : React.Children.map( children, child => {
+		let newChild = child;
+
+		if ( ! React.isValidElement<{ children?: React.ReactNode }>( child )) {
+			return newChild
+		}
+
+		const type = get( child, 'type' );
+		if ( ! type || ! type.valueOf ) {
+			return newChild
+		}
+		const isMapLayer = get( type.valueOf(), 'isMapLayer' );
+
+		lastIndex = isMapLayer ? lastIndex + 1 : lastIndex;
+		newChild = child && type ? cloneElement(
 			child,
 			{
-				mapViewNativeTag: ref?.current?._nativeTag,
-				...( child.type.isMapLayer && { reactTreeIndex: lastIndex } ),
+				...( { mapViewNativeTag } ),
+				...( isMapLayer ? { reactTreeIndex: lastIndex } : {} ),
 				...( child?.props?.children && { children: wrapChildren( child.props.children ) } ),
 			},
 		) : child;
+
 		return newChild;
 	} );
 
@@ -280,65 +320,31 @@ const MapContainer = ( {
 	return <ScrollView scrollEnabled={ false }>
 		<MapViewManager
 			ref={ ref }
-
 			width={ width }
 			height={ height }
 			widthForLayoutSize={ PixelRatio.getPixelSizeForLayoutSize( width ) }
 			heightForLayoutSize={ PixelRatio.getPixelSizeForLayoutSize( height ) }
-
 			center={ center }
-
-			moveEnabled = { moveEnabled }
-			tiltEnabled = { tiltEnabled }
-			rotationEnabled = { rotationEnabled }
-			zoomEnabled = { zoomEnabled }
-
-			zoomLevel = { zoomLevel }
-			minZoom = { minZoom }
-			maxZoom = { maxZoom }
-
-			tilt = { tilt }
-			minTilt = { minTilt }
-			maxTilt = { maxTilt }
-
-			bearing = { bearing }
-			minBearing = { minBearing }
-			maxBearing = { maxBearing }
-
-			roll = { roll }
-			minRoll = { minRoll }
-			maxRoll = { maxRoll }
-
-			hgtDirPath = { hgtDirPath }
+			moveEnabled={ moveEnabled }
+			tiltEnabled={ tiltEnabled }
+			rotationEnabled={ rotationEnabled }
+			zoomEnabled={ zoomEnabled }
+			zoomLevel={ zoomLevel }
+			minZoom={ minZoom }
+			maxZoom={ maxZoom }
+			tilt={ tilt }
+			minTilt={ minTilt }
+			maxTilt={ maxTilt }
+			bearing={ bearing }
+			minBearing={ minBearing }
+			maxBearing={ maxBearing }
+			roll={ roll }
+			minRoll={ minRoll }
+			maxRoll={ maxRoll }
+			hgtDirPath={ hgtDirPath }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;
-};
-
-MapContainer.propTypes = {
-	mapViewNativeTag: PropTypes.number,
-	setMapViewNativeTag: PropTypes.func,
-	onPause: PropTypes.func,
-	onResume: PropTypes.func,
-	width: PropTypes.number,
-	height: PropTypes.number,
-	center: PropTypes.object,
-	moveEnabled: PropTypes.bool,
-	tiltEnabled: PropTypes.bool,
-	rotationEnabled: PropTypes.bool,
-	zoomEnabled: PropTypes.bool,
-	zoom: PropTypes.number,
-	minZoom: PropTypes.number,
-	maxZoom: PropTypes.number,
-	tilt: PropTypes.number,
-	minTilt: PropTypes.number,
-	maxTilt: PropTypes.number,
-	bearing: PropTypes.number,
-	minBearing: PropTypes.number,
-	maxBearing: PropTypes.number,
-	roll: PropTypes.number,
-	minRoll: PropTypes.number,
-	maxRoll: PropTypes.number,
 };
 
 export default MapContainer;

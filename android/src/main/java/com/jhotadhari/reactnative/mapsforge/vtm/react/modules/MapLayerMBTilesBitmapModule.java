@@ -3,16 +3,26 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeArray;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
 import org.oscim.android.tiling.source.mbtiles.MBTilesBitmapTileSource;
+import org.oscim.android.tiling.source.mbtiles.MBTilesTileDataSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileSource;
 import org.oscim.backend.canvas.Color;
+import org.oscim.core.BoundingBox;
+import org.oscim.core.MapPosition;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
+import org.oscim.tiling.source.mapfile.MapFileTileSource;
+import org.oscim.tiling.source.mapfile.MapInfo;
 
 import java.io.File;
+import java.util.List;
 import java.util.UUID;
 
 public class MapLayerMBTilesBitmapModule extends MapLayerBase {
@@ -28,14 +38,50 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
 
+	protected void addTileSourceToResponse( WritableMap responseParams, MBTilesTileSource tileSource ) {
+		WritableMap boundsParams = new WritableNativeMap();
+		MBTilesTileDataSource dataSource = tileSource.getDataSource();
+		if ( null != dataSource ) {
+			// Add dataSource bounds to response.
+			BoundingBox boundingBox = dataSource.getBounds();
+			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
+			boundsParams.putDouble( "minLon", boundingBox.getMinLongitude() );
+			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
+			boundsParams.putDouble( "maxLon", boundingBox.getMaxLongitude() );
+			responseParams.putMap( "bounds", boundsParams );
+			// Maybe add dataSource center to response.
+			MapPosition center = dataSource.getCenter();
+			if ( center != null ) {
+				WritableMap centerParams = new WritableNativeMap();
+				centerParams.putDouble( "lon", center.getLongitude() );
+				centerParams.putDouble( "lat", center.getLatitude() );
+				responseParams.putMap( "center", centerParams );
+			}
+			// Add supported formats.
+			List<String> supportedFormats = dataSource.getSupportedFormats();
+			WritableArray supportedFormatsArr = new WritableNativeArray();
+			for ( int i = 0; i < supportedFormats.size(); i++) {
+				supportedFormatsArr.pushString( supportedFormats.get( i ) );
+			}
+			responseParams.putArray( "supportedFormats", supportedFormatsArr );
+			// Add dataSource info to response.
+			responseParams.putString( "format", dataSource.getFormat() );
+			responseParams.putString( "attribution", dataSource.getAttribution() );
+			responseParams.putString( "description", dataSource.getDescription() );
+			responseParams.putString( "version", dataSource.getVersion() );
+			responseParams.putInt( "maxZoom", dataSource.getMaxZoom() );
+			responseParams.putInt( "minZoom", dataSource.getMinZoom() );
+		}
+	}
+
     @ReactMethod
     public void createLayer(
-            int reactTag,
-			String mapFile,
-			int alpha,
-			String transparentColor,
-            int reactTreeIndex,
-            Promise promise
+		int reactTag,
+		String mapFile,
+		int alpha,
+		String transparentColor,
+		int reactTreeIndex,
+		Promise promise
     ) {
         try {
             MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
@@ -52,6 +98,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 				return;
 			}
 
+			WritableMap responseParams = new WritableNativeMap();
+
 			MBTilesTileSource tileSource = new MBTilesBitmapTileSource(
 				file.getAbsolutePath(),
 				alpha,
@@ -61,6 +109,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			);
 
 			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource );
+
+			addTileSourceToResponse( responseParams, tileSource );
 
 			// Add layer to map.
 			mapView.map().layers().add(
@@ -76,7 +126,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			layers.put( uuid, bitmapLayer );
 
 			// Resolve layer uuid
-            promise.resolve( uuid );
+			responseParams.putString( "uuid", uuid );
+            promise.resolve( responseParams );
         } catch( Exception e ) {
 			e.printStackTrace();
             promise.reject("Create Event Error", e);

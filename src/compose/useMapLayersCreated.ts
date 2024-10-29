@@ -15,7 +15,7 @@ import {
  */
 const { MapContainerModule } = NativeModules;
 
-const useMapLayersCreated = mapViewNativeTag => {
+const useMapLayersCreated = ( mapViewNativeTag: null | number | undefined ): boolean =>  {
 
 	const [mapLayersCreated, setMapLayersCreated] = useState( false );
 
@@ -33,9 +33,9 @@ const useMapLayersCreated = mapViewNativeTag => {
 
 	useEffect( () => {
 		if ( mapViewNativeTag ) {
-			MapContainerModule.getLayersCreated( mapViewNativeTag ).then( created => {
-				setMapLayersCreated( !! created );
-			} );
+			MapContainerModule.getLayersCreated( mapViewNativeTag ).then( ( created: boolean ) => {
+				setMapLayersCreated( created );
+			} ).catch( ( err: any ) => console.log( 'Error', err ) );
 		}
 	}, [mapViewNativeTag] );
 

@@ -1,6 +1,7 @@
 // replace with your package
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
+import com.facebook.infer.annotation.Assertions;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
@@ -89,14 +91,26 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	 * Map the "create" command to an integer
 	  */
 	@Nullable
+	@Override public Map<String, Integer> getCommandsMap() {
+
+
+//		Log.d("testtest", "1".asString() ) ;
+
+		return MapBuilder.of("create", COMMAND_CREATE);
+	}
+
 	@Override
-	public Map<String, Integer> getCommandsMap() {
-		return MapBuilder.of( "create", COMMAND_CREATE );
+	public void receiveCommand(
+		@NonNull FrameLayout root,
+		int commandId,
+		@Nullable ReadableArray args
+	) {
+		receiveCommand(root, String.valueOf( commandId ), args );
 	}
 
 	/**
 	 * Handle "create" command (called from JS) and call createFragment method
-	  */
+	 */
 	@Override
 	public void receiveCommand(
 		@NonNull FrameLayout root,
@@ -104,6 +118,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		@Nullable ReadableArray args
 	) {
 		super.receiveCommand(root, commandId, args);
+
 		int reactNativeViewId = args.getInt(0);
 		int commandIdInt = Integer.parseInt(commandId);
 
@@ -239,6 +254,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	  */
 	public void createFragment( FrameLayout root, int reactNativeViewId ) {
 		ViewGroup parentView = ( ViewGroup ) root.findViewById( reactNativeViewId );
+
+
 
 		mapFragment = new MapFragment(
 			this,

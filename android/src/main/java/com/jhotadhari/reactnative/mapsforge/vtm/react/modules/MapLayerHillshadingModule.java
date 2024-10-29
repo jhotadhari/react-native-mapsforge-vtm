@@ -8,6 +8,8 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.HillshadingTileSource;
@@ -55,6 +57,9 @@ public class MapLayerHillshadingModule extends MapLayerBase {
                 promise.resolve( false );
                 return;
             }
+
+			// The promise response
+			WritableMap responseParams = new WritableNativeMap();
 
 			if ( hgtDirPath.startsWith( "content://" ) ) {
 				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( hgtDirPath ) );
@@ -122,8 +127,9 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, layer );
 
-			// Resolve layer uuid
-            promise.resolve( uuid );
+			// Resolve promise
+			responseParams.putString( "uuid", uuid );
+			promise.resolve( responseParams );
         } catch(Exception e) {
 			e.printStackTrace();
             promise.reject("Create Event Error", e);

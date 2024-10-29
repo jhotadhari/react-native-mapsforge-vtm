@@ -95,36 +95,3 @@ export const MapLayerHillshadingModule = NativeModules.MapLayerHillshadingModule
 			},
 		},
 	);
-
-// export const MapMarkerModule = NativeModules.MapMarkerModule
-// 	? NativeModules.MapMarkerModule
-// 	: new Proxy(
-// 		{},
-// 		{
-// 			get() {
-// 				throw new Error( LINKING_ERROR );
-// 			},
-// 		},
-// 	);
-
-// export const MapFeatureReactModule = NativeModules.MapFeatureReactModule
-// 	? NativeModules.MapFeatureReactModule
-// 	: new Proxy(
-// 		{},
-// 		{
-// 			get() {
-// 				throw new Error( LINKING_ERROR );
-// 			},
-// 		},
-// 	);
-
-// export const MapPolylineModule = NativeModules.MapPolylineModule
-// 	? NativeModules.MapPolylineModule
-// 	: new Proxy(
-// 		{},
-// 		{
-// 			get() {
-// 				throw new Error( LINKING_ERROR );
-// 			},
-// 		},
-// 	);

@@ -16,6 +16,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -414,10 +415,12 @@ public class MapFragment extends Fragment {
     }
 
 	protected void fixViewLayoutSize() {
-		ViewGroup.LayoutParams params = relativeLayout.getLayoutParams();
-		params.width = (int) propWidthForLayoutSize;
-		params.height = (int) propHeightForLayoutSize;
-		view.setLayoutParams( params );
+		if ( null != relativeLayout ) {
+			ViewGroup.LayoutParams params = relativeLayout.getLayoutParams();
+			params.width = (int) propWidthForLayoutSize;
+			params.height = (int) propHeightForLayoutSize;
+			view.setLayoutParams( params );
+		}
 	}
 
 	protected void updateViewLayoutSize( double widthForLayoutSize, double heightForLayoutSize ) {

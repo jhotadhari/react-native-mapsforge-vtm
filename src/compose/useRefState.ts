@@ -8,7 +8,10 @@ import { useRef } from 'react';
  * But uses a ref instead of a state.
  * Like this react manages to "update the state" of many sibling components concurrently. Well, it's not updating the state actually, it's updating the ref.
  */
-const useRefState = initial => {
+const useRefState = ( initial: any ) : [
+	any,
+	( newVal: any )=> void,
+] => {
 	const stateRef = useRef( initial );
 	return [
 		stateRef?.current,

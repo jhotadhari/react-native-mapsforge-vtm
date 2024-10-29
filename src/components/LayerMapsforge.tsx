@@ -2,73 +2,100 @@
  * External dependencies
  */
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
+import useRefState from '../../src/compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import usePrevious from '../compose/usePrevious';
 import useRenderStyleOptions from '../compose/useRenderStyleOptions';
 import { MapLayerMapsforgeModule } from '../nativeMapModules';
-import { isFunction } from 'lodash-es';
+import type {
+	Bounds,
+	Location
+} from '../types';
 
 const Module = MapLayerMapsforgeModule;
 
+const BUILT_IN_THEMES = [
+	'DEFAULT',
+	'BIKER',
+	'MOTORIDER',
+	'MOTORIDER_DARK',
+	'NEWTRON',
+	'OSMAGRAY',
+	'OSMARENDER',
+	'TRONRENDER',
+];
+
+export type LayerMapsforgeResponse = {
+	uuid: string;
+	bounds?: Bounds;
+	center?: Location;
+	createdBy?: string;
+	projectionName?: string;
+	comment?: string;
+	fileSize?: string;
+	fileVersion?: number;
+	mapDate?: string;
+};
+
+export type LayerMapsforgeProps = {
+	mapViewNativeTag?: null | number;
+	reactTreeIndex: number;
+	mapFile?: string;
+	renderTheme?: string;
+	renderStyle?: string;
+	renderOverlays?: string[];
+	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onCreate?: null | ( ( response: LayerMapsforgeResponse ) => void );
+	onChange?: null | ( ( response: LayerMapsforgeResponse ) => void );
+};
+
 const LayerMapsforge = ( {
 	mapViewNativeTag,
-	mapFile,
-	renderTheme,
-	renderStyle,
-	renderOverlays,
 	reactTreeIndex,
+	mapFile = '',
+	renderTheme = 'DEFAULT',
+	renderStyle = '',
+	renderOverlays = [],
 	onCreate,
 	onRemove,
 	onChange,
-} ) => {
-
-	mapFile = mapFile || '';
-	renderTheme = renderTheme || 'DEFAULT';
-	renderStyle = renderStyle || '';
-	renderOverlays = renderOverlays || [];
+} : LayerMapsforgeProps ) => {
 
 	const renderStylePrev = usePrevious( renderStyle );
 
-	const [random, setRandom] = useState( 0 );
+	const [random, setRandom] = useState<number>( 0 );
 	const [uuid, setUuid] = useRefState( null );
-	const [triggerCreateNew, setTriggerCreateNew] = useState( null );
+	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
 	const { renderStyleDefaultId } = useRenderStyleOptions( ( {
 		renderTheme,
 		nativeTag: mapViewNativeTag,
 	} ) );
 
-	onCreate = isFunction( onCreate ) ? onCreate : null;
-	onRemove = isFunction( onRemove ) ? onRemove : null;
-	onChange = isFunction( onChange ) ? onChange : null;
-
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-			Module.createLayer(
+			return Module.createLayer(
 				mapViewNativeTag,
 				mapFile,
 				renderTheme,
 				renderStyle,
 				renderOverlays,
-				reactTreeIndex,
-			).then( newUuid => {
-				if ( newUuid ) {
-					setUuid( newUuid );
+				reactTreeIndex
+			).then( ( response : false | LayerMapsforgeResponse ) => {
+				if ( response ) {		// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
+					setUuid( response.uuid );
 					setRandom( Math.random() );
 					( null === triggerCreateNew
-						? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
-						: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
+						? ( onCreate ? onCreate( response ) : null )
+						: ( onChange ? onChange( response ) : null )
 					);
 				}
-
-			} ).catch( err => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
 
@@ -79,12 +106,12 @@ const LayerMapsforge = ( {
 		return () => {
 			if ( uuid && mapViewNativeTag ) {
 				promiseQueue.enqueue( () => {
-					Module.removeLayer(
+					return Module.removeLayer(
 						mapViewNativeTag,
 						uuid
-					).then( removedUuid => {
-						if ( removedUuid ) {
-							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+					).then( ( removedUuid: string ) => {
+						if ( removedUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
+							onRemove ? onRemove( { uuid: removedUuid } ) : null;
 						}
 					} );
 				} )
@@ -109,12 +136,12 @@ const LayerMapsforge = ( {
 				}
 				if ( shouldRecreate ) {
 					promiseQueue.enqueue( () => {
-						Module.removeLayer(
+						return Module.removeLayer(
 							mapViewNativeTag,
 							uuid
-						).then( removedUuid => {
-							if ( removedUuid ) {
-								setUuid( null )
+						).then( ( removedUuid: string ) => {
+							if ( removedUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
+								setUuid( null );
 								setTriggerCreateNew( Math.random() );
 							}
 						} );
@@ -138,13 +165,6 @@ const LayerMapsforge = ( {
 };
 LayerMapsforge.isMapLayer = true;
 
-LayerMapsforge.propTypes = {
-	mapViewNativeTag: PropTypes.number,
-	mapFile: PropTypes.string,
-	renderTheme: PropTypes.string,
-	reactTreeIndex: PropTypes.number,
-	renderStyle: PropTypes.string,
-	renderOverlays: PropTypes.array,
-};
+LayerMapsforge.BUILT_IN_THEMES = BUILT_IN_THEMES;
 
 export default LayerMapsforge;

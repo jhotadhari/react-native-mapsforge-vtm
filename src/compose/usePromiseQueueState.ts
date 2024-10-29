@@ -17,7 +17,7 @@ const State = {
 	STOPPED: 2,
 };
 
-const usePromiseQueueState = () => {
+const usePromiseQueueState = () : number => {
 
 	const [state, setState] = useState( -1 );
 
@@ -31,11 +31,11 @@ const usePromiseQueueState = () => {
 		promiseQueue.on( 'end', handleEnd );
 
 		switch ( true ) {
-			case ( promiseQueue.started ):
+			case ( 1 === promiseQueue?.state?.RUNNING ):
 			case ( promiseQueue.shouldRun ):
 				setState( State.RUNNING );
 				break;
-			case ( promiseQueue.stopped ):
+			case ( 2 === promiseQueue?.state?.STOPPED ):
 				setState( State.STOPPED );
 				break;
 			default:

@@ -25,7 +25,7 @@ It is configured to use the local version of the library, so any changes you mak
 
 If you want to use Android Studio to edit the native code, you can open the `example/android` directory in those editors.
 
-To edit the Java or Kotlin files, open `example/android` in Android studio and find the source files at `react-native-mapsforge` under `Android`.
+To edit the Java or Kotlin files, open `example/android` in Android studio and find the source files at `react-native-mapsforge-vtm` under `Android`.
 
 You can use various commands from the root directory to work with the project.
 

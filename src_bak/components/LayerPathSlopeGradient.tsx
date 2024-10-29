@@ -7,7 +7,7 @@ import PropTypes from 'prop-types';
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
+import useRefState from '../../src/compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
 import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
@@ -96,7 +96,7 @@ const LayerPathSlopeGradient = ( {
 					);
 				}
 
-			} ).catch( err => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
 

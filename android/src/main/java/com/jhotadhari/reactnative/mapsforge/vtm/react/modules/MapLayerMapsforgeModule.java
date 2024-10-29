@@ -15,26 +15,8 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
-//import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
-//import org.mapsforge.map.android.util.AndroidUtil;
-//import org.mapsforge.map.android.view.MapView;
-//import org.mapsforge.map.layer.cache.TileCache;
-//import org.mapsforge.map.layer.hills.DemFolder;
-//import org.mapsforge.map.layer.hills.DemFolderFS;
-//import org.mapsforge.map.layer.hills.HillsRenderConfig;
-//import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
-//import org.mapsforge.map.layer.hills.ShadingAlgorithm;
-//import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
-//import org.mapsforge.map.layer.renderer.TileRendererLayer;
-//import org.mapsforge.map.reader.MapFile;
-//import org.mapsforge.map.rendertheme.ExternalRenderTheme;
-//import org.mapsforge.map.rendertheme.InternalRenderTheme;
-//import org.mapsforge.map.rendertheme.XmlRenderTheme;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeStyleLayer;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
-
 import org.oscim.android.MapView;
+import org.oscim.core.BoundingBox;
 import org.oscim.layers.GroupLayer;
 import org.oscim.layers.tile.buildings.BuildingLayer;
 import org.oscim.layers.tile.vector.OsmTileLayer;
@@ -47,6 +29,7 @@ import org.oscim.theme.XmlRenderThemeStyleLayer;
 import org.oscim.theme.XmlRenderThemeStyleMenu;
 import org.oscim.theme.internal.VtmThemes;
 import org.oscim.tiling.source.mapfile.MapFileTileSource;
+import org.oscim.tiling.source.mapfile.MapInfo;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -243,6 +226,32 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
 
+	protected void addTileSourceToResponse( WritableMap responseParams, MapFileTileSource tileSource ) {
+		MapInfo mapInfo = tileSource.getMapInfo();
+		if ( null != mapInfo ) {
+			// Add tileSource bounds to response.
+			WritableMap boundsParams = new WritableNativeMap();
+			BoundingBox boundingBox = mapInfo.boundingBox;
+			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
+			boundsParams.putDouble( "minLon", boundingBox.getMinLongitude() );
+			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
+			boundsParams.putDouble( "maxLon", boundingBox.getMaxLongitude() );
+			responseParams.putMap( "bounds", boundsParams );
+			// Add tileSource center to response.
+			WritableMap centerParams = new WritableNativeMap();
+			centerParams.putDouble( "lon", mapInfo.mapCenter.getLongitude() );
+			centerParams.putDouble( "lat", mapInfo.mapCenter.getLatitude() );
+			responseParams.putMap( "center", centerParams );
+			// Add tileSource info to respnse.
+			responseParams.putString( "createdBy", mapInfo.createdBy );
+			responseParams.putString( "projectionName", mapInfo.projectionName );
+			responseParams.putString( "comment", mapInfo.comment );
+			responseParams.putString( "fileSize", String.valueOf( mapInfo.fileSize ) );
+			responseParams.putInt( "fileVersion", mapInfo.fileVersion );
+			responseParams.putString( "mapDate", String.valueOf( mapInfo.mapDate ) );
+		}
+	}
+
     @ReactMethod
     public void createLayer(
             int reactTag,
@@ -261,6 +270,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
                 promise.resolve( false );
                 return;
             }
+
+			WritableMap responseParams = new WritableNativeMap();
 
 			// Tile source
 			MapFileTileSource tileSource = new MapFileTileSource();
@@ -292,6 +303,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			// VectorTileLayer
 			VectorTileLayer tileLayer = new OsmTileLayer( mapView.map() );
 			tileLayer.setTileSource( tileSource );
+
+			addTileSourceToResponse( responseParams, tileSource );
 
 			// Add tilelayer to map, in order to be able to load the render theme.
 			int zIndex = Math.min( mapView.map().layers().size(), (int) reactTreeIndex );
@@ -332,7 +345,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			layers.put( uuid, groupLayer );
 
 			// Resolve layer uuid
-            promise.resolve( uuid );
+			responseParams.putString( "uuid", uuid );
+            promise.resolve( responseParams );
         } catch(Exception e) {
 			e.printStackTrace();
             promise.reject("Create Event Error", e);

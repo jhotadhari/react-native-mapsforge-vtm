@@ -4,14 +4,15 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
-import org.oscim.core.GeoPoint;
+import org.oscim.core.BoundingBox;
 import org.oscim.core.MapPosition;
+import org.oscim.core.Tile;
 
 public class MapContainerModule extends ReactContextBaseJavaModule {
 
@@ -55,21 +56,16 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setCenter(int reactTag, ReadableArray center, Promise promise ) {
+    public void setCenter(int reactTag, ReadableMap center, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
                 promise.resolve( false );
                 return;
             }
-			GeoPoint geoPoint = new GeoPoint(
-				(double) center.toArrayList().get(0),
-				(double) center.toArrayList().get(1)
-			);
-
 			mapView.map().setMapPosition( new MapPosition(
-				geoPoint.getLatitude(),
-				geoPoint.getLongitude(),
+				center.getDouble("lat" ),
+				center.getDouble("lng" ),
 				mapView.map().getMapPosition().getScale()
 			) );
             promise.resolve(true);
@@ -77,6 +73,29 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
             promise.reject("setCenter Error", e);
         }
     }
+
+	@ReactMethod
+	public void setToBounds(int reactTag, ReadableMap bounds, Promise promise ) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			if ( null == mapView ) {
+				promise.resolve( false );
+				return;
+			}
+			BoundingBox boundingBox = new BoundingBox(
+				bounds.getDouble( "minLat" ),
+				bounds.getDouble( "minLon" ),
+				bounds.getDouble( "maxLat" ),
+				bounds.getDouble( "maxLon" )
+			);
+			MapPosition pos = new MapPosition();
+			pos.setByBoundingBox( boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );
+			mapView.map().setMapPosition( pos );
+			promise.resolve(true);
+		} catch( Exception e ) {
+			promise.reject("zoomOut Error", e);
+		}
+	}
 
     @ReactMethod
     public void setMinZoom(int reactTag, int minZoom, Promise promise ) {

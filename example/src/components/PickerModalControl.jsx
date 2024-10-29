@@ -3,7 +3,6 @@
  */
 import React, { useState } from 'react';
 import {
-	Button,
 	FlatList,
 	useWindowDimensions,
 	View,
@@ -13,6 +12,7 @@ import {
  * Internal dependencies
  */
 import ModalWrapper from './ModalWrapper.jsx';
+import Button from './Button.jsx';
 
 const PickerModalControl = ( {
 	disabled,
@@ -26,6 +26,10 @@ const PickerModalControl = ( {
 	itemHeight,
 	onSelectAllNone,
 	selectAllNoneLabel,
+	NoOptionsComponent,
+	extraOptions,
+	ExtraOptionsHeader,
+	OptionsHeader,
 } ) => {
 
 	const [modalVisible, setModalVisible] = useState( false );
@@ -34,9 +38,49 @@ const PickerModalControl = ( {
 
 	itemHeight = itemHeight || 45;
 
+	const OptionsFlatList = ( {
+		style,
+		options,
+	} ) => {
+		return <FlatList	// ??? should be scrollable
+			data={ options }
+			style={ {
+				...style,
+				maxHeight: Math.min( height * 0.7, itemHeight * options.length ),
+				zIndex: 999999,
+			} }
+			getItemLayout={ ( data, index ) => ( {
+				length: itemHeight,
+				offset: itemHeight * index,
+				index,
+			} ) }
+			renderItem={ ( { item } ) => <View
+				style={ { height: itemHeight } }
+			>
+				<Button
+					disabled={ disabled || item.disabled }
+					title={ item.label }
+					active={ values.includes( item.value ) }
+					onPress={ e => {
+						e.stopPropagation();
+						onChange( item.value );
+						if ( closeOnChange ) {
+							setModalVisible( false );
+						}
+					} }
+				/>
+			</View> }
+			keyExtractor={ item => item.value }
+		/>
+	};
+
 	return <>
 
 		<Button
+			style={ {
+				zIndex: 1,
+				position: 'relative',
+			} }
 			disabled={ disabled }
 			key="button"
 			onPress={ () => {
@@ -54,32 +98,18 @@ const PickerModalControl = ( {
 			onSelectAllNone={ onSelectAllNone }
 			style={ { width: width * ( 2 / 3 ) } }
 		>
-			<FlatList
-				data={ options }
-				style={ { maxHeight: Math.min( height * 0.6, itemHeight * options.length ) } }
-				getItemLayout={ ( data, index ) => ( {
-					length: itemHeight,
-					offset: itemHeight * index,
-					index,
-				} ) }
-				renderItem={ ( { item } ) => <View
-					style={ { height: itemHeight } }
-				>
-					<Button
-						disabled={ disabled || item.disabled }
-						title={ item.label }
-						color={ values.includes( item.value ) ? '#841584' : '' }
-						onPress={ e => {
-							e.stopPropagation();
-							onChange( item.value );
-							if ( closeOnChange ) {
-								setModalVisible( false );
-							}
-						} }
-					/>
-				</View> }
-				keyExtractor={ item => item.value }
-			/>
+
+			<View style={ {
+				maxHeight: Math.min( height * 0.8, itemHeight * ( options.length + ( extraOptions ? extraOptions.length : 0 ) ) ),
+			} } >
+				{ extraOptions && extraOptions.length && ExtraOptionsHeader && <ExtraOptionsHeader/> }
+				{ extraOptions && extraOptions.length && <OptionsFlatList style={ { marginBottom: 10 } } options={ extraOptions } /> }
+
+				{ options.length && OptionsHeader && <OptionsHeader/> }
+				{ options.length && <OptionsFlatList options={ options } /> }
+			</View>
+
+			{ ! options.length && NoOptionsComponent && <NoOptionsComponent/>}
 
 		</ModalWrapper> }
 	</>;
