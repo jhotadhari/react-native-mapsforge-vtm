@@ -157,112 +157,130 @@ const MapContainer = ( {
 	// center changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setCenter( nativeNodeHandle, center );
+			MapContainerModule.setCenter( nativeNodeHandle, center )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [Object.values( center ).join( '' )] );
 	// moveEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'moveEnabled', moveEnabled );
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'moveEnabled', moveEnabled )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [moveEnabled] );
 	// tiltEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'tiltEnabled', tiltEnabled );
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'tiltEnabled', tiltEnabled )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [tiltEnabled] );
 	// rotationEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'rotationEnabled', rotationEnabled );
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'rotationEnabled', rotationEnabled )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [rotationEnabled] );
 	// zoomEnabled changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'zoomEnabled', zoomEnabled );
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'zoomEnabled', zoomEnabled )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [zoomEnabled] );
 	// zoomLevel changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setZoomLevel( nativeNodeHandle, zoomLevel );
+			MapContainerModule.setZoomLevel( nativeNodeHandle, zoomLevel )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [zoomLevel] );
 	// minZoom changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMinZoom( nativeNodeHandle, minZoom );
+			MapContainerModule.setMinZoom( nativeNodeHandle, minZoom )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [minZoom] );
 	// maxZoom changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMaxZoom( nativeNodeHandle, maxZoom );
+			MapContainerModule.setMaxZoom( nativeNodeHandle, maxZoom )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [maxZoom] );
 	// tilt changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'tilt', tilt );
+			MapContainerModule.setViewport( nativeNodeHandle, 'tilt', tilt )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [tilt] );
 	// minTilt changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'minTilt', minTilt );
+			MapContainerModule.setViewport( nativeNodeHandle, 'minTilt', minTilt )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [minTilt] );
 	// maxTilt changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'maxTilt', maxTilt );
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxTilt', maxTilt )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [maxTilt] );
 
 	// bearing changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'bearing', bearing );
+			MapContainerModule.setViewport( nativeNodeHandle, 'bearing', bearing )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [bearing] );
 	// minBearing changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'minBearing', minBearing );
+			MapContainerModule.setViewport( nativeNodeHandle, 'minBearing', minBearing )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [minBearing] );
 	// maxBearing changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'maxBearing', maxBearing );
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxBearing', maxBearing )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [maxBearing] );
 
 	// roll changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'roll', roll );
+			MapContainerModule.setViewport( nativeNodeHandle, 'roll', roll )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [roll] );
 	// minRoll changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'minRoll', minRoll );
+			MapContainerModule.setViewport( nativeNodeHandle, 'minRoll', minRoll )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [minRoll] );
 	// maxRoll changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setViewport( nativeNodeHandle, 'maxRoll', maxRoll );
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxRoll', maxRoll )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [maxRoll] );
 
 	// hgtDirPath
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setHgtDirPath( nativeNodeHandle, hgtDirPath );
+			MapContainerModule.setHgtDirPath( nativeNodeHandle, hgtDirPath )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
 	}, [hgtDirPath] );
 
