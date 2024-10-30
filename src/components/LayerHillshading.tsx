@@ -27,7 +27,7 @@ export type LayerHillshadingResponse = {
 
 export type LayerHillshadingProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	zoomMin?: number;
 	zoomMax?: number;

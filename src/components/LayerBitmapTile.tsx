@@ -18,7 +18,7 @@ export type LayerBitmapTileResponse = {
 
 export type LayerBitmapTileProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	url?: string;
 	zoomMin?: number;
 	zoomMax?: number;
@@ -56,7 +56,7 @@ const LayerBitmapTile = ( {
 				Math.round( zoomMin ),
 				Math.round( zoomMax ),
 				Math.round( cacheSize ),
-				Math.round( reactTreeIndex )
+				reactTreeIndex
 			).then( ( response: LayerBitmapTileResponse ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
