@@ -113,7 +113,7 @@ if ! [[ $? == 0 ]]; then
     exit 1
 fi
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
-awk -i inplace "NR==${line}{print \"## Unreleased\n\"}1" CHANGELOG.md
+awk -i inplace "NR==${line}{print \"## [Unreleased]\n\"}1" CHANGELOG.md
 ./node_modules/.bin/changelog
 git add CHANGELOG.md
 git commit -m "Add Unreleased section to CHANGELOG.md"
