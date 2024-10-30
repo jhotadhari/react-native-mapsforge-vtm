@@ -27,7 +27,7 @@ const BUILT_IN_THEMES = [
 	'OSMAGRAY',
 	'OSMARENDER',
 	'TRONRENDER',
-];
+] as const;
 
 export type LayerMapsforgeResponse = {
 	uuid: string;
@@ -44,8 +44,8 @@ export type LayerMapsforgeResponse = {
 export type LayerMapsforgeProps = {
 	mapViewNativeTag?: null | number;
 	reactTreeIndex: number;
-	mapFile?: string;
-	renderTheme?: string;
+	mapFile?: `/${string}` | `content://${string}`;
+	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	renderStyle?: string;
 	renderOverlays?: string[];
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
@@ -56,7 +56,7 @@ export type LayerMapsforgeProps = {
 const LayerMapsforge = ( {
 	mapViewNativeTag,
 	reactTreeIndex,
-	mapFile = '',
+	mapFile,
 	renderTheme = 'DEFAULT',
 	renderStyle = '',
 	renderOverlays = [],

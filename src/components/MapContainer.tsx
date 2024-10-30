@@ -75,7 +75,7 @@ export type MapContainerProps = {
 	roll?: number;
 	minRoll?: number;
 	maxRoll?: number;
-	hgtDirPath?: string;
+	hgtDirPath?: `/${string}` | `content://${string}`;
 };
 
 const defaultCenter : Location = {
@@ -112,7 +112,7 @@ const MapContainer = ( {
 	roll = 0,
 	minRoll = -180,
 	maxRoll = 180,
-	hgtDirPath = '',
+	hgtDirPath,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );

@@ -13,12 +13,15 @@ import { isFunction } from 'lodash-es';
 
 const Module = MapLayerScalebarModule;
 
+export type LayerScalebarResponse = {
+	uuid: string;
+};
+
 export type LayerScalebarProps = {
 	mapViewNativeTag?: null | number;
 	reactTreeIndex: number;
-	onCreate?: null | ( ( result: object ) => void );
-	onRemove?: null | ( ( result: object ) => void );
-	onChange?: null | ( ( result: object ) => void );
+	onCreate?: null | ( ( response: LayerScalebarResponse ) => void );
+	onRemove?: null | ( ( response: LayerScalebarResponse ) => void );
 };
 
 const LayerScalebar = ( {
@@ -26,15 +29,10 @@ const LayerScalebar = ( {
 	reactTreeIndex,
 	onCreate,
 	onRemove,
-	onChange,
 } : LayerScalebarProps ) => {
 
 	const [random, setRandom] = useState( 0 );
 	const [uuid, setUuid] = useRefState( null );
-
-	onCreate = isFunction( onCreate ) ? onCreate : null;
-	onRemove = isFunction( onRemove ) ? onRemove : null;
-	onChange = isFunction( onChange ) ? onChange : null;
 
 	const createLayer = () => {
 		setUuid( false );
@@ -43,15 +41,10 @@ const LayerScalebar = ( {
 				mapViewNativeTag,
 				reactTreeIndex
 			).then( ( newUuid : string ) => {
-				if (newUuid) {
-					setUuid(newUuid);
-					setRandom(Math.random());
-
-					// ( null === triggerCreateNew
-					// 	? isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null
-					// 	: isFunction( onChange ) ? onChange( { uuid: newUuid } ) : null
-					// );
-					isFunction( onCreate ) ? onCreate( { uuid: newUuid } ) : null;
+				if ( newUuid ) {
+					setUuid( newUuid );
+					setRandom( Math.random());
+					onCreate ? onCreate( { uuid: newUuid } ) : null;
 				}
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
@@ -69,9 +62,9 @@ const LayerScalebar = ( {
 						uuid
 					).then( ( removedUuid: string ) => {
 						if ( removedUuid ) {
-							isFunction( onRemove ) ? onRemove( { uuid: removedUuid } ) : null;
+							onRemove ? onRemove( { uuid: removedUuid } ) : null;
 						}
-					} );
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 		};

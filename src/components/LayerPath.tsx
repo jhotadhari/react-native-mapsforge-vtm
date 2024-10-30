@@ -2,7 +2,6 @@
  * External dependencies
  */
 import React, { useEffect, useState } from 'react';
-import { isArray, isString } from 'lodash-es';
 
 /**
  * Internal dependencies
@@ -23,7 +22,7 @@ export type LayerPathResponse = {
 export type LayerPathProps = {
 	mapViewNativeTag?: null | number;
 	reactTreeIndex: number;
-	filePath?: string;
+	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
 	style?: GeometryStyle;
@@ -37,10 +36,6 @@ const responseIncludeDefaults : ResponseInclude = {
 	bounds: 0,
 };
 
-const isValidFilePath = ( filePath : string ) : boolean => {
-	return filePath && filePath.length > 0 && ( filePath.startsWith( '/' ) || filePath.startsWith( 'content://' ) ) ? true : false;
-};
-
 const defaultStyle : GeometryStyle = {
 	strokeWidth: 4,
 	strokeColor: '#ff0000',
@@ -49,7 +44,7 @@ const defaultStyle : GeometryStyle = {
 const LayerPath = ( {
 	mapViewNativeTag,
 	positions = [],
-	filePath = '',
+	filePath,
 	responseInclude = responseIncludeDefaults,
 	reactTreeIndex,
 	style = defaultStyle,
@@ -63,7 +58,6 @@ const LayerPath = ( {
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
 	positions = isValidPositions( positions ) ? positions : [];
-	filePath = isValidFilePath( filePath ) ? filePath : '';
 
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 
@@ -95,7 +89,7 @@ const LayerPath = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag && ( isValidFilePath( filePath ) || positions.length > 0 ) ) {
+		if ( uuid === null && mapViewNativeTag && ( filePath || positions.length > 0 ) ) {
 			createLayer();
 		}
 		return () => {
@@ -108,7 +102,7 @@ const LayerPath = ( {
 						if ( removedUuid ) {
 							onRemove ? onRemove( { uuid: removedUuid } ) : null;
 						}
-					});
+					} );
 				} );
 			}
 		};
@@ -136,9 +130,6 @@ const LayerPath = ( {
 	}, [Object.values( style ).join( '' )] );
 
 	useEffect( () => {
-
-		console.log( 'debug layer positions', positions ); // debug
-		console.log( 'debug layer uuid', uuid ); // debug
 		if ( mapViewNativeTag ) {
 			if ( uuid ) {
 				promiseQueue.enqueue( () => {
@@ -152,7 +143,7 @@ const LayerPath = ( {
 						}
 					} );
 				} );
-			} else if ( uuid === null && ( isValidFilePath( filePath ) || positions.length > 0 ) ) {
+			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {
 				setTriggerCreateNew( Math.random() );
 			}
 		}
@@ -162,6 +153,7 @@ const LayerPath = ( {
 			: null
 		),
 		filePath,
+		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
 	] );
 
 	return null;

@@ -28,30 +28,15 @@ const { MapContainerModule } = nativeMapModules;
  * Internal dependencies
  */
 import { barTopPadding } from '../constants.js';
+import { formatSeconds } from '../utils.js';
 import Center from '../components/Center.jsx';
 import TopBar from '../components/TopBar.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
+import { PlusMinusControl, rowBtnStyle } from '../components/RowControls.jsx';
 
-const formatSeconds = secNum => {
-    secNum = Math.round( secNum );
-    let hours   = Math.floor(secNum / 3600);
-    let minutes = Math.floor((secNum - (hours * 3600)) / 60);
-    let seconds = secNum - (hours * 3600) - (minutes * 60);
-    if ( hours   < 10 ) { hours   = "0" + hours; }
-    if ( minutes < 10 ) { minutes = "0" + minutes; }
-    if ( seconds < 10 ) { seconds = "0" + seconds; }
-    return hours + 'h ' + minutes + 'm ' + seconds + 's';
-};
-
-const rowBtnStyle = {
-    marginRight: 10,
-    width: 35,
-    textAlign: 'center',
-};
-
-const MapEvents = ( {
+export const MapEvents = ( {
 	nativeTag,
     setCurrentCenter,
 } ) => {
@@ -64,42 +49,6 @@ const MapEvents = ( {
 		},
 	} );
 	return null;
-};
-
-const PlusMinusControl = ( {
-    containerStyle,
-    style,
-    promiseQueueState,
-    label,
-    value,
-    minValue,
-    setValue,
-    step,
-    textAppend,
-} ) => {
-    step = step ? step : 1;
-    return <View style={ {
-        flexDirection: 'row',
-        width: '90%',
-        alignItems: 'center',
-        ...containerStyle,
-    } }>
-        <Text style={ {...style, marginRight: 10, minWidth: 100 } }>{ label }:</Text>
-        <Text style={ {...style, marginRight: 10, minWidth: 30  } }>{ value }</Text>
-        <Button
-            style={ rowBtnStyle }
-            disabled={ promiseQueueState > 0 }
-            onPress={ () => setValue( value + step ) }
-            title=' + '
-        />
-        <Button
-            style={ rowBtnStyle }
-            disabled={ promiseQueueState > 0 || ( ( value - step ) < minValue ) }
-            onPress={ () => setValue( Math.max( minValue, value - step ) ) }
-            title=' - '
-        />
-        { textAppend && <Text style={ { ...style, marginLeft: 10 }} >{ textAppend }</Text> }
-    </View>;
 };
 
 const strokeColor = '#00ff00';
@@ -179,11 +128,9 @@ const ExampleLayerPath = ( {
 
             <View style={ {
                 marginBottom: 10,
-                // maxWidth: '90%',
                 flexDirection: 'row',
                 width: '90%',
                 alignItems: 'center',
-                // justifyContent: 'space-between',
             } } >
 
                 <Button

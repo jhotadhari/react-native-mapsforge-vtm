@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import androidx.annotation.Nullable;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -77,13 +79,17 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     @ReactMethod
     public void createLayer(
 		int reactTag,
-		String mapFile,
+		@Nullable String mapFile,
 		int alpha,
-		String transparentColor,
+		@Nullable String transparentColor,
 		int reactTreeIndex,
 		Promise promise
     ) {
         try {
+			if ( null == mapFile ) {
+				promise.resolve( false );
+			}
+
             MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
@@ -103,7 +109,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			MBTilesTileSource tileSource = new MBTilesBitmapTileSource(
 				file.getAbsolutePath(),
 				alpha,
-				! transparentColor.isEmpty() && transparentColor.startsWith( "#" ) ?
+				null != transparentColor && transparentColor.startsWith( "#" ) ?
 					Color.parseColor( transparentColor )
 					: null
 			);

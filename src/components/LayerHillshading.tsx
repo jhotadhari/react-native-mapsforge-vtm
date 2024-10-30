@@ -2,7 +2,6 @@
  * External dependencies
  */
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * Internal dependencies
@@ -16,34 +15,24 @@ const Module = MapLayerHillshadingModule;
 
 export type ShadingAlgorithm = 'SimpleShadingAlgorithm' | 'DiffuseLightShadingAlgorithm';
 
-const shadingAlgorithms : { [value: string]: ShadingAlgorithm } = {
-	SIMPLE: 'SimpleShadingAlgorithm',
-	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',
-};
-
-const shadingAlgorithmOptionsDefaults = {
-	linearity: 0.1,		// SimpleShadingAlgorithm		// 1 or higher for linear grade, 0 or lower for a triple-applied sine of grade that gives high emphasis on changes in slope in near-flat areas, but reduces details within steep slopes (default 0.1).
-	scale: 0.666,		// SimpleShadingAlgorithm		// scales the input slopes, with lower values slopes will saturate later, but nuances closer to flat will suffer (default: 0.666)
-	heightAngle: 50,	// DiffuseLightShadingAlgorithm	// height angle of light source over ground (in degrees 0..90)
+export type ShadingAlgorithmOptions = {
+	linearity?: number;
+	scale?: number;
+	heightAngle?: number;
 };
 
 export type LayerHillshadingResponse = {
 	uuid: string
-
 };
 
 export type LayerHillshadingProps = {
 	mapViewNativeTag?: null | number;
 	reactTreeIndex: number;
-	hgtDirPath?: string;
+	hgtDirPath?: `/${string}` | `content://${string}`;
 	zoomMin?: number;
 	zoomMax?: number;
 	shadingAlgorithm?: ShadingAlgorithm;
-	shadingAlgorithmOptions?: {
-		linearity?: number;
-		scale?: number;
-		heightAngle?: number;
-	};
+	shadingAlgorithmOptions?: ShadingAlgorithmOptions;
 	magnitude?: number;
 	cacheSize?: number;
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
@@ -51,9 +40,20 @@ export type LayerHillshadingProps = {
 	onChange?: null | ( ( response: LayerHillshadingResponse ) => void );
 };
 
+const shadingAlgorithms : { [value: string]: ShadingAlgorithm } = {
+	SIMPLE: 'SimpleShadingAlgorithm',
+	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',
+};
+
+const shadingAlgorithmOptionsDefaults : ShadingAlgorithmOptions = {
+	linearity: 0.1,		// SimpleShadingAlgorithm		// 1 or higher for linear grade, 0 or lower for a triple-applied sine of grade that gives high emphasis on changes in slope in near-flat areas, but reduces details within steep slopes (default 0.1).
+	scale: 0.666,		// SimpleShadingAlgorithm		// scales the input slopes, with lower values slopes will saturate later, but nuances closer to flat will suffer (default: 0.666)
+	heightAngle: 50,	// DiffuseLightShadingAlgorithm	// height angle of light source over ground (in degrees 0..90)
+};
+
 const LayerHillshading = ( {
 	mapViewNativeTag,
-	hgtDirPath = '',
+	hgtDirPath,
 	zoomMin = 6,
 	zoomMax = 20,
 	shadingAlgorithm = shadingAlgorithms.SIMPLE,
@@ -155,16 +155,5 @@ const LayerHillshading = ( {
 LayerHillshading.isMapLayer = true;
 
 LayerHillshading.shadingAlgorithms = shadingAlgorithms;
-
-LayerHillshading.propTypes = {
-	mapViewNativeTag: PropTypes.number,
-	hgtDirPath: PropTypes.string,
-	zoomMin: PropTypes.number,
-	zoomMax: PropTypes.number,
-	shadingAlgorithm: PropTypes.string,
-	shadingAlgorithmOptions: PropTypes.object,
-	cacheSize: PropTypes.number,
-	reactTreeIndex: PropTypes.number,
-};
 
 export default LayerHillshading;

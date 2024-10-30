@@ -42,7 +42,7 @@ export type Props = {
 	roll: number;
 	minRoll: number;
 	maxRoll: number;
-	hgtDirPath: string;
+	hgtDirPath?: `/${string}` | `content://${string}`;
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null

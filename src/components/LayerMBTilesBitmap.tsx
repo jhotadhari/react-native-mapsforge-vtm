@@ -29,9 +29,9 @@ export type LayerMBTilesBitmapResponse = {
 export type LayerMBTilesBitmapProps = {
 	mapViewNativeTag?: null | number;
 	reactTreeIndex: number;
-	mapFile?: string;
+	mapFile?: `/${string}`;
 	alpha?: number;
-	transparentColor?: string;
+	transparentColor?: `#${string}`;
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
 	onChange?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
@@ -40,9 +40,9 @@ export type LayerMBTilesBitmapProps = {
 const LayerMBTilesBitmap = ( {
 	mapViewNativeTag,
 	reactTreeIndex,
-    mapFile = '',
+    mapFile,
     alpha = 256,
-    transparentColor = '',
+    transparentColor,
 	onCreate,
 	onRemove,
 	onChange,
@@ -52,9 +52,7 @@ const LayerMBTilesBitmap = ( {
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
-	mapFile = mapFile || '';
     alpha = Math.round( alpha );
-	transparentColor = transparentColor || '';
 
 	const createLayer = () => {
 		setUuid( false );

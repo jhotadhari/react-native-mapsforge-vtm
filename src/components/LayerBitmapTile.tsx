@@ -2,7 +2,6 @@
  * External dependencies
  */
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * Internal dependencies
@@ -10,7 +9,6 @@ import PropTypes from 'prop-types';
 import useRefState from '../../src/compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerBitmapTileModule } from '../nativeMapModules';
-import { isNumber, isFunction } from 'lodash-es';
 
 const Module = MapLayerBitmapTileModule;
 

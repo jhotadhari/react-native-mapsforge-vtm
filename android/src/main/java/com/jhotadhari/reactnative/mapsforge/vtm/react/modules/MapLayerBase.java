@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.util.Log;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;

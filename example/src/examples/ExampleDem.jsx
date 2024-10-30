@@ -92,7 +92,7 @@ const ExampleDem = ( {
             https://viewfinderpanoramas.org/dem3.html
             </Text></Text>
             { ! navChildren || ( Array.isArray( navChildren ) && navChildren.length === 0 ) && <Text style={ { ...style, marginTop: 10 } }>There are no hgt files in dem directory</Text> }
-            <Text style={ { ...style, marginTop: 10 } }>Elevation map center: { currentCenter && currentCenter.alt ? currentCenter.alt : 'hgt file missing' }</Text>
+            <Text style={ { ...style, marginTop: 10 } }>Elevation map center: { currentCenter && currentCenter.alt ? currentCenter.alt : 'hgt file missing for this position' }</Text>
 
         </TopBar>
 

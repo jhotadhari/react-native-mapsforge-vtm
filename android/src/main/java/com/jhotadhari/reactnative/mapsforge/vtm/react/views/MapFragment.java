@@ -134,7 +134,7 @@ public class MapFragment extends Fragment {
 	) {
         super();
 
-		rateLimiter = new FixedWindowRateLimiter( 100, 1 );
+		rateLimiter = new FixedWindowRateLimiter( 100, 1 );	// ??? window size as prop
 
 		mapViewManager = mapViewManager_;
 
@@ -287,8 +287,6 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
-			setHgtReader();
-
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
 				@Override
@@ -299,6 +297,8 @@ public class MapFragment extends Fragment {
 					}
 				}
 			} );
+
+			setHgtReader();
 
 //			// Set position based on loaded map.
 //			MapInfo info = tileSource.getMapInfo();

@@ -164,6 +164,20 @@ public class MapLayerPathModule extends MapLayerBase {
 		return styleBuilder.build();
 	}
 
+	protected void addBoundsToResponse(
+		PathLayer pathLayer,
+		WritableMap responseParams
+	){
+		LineDrawable line = pathLayer.getDrawable();
+		Envelope boundingBox = line.getGeometry().getEnvelopeInternal();
+		WritableMap boundsParams = new WritableNativeMap();
+		boundsParams.putDouble("minLat", boundingBox.getMinY());
+		boundsParams.putDouble("minLon", boundingBox.getMinX());
+		boundsParams.putDouble("maxLat", boundingBox.getMaxY());
+		boundsParams.putDouble("maxLon", boundingBox.getMaxX());
+		responseParams.putMap("bounds", boundsParams);
+	}
+
 	protected void addCoordinatesToResponse(
 		List<TrackPoint> trackPoints,
 		WritableMap responseParams
@@ -326,14 +340,7 @@ public class MapLayerPathModule extends MapLayerBase {
 
 			// Maybe add bounds to response.
 			if ( responseInclude.getInt( "bounds" ) > 0 ) {
-				LineDrawable line = pathLayer.getDrawable();
-				Envelope boundingBox = line.getGeometry().getEnvelopeInternal();
-				WritableMap boundsParams = new WritableNativeMap();
-				boundsParams.putDouble("minLat", boundingBox.getMinY());
-				boundsParams.putDouble("minLon", boundingBox.getMinX());
-				boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-				boundsParams.putDouble("maxLon", boundingBox.getMaxX());
-				responseParams.putMap("bounds", boundsParams);
+				addBoundsToResponse( pathLayer, responseParams );
 			}
 
 			// Add layer to map
@@ -391,14 +398,7 @@ public class MapLayerPathModule extends MapLayerBase {
 
 			// Maybe add bounds to response.
 			if ( responseInclude.getInt( "bounds" ) > 1 ) {
-				LineDrawable line = pathLayerNew.getDrawable();
-				Envelope boundingBox = line.getGeometry().getEnvelopeInternal();
-				WritableMap boundsParams = new WritableNativeMap();
-				boundsParams.putDouble("minLat", boundingBox.getMinY());
-				boundsParams.putDouble("minLon", boundingBox.getMinX());
-				boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-				boundsParams.putDouble("maxLon", boundingBox.getMaxX());
-				responseParams.putMap("bounds", boundsParams);
+				addBoundsToResponse( pathLayerNew, responseParams );
 			}
 
 		} catch( Exception e ) {
