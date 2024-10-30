@@ -15,12 +15,16 @@
  */
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RelativeLayout;
 
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 
 import com.facebook.react.bridge.ReadableMap;
@@ -28,17 +32,14 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
 import com.jhotadhari.reactnative.mapsforge.vtm.HardwareKeyListener;
+import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.DemFolderSAF;
-
-import android.widget.RelativeLayout;
 
 import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.oscim.android.MapView;
-import org.oscim.core.GeoPoint;
 import org.oscim.core.MapPosition;
 import org.oscim.event.Event;
 import org.oscim.layers.Layer;
@@ -48,8 +49,6 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
 
 public class MapFragment extends Fragment {
 
@@ -63,29 +62,30 @@ public class MapFragment extends Fragment {
 
     protected MapViewManager mapViewManager;
 
-	protected double propWidthForLayoutSize = 200;
-	protected double propHeightForLayoutSize = 200;
+	protected double propWidthForLayoutSize;
+	protected double propHeightForLayoutSize;
 
 	protected ReadableMap propCenter;
 
-	protected boolean propMoveEnabled = true;
-	protected boolean propRotationEnabled = true;
-	protected boolean propZoomEnabled = true;
-	protected boolean propTiltEnabled = true;
+	protected boolean propMoveEnabled;
+	protected boolean propRotationEnabled;
+	protected boolean propZoomEnabled;
+	protected boolean propTiltEnabled;
 
-	protected int propZoomLevel = 12;
-	protected int propMinZoom = 3;
-	protected int propMaxZoom = 20;
-	protected float propTilt = 0;
-	protected float propMinTilt = 0;
-	protected float propMaxTilt = 65;
-	protected float propBearing = 0;
-	protected float propMinBearing = -180;
-	protected float propMaxBearing = 180;
-	protected float propRoll = 0;
-	protected float propMinRoll = -180;
-	protected float propMaxRoll = 180;
-	protected String propHgtDirPath = "";
+	protected int propZoomLevel;
+	protected int propMinZoom;
+	protected int propMaxZoom;
+	protected float propTilt;
+	protected float propMinTilt;
+	protected float propMaxTilt;
+	protected float propBearing;
+	protected float propMinBearing;
+	protected float propMaxBearing;
+	protected float propRoll;
+	protected float propMinRoll;
+	protected float propMaxRoll;
+	protected String propHgtDirPath;
+	protected ReadableMap propResponseInclude;
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -96,7 +96,7 @@ public class MapFragment extends Fragment {
 
     protected void sendEventMapLayersCreated() {
         WritableMap params = new WritableNativeMap();
-        params.putInt( "nativeTag", this.getId() );
+        params.putInt( "nativeNodeHandle", this.getId() );
         Utils.sendEvent( mapViewManager.getReactContext(), "MapLayersCreated", params );
     }
 
@@ -129,11 +129,15 @@ public class MapFragment extends Fragment {
 		float minRoll,
 		float maxRoll,
 
-		String hgtDirPath
+		String hgtDirPath,
+
+		ReadableMap responseInclude,
+
+		int mapEventRate
 	) {
         super();
 
-		rateLimiter = new FixedWindowRateLimiter( 100, 1 );
+		updateRateLimiterRate( mapEventRate );
 
 		mapViewManager = mapViewManager_;
 
@@ -164,6 +168,8 @@ public class MapFragment extends Fragment {
 		propMaxRoll = maxRoll;
 
 		propHgtDirPath = hgtDirPath;
+
+		propResponseInclude = responseInclude;
     }
 
     protected void addHardwareKeyListener() {
@@ -228,21 +234,31 @@ public class MapFragment extends Fragment {
         }
     }
 
-	public void setPropHgtDirPath(String hgtDirPath) {
+	public void setPropResponseInclude( ReadableMap responseInclude ) {
+		propResponseInclude = responseInclude;
+	}
+
+	public void setPropHgtDirPath( String hgtDirPath ) {
 		propHgtDirPath = hgtDirPath;
 		setHgtReader();
 	}
 
+	public void updateRateLimiterRate( int mapEventRate ) {
+		rateLimiter = new FixedWindowRateLimiter( mapEventRate, 1 );
+	}
+
 	protected void setHgtReader() {
 		// Init hgtReader
-		if ( ! propHgtDirPath.isEmpty() ) {
+		if ( null != propHgtDirPath && ! propHgtDirPath.isEmpty() ) {
 			DemFolder demFolder = null;
 			if ( propHgtDirPath.startsWith( "content://" ) ) {
-
-				// ??? TODO check if can read, is dir, has permission ...
-
-				demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
-
+				Uri uri = Uri.parse( propHgtDirPath );
+				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), uri );
+				if ( dir != null && dir.exists() && dir.isDirectory() ) {
+					if ( Utils.hasScopedStoragePermission( mapView.getContext(), propHgtDirPath, false ) ) {
+						demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
+					}
+				}
 			} else if ( propHgtDirPath.startsWith( "/" ) ) {
 				File demFolderFile = new File( propHgtDirPath );
 				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
@@ -286,26 +302,18 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
-			setHgtReader();
-
 			// Event listener.
 			mapView.map().events.bind( new UpdateListener() {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					if ( rateLimiter.tryAcquire() ) {
 						WritableMap params = null;
-						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase() );
+						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
 					}
 				}
 			} );
 
-//			// Set position based on loaded map.
-//			MapInfo info = tileSource.getMapInfo();
-//			if ( ! info.boundingBox.contains( mapView.map().getMapPosition().getGeoPoint() ) ) {
-//				MapPosition pos = new MapPosition();
-//				pos.setByBoundingBox( info.boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );
-//				mapView.map().setMapPosition( pos );
-//			}
+			setHgtReader();
 
 		} catch (Exception e) {
 			// Something went wrong. Should notice user!!!???
@@ -322,35 +330,56 @@ public class MapFragment extends Fragment {
         return view;
     }
 
-	protected WritableMap getResponseBase() {
+	protected WritableMap getResponseBase( int includeLevel ) {
 		WritableMap params = new WritableNativeMap();
-		params.putInt( "nativeTag", this.getId() );
+		params.putInt( "nativeNodeHandle", this.getId() );
 		MapPosition mapPosition = mapView.map().getMapPosition();
-		params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
-		params.putDouble( "zoom", mapPosition.getZoom() );
-		params.putDouble( "scale", mapPosition.getScale() );
-		params.putDouble( "zoomScale", mapPosition.getZoomScale() );
-		params.putDouble( "bearing", mapPosition.getBearing() );
-		params.putDouble( "roll", mapPosition.getRoll() );
-		params.putDouble( "tilt", mapPosition.getTilt() );
-		// center
-		WritableMap center = new WritableNativeMap();
-		center.putDouble( "lng", mapPosition.getLongitude() );
-		center.putDouble( "lat", mapPosition.getLatitude() );
-		if ( null != hgtReader ) {
-			Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
-			if ( null == altitude ) {
-				center.putNull( "alt" );
-			} else {
-				center.putDouble( "alt", altitude.doubleValue() );
-			}
+
+		if ( propResponseInclude.getInt( "zoomLevel" ) >= includeLevel ) {
+			params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		}
-		params.putMap( "center", center );
+		if ( propResponseInclude.getInt( "zoom" ) >= includeLevel ) {
+			params.putDouble( "zoom", mapPosition.getZoom() );
+		}
+		if ( propResponseInclude.getInt( "scale" ) >= includeLevel ) {
+			params.putDouble( "scale", mapPosition.getScale() );
+		}
+		if ( propResponseInclude.getInt( "zoomScale" ) >= includeLevel ) {
+			params.putDouble( "zoomScale", mapPosition.getZoomScale() );
+		}
+		if ( propResponseInclude.getInt( "bearing" ) >= includeLevel ) {
+			params.putDouble( "bearing", mapPosition.getBearing() );
+		}
+		if ( propResponseInclude.getInt( "roll" ) >= includeLevel ) {
+			params.putDouble( "roll", mapPosition.getRoll() );
+		}
+		if ( propResponseInclude.getInt( "tilt" ) >= includeLevel ) {
+			params.putDouble( "tilt", mapPosition.getTilt() );
+		}
+
+		Log.d("testtest propResponseInclude.getInt( \"center\" )", String.valueOf(propResponseInclude.getInt( "center" )));
+
+
+		// center
+		if ( propResponseInclude.getInt( "center" ) >= includeLevel ) {
+			WritableMap center = new WritableNativeMap();
+			center.putDouble("lng", mapPosition.getLongitude());
+			center.putDouble("lat", mapPosition.getLatitude());
+			if ( null != hgtReader ) {
+				Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
+				if ( null == altitude ) {
+					center.putNull("alt");
+				} else {
+					center.putDouble("alt", altitude.doubleValue() );
+				}
+			}
+			params.putMap("center", center);
+		}
 		return params;
 	}
 
     protected void sendLifecycleEvent( String type ) {
-        WritableMap params = getResponseBase();
+        WritableMap params = getResponseBase( 1 );
         params.putString( "type", type );
         Utils.sendEvent(  mapViewManager.getReactContext(), "MapLifecycle", params );
     }
@@ -414,10 +443,12 @@ public class MapFragment extends Fragment {
     }
 
 	protected void fixViewLayoutSize() {
-		ViewGroup.LayoutParams params = relativeLayout.getLayoutParams();
-		params.width = (int) propWidthForLayoutSize;
-		params.height = (int) propHeightForLayoutSize;
-		view.setLayoutParams( params );
+		if ( null != relativeLayout ) {
+			ViewGroup.LayoutParams params = relativeLayout.getLayoutParams();
+			params.width = (int) propWidthForLayoutSize;
+			params.height = (int) propHeightForLayoutSize;
+			view.setLayoutParams( params );
+		}
 	}
 
 	protected void updateViewLayoutSize( double widthForLayoutSize, double heightForLayoutSize ) {

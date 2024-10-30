@@ -11,9 +11,15 @@ if [[ -z $( ./node_modules/.bin/changelog ) ]]; then
     exit 1
 fi
 
-# ChangeLOG.md should have a Unreleased section.
-if [[ -z $( grep '## Unreleased' CHANGELOG.md ) ]]; then
+# CHANGELOG.md should have a Unreleased section.
+if [[ -z $( grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
     echo '`CHANGELOG.md` should have a `Unreleased` section'
+    exit 1
+fi
+
+# typeScript ompile should not complain.
+if [[ ! -z $( yarn run tsc ) ]]; then
+    echo "Unable to publish. TypeScript compile complains."
     exit 1
 fi
 
@@ -60,7 +66,10 @@ if ! [[ $release_branch == release* ]]; then
 fi
 
 # bump package version, update CHANGELOG.md and commit changes.
-npm version $next_version --no-git-tag-version
+current_version=$( node -p "require('./package.json').version" )
+sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" package.json
+current_version=$( node -p "require('./example/package.json').version" )
+sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" example/package.json
 ./node_modules/.bin/changelog --release "${next_version}"
 git add .
 git commit -m "Bump version ${next_version}"
@@ -68,11 +77,19 @@ git commit -m "Bump version ${next_version}"
 # checkout main, merge release, tag and push.
 git checkout main
 git merge $release_branch --no-ff --commit --no-edit
+if ! [[ $? == 0 ]]; then
+    echo "git merge into main failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    exit 1
+fi
 git tag "v${next_version}"
 
 # push
 git push
 git push origin "v${next_version}"
+if ! [[ $? == 0 ]]; then
+    echo "git push failed. Command was \"git push && git push origin \"v${next_version}\""
+    exit 1
+fi
 
 # add release description from changelog and publish the release.
 line_from=$(( $( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md ) + 1 ))
@@ -83,10 +100,18 @@ else
     gh_command='edit'
 fi
 sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${next_version}" --draft=false -F -
+if ! [[ $? == 0 ]]; then
+    echo "Failed to add github release. Command was \"sed -n ${line_from},${line_to}p CHANGELOG.md | gh release \"${gh_command}\" \"v${next_version}\" --draft=false -F -\""
+    exit 1
+fi
 
-# checkout develop, merge main, Add Unreleased section to CHANGELOG.md and push.
-git checkout develop
+# checkout development, merge main, Add Unreleased section to CHANGELOG.md and push.
+git checkout development
 git merge $release_branch --no-ff --commit --no-edit
+if ! [[ $? == 0 ]]; then
+    echo "git merge into development failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    exit 1
+fi
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
 awk -i inplace "NR==${line}{print \"## Unreleased\n\"}1" CHANGELOG.md
 ./node_modules/.bin/changelog

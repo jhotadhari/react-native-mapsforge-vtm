@@ -3,9 +3,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Log;
-
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.mapsforge.core.graphics.Canvas;
 import org.mapsforge.core.graphics.TileBitmap;

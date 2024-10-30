@@ -1,6 +1,5 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
-import android.content.Context;
 import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
@@ -12,29 +11,11 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-
-//import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
-//import org.mapsforge.map.android.util.AndroidUtil;
-//import org.mapsforge.map.android.view.MapView;
-//import org.mapsforge.map.layer.cache.TileCache;
-//import org.mapsforge.map.layer.hills.DemFolder;
-//import org.mapsforge.map.layer.hills.DemFolderFS;
-//import org.mapsforge.map.layer.hills.HillsRenderConfig;
-//import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
-//import org.mapsforge.map.layer.hills.ShadingAlgorithm;
-//import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
-//import org.mapsforge.map.layer.renderer.TileRendererLayer;
-//import org.mapsforge.map.reader.MapFile;
-//import org.mapsforge.map.rendertheme.ExternalRenderTheme;
-//import org.mapsforge.map.rendertheme.InternalRenderTheme;
-//import org.mapsforge.map.rendertheme.XmlRenderTheme;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeStyleLayer;
-//import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
+import org.oscim.core.BoundingBox;
 import org.oscim.layers.GroupLayer;
 import org.oscim.layers.tile.buildings.BuildingLayer;
 import org.oscim.layers.tile.vector.OsmTileLayer;
@@ -47,6 +28,7 @@ import org.oscim.theme.XmlRenderThemeStyleLayer;
 import org.oscim.theme.XmlRenderThemeStyleMenu;
 import org.oscim.theme.internal.VtmThemes;
 import org.oscim.tiling.source.mapfile.MapFileTileSource;
+import org.oscim.tiling.source.mapfile.MapInfo;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -117,17 +99,17 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		if ( renderThemePath.startsWith( "content://" ) ) {
 			DocumentFile dir = DocumentFile.fromSingleUri( this.getReactApplicationContext(), Uri.parse( renderThemePath ) );
 			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-				promise.reject( "Error", "renderThemePath is not existing or not a file" );
+				promise.reject( "Error", "renderThemePath is not existing or not a file" ); return;
 			}
 			if ( ! Utils.hasScopedStoragePermission( this.getReactApplicationContext(), renderThemePath, false ) ) {
-				promise.reject( "Error", "No scoped storage read permission for renderThemePath" );
+				promise.reject( "Error", "No scoped storage read permission for renderThemePath" ); return;
 			}
 		}
 
 		if ( renderThemePath.startsWith( "/" ) ) {
 			File file = new File( renderThemePath );
 			if( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
-				promise.reject( "Error", "renderThemePath does not exist or is not a file" );
+				promise.reject( "Error", "renderThemePath does not exist or is not a file" ); return;
 			}
 		}
 	}
@@ -137,8 +119,12 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
         try {
 			checkRenderThemeValid( renderThemePath, promise );
 
-			if ( Arrays.asList( BUILT_IN_THEMES ).contains( renderThemePath )) {
-				promise.resolve( false );
+			if ( renderThemePath.isEmpty()
+				|| Arrays.asList( BUILT_IN_THEMES ).contains( renderThemePath )
+				|| ! renderThemePath.startsWith( "/" )
+			) {
+				promise.resolve( new WritableNativeMap() );
+				return;
 			}
 
 			// Load theme, parse options and send response.
@@ -147,30 +133,29 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				new XmlRenderThemeMenuCallback() {
 					@Override
 					public Set<String> getCategories( XmlRenderThemeStyleMenu renderThemeStyleMenu ) {
-						WritableMap response = parseRenderThemeOptions( renderThemeStyleMenu );
-						promise.resolve( response );
+						promise.resolve( parseRenderThemeOptions( renderThemeStyleMenu ) );
 						return null;
 					}
 				}
 			);
-		} catch ( Exception e) {
+		} catch ( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Error getRenderThemeOptions", e );
+            promise.reject( "Error", e );
 		}
     }
 
     protected IRenderTheme loadTheme(
-			int reactTag,
-            String renderThemePath,
-            String renderStyle,
-            ReadableArray renderOverlays,
-			Promise promise
+		int nativeNodeHandle,
+		String renderThemePath,
+		String renderStyle,
+		ReadableArray renderOverlays,
+		Promise promise
     ) {
 
 		IRenderTheme theme;
 		ReactContext reactContext = this.getReactApplicationContext();
 		checkRenderThemeValid( renderThemePath, promise );
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 		switch( renderThemePath ) {
 			case "DEFAULT":
 				theme = mapView.map().setTheme( VtmThemes.DEFAULT );
@@ -206,7 +191,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 							String style = renderStyle != null ? renderStyle : renderThemeStyleMenu.getDefaultValue();
 
 							WritableMap params = new WritableNativeMap();
-							params.putInt( "nativeTag", reactTag );
+							params.putInt( "nativeNodeHandle", nativeNodeHandle );
 							params.putString( "filePath", renderThemePath );
 							params.putMap( "collection", parseRenderThemeOptions( renderThemeStyleMenu ) );
 							Utils.sendEvent( reactContext, "RenderThemeParsed", params );
@@ -241,26 +226,53 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
     }
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
-	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
+	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
+
+	protected void addTileSourceToResponse( WritableMap responseParams, MapFileTileSource tileSource ) {
+		MapInfo mapInfo = tileSource.getMapInfo();
+		if ( null != mapInfo ) {
+			// Add tileSource bounds to response.
+			WritableMap boundsParams = new WritableNativeMap();
+			BoundingBox boundingBox = mapInfo.boundingBox;
+			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
+			boundsParams.putDouble( "minLng", boundingBox.getMinLongitude() );
+			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
+			boundsParams.putDouble( "maxLng", boundingBox.getMaxLongitude() );
+			responseParams.putMap( "bounds", boundsParams );
+			// Add tileSource center to response.
+			WritableMap centerParams = new WritableNativeMap();
+			centerParams.putDouble( "lng", mapInfo.mapCenter.getLongitude() );
+			centerParams.putDouble( "lat", mapInfo.mapCenter.getLatitude() );
+			responseParams.putMap( "center", centerParams );
+			// Add tileSource info to response.
+			responseParams.putString( "createdBy", mapInfo.createdBy );
+			responseParams.putString( "projectionName", mapInfo.projectionName );
+			responseParams.putString( "comment", mapInfo.comment );
+			responseParams.putString( "fileSize", String.valueOf( mapInfo.fileSize ) );
+			responseParams.putInt( "fileVersion", mapInfo.fileVersion );
+			responseParams.putString( "mapDate", String.valueOf( mapInfo.mapDate ) );
+		}
+	}
 
     @ReactMethod
     public void createLayer(
-            int reactTag,
-            String mapFileName,
-            String renderThemePath,
-            String renderStyle,
-            ReadableArray renderOverlays,
-            int reactTreeIndex,
-            Promise promise
+		int nativeNodeHandle,
+		String mapFileName,
+		String renderThemePath,
+		String renderStyle,
+		ReadableArray renderOverlays,
+		int reactTreeIndex,
+		Promise promise
     ) {
         try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
+
+			WritableMap responseParams = new WritableNativeMap();
 
 			// Tile source
 			MapFileTileSource tileSource = new MapFileTileSource();
@@ -269,29 +281,31 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				Uri mapUri = Uri.parse( mapFileName );
 				DocumentFile dir = DocumentFile.fromSingleUri(mapView.getContext(), mapUri );
 				if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName ); return;
 				}
 				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), mapFileName, false ) ) {
-					promise.reject( "Error", "No scoped storage read permission for mapFileName" + mapFileName );
+					promise.reject( "Error", "No scoped storage read permission for mapFileName" + mapFileName ); return;
 				}
 				fis = ( FileInputStream ) mapFragment.getActivity().getContentResolver().openInputStream( mapUri );
 			}
 
 			if ( mapFileName.startsWith( "/" ) ) {
 				File mapfile = new File( mapFileName );
-				if( ! mapfile.exists() || ! mapfile.isFile() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
+				if( ! mapfile.exists() || ! mapfile.isFile() || ! mapfile.canRead() ) {
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName ); return;
 				}
 				fis = new FileInputStream( mapFileName );
 			}
 			if ( fis == null ) {
-				promise.reject( "Error", "Unable to load mapFile: " + mapFileName );
+				promise.reject( "Error", "Unable to load mapFile: " + mapFileName ); return;
 			}
 			tileSource.setMapFileInputStream( fis );
 
 			// VectorTileLayer
 			VectorTileLayer tileLayer = new OsmTileLayer( mapView.map() );
 			tileLayer.setTileSource( tileSource );
+
+			addTileSourceToResponse( responseParams, tileSource );
 
 			// Add tilelayer to map, in order to be able to load the render theme.
 			int zIndex = Math.min( mapView.map().layers().size(), (int) reactTreeIndex );
@@ -301,7 +315,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			);
 
 			// Render theme
-			IRenderTheme theme = loadTheme( reactTag, renderThemePath, renderStyle, renderOverlays, promise );
+			IRenderTheme theme = loadTheme( nativeNodeHandle, renderThemePath, renderStyle, renderOverlays, promise );
 			tileLayer.setTheme( theme );
 
 			// Building layer
@@ -332,15 +346,16 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			layers.put( uuid, groupLayer );
 
 			// Resolve layer uuid
-            promise.resolve( uuid );
-        } catch(Exception e) {
+			responseParams.putString( "uuid", uuid );
+            promise.resolve( responseParams );
+        } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 
 	@ReactMethod
-	public void removeLayer(int reactTag, String uuid, Promise promise) {
-		super.removeLayer( reactTag, uuid, promise );
+	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 }

@@ -19,7 +19,8 @@ public class MyReactNativePackage implements ReactPackage {
     @Override
     public List<NativeModule> createNativeModules( ReactApplicationContext reactContext) {
         List<NativeModule> modules = new ArrayList<>();
-	 	modules.add(new PermissionModule(reactContext));
+	 	modules.add(new HelperModule(reactContext));
+	 	modules.add(new FsModule(reactContext));
         return modules;
     }
 

@@ -3,7 +3,6 @@
  */
 import React from 'react';
 import {
-	Button,
 	Text,
 	useColorScheme,
 	useWindowDimensions,
@@ -11,6 +10,11 @@ import {
 	Pressable,
 } from 'react-native';
 import Modal from 'react-native-root-modal';
+
+/**
+ * Internal dependencies
+ */
+import Button from './Button.jsx';
 
 const ModalWrapper = ( {
 	modalVisible,
@@ -39,7 +43,7 @@ const ModalWrapper = ( {
 	return <Modal
 		style={ {
 			...absFullStyle,
-			zIndex: 999999,
+			zIndex: 99999999,
 		} }
 		visible={ modalVisible }
 

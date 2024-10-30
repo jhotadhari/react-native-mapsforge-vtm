@@ -8,8 +8,10 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.HillshadingTileSource;
 
 import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
@@ -32,11 +34,11 @@ public class MapLayerHillshadingModule extends MapLayerBase {
     public MapLayerHillshadingModule(ReactApplicationContext context) { super(context); }
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
-	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
+	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
     @ReactMethod
     public void createLayer(
-            int reactTag,
+            int nativeNodeHandle,
 			String hgtDirPath,
 			int zoomMin,
 			int zoomMax,
@@ -48,28 +50,30 @@ public class MapLayerHillshadingModule extends MapLayerBase {
             Promise promise
     ) {
         try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
+
+			// The promise response
+			WritableMap responseParams = new WritableNativeMap();
 
 			if ( hgtDirPath.startsWith( "content://" ) ) {
 				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( hgtDirPath ) );
 				if ( dir == null || ! dir.exists() || ! dir.isDirectory() ) {
-					promise.reject( "Error", "hgtDirPath is not existing or not a directory" );
+					promise.reject( "Error", "hgtDirPath is not existing or not a directory" ); return;
 				}
 				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), hgtDirPath, false ) ) {
-					promise.reject( "Error", "No scoped storage read permission for hgtDirPath" );
+					promise.reject( "Error", "No scoped storage read permission for hgtDirPath" ); return;
 				}
 			}
 
 			if ( hgtDirPath.startsWith( "/" ) ) {
 				File file = new File( hgtDirPath );
-				if( ! file.exists() || ! file.isDirectory() ) {
-					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" );
+				if( ! file.exists() || ! file.isDirectory() || ! file.canRead() ) {
+					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" ); return;
 				}
 			}
 
@@ -122,17 +126,18 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, layer );
 
-			// Resolve layer uuid
-            promise.resolve( uuid );
-        } catch(Exception e) {
+			// Resolve promise
+			responseParams.putString( "uuid", uuid );
+			promise.resolve( responseParams );
+        } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 
     @ReactMethod
-    public void removeLayer(int reactTag, String uuid, Promise promise) {
-		super.removeLayer( reactTag, uuid, promise );
+    public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
 }

@@ -4,14 +4,15 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
-import org.oscim.core.GeoPoint;
+import org.oscim.core.BoundingBox;
 import org.oscim.core.MapPosition;
+import org.oscim.core.Tile;
 
 public class MapContainerModule extends ReactContextBaseJavaModule {
 
@@ -25,128 +26,146 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void getLayersCreated(int reactTag, Promise promise ) {
+    public void getLayersCreated(int nativeNodeHandle, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.resolve( false );
-                return;
-            }
-            promise.resolve( true );
-        } catch(Exception e) {
-            promise.reject("Create Event Error", e);
+            } else {
+            	promise.resolve( true );
+			}
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
     @ReactMethod
-    public void setZoomLevel(int reactTag, int zoom, Promise promise ) {
+    public void setZoomLevel(int nativeNodeHandle, int zoom, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) zoom );
 			mapView.map().setMapPosition( mapPosition );
-            promise.resolve(true);
-        } catch(Exception e) {
-            promise.reject("Create Event Error", e);
+            promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
     @ReactMethod
-    public void setCenter(int reactTag, ReadableArray center, Promise promise ) {
+    public void setCenter(int nativeNodeHandle, ReadableMap center, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
-			GeoPoint geoPoint = new GeoPoint(
-				(double) center.toArrayList().get(0),
-				(double) center.toArrayList().get(1)
-			);
-
 			mapView.map().setMapPosition( new MapPosition(
-				geoPoint.getLatitude(),
-				geoPoint.getLongitude(),
+				center.getDouble("lat" ),
+				center.getDouble("lng" ),
 				mapView.map().getMapPosition().getScale()
 			) );
-            promise.resolve(true);
+            promise.resolve( true );
         } catch( Exception e ) {
-            promise.reject("setCenter Error", e);
-        }
-    }
-
-    @ReactMethod
-    public void setMinZoom(int reactTag, int minZoom, Promise promise ) {
-        try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-            if ( null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
-			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
-            promise.resolve(true);
-        } catch( Exception e ) {
-            promise.reject("setMinZoom Error", e);
-        }
-    }
-
-    @ReactMethod
-    public void setMaxZoom(int reactTag, int maxZoom, Promise promise ) {
-        try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-            if ( null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
-			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
-            promise.resolve(true);
-        } catch(Exception e) {
-            promise.reject("setMaxZoom Error", e);
-        }
-    }
-    @ReactMethod
-    public void zoomIn(int reactTag, Promise promise ) {
-        try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-            if ( null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
-			MapPosition mapPosition = mapView.map().getMapPosition();
-			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() + 1 );
-			mapView.map().setMapPosition( mapPosition );
-			promise.resolve(true);
-        } catch( Exception e ) {
-            promise.reject("zoomIn Error", e);
-        }
-    }
-    @ReactMethod
-    public void zoomOut(int reactTag, Promise promise ) {
-        try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
-            if ( null == mapView ) {
-                promise.resolve( false );
-                return;
-            }
-			MapPosition mapPosition = mapView.map().getMapPosition();
-			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() - 1 );
-			mapView.map().setMapPosition( mapPosition );
-			promise.resolve(true);
-        } catch( Exception e ) {
-            promise.reject("zoomOut Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
 	@ReactMethod
-	public void setPropsInteractionsEnabled( int reactTag, String propKey, int value, Promise promise ) {
+	public void setToBounds(int nativeNodeHandle, ReadableMap bounds, Promise promise ) {
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" ); return;
+			}
+			BoundingBox boundingBox = new BoundingBox(
+				bounds.getDouble( "minLat" ),
+				bounds.getDouble( "minLng" ),
+				bounds.getDouble( "maxLat" ),
+				bounds.getDouble( "maxLng" )
+			);
+			MapPosition pos = new MapPosition();
+			pos.setByBoundingBox( boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );
+			mapView.map().setMapPosition( pos );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+		}
+	}
+
+    @ReactMethod
+    public void setMinZoom(int nativeNodeHandle, int minZoom, Promise promise ) {
+        try {
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+            if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
+            }
+			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
+            promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+        }
+    }
+
+    @ReactMethod
+    public void setMaxZoom(int nativeNodeHandle, int maxZoom, Promise promise ) {
+        try {
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+            if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
+            }
+			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
+            promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+        }
+    }
+    @ReactMethod
+    public void zoomIn(int nativeNodeHandle, Promise promise ) {
+        try {
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+            if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
+            }
+			MapPosition mapPosition = mapView.map().getMapPosition();
+			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() + 1 );
+			mapView.map().setMapPosition( mapPosition );
+			promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+        }
+    }
+    @ReactMethod
+    public void zoomOut(int nativeNodeHandle, Promise promise ) {
+        try {
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+            if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
+            }
+			MapPosition mapPosition = mapView.map().getMapPosition();
+			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() - 1 );
+			mapView.map().setMapPosition( mapPosition );
+			promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+        }
+    }
+
+	@ReactMethod
+	public void setPropsInteractionsEnabled( int nativeNodeHandle, String propKey, int value, Promise promise ) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 			switch ( propKey ) {
 				case "moveEnabled":
@@ -163,19 +182,19 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 					break;
 				default: {}
 			}
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setPropsInteractionsEnabled Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 
 	@ReactMethod
-	public void setViewport( int reactTag, String propKey, float value, Promise promise ) {
+	public void setViewport( int nativeNodeHandle, String propKey, float value, Promise promise ) {
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 			UiThreadUtil.runOnUiThread( new Runnable() {
 				@Override
@@ -213,25 +232,55 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 				}
 			} );
 			mapView.map().updateMap();
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setViewport Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 
 	@ReactMethod
-	public void setHgtDirPath(int reactTag, String hgtDirPath, Promise promise ) {
+	public void setHgtDirPath(int nativeNodeHandle, String hgtDirPath, Promise promise ) {
 		try {
-			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapFragment ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
 			mapFragment.setPropHgtDirPath( hgtDirPath );
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setHgtDirPath Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setResponseInclude(int nativeNodeHandle, ReadableMap responseInclude, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
+			}
+			mapFragment.setPropResponseInclude( responseInclude );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setMapEventRate(int nativeNodeHandle, int mapEventRate, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
+			}
+			mapFragment.updateRateLimiterRate( mapEventRate );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
 		}
 	}
 

@@ -18,12 +18,7 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.annotations.ReactPropGroup;
-import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 
-import org.mapsforge.map.layer.hills.DemFolderFS;
-
-import java.io.File;
-import java.util.ArrayList;
 import java.util.Map;
 
 public class MapViewManager extends ViewGroupManager<FrameLayout> {
@@ -61,6 +56,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private float propMaxRoll;
 
 	private String propHgtDirPath;
+	private ReadableMap propResponseInclude;
+	private int propMapEventRate;
 
 	ReactApplicationContext reactContext;
 
@@ -89,14 +86,26 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	 * Map the "create" command to an integer
 	  */
 	@Nullable
+	@Override public Map<String, Integer> getCommandsMap() {
+
+
+//		Log.d("testtest", "1".asString() ) ;
+
+		return MapBuilder.of("create", COMMAND_CREATE);
+	}
+
 	@Override
-	public Map<String, Integer> getCommandsMap() {
-		return MapBuilder.of( "create", COMMAND_CREATE );
+	public void receiveCommand(
+		@NonNull FrameLayout root,
+		int commandId,
+		@Nullable ReadableArray args
+	) {
+		receiveCommand(root, String.valueOf( commandId ), args );
 	}
 
 	/**
 	 * Handle "create" command (called from JS) and call createFragment method
-	  */
+	 */
 	@Override
 	public void receiveCommand(
 		@NonNull FrameLayout root,
@@ -104,6 +113,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		@Nullable ReadableArray args
 	) {
 		super.receiveCommand(root, commandId, args);
+
 		int reactNativeViewId = args.getInt(0);
 		int commandIdInt = Integer.parseInt(commandId);
 
@@ -234,11 +244,23 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propHgtDirPath = value;
 	}
 
+	@ReactProp( name="responseInclude" )
+	public void setReactPropResponseInclude( FrameLayout view, ReadableMap value ) {
+		propResponseInclude = value;
+	}
+
+	@ReactProp( name="mapEventRate" )
+	public void setReactPropMapEventRate( FrameLayout view, int value ) {
+		propMapEventRate = value;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
 	public void createFragment( FrameLayout root, int reactNativeViewId ) {
 		ViewGroup parentView = ( ViewGroup ) root.findViewById( reactNativeViewId );
+
+
 
 		mapFragment = new MapFragment(
 			this,
@@ -269,8 +291,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propMinRoll,
 			propMaxRoll,
 
-			propHgtDirPath
+			propHgtDirPath,
 
+			propResponseInclude,
+
+			propMapEventRate
 		);
 
 		setupLayout( parentView );

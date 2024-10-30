@@ -2,7 +2,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.content.Context;
 import android.content.UriPermission;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
@@ -22,22 +21,22 @@ import java.util.List;
 
 public class Utils {
 
-    public static MapFragment getMapFragment(ReactContext reactContext, int reactTag ) {
+    public static MapFragment getMapFragment(ReactContext reactContext, int nativeNodeHandle ) {
         try {
             FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
             if ( null == activity ) {
                 return null;
             }
-            MapFragment mapFragment = (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) reactTag );
+            MapFragment mapFragment = (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) nativeNodeHandle );
             return mapFragment;
         } catch(Exception e) {
             return null;
         }
     }
 
-    public static MapView getMapView(ReactContext reactContext, int reactTag ) {
+    public static MapView getMapView(ReactContext reactContext, int nativeNodeHandle ) {
         try {
-            MapFragment mapFragment = getMapFragment( reactContext, reactTag );
+            MapFragment mapFragment = getMapFragment( reactContext, nativeNodeHandle );
             if ( null == mapFragment ) {
                 return null;
             }
@@ -48,10 +47,10 @@ public class Utils {
         }
     }
 
-    public static double convertPixelsToDp(ReactContext reactContext, double pixels) {
-        double screenPixelDensity = reactContext.getApplicationContext().getResources().getDisplayMetrics().density;
-        return pixels / screenPixelDensity;
-    }
+//    public static double convertPixelsToDp(ReactContext reactContext, double pixels) {
+//        double screenPixelDensity = reactContext.getApplicationContext().getResources().getDisplayMetrics().density;
+//        return pixels / screenPixelDensity;
+//    }
 
     public static void sendEvent( ReactContext reactContext, String eventName, @Nullable WritableMap params ) {
         reactContext.getJSModule(

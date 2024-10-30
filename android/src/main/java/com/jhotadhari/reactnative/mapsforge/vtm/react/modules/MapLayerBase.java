@@ -24,16 +24,16 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
 	@ReactMethod
 	abstract public void createLayer(
-		int reactTag,
+		int nativeNodeHandle,
 		int reactTreeIndex,
 		Promise promise
 	);
 
 	protected int getLayerIndexInMapLayers(
-		int reactTag,
+		int nativeNodeHandle,
 		String uuid
 	) {
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 		if ( null == mapView ) {
 			return -1;
 		}
@@ -56,16 +56,15 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
 
     @ReactMethod
-    public void removeLayer( int reactTag, String uuid, Promise promise ) {
+    public void removeLayer( int nativeNodeHandle, String uuid, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );  return;
             }
 
 			// Remove layer from map.
-			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( layerIndex != -1 ) {
 				mapView.map().layers().remove( layerIndex );
 			}
@@ -78,8 +77,9 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
 			// Resolve uuid
 			promise.resolve( uuid );
-        } catch(Exception e) {
-            promise.reject("Remove Layer Error", e);
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
