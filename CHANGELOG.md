@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-
 ### Added
 - Better example app.
 - Catch blocks to all native module methods. And `onError` function prop to all components and hooks.
