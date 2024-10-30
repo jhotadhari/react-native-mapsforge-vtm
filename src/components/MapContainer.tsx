@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import React, {
+import {
 	Component,
 	cloneElement,
 	useEffect,
@@ -10,6 +10,8 @@ import React, {
 	type ComponentClass,
 	type Dispatch,
 	type SetStateAction,
+	Children,
+	isValidElement,
 } from 'react';
 import {
 	PixelRatio,
@@ -343,10 +345,10 @@ const MapContainer = ( {
 	}, [nativeNodeHandle] );
 
 	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
-	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : React.Children.map( children, child => {
+	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : Children.map( children, child => {
 		let newChild = child;
 
-		if ( ! React.isValidElement<{ children?: React.ReactNode }>( child )) {
+		if ( ! isValidElement<{ children?: React.ReactNode }>( child )) {
 			return newChild
 		}
 

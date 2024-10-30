@@ -17,6 +17,12 @@ if [[ -z $( grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
     exit 1
 fi
 
+# typeScript ompile should not complain.
+if [[ ! -z $( yarn run tsc ) ]]; then
+    echo "Unable to publish. TypeScript compile complains."
+    exit 1
+fi
+
 # git status should be clean.
 if [[ ! -z $( git status --short ) ]]; then
     echo "Unable to publish. Uncommited changes."

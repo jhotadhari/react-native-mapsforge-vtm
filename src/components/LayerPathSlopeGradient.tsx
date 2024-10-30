@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Internal dependencies
@@ -82,6 +82,7 @@ const LayerPathSlopeGradient = ( {
 	onError,
 } : LayerPathSlopeGradientProps ) => {
 
+	// @ts-ignore
 	const [random, setRandom] = useState<number>( 0 );
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
@@ -197,7 +198,7 @@ const LayerPathSlopeGradient = ( {
 					return Module.removeLayer(
 						nativeNodeHandle,
 						uuid
-					).then( ( removedUuid : string ) => {
+					).then( () => {
 						setUuid( null )
 						setTriggerCreateNew( Math.random() );
 					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
