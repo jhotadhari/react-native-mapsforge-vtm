@@ -11,8 +11,8 @@ if [[ -z $( ./node_modules/.bin/changelog ) ]]; then
     exit 1
 fi
 
-# ChangeLOG.md should have a Unreleased section.
-if [[ -z $( grep '## Unreleased' CHANGELOG.md ) ]]; then
+# CHANGELOG.md should have a Unreleased section.
+if [[ -z $( grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
     echo '`CHANGELOG.md` should have a `Unreleased` section'
     exit 1
 fi
@@ -60,7 +60,10 @@ if ! [[ $release_branch == release* ]]; then
 fi
 
 # bump package version, update CHANGELOG.md and commit changes.
-npm version $next_version --no-git-tag-version
+current_version=$( node -p "require('./package.json').version" )
+sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" package.json
+current_version=$( node -p "require('./example/package.json').version" )
+sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" example/package.json
 ./node_modules/.bin/changelog --release "${next_version}"
 git add .
 git commit -m "Bump version ${next_version}"
@@ -84,8 +87,8 @@ else
 fi
 sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${next_version}" --draft=false -F -
 
-# checkout develop, merge main, Add Unreleased section to CHANGELOG.md and push.
-git checkout develop
+# checkout development, merge main, Add Unreleased section to CHANGELOG.md and push.
+git checkout development
 git merge $release_branch --no-ff --commit --no-edit
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
 awk -i inplace "NR==${line}{print \"## Unreleased\n\"}1" CHANGELOG.md
