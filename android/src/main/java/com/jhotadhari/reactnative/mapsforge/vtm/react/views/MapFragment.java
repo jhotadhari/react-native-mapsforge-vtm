@@ -15,6 +15,7 @@
  */
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -22,6 +23,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 
 import com.facebook.react.bridge.ReadableMap;
@@ -236,14 +238,16 @@ public class MapFragment extends Fragment {
 
 	protected void setHgtReader() {
 		// Init hgtReader
-		if ( ! propHgtDirPath.isEmpty() ) {
+		if ( null != propHgtDirPath && ! propHgtDirPath.isEmpty() ) {
 			DemFolder demFolder = null;
 			if ( propHgtDirPath.startsWith( "content://" ) ) {
-
-				// ??? TODO check if can read, is dir, has permission ...
-
-				demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
-
+				Uri uri = Uri.parse( propHgtDirPath );
+				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), uri );
+				if ( dir != null && dir.exists() && dir.isDirectory() ) {
+					if ( Utils.hasScopedStoragePermission( mapView.getContext(), propHgtDirPath, false ) ) {
+						demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
+					}
+				}
 			} else if ( propHgtDirPath.startsWith( "/" ) ) {
 				File demFolderFile = new File( propHgtDirPath );
 				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
@@ -299,14 +303,6 @@ public class MapFragment extends Fragment {
 			} );
 
 			setHgtReader();
-
-//			// Set position based on loaded map.
-//			MapInfo info = tileSource.getMapInfo();
-//			if ( ! info.boundingBox.contains( mapView.map().getMapPosition().getGeoPoint() ) ) {
-//				MapPosition pos = new MapPosition();
-//				pos.setByBoundingBox( info.boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );
-//				mapView.map().setMapPosition( pos );
-//			}
 
 		} catch (Exception e) {
 			// Something went wrong. Should notice user!!!???
