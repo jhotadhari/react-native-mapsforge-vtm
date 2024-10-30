@@ -15,7 +15,10 @@ import {
  */
 const { MapContainerModule } = NativeModules;
 
-const useMapLayersCreated = ( nativeNodeHandle: null | number | undefined ): boolean =>  {
+const useMapLayersCreated = (
+	nativeNodeHandle: null | number | undefined,
+	onError?: null | ( ( err: any ) => void )
+): boolean =>  {
 
 	const [mapLayersCreated, setMapLayersCreated] = useState( false );
 
@@ -35,7 +38,7 @@ const useMapLayersCreated = ( nativeNodeHandle: null | number | undefined ): boo
 		if ( nativeNodeHandle ) {
 			MapContainerModule.getLayersCreated( nativeNodeHandle ).then( ( created: boolean ) => {
 				setMapLayersCreated( created );
-			} ).catch( ( err: any ) => console.log( 'Error', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [nativeNodeHandle] );
 

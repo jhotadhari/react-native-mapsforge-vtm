@@ -35,6 +35,7 @@ export type LayerMBTilesBitmapProps = {
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
 	onChange?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 const LayerMBTilesBitmap = ( {
@@ -46,6 +47,7 @@ const LayerMBTilesBitmap = ( {
 	onCreate,
 	onRemove,
 	onChange,
+	onError,
 } : LayerMBTilesBitmapProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -70,7 +72,7 @@ const LayerMBTilesBitmap = ( {
 					? ( onCreate ? onCreate( response ) : null )
 					: ( onChange ? onChange( response ) : null )
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -86,7 +88,7 @@ const LayerMBTilesBitmap = ( {
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};
@@ -106,7 +108,7 @@ const LayerMBTilesBitmap = ( {
 					).then( ( removedUuid : string ) => {
 						setUuid( null );
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			} else if ( uuid === null && mapFile ) {
 				setTriggerCreateNew( Math.random() );

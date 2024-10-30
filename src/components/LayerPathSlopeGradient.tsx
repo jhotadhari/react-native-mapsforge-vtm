@@ -34,6 +34,7 @@ export type LayerPathSlopeGradientProps = {
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onChange?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 // 0	never include in response.
@@ -78,6 +79,7 @@ const LayerPathSlopeGradient = ( {
 	onRemove,
 	onChange,
 	reactTreeIndex,
+	onError,
 } : LayerPathSlopeGradientProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -111,7 +113,7 @@ const LayerPathSlopeGradient = ( {
 					? ( onCreate ? onCreate( response ) : null )
 					: ( onChange ? onChange( response ) : null )
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -127,7 +129,7 @@ const LayerPathSlopeGradient = ( {
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-                	} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+                	} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};
@@ -147,7 +149,7 @@ const LayerPathSlopeGradient = ( {
 					responseInclude,
 				).then( ( response: LayerPathSlopeGradientResponse ) => {
 					onChange ? onChange( response ) : null;
-                } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
 		}
 	}, [strokeWidth] );
@@ -163,7 +165,7 @@ const LayerPathSlopeGradient = ( {
 					responseInclude,
 				).then( ( response: LayerPathSlopeGradientResponse ) => {
 					onChange ? onChange( response ) : null;
-                } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
 		}
 	}, [[...slopeColors].map( entry => entry.join( '' ) ).join( '' )] );
@@ -180,7 +182,7 @@ const LayerPathSlopeGradient = ( {
 					responseInclude,
 				).then( ( response: LayerPathSlopeGradientResponse ) => {
 					onChange ? onChange( response ) : null;
-                } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
 		}
 	}, [
@@ -198,7 +200,7 @@ const LayerPathSlopeGradient = ( {
 					).then( ( removedUuid : string ) => {
 						setUuid( null )
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {
 				setTriggerCreateNew( Math.random() );

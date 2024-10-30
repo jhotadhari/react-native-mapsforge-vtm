@@ -26,6 +26,7 @@ export type LayerBitmapTileProps = {
 	onCreate?: null | ( ( result: { uuid: string } ) => void );
 	onRemove?: null | ( ( result: { uuid: string } ) => void );
 	onChange?: null | ( ( result: { uuid: string } ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 const LayerBitmapTile = ( {
@@ -38,6 +39,7 @@ const LayerBitmapTile = ( {
 	onCreate,
 	onRemove,
 	onChange,
+	onError,
 } : LayerBitmapTileProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -61,7 +63,7 @@ const LayerBitmapTile = ( {
 					? onCreate ? onCreate( response ) : null
 					: onChange ? onChange( response ) : null
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -77,7 +79,7 @@ const LayerBitmapTile = ( {
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};
@@ -95,7 +97,7 @@ const LayerBitmapTile = ( {
 				).then( ( removedUuid: string ) => {
 					setUuid( null );
 					setTriggerCreateNew( Math.random() );
-				} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+				} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
 		}
 	}, [

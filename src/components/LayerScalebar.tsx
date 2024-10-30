@@ -21,6 +21,7 @@ export type LayerScalebarProps = {
 	reactTreeIndex: number;
 	onCreate?: null | ( ( response: LayerScalebarResponse ) => void );
 	onRemove?: null | ( ( response: LayerScalebarResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 const LayerScalebar = ( {
@@ -28,6 +29,7 @@ const LayerScalebar = ( {
 	reactTreeIndex,
 	onCreate,
 	onRemove,
+	onError,
 } : LayerScalebarProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -43,7 +45,7 @@ const LayerScalebar = ( {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				onCreate ? onCreate( response ) : null;
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -59,7 +61,7 @@ const LayerScalebar = ( {
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};

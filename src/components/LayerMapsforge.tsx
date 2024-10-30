@@ -41,6 +41,7 @@ export type LayerMapsforgeProps = {
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerMapsforgeResponse ) => void );
 	onChange?: null | ( ( response: LayerMapsforgeResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 const LayerMapsforge = ( {
@@ -53,6 +54,7 @@ const LayerMapsforge = ( {
 	onCreate,
 	onRemove,
 	onChange,
+	onError,
 } : LayerMapsforgeProps ) => {
 
 	const renderStylePrev = usePrevious( renderStyle );
@@ -64,6 +66,7 @@ const LayerMapsforge = ( {
 	const { renderStyleDefaultId } = useRenderStyleOptions( ( {
 		renderTheme,
 		nativeNodeHandle: nativeNodeHandle,
+		onError,
 	} ) );
 
 	const createLayer = () => {
@@ -83,7 +86,7 @@ const LayerMapsforge = ( {
 					? ( onCreate ? onCreate( response ) : null )
 					: ( onChange ? onChange( response ) : null )
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -99,7 +102,7 @@ const LayerMapsforge = ( {
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} )
 			}
 		};
@@ -128,7 +131,7 @@ const LayerMapsforge = ( {
 						).then( ( removedUuid: string ) => {
 							setUuid( null );
 							setTriggerCreateNew( Math.random() );
-						} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+						} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 					} );
 				}
 			} else if ( uuid === null && mapFile ) {

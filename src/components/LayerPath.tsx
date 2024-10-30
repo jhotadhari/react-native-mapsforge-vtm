@@ -28,6 +28,7 @@ export type LayerPathProps = {
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerPathResponse ) => void );
 	onChange?: null | ( ( response: LayerPathResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 // 0	never include in response.
@@ -53,6 +54,7 @@ const LayerPath = ( {
 	onCreate,
 	onRemove,
 	onChange,
+	onError,
 } : LayerPathProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -80,7 +82,7 @@ const LayerPath = ( {
 					? ( onCreate ? onCreate( response ) : null )
 					: ( onChange ? onChange( response ) : null )
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -96,7 +98,7 @@ const LayerPath = ( {
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};
@@ -116,7 +118,7 @@ const LayerPath = ( {
 						responseInclude
 					).then( ( response: LayerPathResponse ) => {
 						onChange ? onChange( response ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 	}, [Object.values( style ).join( '' )] );
@@ -131,7 +133,7 @@ const LayerPath = ( {
 					).then( ( removedUuid : string ) => {
 						setUuid( null );
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );;
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );;
 				} );
 			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {
 				setTriggerCreateNew( Math.random() );

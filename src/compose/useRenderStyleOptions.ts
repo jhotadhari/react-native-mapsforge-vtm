@@ -30,9 +30,11 @@ export type RenderStyleOptionsCollection = {
 const useRenderStyleOptions = ( {
 	renderTheme,
 	nativeNodeHandle,
+	onError,
 } : {
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	nativeNodeHandle?: number | null,
+	onError?: null | ( ( err: any ) => void ),
 } ) : {
 	renderStyleDefaultId: string | null,
 	renderStyleOptions: XmlRenderTheme[],
@@ -76,7 +78,7 @@ const useRenderStyleOptions = ( {
 				if ( undefined !== defaultStyle && !! defaultStyle ) {
 					setRenderStyleDefault( defaultStyle.value );
 				}
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [nativeNodeHandle, renderTheme] );
 

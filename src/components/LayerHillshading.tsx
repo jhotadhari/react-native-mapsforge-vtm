@@ -38,6 +38,7 @@ export type LayerHillshadingProps = {
 	onRemove?: null | ( ( response: { uuid: string } ) => void );
 	onCreate?: null | ( ( response: LayerHillshadingResponse ) => void );
 	onChange?: null | ( ( response: LayerHillshadingResponse ) => void );
+	onError?: null | ( ( err: any ) => void );
 };
 
 const shadingAlgorithms : { [value: string]: ShadingAlgorithm } = {
@@ -64,6 +65,7 @@ const LayerHillshading = ( {
 	onCreate,
 	onRemove,
 	onChange,
+	onError,
 } : LayerHillshadingProps ) => {
 
 	const [random, setRandom] = useState<number>( 0 );
@@ -94,7 +96,7 @@ const LayerHillshading = ( {
 					? ( onCreate ? onCreate( response ) : null )
 					: ( onChange ? onChange( response ) : null )
 				);
-			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		} );
 	};
 
@@ -110,7 +112,7 @@ const LayerHillshading = ( {
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		};
@@ -130,7 +132,7 @@ const LayerHillshading = ( {
 					).then( ( removedUuid: string ) => {
 						setUuid( null );
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			}
 		} else if ( uuid === null && hgtDirPath ) {
