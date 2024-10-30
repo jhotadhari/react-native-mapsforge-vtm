@@ -29,25 +29,7 @@ import { barTopPadding } from '../constants.js';
 import TopBar from '../components/TopBar.jsx';
 import Center from '../components/Center.jsx';
 import useDirInfo from '../compose/useDirInfo.js';
-import PickerModalControl from '../components/PickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
-
-
-
-const MapEvents = ( {
-	nativeTag,
-    setCurrentCenter,
-} ) => {
-	useMapEvents( {
-		nativeTag,
-		onMapEvent: event => {
-            if ( event.center ) {
-                setCurrentCenter( event.center );
-            }
-		},
-	} );
-	return null;
-};
 
 const ExampleDem = ( {
     setSelectedExample,
@@ -68,6 +50,15 @@ const ExampleDem = ( {
 	const mapHeight = height - ( barTopHeight ? ( barTopHeight + ( 2 * barTopPadding ) ) : 0 );
 
     const AttributionComponent = tileOptions[0].attribution;
+
+	useMapEvents( {
+		nativeTag: mainMapViewId,
+		onMapEvent: event => {
+            if ( event.center ) {
+                setCurrentCenter( event.center );
+            }
+		},
+	} );
 
 	return <View style={ {
         height,
@@ -108,12 +99,6 @@ const ExampleDem = ( {
                 mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
                 setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
             >
-
-                <MapEvents
-                    nativeTag={ mainMapViewId }
-                    setCurrentCenter={ setCurrentCenter }
-                />
-
 
                 <LayerBitmapTile
                     url={ tileOptions[0].value }

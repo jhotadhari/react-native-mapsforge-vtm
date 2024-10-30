@@ -36,21 +36,6 @@ import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
 import { PlusMinusControl, rowBtnStyle } from '../components/RowControls.jsx';
 
-export const MapEvents = ( {
-	nativeTag,
-    setCurrentCenter,
-} ) => {
-	useMapEvents( {
-		nativeTag,
-		onMapEvent: event => {
-            if ( event.center ) {
-                setCurrentCenter( event.center );
-            }
-		},
-	} );
-	return null;
-};
-
 const strokeColor = '#00ff00';
 const stippleColor = '#ff0000';
 
@@ -81,6 +66,15 @@ const ExampleLayerPath = ( {
 
 	const [strokeWidth,setStrokeWidth] = useState( 10 );
 	const [stipple,setStipple] = useState( 50 );
+
+	useMapEvents( {
+		nativeTag: mainMapViewId,
+		onMapEvent: event => {
+            if ( event.center ) {
+                setCurrentCenter( event.center );
+            }
+		},
+	} );
 
     if ( null === appDirs ) {
         return null;
@@ -222,11 +216,6 @@ const ExampleLayerPath = ( {
                 mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
                 setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
             >
-
-                <MapEvents
-                    nativeTag={ mainMapViewId }
-                    setCurrentCenter={ setCurrentCenter }
-                />
 
                 <LayerBitmapTile
                     url={ tileOptions[0].value }
