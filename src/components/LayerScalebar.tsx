@@ -18,7 +18,7 @@ export type LayerScalebarResponse = {
 
 export type LayerScalebarProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	onCreate?: null | ( ( response: LayerScalebarResponse ) => void );
 	onRemove?: null | ( ( response: LayerScalebarResponse ) => void );
 	onError?: null | ( ( err: any ) => void );

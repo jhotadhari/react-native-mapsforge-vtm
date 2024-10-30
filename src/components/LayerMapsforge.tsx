@@ -33,7 +33,7 @@ export type LayerMapsforgeResponse = {
 
 export type LayerMapsforgeProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	mapFile?: `/${string}` | `content://${string}`;
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	renderStyle?: string;

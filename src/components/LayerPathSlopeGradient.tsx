@@ -23,7 +23,7 @@ export type LayerPathSlopeGradientResponse = {
 
 export type LayerPathSlopeGradientProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
 	responseInclude?: ResponseInclude;

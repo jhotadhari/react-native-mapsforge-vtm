@@ -20,7 +20,7 @@ export type LayerPathResponse = {
 
 export type LayerPathProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
 	responseInclude?: ResponseInclude;

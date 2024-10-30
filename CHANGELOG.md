@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- Layer props: make reactTreeIndex optional. It is required but the MapContainer will mix it in
 
 ## [0.1.1] - 2024-10-30
 ### Fixed

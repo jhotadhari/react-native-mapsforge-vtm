@@ -28,7 +28,7 @@ export type LayerMBTilesBitmapResponse = {
 
 export type LayerMBTilesBitmapProps = {
 	nativeNodeHandle?: null | number;
-	reactTreeIndex: number;
+	reactTreeIndex?: number;
 	mapFile?: `/${string}`;
 	alpha?: number;
 	transparentColor?: `#${string}`;
