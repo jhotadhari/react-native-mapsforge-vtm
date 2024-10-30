@@ -124,7 +124,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		if ( filePath.startsWith( "/" ) ) {
 			File gpxFile = new File( filePath );
-			if( ! gpxFile.exists() || ! gpxFile.isFile() ) {
+			if( ! gpxFile.exists() || ! gpxFile.isFile() || ! file.canRead() ) {
 				return null;
 			}
 			in = new FileInputStream( gpxFile );

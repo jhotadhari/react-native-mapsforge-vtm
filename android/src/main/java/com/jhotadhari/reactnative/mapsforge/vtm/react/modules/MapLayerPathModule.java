@@ -254,7 +254,7 @@ public class MapLayerPathModule extends MapLayerBase {
 
 				if ( filePath.startsWith( "/" ) ) {
 					File gpxFile = new File( filePath );
-					if( ! gpxFile.exists() || ! gpxFile.isFile() ) {
+					if( ! gpxFile.exists() || ! gpxFile.isFile() || ! file.canRead() ) {
 						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath );
 					}
 					in = new FileInputStream( gpxFile );

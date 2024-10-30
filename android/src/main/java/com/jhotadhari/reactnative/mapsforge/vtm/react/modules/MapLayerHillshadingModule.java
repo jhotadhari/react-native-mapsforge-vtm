@@ -72,7 +72,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 
 			if ( hgtDirPath.startsWith( "/" ) ) {
 				File file = new File( hgtDirPath );
-				if( ! file.exists() || ! file.isDirectory() ) {
+				if( ! file.exists() || ! file.isDirectory() || ! file.canRead() ) {
 					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" );
 				}
 			}

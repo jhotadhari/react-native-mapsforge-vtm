@@ -293,7 +293,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
 			if ( mapFileName.startsWith( "/" ) ) {
 				File mapfile = new File( mapFileName );
-				if( ! mapfile.exists() || ! mapfile.isFile() ) {
+				if( ! mapfile.exists() || ! mapfile.isFile() || ! file.canRead() ) {
 					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
 				}
 				fis = new FileInputStream( mapFileName );
