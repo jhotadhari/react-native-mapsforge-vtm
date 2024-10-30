@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [0.1.2] - 2024-10-30
 ### Fixed
 - Layer props: make reactTreeIndex optional. It is required but the MapContainer will mix it in
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.2...HEAD
 [0.1.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.0.1...v0.1.0
