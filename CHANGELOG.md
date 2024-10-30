@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Better example app.
+- Catch blocks to all native module methods. And `onError` function prop to all components and hooks.
+- New `MapContainer` prop: `responseInclude`. We don't need to send everything always through the bridge bottleneck.
+- New `MapContainer` prop: `mapEventRate`, the update rate of map events.
+- `MapContainerModule` method: `setToBounds`.
+- Some components respond their `bounds` and more meta data.
+- New `LayerPath` prop: `style`. To parse almost all options from js to java `org.oscim.layers.vector.geometries.Style` (`texture` not supported yet).
+
+### Changed
+- Migrated all js to typeScript.
+- Huge refactor.
+- Some variable names and props have changed.
+
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
