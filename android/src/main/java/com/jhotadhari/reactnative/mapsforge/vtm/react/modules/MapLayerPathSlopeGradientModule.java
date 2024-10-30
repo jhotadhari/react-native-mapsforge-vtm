@@ -111,7 +111,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				return null;
 			}
 			if ( ! Utils.hasScopedStoragePermission( context, filePath, false ) ) {
-				promise.reject( "Error", "No scoped storage read permission for filePath " + filePath );
+				promise.reject( "Error", "No scoped storage read permission for filePath " + filePath ); return null;
 			}
 			in = context.getContentResolver().openInputStream( Uri.parse( filePath ) );
 			assert in != null;
@@ -134,12 +134,10 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			parsedGpx = parser.parse( in );
 		} catch ( IOException | XmlPullParserException e ) {
 			e.printStackTrace();
-			promise.reject( "Error", e );
-			return jtsCoordinates;
+			promise.reject( "Error", e ); return jtsCoordinates;
 		}
 		if ( parsedGpx == null ) {
-			promise.reject( "Error", "Unable to parse gpx file: " + filePath );
-			return jtsCoordinates;
+			promise.reject( "Error", "Unable to parse gpx file: " + filePath ); return jtsCoordinates;
 		}
 		List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
 		jtsCoordinates = new Coordinate[points.size()];
@@ -198,7 +196,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
 			// The promise response
@@ -219,8 +217,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
-				promise.reject( "Error", "Unable to parse positions or gpx file" );
-				return;
+				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;
 			}
 
 			// Store coordinates
@@ -408,12 +405,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error", "Layer not found" );
+				promise.reject( "Error", "Layer not found" ); return;
 			}
 
 			// Create new vectorLayer.
@@ -470,12 +467,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error", "Layer not found" );
+				promise.reject( "Error", "Layer not found" ); return;
 			}
 
 			// Create new vectorLayer.
@@ -518,12 +515,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error", "Layer not found" );
+				promise.reject( "Error", "Layer not found" ); return;
 			}
 
 			// Create new vectorLayer.

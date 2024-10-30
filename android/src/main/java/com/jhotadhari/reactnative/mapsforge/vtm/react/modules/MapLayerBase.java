@@ -60,7 +60,7 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" );  return;
             }
 
 			// Remove layer from map.

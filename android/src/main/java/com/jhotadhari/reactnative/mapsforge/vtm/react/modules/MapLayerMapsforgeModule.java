@@ -99,17 +99,17 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		if ( renderThemePath.startsWith( "content://" ) ) {
 			DocumentFile dir = DocumentFile.fromSingleUri( this.getReactApplicationContext(), Uri.parse( renderThemePath ) );
 			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-				promise.reject( "Error", "renderThemePath is not existing or not a file" );
+				promise.reject( "Error", "renderThemePath is not existing or not a file" ); return;
 			}
 			if ( ! Utils.hasScopedStoragePermission( this.getReactApplicationContext(), renderThemePath, false ) ) {
-				promise.reject( "Error", "No scoped storage read permission for renderThemePath" );
+				promise.reject( "Error", "No scoped storage read permission for renderThemePath" ); return;
 			}
 		}
 
 		if ( renderThemePath.startsWith( "/" ) ) {
 			File file = new File( renderThemePath );
 			if( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
-				promise.reject( "Error", "renderThemePath does not exist or is not a file" );
+				promise.reject( "Error", "renderThemePath does not exist or is not a file" ); return;
 			}
 		}
 	}
@@ -269,8 +269,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
 			WritableMap responseParams = new WritableNativeMap();
@@ -282,10 +281,10 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				Uri mapUri = Uri.parse( mapFileName );
 				DocumentFile dir = DocumentFile.fromSingleUri(mapView.getContext(), mapUri );
 				if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName ); return;
 				}
 				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), mapFileName, false ) ) {
-					promise.reject( "Error", "No scoped storage read permission for mapFileName" + mapFileName );
+					promise.reject( "Error", "No scoped storage read permission for mapFileName" + mapFileName ); return;
 				}
 				fis = ( FileInputStream ) mapFragment.getActivity().getContentResolver().openInputStream( mapUri );
 			}
@@ -293,12 +292,12 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			if ( mapFileName.startsWith( "/" ) ) {
 				File mapfile = new File( mapFileName );
 				if( ! mapfile.exists() || ! mapfile.isFile() || ! mapfile.canRead() ) {
-					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
+					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName ); return;
 				}
 				fis = new FileInputStream( mapFileName );
 			}
 			if ( fis == null ) {
-				promise.reject( "Error", "Unable to load mapFile: " + mapFileName );
+				promise.reject( "Error", "Unable to load mapFile: " + mapFileName ); return;
 			}
 			tileSource.setMapFileInputStream( fis );
 

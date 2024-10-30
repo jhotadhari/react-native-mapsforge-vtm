@@ -39,7 +39,7 @@ public class MapLayerScalebarModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
 			// The promise response

@@ -31,8 +31,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.resolve( false );
-            }
-            promise.resolve( true );
+            } else {
+            	promise.resolve( true );
+			}
         } catch( Exception e ) {
 			e.printStackTrace();
             promise.reject( "Error", e );
@@ -43,7 +44,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) zoom );
@@ -60,7 +61,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			mapView.map().setMapPosition( new MapPosition(
 				center.getDouble("lat" ),
@@ -79,7 +80,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 			BoundingBox boundingBox = new BoundingBox(
 				bounds.getDouble( "minLat" ),
@@ -102,7 +103,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
             promise.resolve( true );
@@ -117,7 +118,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
             promise.resolve( true );
@@ -131,7 +132,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() + 1 );
@@ -147,7 +148,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() - 1 );
@@ -164,7 +165,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 			switch ( propKey ) {
 				case "moveEnabled":
@@ -193,7 +194,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 			UiThreadUtil.runOnUiThread( new Runnable() {
 				@Override
@@ -243,7 +244,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapFragment ) {
-                promise.reject( "Error", "Unable to find mapFragment" );
+                promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
 			mapFragment.setPropHgtDirPath( hgtDirPath );
 			promise.resolve( true );
@@ -258,7 +259,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapFragment ) {
-				promise.reject( "Error", "Unable to find mapFragment" );
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
 			mapFragment.setPropResponseInclude( responseInclude );
 			promise.resolve( true );

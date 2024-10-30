@@ -54,7 +54,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
 			// The promise response
@@ -63,17 +63,17 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			if ( hgtDirPath.startsWith( "content://" ) ) {
 				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( hgtDirPath ) );
 				if ( dir == null || ! dir.exists() || ! dir.isDirectory() ) {
-					promise.reject( "Error", "hgtDirPath is not existing or not a directory" );
+					promise.reject( "Error", "hgtDirPath is not existing or not a directory" ); return;
 				}
 				if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), hgtDirPath, false ) ) {
-					promise.reject( "Error", "No scoped storage read permission for hgtDirPath" );
+					promise.reject( "Error", "No scoped storage read permission for hgtDirPath" ); return;
 				}
 			}
 
 			if ( hgtDirPath.startsWith( "/" ) ) {
 				File file = new File( hgtDirPath );
 				if( ! file.exists() || ! file.isDirectory() || ! file.canRead() ) {
-					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" );
+					promise.reject( "Error", "hgtDirPath does not exist or is not a directory" ); return;
 				}
 			}
 

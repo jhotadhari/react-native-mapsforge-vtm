@@ -237,10 +237,10 @@ public class MapLayerPathModule extends MapLayerBase {
 				if ( filePath.startsWith( "content://" ) ) {
 					DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( filePath ) );
 					if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-						promise.reject( "Error", "filePath does not exist or is not a file" );
+						promise.reject( "Error", "filePath does not exist or is not a file" ); return null;
 					}
 					if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), filePath, false ) ) {
-						promise.reject( "Error", "No scoped storage read permission for filePath " + filePath );
+						promise.reject( "Error", "No scoped storage read permission for filePath " + filePath ); return null;
 					}
 					in = mapView.getContext().getContentResolver().openInputStream( Uri.parse( filePath ) );
 					assert in != null;
@@ -249,12 +249,12 @@ public class MapLayerPathModule extends MapLayerBase {
 				if ( filePath.startsWith( "/" ) ) {
 					File gpxFile = new File( filePath );
 					if( ! gpxFile.exists() || ! gpxFile.isFile() || ! gpxFile.canRead() ) {
-						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath );
+						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath ); return null;
 					}
 					in = new FileInputStream( gpxFile );
 				}
 				if( in == null ) {
-					promise.reject( "Error", "Unable to load gpx file: " + filePath );
+					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
 				}
 
 				GPXParser parser = new GPXParser();
@@ -263,10 +263,10 @@ public class MapLayerPathModule extends MapLayerBase {
 					parsedGpx = parser.parse(in);
 				} catch ( IOException | XmlPullParserException e) {
 					e.printStackTrace();
-					promise.reject( "Error", "Unable to load gpx file: " + filePath );
+					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
 				}
 				if (parsedGpx == null) {
-					promise.reject( "Error", "Unable to load gpx file: " + filePath );
+					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
 				} else {
 					trackPoints = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
 				}
@@ -293,7 +293,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
 			if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
 			}
 
 			// The promise response
@@ -314,7 +314,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				promise
 			);
 			if ( null == trackPoints || trackPoints.isEmpty() ) {
-				promise.reject( "Error", "Unable to parse positions or gpx file" );
+				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;
 			}
 
 			// Store trackPoints
@@ -355,12 +355,12 @@ public class MapLayerPathModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapView" ); return;
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error", "Layer not found" );
+				promise.reject( "Error", "Layer not found" ); return;
 			}
 
 			// Create new vectorLayer.
@@ -369,7 +369,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			// Draw new.
 			List<TrackPoint> trackPoints = trackPointsMap.get( uuid );
 			if ( null == trackPoints ) {
-				promise.reject( "Error", "Unable to find coordinates" );
+				promise.reject( "Error", "Unable to find coordinates" ); return;
 			}
 			drawTrackPoints( trackPoints, pathLayerNew );
 

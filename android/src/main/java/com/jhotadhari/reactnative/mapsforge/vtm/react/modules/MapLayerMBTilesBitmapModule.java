@@ -85,21 +85,19 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     ) {
         try {
 			if ( null == mapFile ) {
-                promise.reject( "WARNING", "mapFile is null" );
+                promise.reject( "WARNING", "mapFile is null" ); return;
 			}
 
             MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
 			File file = new File( mapFile );
 			if( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
-                promise.reject( "Error", "mapFile does not exist or is not readable: " + mapFile );
-				return;
+                promise.reject( "Error", "mapFile does not exist or is not readable: " + mapFile ); return;
 			}
 
 			WritableMap responseParams = new WritableNativeMap();
