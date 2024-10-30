@@ -84,8 +84,6 @@ public class MapLayerPathModule extends MapLayerBase {
 			}
 		}
 
-		Log.d("testtest trackPoints", trackPoints.toString());
-
 		return trackPoints;
 	}
 
@@ -172,9 +170,9 @@ public class MapLayerPathModule extends MapLayerBase {
 		Envelope boundingBox = line.getGeometry().getEnvelopeInternal();
 		WritableMap boundsParams = new WritableNativeMap();
 		boundsParams.putDouble("minLat", boundingBox.getMinY());
-		boundsParams.putDouble("minLon", boundingBox.getMinX());
+		boundsParams.putDouble("minLng", boundingBox.getMinX());
 		boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-		boundsParams.putDouble("maxLon", boundingBox.getMaxX());
+		boundsParams.putDouble("maxLng", boundingBox.getMaxX());
 		responseParams.putMap("bounds", boundsParams);
 	}
 

@@ -32,9 +32,9 @@ export type {
 
 export type Bounds = {
 	minLat: number;
-	minLon: number;
+	minLng: number;
 	maxLat: number;
-	maxLon: number;
+	maxLng: number;
 };
 
 export interface Location {

@@ -11,7 +11,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
-import com.facebook.infer.annotation.Assertions;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
@@ -20,12 +19,7 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.annotations.ReactPropGroup;
-import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 
-import org.mapsforge.map.layer.hills.DemFolderFS;
-
-import java.io.File;
-import java.util.ArrayList;
 import java.util.Map;
 
 public class MapViewManager extends ViewGroupManager<FrameLayout> {

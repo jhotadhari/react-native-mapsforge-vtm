@@ -83,9 +83,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 			}
 			BoundingBox boundingBox = new BoundingBox(
 				bounds.getDouble( "minLat" ),
-				bounds.getDouble( "minLon" ),
+				bounds.getDouble( "minLng" ),
 				bounds.getDouble( "maxLat" ),
-				bounds.getDouble( "maxLon" )
+				bounds.getDouble( "maxLng" )
 			);
 			MapPosition pos = new MapPosition();
 			pos.setByBoundingBox( boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );

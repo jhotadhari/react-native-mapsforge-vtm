@@ -125,6 +125,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				|| ! renderThemePath.startsWith( "/" )
 			) {
 				promise.resolve( new WritableNativeMap() );
+				return;
 			}
 
 			// Load theme, parse options and send response.
@@ -235,16 +236,16 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			WritableMap boundsParams = new WritableNativeMap();
 			BoundingBox boundingBox = mapInfo.boundingBox;
 			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
-			boundsParams.putDouble( "minLon", boundingBox.getMinLongitude() );
+			boundsParams.putDouble( "minLng", boundingBox.getMinLongitude() );
 			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
-			boundsParams.putDouble( "maxLon", boundingBox.getMaxLongitude() );
+			boundsParams.putDouble( "maxLng", boundingBox.getMaxLongitude() );
 			responseParams.putMap( "bounds", boundsParams );
 			// Add tileSource center to response.
 			WritableMap centerParams = new WritableNativeMap();
-			centerParams.putDouble( "lon", mapInfo.mapCenter.getLongitude() );
+			centerParams.putDouble( "lng", mapInfo.mapCenter.getLongitude() );
 			centerParams.putDouble( "lat", mapInfo.mapCenter.getLatitude() );
 			responseParams.putMap( "center", centerParams );
-			// Add tileSource info to respnse.
+			// Add tileSource info to response.
 			responseParams.putString( "createdBy", mapInfo.createdBy );
 			responseParams.putString( "projectionName", mapInfo.projectionName );
 			responseParams.putString( "comment", mapInfo.comment );

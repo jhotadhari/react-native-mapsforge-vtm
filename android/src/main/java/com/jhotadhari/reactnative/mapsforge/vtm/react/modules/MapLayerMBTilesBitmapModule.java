@@ -47,15 +47,15 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			// Add dataSource bounds to response.
 			BoundingBox boundingBox = dataSource.getBounds();
 			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
-			boundsParams.putDouble( "minLon", boundingBox.getMinLongitude() );
+			boundsParams.putDouble( "minLng", boundingBox.getMinLongitude() );
 			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
-			boundsParams.putDouble( "maxLon", boundingBox.getMaxLongitude() );
+			boundsParams.putDouble( "maxLng", boundingBox.getMaxLongitude() );
 			responseParams.putMap( "bounds", boundsParams );
 			// Maybe add dataSource center to response.
 			MapPosition center = dataSource.getCenter();
 			if ( center != null ) {
 				WritableMap centerParams = new WritableNativeMap();
-				centerParams.putDouble( "lon", center.getLongitude() );
+				centerParams.putDouble( "lng", center.getLongitude() );
 				centerParams.putDouble( "lat", center.getLatitude() );
 				responseParams.putMap( "center", centerParams );
 			}

@@ -625,9 +625,9 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		Envelope boundingBox = geometry.getEnvelopeInternal();
 		WritableMap boundsParams = new WritableNativeMap();
 		boundsParams.putDouble("minLat", boundingBox.getMinY());
-		boundsParams.putDouble("minLon", boundingBox.getMinX());
+		boundsParams.putDouble("minLng", boundingBox.getMinX());
 		boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-		boundsParams.putDouble("maxLon", boundingBox.getMaxX());
+		boundsParams.putDouble("maxLng", boundingBox.getMaxX());
 		responseParams.putMap("bounds", boundsParams);
 	}
 
@@ -673,7 +673,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		int index;		// index within original coordinates
 		double lat;		// latitude
-		double lon;		// longitude
+		double lng;		// longitude
 		double alt; 	// altitude
 		double accumulatedDistance; // accumulated distance
 		double distancePrev;	//
@@ -683,14 +683,14 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		private CoordPoint(
 			int index,
 			double lat,
-			double lon,
+			double lng,
 			double alt,
 			double accumulatedDistance,
 			@Nullable DateTime dateTime
 		) {
 			this.index = index;
 			this.lat = lat;
-			this.lon = lon;
+			this.lng = lng;
 			this.alt = alt;
 			this.accumulatedDistance = accumulatedDistance;
 			this.distancePrev = 0;
@@ -724,12 +724,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		@Override
 		public String toString() {
-			return "[" + "index=" + index + " lat=" + lat + ", lon=" + lon + ", alt=" + alt + ", accumulatedDistance=" + accumulatedDistance + ", distanceLast=" + distancePrev + ", slope=" + slope + ']';
+			return "[" + "index=" + index + " lat=" + lat + ", lng=" + lng + ", alt=" + alt + ", accumulatedDistance=" + accumulatedDistance + ", distanceLast=" + distancePrev + ", slope=" + slope + ']';
 		}
 
 		public WritableMap toResponseMap() {
 			WritableMap position = new WritableNativeMap();
-			position.putDouble( "lon", lon );
+			position.putDouble( "lng", lng );
 			position.putDouble( "lat", lat );
 			position.putDouble( "alt", alt );
 			position.putDouble( "distance", accumulatedDistance );
@@ -749,7 +749,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			if (Double.compare(myPoint.index, index) != 0) return false;
 			if (Double.compare(myPoint.lat, lat) != 0) return false;
-			if (Double.compare(myPoint.lon, lon) != 0) return false;
+			if (Double.compare(myPoint.lng, lng) != 0) return false;
 			if (Double.compare(myPoint.alt, alt) != 0) return false;
 			if (Double.compare(myPoint.accumulatedDistance, accumulatedDistance) != 0) return false;
 
