@@ -131,11 +131,13 @@ public class MapFragment extends Fragment {
 
 		String hgtDirPath,
 
-		ReadableMap responseInclude
+		ReadableMap responseInclude,
+
+		int mapEventRate
 	) {
         super();
 
-		rateLimiter = new FixedWindowRateLimiter( 100, 1 );	// ??? window size as prop
+		updateRateLimiterRate( mapEventRate );
 
 		mapViewManager = mapViewManager_;
 
@@ -239,6 +241,10 @@ public class MapFragment extends Fragment {
 	public void setPropHgtDirPath( String hgtDirPath ) {
 		propHgtDirPath = hgtDirPath;
 		setHgtReader();
+	}
+
+	public void updateRateLimiterRate( int mapEventRate ) {
+		rateLimiter = new FixedWindowRateLimiter( mapEventRate, 1 );
 	}
 
 	protected void setHgtReader() {

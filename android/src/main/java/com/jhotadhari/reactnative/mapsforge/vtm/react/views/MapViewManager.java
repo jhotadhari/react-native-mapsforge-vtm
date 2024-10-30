@@ -57,6 +57,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 	private String propHgtDirPath;
 	private ReadableMap propResponseInclude;
+	private int propMapEventRate;
 
 	ReactApplicationContext reactContext;
 
@@ -248,6 +249,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propResponseInclude = value;
 	}
 
+	@ReactProp( name="mapEventRate" )
+	public void setReactPropMapEventRate( FrameLayout view, int value ) {
+		propMapEventRate = value;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
@@ -287,8 +293,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 			propHgtDirPath,
 
-			propResponseInclude
+			propResponseInclude,
 
+			propMapEventRate
 		);
 
 		setupLayout( parentView );

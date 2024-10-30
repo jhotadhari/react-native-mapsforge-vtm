@@ -100,6 +100,7 @@ const ExampleDem = ( {
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
                 onPause={ onMapEvent }
                 onResume={ onMapEvent }
+                mapEventRate={ 50 }
             >
 
                 <LayerBitmapTile

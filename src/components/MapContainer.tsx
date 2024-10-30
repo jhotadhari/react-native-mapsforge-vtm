@@ -81,6 +81,7 @@ export type MapContainerProps = {
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	responseInclude?: ResponseInclude;
 	onError?: null | ( ( err: any ) => void );
+	mapEventRate?: number;
 };
 
 const defaultCenter : Location = {
@@ -134,6 +135,7 @@ const MapContainer = ( {
 	hgtDirPath,
 	responseInclude = responseIncludeDefaults,
 	onError,
+	mapEventRate = 100,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
@@ -309,6 +311,14 @@ const MapContainer = ( {
 		}
 	}, [Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' )] );
 
+	// mapEventRate
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setMapEventRate( nativeNodeHandle, mapEventRate )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [mapEventRate] );
+
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
@@ -388,6 +398,7 @@ const MapContainer = ( {
 			maxRoll={ maxRoll }
 			hgtDirPath={ hgtDirPath }
 			responseInclude={ responseInclude }
+			mapEventRate={ mapEventRate }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

@@ -43,7 +43,8 @@ type Props = {
 	minRoll: number;
 	maxRoll: number;
 	hgtDirPath?: `/${string}` | `content://${string}`;
-	responseInclude?: ResponseInclude;
+	responseInclude: ResponseInclude;
+	mapEventRate: number;
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null
