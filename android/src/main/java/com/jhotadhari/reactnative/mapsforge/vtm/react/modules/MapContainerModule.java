@@ -31,11 +31,11 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
                 promise.resolve( false );
-                return;
             }
             promise.resolve( true );
-        } catch(Exception e) {
-            promise.reject("Create Event Error", e);
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
     @ReactMethod
@@ -43,15 +43,15 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) zoom );
 			mapView.map().setMapPosition( mapPosition );
-            promise.resolve(true);
-        } catch(Exception e) {
-            promise.reject("Create Event Error", e);
+            promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
@@ -60,17 +60,17 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			mapView.map().setMapPosition( new MapPosition(
 				center.getDouble("lat" ),
 				center.getDouble("lng" ),
 				mapView.map().getMapPosition().getScale()
 			) );
-            promise.resolve(true);
+            promise.resolve( true );
         } catch( Exception e ) {
-            promise.reject("setCenter Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
@@ -79,8 +79,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 			BoundingBox boundingBox = new BoundingBox(
 				bounds.getDouble( "minLat" ),
@@ -91,9 +90,10 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 			MapPosition pos = new MapPosition();
 			pos.setByBoundingBox( boundingBox, Tile.SIZE * 4, Tile.SIZE * 4 );
 			mapView.map().setMapPosition( pos );
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("zoomOut Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 
@@ -102,13 +102,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
-            promise.resolve(true);
+            promise.resolve( true );
         } catch( Exception e ) {
-            promise.reject("setMinZoom Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
@@ -117,13 +117,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
-            promise.resolve(true);
-        } catch(Exception e) {
-            promise.reject("setMaxZoom Error", e);
+            promise.resolve( true );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
     @ReactMethod
@@ -131,15 +131,15 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() + 1 );
 			mapView.map().setMapPosition( mapPosition );
-			promise.resolve(true);
+			promise.resolve( true );
         } catch( Exception e ) {
-            promise.reject("zoomIn Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
     @ReactMethod
@@ -147,15 +147,15 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			mapPosition.setZoomLevel( (int) mapPosition.getZoomLevel() - 1 );
 			mapView.map().setMapPosition( mapPosition );
-			promise.resolve(true);
+			promise.resolve( true );
         } catch( Exception e ) {
-            promise.reject("zoomOut Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 
@@ -164,8 +164,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 			switch ( propKey ) {
 				case "moveEnabled":
@@ -182,9 +181,10 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 					break;
 				default: {}
 			}
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setPropsInteractionsEnabled Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 
@@ -193,8 +193,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 			UiThreadUtil.runOnUiThread( new Runnable() {
 				@Override
@@ -232,9 +231,10 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 				}
 			} );
 			mapView.map().updateMap();
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setViewport Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 
@@ -244,13 +244,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
 
 			if ( null == mapFragment ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 			mapFragment.setPropHgtDirPath( hgtDirPath );
-			promise.resolve(true);
+			promise.resolve( true );
 		} catch( Exception e ) {
-			promise.reject("setHgtDirPath Error", e);
+			e.printStackTrace();
+            promise.reject( "Error", e );
 		}
 	}
 

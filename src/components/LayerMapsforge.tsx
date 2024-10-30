@@ -6,28 +6,18 @@ import React, { useEffect, useState } from 'react';
 /**
  * Internal dependencies
  */
-import useRefState from '../../src/compose/useRefState';
+import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import usePrevious from '../compose/usePrevious';
 import useRenderStyleOptions from '../compose/useRenderStyleOptions';
 import { MapLayerMapsforgeModule } from '../nativeMapModules';
+import { BUILT_IN_THEMES } from '../constants';
 import type {
 	Bounds,
 	Location
 } from '../types';
 
 const Module = MapLayerMapsforgeModule;
-
-const BUILT_IN_THEMES = [
-	'DEFAULT',
-	'BIKER',
-	'MOTORIDER',
-	'MOTORIDER_DARK',
-	'NEWTRON',
-	'OSMAGRAY',
-	'OSMARENDER',
-	'TRONRENDER',
-] as const;
 
 export type LayerMapsforgeResponse = {
 	uuid: string;
@@ -86,15 +76,13 @@ const LayerMapsforge = ( {
 				renderStyle,
 				renderOverlays,
 				reactTreeIndex
-			).then( ( response : false | LayerMapsforgeResponse ) => {
-				if ( response ) {		// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-					setUuid( response.uuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? ( onCreate ? onCreate( response ) : null )
-						: ( onChange ? onChange( response ) : null )
-					);
-				}
+			).then( ( response : LayerMapsforgeResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? ( onCreate ? onCreate( response ) : null )
+					: ( onChange ? onChange( response ) : null )
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -110,10 +98,8 @@ const LayerMapsforge = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid: string ) => {
-						if ( removedUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
-					} );
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} )
 			}
 		};
@@ -140,11 +126,9 @@ const LayerMapsforge = ( {
 							mapViewNativeTag,
 							uuid
 						).then( ( removedUuid: string ) => {
-							if ( removedUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-								setUuid( null );
-								setTriggerCreateNew( Math.random() );
-							}
-						} );
+							setUuid( null );
+							setTriggerCreateNew( Math.random() );
+						} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 					} );
 				}
 			} else if ( uuid === null && mapFile ) {

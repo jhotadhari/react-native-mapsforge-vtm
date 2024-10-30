@@ -28,7 +28,7 @@ import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
 import { isValidPosition } from '../utils';
-import type { Location } from '../types';
+import type { Location, mapEvent } from '../types';
 
 const createFragment = ( mapViewNativeTag: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
@@ -39,8 +39,8 @@ const createFragment = ( mapViewNativeTag: number ) : void => {
 				create.toString(),
 				[mapViewNativeTag],
 			);
-		} catch ( e ) {
-			console.log( 'debug MapViewManagerCommands fuck', e );
+		} catch ( err ) {
+			console.log( 'Error', err );
 		}
 	}
 }
@@ -50,12 +50,16 @@ const useDefaultWidth = ( propsWidth: number | undefined ) => {
 	return propsWidth || width;
 };
 
+export interface MapLifeCycleResponse extends mapEvent {
+	type: 'onPause' | 'onResume';
+};
+
 export type MapContainerProps = {
 	children?: React.ReactNode;
 	mapViewNativeTag?: null | number;
 	setMapViewNativeTag?: null | Dispatch<SetStateAction<number | null>>;
-	onPause?: null | ( ( result: object ) => void );
-	onResume?: null | ( ( result: object ) => void );
+	onPause?: null | ( ( response: MapLifeCycleResponse ) => void );
+	onResume?: null | ( ( response: MapLifeCycleResponse ) => void );
 	width?: number;
 	height?: number;
 	center?: Location;
@@ -121,7 +125,6 @@ const MapContainer = ( {
 	mapViewNativeTag = mapViewNativeTag ? mapViewNativeTag : mapViewNativeTag_;
 	setMapViewNativeTag = setMapViewNativeTag ? setMapViewNativeTag : setMapViewNativeTag_;
 
-	// const mapLayersCreated = useMapLayersCreated( ref?.current?.__nativeTag );
 	const mapLayersCreated = useMapLayersCreated( findNodeHandle( ref?.current ) );
 
 	width = useDefaultWidth( width );
@@ -154,7 +157,6 @@ const MapContainer = ( {
 	// center changed.
 	useEffect( () => {
 		if ( mapLayersCreated && mapViewNativeTag ) {
-			console.log( 'debug center', center ); // debug
 			MapContainerModule.setCenter( mapViewNativeTag, center );
 		}
 	}, [Object.values( center ).join( '' )] );
@@ -266,17 +268,17 @@ const MapContainer = ( {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'MapLifecycle', result => {
-			if ( result.nativeTag === mapViewNativeTag ) {
-				switch( result.type ) {
+		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
+			if ( response.nativeTag === mapViewNativeTag ) {
+				switch( response.type ) {
 					case 'onPause':
 						if ( onPause ) {
-							onPause( result );
+							onPause( response );
 						}
 						break;
 					case 'onResume':
 						if ( onResume ) {
-							onResume( result );
+							onResume( response );
 						}
 						break;
 				}

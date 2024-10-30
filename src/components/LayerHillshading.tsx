@@ -87,15 +87,13 @@ const LayerHillshading = ( {
 				magnitude,
 				cacheSize,
 				reactTreeIndex
-			).then( ( response : false | LayerHillshadingResponse ) => {
-				if ( response ) {		// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-					setUuid( response.uuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? ( onCreate ? onCreate( response ) : null )
-						: ( onChange ? onChange( response ) : null )
-					);
-				}
+			).then( ( response : LayerHillshadingResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? ( onCreate ? onCreate( response ) : null )
+					: ( onChange ? onChange( response ) : null )
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -111,10 +109,8 @@ const LayerHillshading = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid: string ) => {
-						if ( removedUuid ) { // ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
-					} );
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 		};
@@ -132,11 +128,9 @@ const LayerHillshading = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid: string ) => {
-						if ( removedUuid ) {		// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-							setUuid( null );
-							setTriggerCreateNew( Math.random() );
-						}
-					} );
+						setUuid( null );
+						setTriggerCreateNew( Math.random() );
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 		} else if ( uuid === null && hgtDirPath ) {

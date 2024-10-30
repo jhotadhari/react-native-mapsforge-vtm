@@ -6,17 +6,15 @@ import React, { useEffect, useState } from 'react';
 /**
  * Internal dependencies
  */
-import useRefState from '../../src/compose/useRefState';
+import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerBitmapTileModule } from '../nativeMapModules';
 
 const Module = MapLayerBitmapTileModule;
 
 export type LayerBitmapTileResponse = {
-	uuid: string
-	// ??? ...
-}; // ???
-
+	uuid: string;
+};
 
 export type LayerBitmapTileProps = {
 	mapViewNativeTag?: null | number;
@@ -56,15 +54,13 @@ const LayerBitmapTile = ( {
 				Math.round( zoomMax ),
 				Math.round( cacheSize ),
 				Math.round( reactTreeIndex )
-			).then( ( newUuid: string ) => {	// ??? change to object
-				if ( newUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-					setUuid( newUuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? onCreate ? onCreate( { uuid: newUuid } ) : null
-						: onChange ? onChange( { uuid: newUuid } ) : null
-					);
-				}
+			).then( ( response: LayerBitmapTileResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? onCreate ? onCreate( response ) : null
+					: onChange ? onChange( response ) : null
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -80,9 +76,7 @@ const LayerBitmapTile = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid: string ) => {
-						if ( removedUuid ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
 					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
@@ -99,10 +93,8 @@ const LayerBitmapTile = ( {
 					mapViewNativeTag,
 					uuid
 				).then( ( removedUuid: string ) => {
-					if ( removedUuid ) {
-						setUuid( null );
-						setTriggerCreateNew( Math.random() );
-					}
+					setUuid( null );
+					setTriggerCreateNew( Math.random() );
 				} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
             } );
 		}

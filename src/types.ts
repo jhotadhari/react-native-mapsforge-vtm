@@ -6,7 +6,7 @@ import type { LayerMBTilesBitmapResponse, LayerMBTilesBitmapProps  } from './com
 import type { LayerPathResponse, LayerPathProps  } from './components/LayerPath';
 import type { GradientColors, LayerPathSlopeGradientResponse, LayerPathSlopeGradientProps  } from './components/LayerPathSlopeGradient';
 import type { LayerScalebarResponse, LayerScalebarProps  } from './components/LayerScalebar';
-import type { MapContainerProps  } from './components/MapContainer';
+import type { MapContainerProps, MapLifeCycleResponse } from './components/MapContainer';
 
 export type {
     LayerBitmapTileResponse,
@@ -27,6 +27,7 @@ export type {
     LayerScalebarResponse,
     LayerScalebarProps,
     MapContainerProps,
+    MapLifeCycleResponse,
 };
 
 export type Bounds = {
@@ -72,4 +73,16 @@ export type GeometryStyle = {
     heightOffset?: number;
     randomOffset?: boolean;
     transparent?: boolean;
+};
+
+export interface mapEvent {
+    nativeTag: number;
+    zoomLevel: number;
+    zoom: number;
+    scale: number;
+    zoomScale: number;
+    bearing: number;
+    roll: number;
+    tilt: number;
+    center: Location;
 };

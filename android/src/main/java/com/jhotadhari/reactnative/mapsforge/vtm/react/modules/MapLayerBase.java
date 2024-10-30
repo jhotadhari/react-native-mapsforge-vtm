@@ -62,8 +62,7 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
             if ( null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView" );
             }
 
 			// Remove layer from map.
@@ -80,8 +79,9 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 
 			// Resolve uuid
 			promise.resolve( uuid );
-        } catch(Exception e) {
-            promise.reject("Remove Layer Error", e);
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
         }
     }
 

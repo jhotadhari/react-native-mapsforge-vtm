@@ -120,8 +120,11 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
         try {
 			checkRenderThemeValid( renderThemePath, promise );
 
-			if ( Arrays.asList( BUILT_IN_THEMES ).contains( renderThemePath )) {
-				promise.resolve( false );
+			if ( renderThemePath.isEmpty()
+				|| Arrays.asList( BUILT_IN_THEMES ).contains( renderThemePath )
+				|| ! renderThemePath.startsWith( "/" )
+			) {
+				promise.resolve( new WritableNativeMap() );
 			}
 
 			// Load theme, parse options and send response.
@@ -130,24 +133,23 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				new XmlRenderThemeMenuCallback() {
 					@Override
 					public Set<String> getCategories( XmlRenderThemeStyleMenu renderThemeStyleMenu ) {
-						WritableMap response = parseRenderThemeOptions( renderThemeStyleMenu );
-						promise.resolve( response );
+						promise.resolve( parseRenderThemeOptions( renderThemeStyleMenu ) );
 						return null;
 					}
 				}
 			);
-		} catch ( Exception e) {
+		} catch ( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Error getRenderThemeOptions", e );
+            promise.reject( "Error", e );
 		}
     }
 
     protected IRenderTheme loadTheme(
-			int reactTag,
-            String renderThemePath,
-            String renderStyle,
-            ReadableArray renderOverlays,
-			Promise promise
+		int reactTag,
+		String renderThemePath,
+		String renderStyle,
+		ReadableArray renderOverlays,
+		Promise promise
     ) {
 
 		IRenderTheme theme;
@@ -254,20 +256,20 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
     @ReactMethod
     public void createLayer(
-            int reactTag,
-            String mapFileName,
-            String renderThemePath,
-            String renderStyle,
-            ReadableArray renderOverlays,
-            int reactTreeIndex,
-            Promise promise
+		int reactTag,
+		String mapFileName,
+		String renderThemePath,
+		String renderStyle,
+		ReadableArray renderOverlays,
+		int reactTreeIndex,
+		Promise promise
     ) {
         try {
             MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
                 return;
             }
 
@@ -347,9 +349,9 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
             promise.resolve( responseParams );
-        } catch(Exception e) {
+        } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 

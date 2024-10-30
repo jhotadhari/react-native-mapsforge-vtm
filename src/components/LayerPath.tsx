@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 /**
  * Internal dependencies
  */
-import useRefState from '../../src/compose/useRefState';
+import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
 import { isValidPositions } from '../utils';
@@ -66,8 +66,6 @@ const LayerPath = ( {
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
-
-			console.log( 'debug create new' ); // debug
 			return Module.createLayer(
 				mapViewNativeTag,
 				positions,
@@ -75,15 +73,13 @@ const LayerPath = ( {
 				style,
 				responseInclude,
 				reactTreeIndex
-			).then( ( response: false | LayerPathResponse ) => {
-				if ( response ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-					setUuid( response.uuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? ( onCreate ? onCreate( response ) : null )
-						: ( onChange ? onChange( response ) : null )
-					);
-				}
+			).then( ( response: LayerPathResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? ( onCreate ? onCreate( response ) : null )
+					: ( onChange ? onChange( response ) : null )
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -99,10 +95,8 @@ const LayerPath = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
-					} );
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 		};
@@ -120,11 +114,9 @@ const LayerPath = ( {
 						uuid,
 						style,
 						responseInclude
-					).then( ( response: false | LayerPathResponse ) => {
-						if ( response ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-							onChange ? onChange( response ) : null;
-						}
-					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );;
+					).then( ( response: LayerPathResponse ) => {
+						onChange ? onChange( response ) : null;
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 	}, [Object.values( style ).join( '' )] );
@@ -137,11 +129,9 @@ const LayerPath = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							setUuid( null );
-							setTriggerCreateNew( Math.random() );
-						}
-					} );
+						setUuid( null );
+						setTriggerCreateNew( Math.random() );
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );;
 				} );
 			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {
 				setTriggerCreateNew( Math.random() );

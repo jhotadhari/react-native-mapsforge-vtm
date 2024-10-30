@@ -280,7 +280,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				}
 			} catch( Exception e ) {
 				e.printStackTrace();
-				promise.reject("Error", e );
+				promise.reject( "Error", e );
 			}
 		}
 		return trackPoints;
@@ -301,8 +301,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
 			if ( mapFragment == null || null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
 			}
 
 			// The promise response
@@ -323,8 +322,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				promise
 			);
 			if ( null == trackPoints || trackPoints.isEmpty() ) {
-				promise.reject("Create Event Error", "Unable to parse positions or gpx file");
-				return;
+				promise.reject( "Error", "Unable to parse positions or gpx file" );
 			}
 
 			// Store trackPoints
@@ -353,9 +351,9 @@ public class MapLayerPathModule extends MapLayerBase {
 			// Resolve layer hash
 			responseParams.putString( "uuid", uuid );
 			promise.resolve( responseParams );
-		} catch(Exception e) {
+		} catch( Exception e ) {
 			e.printStackTrace();
-			promise.reject("Create Event Error", e );
+			promise.reject( "Error", e );
 		}
 	}
 
@@ -365,14 +363,12 @@ public class MapLayerPathModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error updateStyle", "Layer not found" );
-				return;
+				promise.reject( "Error", "Layer not found" );
 			}
 
 			// Create new vectorLayer.
@@ -381,8 +377,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			// Draw new.
 			List<TrackPoint> trackPoints = trackPointsMap.get( uuid );
 			if ( null == trackPoints ) {
-				promise.reject("Error updateStyle", "Unable to find coordinates" );
-				return;
+				promise.reject( "Error", "Unable to find coordinates" );
 			}
 			drawTrackPoints( trackPoints, pathLayerNew );
 
@@ -402,7 +397,8 @@ public class MapLayerPathModule extends MapLayerBase {
 			}
 
 		} catch( Exception e ) {
-			promise.reject("Error updateStyle ", e );
+			e.printStackTrace();
+			promise.reject( "Error ", e );
 		}
 		promise.resolve( responseParams );
 	}

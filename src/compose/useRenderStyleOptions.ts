@@ -14,6 +14,7 @@ import {
  * Internal dependencies
  */
 const { MapLayerMapsforgeModule } = NativeModules;
+import { BUILT_IN_THEMES } from '../constants';
 
 export type XmlRenderTheme = {
 	value: string,
@@ -30,7 +31,7 @@ const useRenderStyleOptions = ( {
 	renderTheme,
 	nativeTag,
 } : {
-	renderTheme: string,
+	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	nativeTag?: number | null,
 } ) : {
 	renderStyleDefaultId: string | null,

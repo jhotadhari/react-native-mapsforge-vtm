@@ -54,8 +54,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
             }
 
 			// The promise response
@@ -130,9 +129,9 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			// Resolve promise
 			responseParams.putString( "uuid", uuid );
 			promise.resolve( responseParams );
-        } catch(Exception e) {
+        } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 

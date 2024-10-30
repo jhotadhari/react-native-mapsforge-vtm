@@ -87,20 +87,20 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     ) {
         try {
 			if ( null == mapFile ) {
-				promise.resolve( false );
+                promise.reject( "WARNING", "mapFile is null" );
 			}
 
             MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
                 return;
             }
 
 			File file = new File( mapFile );
-			if ( ! file.exists() ) {
-				promise.resolve( false );
+			if( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
+                promise.reject( "Error", "mapFile does not exist or is not readable: " + mapFile );
 				return;
 			}
 
@@ -136,7 +136,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
             promise.resolve( responseParams );
         } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 

@@ -3,6 +3,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
@@ -47,9 +49,11 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
             }
+
+			// The promise response
+			WritableMap responseParams = new WritableNativeMap();
 
 			// Define tile source.
 			URL urlParsed = new URL(url);
@@ -88,10 +92,11 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			layers.put( uuid, mBitmapLayer );
 
 			// Resolve layer uuid
-            promise.resolve( uuid );
+			responseParams.putString( "uuid", uuid );
+            promise.resolve( responseParams );
         } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 

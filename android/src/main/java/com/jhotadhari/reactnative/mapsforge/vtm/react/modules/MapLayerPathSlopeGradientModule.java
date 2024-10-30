@@ -139,11 +139,11 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			parsedGpx = parser.parse( in );
 		} catch ( IOException | XmlPullParserException e ) {
 			e.printStackTrace();
-			promise.resolve( false );
+			promise.reject( "Error", e );
 			return jtsCoordinates;
 		}
 		if ( parsedGpx == null ) {
-			promise.resolve(false );
+			promise.reject( "Error", "Unable to parse gpx file: " + filePath );
 			return jtsCoordinates;
 		}
 		List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
@@ -203,8 +203,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 
             if ( mapFragment == null || null == mapView ) {
-                promise.resolve( false );
-                return;
+                promise.reject( "Error", "Unable to find mapView or mapFragment" );
             }
 
 			// The promise response
@@ -225,7 +224,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
-				promise.reject("Create Event Error", "Unable to parse positions or gpx file");
+				promise.reject( "Error", "Unable to parse positions or gpx file" );
 				return;
 			}
 
@@ -277,7 +276,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
             promise.resolve( responseParams );
         } catch( Exception e ) {
 			e.printStackTrace();
-            promise.reject("Create Event Error", e);
+            promise.reject( "Error", e );
         }
     }
 
@@ -414,14 +413,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error updateCoordinatesSimplified", "Layer not found" );
-				return;
+				promise.reject( "Error", "Layer not found" );
 			}
 
 			// Create new vectorLayer.
@@ -466,7 +463,8 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
-			promise.reject("Error updateCoordinatesSimplified ", e );
+			e.printStackTrace();
+			promise.reject( "Error", e );
 		}
 		promise.resolve( responseParams );
 	}
@@ -477,14 +475,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error updateStrokeWidth", "Layer not found" );
-				return;
+				promise.reject( "Error", "Layer not found" );
 			}
 
 			// Create new vectorLayer.
@@ -516,7 +512,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
-			promise.reject("Error updateStrokeWidth ", e );
+			promise.reject( "Error", e );
 		}
 		promise.resolve( responseParams );
 	}
@@ -527,14 +523,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
 			if ( null == mapView ) {
-				promise.resolve( false );
-				return;
+                promise.reject( "Error", "Unable to find mapView" );
 			}
 
 			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
 			if ( -1 == layerIndex ) {
-				promise.reject( "Error updateStrokeWidth", "Layer not found" );
-				return;
+				promise.reject( "Error", "Layer not found" );
 			}
 
 			// Create new vectorLayer.
@@ -570,7 +564,8 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 				addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
 			}
 		} catch( Exception e ) {
-			promise.reject("Error updateStrokeWidth ", e );
+			e.printStackTrace();
+			promise.reject( "Error", e );
 		}
 		promise.resolve( responseParams );
 	}

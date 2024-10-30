@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 /**
  * Internal dependencies
  */
-import useRefState from '../../src/compose/useRefState';
+import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
 import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
@@ -107,15 +107,13 @@ const LayerPathSlopeGradient = ( {
 				flattenWindowSize,
 				responseInclude,
 				reactTreeIndex
-			).then( ( response: false | LayerPathSlopeGradientResponse ) => {
-				if ( response ) {
-					setUuid( response.uuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? ( onCreate ? onCreate( response ) : null )
-						: ( onChange ? onChange( response ) : null )
-					);
-				}
+			).then( ( response: LayerPathSlopeGradientResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? ( onCreate ? onCreate( response ) : null )
+					: ( onChange ? onChange( response ) : null )
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -131,9 +129,7 @@ const LayerPathSlopeGradient = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
                 	} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
@@ -152,10 +148,8 @@ const LayerPathSlopeGradient = ( {
                     uuid,
 					strokeWidth,
 					responseInclude,
-				).then( ( response: false | LayerPathSlopeGradientResponse ) => {
-					if ( response ) {
-						onChange ? onChange( response ) : null;
-					}
+				).then( ( response: LayerPathSlopeGradientResponse ) => {
+					onChange ? onChange( response ) : null;
                 } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
             } );
 		}
@@ -170,10 +164,8 @@ const LayerPathSlopeGradient = ( {
 					strokeWidth,
 					slopeColors,
 					responseInclude,
-				).then( ( response: false | LayerPathSlopeGradientResponse ) => {
-					if ( response ) {
-						onChange ? onChange( response ) : null;
-					}
+				).then( ( response: LayerPathSlopeGradientResponse ) => {
+					onChange ? onChange( response ) : null;
                 } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
             } );
 		}
@@ -189,10 +181,8 @@ const LayerPathSlopeGradient = ( {
 					slopeSimplificationTolerance,
 					flattenWindowSize,
 					responseInclude,
-				).then( ( response: false | LayerPathSlopeGradientResponse ) => {
-					if ( response ) {
-						onChange ? onChange( response ) : null;
-					}
+				).then( ( response: LayerPathSlopeGradientResponse ) => {
+					onChange ? onChange( response ) : null;
                 } ).catch( ( err: any ) => console.log( 'ERROR', err ) );
             } );
 		}
@@ -209,10 +199,8 @@ const LayerPathSlopeGradient = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							setUuid( null )
-							setTriggerCreateNew( Math.random() );
-						}
+						setUuid( null )
+						setTriggerCreateNew( Math.random() );
 					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {

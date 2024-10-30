@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 /**
  * Internal dependencies
  */
-import useRefState from '../../src/compose/useRefState';
+import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerMBTilesBitmapModule } from '../nativeMapModules';
 import type { Bounds, Location } from '../types';
@@ -63,15 +63,13 @@ const LayerMBTilesBitmap = ( {
 				alpha,
 				transparentColor,
 				reactTreeIndex
-			).then( ( response: false | LayerMBTilesBitmapResponse ) => {
-				if ( response ) {	// ??? dont need the test here. make sure java responds the uuid. and throws shit instead of responding false.
-					setUuid( response.uuid );
-					setRandom( Math.random() );
-					( null === triggerCreateNew
-						? ( onCreate ? onCreate( response ) : null )
-						: ( onChange ? onChange( response ) : null )
-					);
-				}
+			).then( ( response: LayerMBTilesBitmapResponse ) => {
+				setUuid( response.uuid );
+				setRandom( Math.random() );
+				( null === triggerCreateNew
+					? ( onCreate ? onCreate( response ) : null )
+					: ( onChange ? onChange( response ) : null )
+				);
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		} );
 	};
@@ -87,10 +85,8 @@ const LayerMBTilesBitmap = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							onRemove ? onRemove( { uuid: removedUuid } ) : null;
-						}
-					} );
+						onRemove ? onRemove( { uuid: removedUuid } ) : null;
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			}
 		};
@@ -108,11 +104,9 @@ const LayerMBTilesBitmap = ( {
 						mapViewNativeTag,
 						uuid
 					).then( ( removedUuid : string ) => {
-						if ( removedUuid ) {
-							setUuid( null );
-							setTriggerCreateNew( Math.random() );
-						}
-					} );
+						setUuid( null );
+						setTriggerCreateNew( Math.random() );
+					} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 				} );
 			} else if ( uuid === null && mapFile ) {
 				setTriggerCreateNew( Math.random() );
