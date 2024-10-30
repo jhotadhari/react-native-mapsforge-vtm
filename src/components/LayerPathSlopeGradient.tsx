@@ -9,9 +9,7 @@ import React, { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
-import { isArray, isFunction, isNumber, isObject, isString } from 'lodash-es';
-import { isValidPositions } from '../utils';
-import type { ResponseInclude, Location, LocationExtended, GeometryStyle } from '../types';
+import type { ResponseInclude, Location, LocationExtended } from '../types';
 
 const Module = MapLayerPathSlopeGradientModule;
 
@@ -86,12 +84,11 @@ const LayerPathSlopeGradient = ( {
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
-	positions = isValidPositions( positions ) ? positions : [];
+	positions = positions || [];
 	strokeWidth = strokeWidth > 0 ? Math.round( strokeWidth ) : 4;
 	slopeSimplificationTolerance = slopeSimplificationTolerance >= 0 ? Math.round( slopeSimplificationTolerance ) : 7;
 	flattenWindowSize = flattenWindowSize % 2 != 0 && flattenWindowSize > 5 ? flattenWindowSize : 9;
 	slopeColors = sortSlopeColors( slopeColors.length > 0 ? slopeColors : slopeColorsDefault );
-
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 
 	const createLayer = () => {

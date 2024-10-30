@@ -1,6 +1,5 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
-import android.content.Context;
 import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
@@ -12,8 +11,8 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
 import org.oscim.core.BoundingBox;
@@ -293,7 +292,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
 			if ( mapFileName.startsWith( "/" ) ) {
 				File mapfile = new File( mapFileName );
-				if( ! mapfile.exists() || ! mapfile.isFile() || ! file.canRead() ) {
+				if( ! mapfile.exists() || ! mapfile.isFile() || ! mapfile.canRead() ) {
 					promise.reject( "Error", "mapFileName does not exist or is not a file. " + mapFileName );
 				}
 				fis = new FileInputStream( mapFileName );

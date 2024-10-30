@@ -2,7 +2,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
@@ -17,23 +16,19 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.goebl.simplify.Simplify;
 import com.goebl.simplify.Point;
+import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.Coordinate;
 import com.jhotadhari.reactnative.mapsforge.vtm.Gradient;
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.joda.time.DateTime;
-//import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
-import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
@@ -124,7 +119,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 		if ( filePath.startsWith( "/" ) ) {
 			File gpxFile = new File( filePath );
-			if( ! gpxFile.exists() || ! gpxFile.isFile() || ! file.canRead() ) {
+			if( ! gpxFile.exists() || ! gpxFile.isFile() || ! gpxFile.canRead() ) {
 				return null;
 			}
 			in = new FileInputStream( gpxFile );

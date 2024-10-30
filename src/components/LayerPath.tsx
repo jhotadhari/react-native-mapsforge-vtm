@@ -9,7 +9,6 @@ import React, { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
-import { isValidPositions } from '../utils';
 import type { ResponseInclude, Location, LocationExtended, GeometryStyle } from '../types';
 
 const Module = MapLayerPathModule;
@@ -60,10 +59,8 @@ const LayerPath = ( {
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
-	positions = isValidPositions( positions ) ? positions : [];
-
+	positions = positions || [];
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
-
 	style = {...defaultStyle, ...style };
 
 	const createLayer = () => {

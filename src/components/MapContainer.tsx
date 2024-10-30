@@ -27,7 +27,6 @@ import { get, isBoolean, isNumber } from 'lodash-es';
 import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
-import { isValidPosition } from '../utils';
 import type { Location, mapEvent, ResponseInclude } from '../types';
 
 const createFragment = ( nativeNodeHandle: number ) : void => {
@@ -144,8 +143,6 @@ const MapContainer = ( {
 	const mapLayersCreated = useMapLayersCreated( findNodeHandle( ref?.current ) );
 
 	width = useDefaultWidth( width );
-
-	center = isValidPosition( center ) ? center : defaultCenter;
 
 	moveEnabled = numOrBoolToNum( moveEnabled, 1 );
 	rotationEnabled = numOrBoolToNum( rotationEnabled, 1 );

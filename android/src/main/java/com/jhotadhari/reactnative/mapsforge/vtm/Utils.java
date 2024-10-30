@@ -2,7 +2,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.content.Context;
 import android.content.UriPermission;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
@@ -48,10 +47,10 @@ public class Utils {
         }
     }
 
-    public static double convertPixelsToDp(ReactContext reactContext, double pixels) {
-        double screenPixelDensity = reactContext.getApplicationContext().getResources().getDisplayMetrics().density;
-        return pixels / screenPixelDensity;
-    }
+//    public static double convertPixelsToDp(ReactContext reactContext, double pixels) {
+//        double screenPixelDensity = reactContext.getApplicationContext().getResources().getDisplayMetrics().density;
+//        return pixels / screenPixelDensity;
+//    }
 
     public static void sendEvent( ReactContext reactContext, String eventName, @Nullable WritableMap params ) {
         reactContext.getJSModule(

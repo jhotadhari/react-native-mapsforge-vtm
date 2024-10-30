@@ -1,7 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -15,21 +14,16 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.jhotadhari.reactnative.mapsforge.vtm.Gradient;
+import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layers.vector.PathLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
-import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.joda.time.DateTime;
-import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
-import org.oscim.core.BoundingBox;
 import org.oscim.core.GeoPoint;
-//import org.oscim.layers.vector.PathLayer;
-import org.oscim.layers.vector.VectorLayer;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
 import org.xmlpull.v1.XmlPullParserException;
@@ -254,7 +248,7 @@ public class MapLayerPathModule extends MapLayerBase {
 
 				if ( filePath.startsWith( "/" ) ) {
 					File gpxFile = new File( filePath );
-					if( ! gpxFile.exists() || ! gpxFile.isFile() || ! file.canRead() ) {
+					if( ! gpxFile.exists() || ! gpxFile.isFile() || ! gpxFile.canRead() ) {
 						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath );
 					}
 					in = new FileInputStream( gpxFile );
