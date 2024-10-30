@@ -14,7 +14,7 @@ import usePromiseQueueState from './compose/usePromiseQueueState';
 import useMapEvents from './compose/useMapEvents';
 import promiseQueue from './promiseQueue';
 import * as nativeMapModules from './nativeMapModules';
-import * as utils from './utils';
+// import * as utils from './utils';
 import type * as types from './types';
 
 export {
@@ -31,7 +31,7 @@ export {
 	useMapEvents,
 	promiseQueue,
 	nativeMapModules,
-	utils,
+	// utils,
 	type types,
 };
 

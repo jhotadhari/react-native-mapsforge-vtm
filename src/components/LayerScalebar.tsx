@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Internal dependencies
@@ -32,6 +32,7 @@ const LayerScalebar = ( {
 	onError,
 } : LayerScalebarProps ) => {
 
+	// @ts-ignore
 	const [random, setRandom] = useState<number>( 0 );
 	const [uuid, setUuid] = useRefState( null );
 

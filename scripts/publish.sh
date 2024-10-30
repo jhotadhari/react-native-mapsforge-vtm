@@ -17,6 +17,12 @@ if [[ -z $( grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
     exit 1
 fi
 
+# typeScript ompile should not complain.
+if [[ ! -z $( yarn run tsc ) ]]; then
+    echo "Unable to publish. TypeScript compile complains."
+    exit 1
+fi
+
 # git status should be clean.
 if [[ ! -z $( git status --short ) ]]; then
     echo "Unable to publish. Uncommited changes."
@@ -71,11 +77,19 @@ git commit -m "Bump version ${next_version}"
 # checkout main, merge release, tag and push.
 git checkout main
 git merge $release_branch --no-ff --commit --no-edit
+if ! [[ $? == 0 ]]; then
+    echo "git merge into main failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    exit 1
+fi
 git tag "v${next_version}"
 
 # push
 git push
 git push origin "v${next_version}"
+if ! [[ $? == 0 ]]; then
+    echo "git push failed. Command was \"git push && git push origin \"v${next_version}\""
+    exit 1
+fi
 
 # add release description from changelog and publish the release.
 line_from=$(( $( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md ) + 1 ))
@@ -86,10 +100,18 @@ else
     gh_command='edit'
 fi
 sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${next_version}" --draft=false -F -
+if ! [[ $? == 0 ]]; then
+    echo "Failed to add github release. Command was \"sed -n ${line_from},${line_to}p CHANGELOG.md | gh release \"${gh_command}\" \"v${next_version}\" --draft=false -F -\""
+    exit 1
+fi
 
 # checkout development, merge main, Add Unreleased section to CHANGELOG.md and push.
 git checkout development
 git merge $release_branch --no-ff --commit --no-edit
+if ! [[ $? == 0 ]]; then
+    echo "git merge into development failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    exit 1
+fi
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
 awk -i inplace "NR==${line}{print \"## Unreleased\n\"}1" CHANGELOG.md
 ./node_modules/.bin/changelog
