@@ -10,7 +10,7 @@ import {
 /**
  * Internal dependencies
  */
-import type { Location } from '../types';
+import type { Location, ResponseInclude } from '../types';
 
 const ComponentName = 'MapViewManager';
 
@@ -19,7 +19,7 @@ const LINKING_ERROR =
     '- You rebuilt the app after installing the package\n' +
     '- You are not using Expo Go\n';
 
-export type Props = {
+type Props = {
 	ref: MutableRefObject<number | Component<any, any, any> | ComponentClass<any, any> | null>;
 	width: number;
 	height: number;
@@ -43,6 +43,7 @@ export type Props = {
 	minRoll: number;
 	maxRoll: number;
 	hgtDirPath?: `/${string}` | `content://${string}`;
+	responseInclude?: ResponseInclude;
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null

@@ -31,6 +31,9 @@ export type LayerPathProps = {
 	onChange?: null | ( ( response: LayerPathResponse ) => void );
 };
 
+// 0	never include in response.
+// 1	include in response on create.
+// 2	include in response on change.
 const responseIncludeDefaults : ResponseInclude = {
 	coordinates: 0,
 	bounds: 0,

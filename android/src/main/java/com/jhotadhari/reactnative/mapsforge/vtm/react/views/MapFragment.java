@@ -66,29 +66,30 @@ public class MapFragment extends Fragment {
 
     protected MapViewManager mapViewManager;
 
-	protected double propWidthForLayoutSize = 200;
-	protected double propHeightForLayoutSize = 200;
+	protected double propWidthForLayoutSize;
+	protected double propHeightForLayoutSize;
 
 	protected ReadableMap propCenter;
 
-	protected boolean propMoveEnabled = true;
-	protected boolean propRotationEnabled = true;
-	protected boolean propZoomEnabled = true;
-	protected boolean propTiltEnabled = true;
+	protected boolean propMoveEnabled;
+	protected boolean propRotationEnabled;
+	protected boolean propZoomEnabled;
+	protected boolean propTiltEnabled;
 
-	protected int propZoomLevel = 12;
-	protected int propMinZoom = 3;
-	protected int propMaxZoom = 20;
-	protected float propTilt = 0;
-	protected float propMinTilt = 0;
-	protected float propMaxTilt = 65;
-	protected float propBearing = 0;
-	protected float propMinBearing = -180;
-	protected float propMaxBearing = 180;
-	protected float propRoll = 0;
-	protected float propMinRoll = -180;
-	protected float propMaxRoll = 180;
-	protected String propHgtDirPath = "";
+	protected int propZoomLevel;
+	protected int propMinZoom;
+	protected int propMaxZoom;
+	protected float propTilt;
+	protected float propMinTilt;
+	protected float propMaxTilt;
+	protected float propBearing;
+	protected float propMinBearing;
+	protected float propMaxBearing;
+	protected float propRoll;
+	protected float propMinRoll;
+	protected float propMaxRoll;
+	protected String propHgtDirPath;
+	protected ReadableMap propResponseInclude;
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -132,7 +133,9 @@ public class MapFragment extends Fragment {
 		float minRoll,
 		float maxRoll,
 
-		String hgtDirPath
+		String hgtDirPath,
+
+		ReadableMap responseInclude
 	) {
         super();
 
@@ -167,6 +170,8 @@ public class MapFragment extends Fragment {
 		propMaxRoll = maxRoll;
 
 		propHgtDirPath = hgtDirPath;
+
+		propResponseInclude = responseInclude;
     }
 
     protected void addHardwareKeyListener() {
@@ -231,7 +236,11 @@ public class MapFragment extends Fragment {
         }
     }
 
-	public void setPropHgtDirPath(String hgtDirPath) {
+	public void setPropResponseInclude( ReadableMap responseInclude ) {
+		propResponseInclude = responseInclude;
+	}
+
+	public void setPropHgtDirPath( String hgtDirPath ) {
 		propHgtDirPath = hgtDirPath;
 		setHgtReader();
 	}
@@ -297,7 +306,7 @@ public class MapFragment extends Fragment {
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					if ( rateLimiter.tryAcquire() ) {
 						WritableMap params = null;
-						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase() );
+						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
 					}
 				}
 			} );
@@ -319,35 +328,56 @@ public class MapFragment extends Fragment {
         return view;
     }
 
-	protected WritableMap getResponseBase() {
+	protected WritableMap getResponseBase( int includeLevel ) {
 		WritableMap params = new WritableNativeMap();
 		params.putInt( "nativeNodeHandle", this.getId() );
 		MapPosition mapPosition = mapView.map().getMapPosition();
-		params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
-		params.putDouble( "zoom", mapPosition.getZoom() );
-		params.putDouble( "scale", mapPosition.getScale() );
-		params.putDouble( "zoomScale", mapPosition.getZoomScale() );
-		params.putDouble( "bearing", mapPosition.getBearing() );
-		params.putDouble( "roll", mapPosition.getRoll() );
-		params.putDouble( "tilt", mapPosition.getTilt() );
-		// center
-		WritableMap center = new WritableNativeMap();
-		center.putDouble( "lng", mapPosition.getLongitude() );
-		center.putDouble( "lat", mapPosition.getLatitude() );
-		if ( null != hgtReader ) {
-			Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
-			if ( null == altitude ) {
-				center.putNull( "alt" );
-			} else {
-				center.putDouble( "alt", altitude.doubleValue() );
-			}
+
+		if ( propResponseInclude.getInt( "zoomLevel" ) >= includeLevel ) {
+			params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		}
-		params.putMap( "center", center );
+		if ( propResponseInclude.getInt( "zoom" ) >= includeLevel ) {
+			params.putDouble( "zoom", mapPosition.getZoom() );
+		}
+		if ( propResponseInclude.getInt( "scale" ) >= includeLevel ) {
+			params.putDouble( "scale", mapPosition.getScale() );
+		}
+		if ( propResponseInclude.getInt( "zoomScale" ) >= includeLevel ) {
+			params.putDouble( "zoomScale", mapPosition.getZoomScale() );
+		}
+		if ( propResponseInclude.getInt( "bearing" ) >= includeLevel ) {
+			params.putDouble( "bearing", mapPosition.getBearing() );
+		}
+		if ( propResponseInclude.getInt( "roll" ) >= includeLevel ) {
+			params.putDouble( "roll", mapPosition.getRoll() );
+		}
+		if ( propResponseInclude.getInt( "tilt" ) >= includeLevel ) {
+			params.putDouble( "tilt", mapPosition.getTilt() );
+		}
+
+		Log.d("testtest propResponseInclude.getInt( \"center\" )", String.valueOf(propResponseInclude.getInt( "center" )));
+
+
+		// center
+		if ( propResponseInclude.getInt( "center" ) >= includeLevel ) {
+			WritableMap center = new WritableNativeMap();
+			center.putDouble("lng", mapPosition.getLongitude());
+			center.putDouble("lat", mapPosition.getLatitude());
+			if ( null != hgtReader ) {
+				Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
+				if ( null == altitude ) {
+					center.putNull("alt");
+				} else {
+					center.putDouble("alt", altitude.doubleValue() );
+				}
+			}
+			params.putMap("center", center);
+		}
 		return params;
 	}
 
     protected void sendLifecycleEvent( String type ) {
-        WritableMap params = getResponseBase();
+        WritableMap params = getResponseBase( 1 );
         params.putString( "type", type );
         Utils.sendEvent(  mapViewManager.getReactContext(), "MapLifecycle", params );
     }

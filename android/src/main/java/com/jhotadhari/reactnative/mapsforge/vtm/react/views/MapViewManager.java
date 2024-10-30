@@ -57,6 +57,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private float propMaxRoll;
 
 	private String propHgtDirPath;
+	private ReadableMap propResponseInclude;
 
 	ReactApplicationContext reactContext;
 
@@ -243,6 +244,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propHgtDirPath = value;
 	}
 
+	@ReactProp( name="responseInclude" )
+	public void setReactPropResponseInclude( FrameLayout view, ReadableMap value ) {
+		propResponseInclude = value;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
@@ -280,7 +286,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propMinRoll,
 			propMaxRoll,
 
-			propHgtDirPath
+			propHgtDirPath,
+
+			propResponseInclude
 
 		);
 

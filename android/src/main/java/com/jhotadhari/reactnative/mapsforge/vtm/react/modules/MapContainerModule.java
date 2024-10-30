@@ -242,15 +242,29 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	public void setHgtDirPath(int nativeNodeHandle, String hgtDirPath, Promise promise ) {
 		try {
 			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
-
 			if ( null == mapFragment ) {
-                promise.reject( "Error", "Unable to find mapView" );
+                promise.reject( "Error", "Unable to find mapFragment" );
 			}
 			mapFragment.setPropHgtDirPath( hgtDirPath );
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();
             promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setResponseInclude(int nativeNodeHandle, ReadableMap responseInclude, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" );
+			}
+			mapFragment.setPropResponseInclude( responseInclude );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
 		}
 	}
 

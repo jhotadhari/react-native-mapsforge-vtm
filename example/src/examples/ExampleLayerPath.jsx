@@ -67,13 +67,12 @@ const ExampleLayerPath = ( {
 	const [strokeWidth,setStrokeWidth] = useState( 10 );
 	const [stipple,setStipple] = useState( 50 );
 
+    const onMapEvent = event => event.center
+        ? setCurrentCenter( event.center )
+        : null
 	useMapEvents( {
 		nativeNodeHandle: mapViewNativeNodeHandle,
-		onMapEvent: event => {
-            if ( event.center ) {
-                setCurrentCenter( event.center );
-            }
-		},
+		onMapEvent,
 	} );
 
     if ( null === appDirs ) {
@@ -213,8 +212,11 @@ const ExampleLayerPath = ( {
         } } >
             <MapContainer
                 height={ mapHeight }
+                responseInclude={ { center: 2 } }
                 nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
+                onPause={ onMapEvent }
+                onResume={ onMapEvent }
             >
 
                 <LayerBitmapTile

@@ -28,7 +28,7 @@ import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
 import { isValidPosition } from '../utils';
-import type { Location, mapEvent } from '../types';
+import type { Location, mapEvent, ResponseInclude } from '../types';
 
 const createFragment = ( nativeNodeHandle: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
@@ -80,11 +80,26 @@ export type MapContainerProps = {
 	minRoll?: number;
 	maxRoll?: number;
 	hgtDirPath?: `/${string}` | `content://${string}`;
+	responseInclude?: ResponseInclude;
 };
 
 const defaultCenter : Location = {
 	lng: -77.605,
 	lat: -9.118,
+};
+
+// 0	never include in response.
+// 1	include in lifeCycle response.
+// 2	include in lifeCycle and onMapEvent response.
+const responseIncludeDefaults : ResponseInclude = {
+	zoomLevel: 0,
+	zoom: 0,
+	scale: 0,
+	zoomScale: 0,
+	bearing: 0,
+	roll: 0,
+	tilt: 0,
+	center: 0,
 };
 
 const numOrBoolToNum = ( numOrBool: number | boolean | undefined, defaultVal: 1 | 0 ): ( 1 | 0 ) => {
@@ -117,6 +132,7 @@ const MapContainer = ( {
 	minRoll = -180,
 	maxRoll = 180,
 	hgtDirPath,
+	responseInclude = responseIncludeDefaults,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
@@ -139,6 +155,8 @@ const MapContainer = ( {
 	zoomLevel = isNumber( zoomLevel ) ? Math.round( zoomLevel ) : 12;
 	minZoom = isNumber( minZoom ) ? Math.round( minZoom ) : 3;
 	maxZoom = isNumber( maxZoom ) ? Math.round( maxZoom ) : 20;
+
+	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 
 	useEffect( () => {
 		const nodeHandle = findNodeHandle( ref?.current );
@@ -284,6 +302,14 @@ const MapContainer = ( {
 		}
 	}, [hgtDirPath] );
 
+	// responseInclude
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setResponseInclude( nativeNodeHandle, responseInclude )
+			.catch( ( err: any ) => console.log( 'ERROR', err ) );
+		}
+	}, [Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' )] );
+
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
@@ -362,6 +388,7 @@ const MapContainer = ( {
 			minRoll={ minRoll }
 			maxRoll={ maxRoll }
 			hgtDirPath={ hgtDirPath }
+			responseInclude={ responseInclude }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

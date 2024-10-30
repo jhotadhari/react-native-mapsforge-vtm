@@ -51,13 +51,12 @@ const ExampleDem = ( {
 
     const AttributionComponent = tileOptions[0].attribution;
 
+    const onMapEvent = event => event.center
+        ? setCurrentCenter( event.center )
+        : null
 	useMapEvents( {
 		nativeNodeHandle: mapViewNativeNodeHandle,
-		onMapEvent: event => {
-            if ( event.center ) {
-                setCurrentCenter( event.center );
-            }
-		},
+		onMapEvent,
 	} );
 
 	return <View style={ {
@@ -96,8 +95,11 @@ const ExampleDem = ( {
                 height={ mapHeight }
                 zoomLevel={ 10 }
                 hgtDirPath={ appDirs.dem }
+                responseInclude={ { center: 2 } }
                 nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
+                onPause={ onMapEvent }
+                onResume={ onMapEvent }
             >
 
                 <LayerBitmapTile
