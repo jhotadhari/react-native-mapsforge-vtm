@@ -99,7 +99,7 @@ public class MapFragment extends Fragment {
 
     protected void sendEventMapLayersCreated() {
         WritableMap params = new WritableNativeMap();
-        params.putInt( "nativeTag", this.getId() );
+        params.putInt( "nativeNodeHandle", this.getId() );
         Utils.sendEvent( mapViewManager.getReactContext(), "MapLayersCreated", params );
     }
 
@@ -321,7 +321,7 @@ public class MapFragment extends Fragment {
 
 	protected WritableMap getResponseBase() {
 		WritableMap params = new WritableNativeMap();
-		params.putInt( "nativeTag", this.getId() );
+		params.putInt( "nativeNodeHandle", this.getId() );
 		MapPosition mapPosition = mapView.map().getMapPosition();
 		params.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		params.putDouble( "zoom", mapPosition.getZoom() );

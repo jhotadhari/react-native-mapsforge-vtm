@@ -146,7 +146,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
     }
 
     protected IRenderTheme loadTheme(
-		int reactTag,
+		int nativeNodeHandle,
 		String renderThemePath,
 		String renderStyle,
 		ReadableArray renderOverlays,
@@ -156,7 +156,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		IRenderTheme theme;
 		ReactContext reactContext = this.getReactApplicationContext();
 		checkRenderThemeValid( renderThemePath, promise );
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 		switch( renderThemePath ) {
 			case "DEFAULT":
 				theme = mapView.map().setTheme( VtmThemes.DEFAULT );
@@ -192,7 +192,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 							String style = renderStyle != null ? renderStyle : renderThemeStyleMenu.getDefaultValue();
 
 							WritableMap params = new WritableNativeMap();
-							params.putInt( "nativeTag", reactTag );
+							params.putInt( "nativeNodeHandle", nativeNodeHandle );
 							params.putString( "filePath", renderThemePath );
 							params.putMap( "collection", parseRenderThemeOptions( renderThemeStyleMenu ) );
 							Utils.sendEvent( reactContext, "RenderThemeParsed", params );
@@ -227,7 +227,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
     }
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
-	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
+	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
 	protected void addTileSourceToResponse( WritableMap responseParams, MapFileTileSource tileSource ) {
 		MapInfo mapInfo = tileSource.getMapInfo();
@@ -257,7 +257,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
     @ReactMethod
     public void createLayer(
-		int reactTag,
+		int nativeNodeHandle,
 		String mapFileName,
 		String renderThemePath,
 		String renderStyle,
@@ -266,8 +266,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		Promise promise
     ) {
         try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView or mapFragment" );
@@ -317,7 +317,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			);
 
 			// Render theme
-			IRenderTheme theme = loadTheme( reactTag, renderThemePath, renderStyle, renderOverlays, promise );
+			IRenderTheme theme = loadTheme( nativeNodeHandle, renderThemePath, renderStyle, renderOverlays, promise );
 			tileLayer.setTheme( theme );
 
 			// Building layer
@@ -357,7 +357,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
     }
 
 	@ReactMethod
-	public void removeLayer(int reactTag, String uuid, Promise promise) {
-		super.removeLayer( reactTag, uuid, promise );
+	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 }

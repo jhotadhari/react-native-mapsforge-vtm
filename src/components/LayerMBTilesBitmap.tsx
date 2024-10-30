@@ -27,7 +27,7 @@ export type LayerMBTilesBitmapResponse = {
 };
 
 export type LayerMBTilesBitmapProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	mapFile?: `/${string}`;
 	alpha?: number;
@@ -38,7 +38,7 @@ export type LayerMBTilesBitmapProps = {
 };
 
 const LayerMBTilesBitmap = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	reactTreeIndex,
     mapFile,
     alpha = 256,
@@ -58,7 +58,7 @@ const LayerMBTilesBitmap = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				mapFile,
 				alpha,
 				transparentColor,
@@ -75,14 +75,14 @@ const LayerMBTilesBitmap = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag && mapFile ) {
+		if ( uuid === null && nativeNodeHandle && mapFile ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -91,17 +91,17 @@ const LayerMBTilesBitmap = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
+		if ( nativeNodeHandle ) {
 			if ( uuid ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						setUuid( null );

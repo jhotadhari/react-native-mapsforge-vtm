@@ -161,7 +161,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
-	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
+	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
 	protected CoordPoint[] setupCoordinatesSimplified(
 		String uuid,
@@ -187,7 +187,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
     @ReactMethod
     public void createLayer(
-		int reactTag,
+		int nativeNodeHandle,
 		ReadableArray positions,
 		String filePath,
 		int strokeWidth,
@@ -199,8 +199,8 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		Promise promise
     ) {
         try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView or mapFragment" );
@@ -400,7 +400,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 
 	@ReactMethod
 	public void updateCoordinatesSimplified(
-		int reactTag,
+		int nativeNodeHandle,
 		String uuid,
 		int strokeWidth,
 		double slopeSimplificationTolerance,
@@ -411,12 +411,12 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		WritableMap responseParams = new WritableNativeMap();
 		try {
 
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
 
-			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error", "Layer not found" );
 			}
@@ -470,15 +470,15 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void updateStrokeWidth( int reactTag, String uuid, int strokeWidth, ReadableMap responseInclude, Promise promise ) {
+	public void updateStrokeWidth( int nativeNodeHandle, String uuid, int strokeWidth, ReadableMap responseInclude, Promise promise ) {
 		WritableMap responseParams = new WritableNativeMap();
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
 
-			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error", "Layer not found" );
 			}
@@ -518,15 +518,15 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void updateSlopeColors( int reactTag, String uuid, int strokeWidth, ReadableArray slopeColors, ReadableMap responseInclude, Promise promise ) {
+	public void updateSlopeColors( int nativeNodeHandle, String uuid, int strokeWidth, ReadableArray slopeColors, ReadableMap responseInclude, Promise promise ) {
 		WritableMap responseParams = new WritableNativeMap();
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
 
-			int layerIndex = getLayerIndexInMapLayers( reactTag, uuid );
+			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
 			if ( -1 == layerIndex ) {
 				promise.reject( "Error", "Layer not found" );
 			}
@@ -759,21 +759,21 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
     @ReactMethod
-    public void removeLayer( int reactTag, String uuid, Promise promise ) {
+    public void removeLayer( int nativeNodeHandle, String uuid, Promise promise ) {
 		originalJtsCoordinatesMap.remove( uuid );
 		coordinatesSimplifiedMap.remove( uuid );
 		gradients.remove( uuid );
-		super.removeLayer( reactTag, uuid, promise );
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
 	/**
 	 * Copy of parent, because layers is different
 	 */
 	protected int getLayerIndexInMapLayers(
-		int reactTag,
+		int nativeNodeHandle,
 		String uuid
 	) {
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 		if ( null == mapView ) {
 			return -1;
 		}

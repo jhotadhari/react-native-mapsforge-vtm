@@ -36,7 +36,7 @@ const ExampleLayerMBTilesBitmap = ( {
     appDirs,
 } ) => {
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -59,7 +59,7 @@ const ExampleLayerMBTilesBitmap = ( {
 
     const onChange = response => {
         if ( response.bounds ) {
-            MapContainerModule.setToBounds( mainMapViewId, response.bounds );
+            MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.minZoom ) {
             setMinZoom( response.minZoom );
@@ -120,8 +120,8 @@ const ExampleLayerMBTilesBitmap = ( {
             height={ mapHeight }
             minZoom={ minZoom }
             maxZoom={ maxZoom }
-            mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
-            setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
+            nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+            setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
         >
 
             <LayerMBTilesBitmap

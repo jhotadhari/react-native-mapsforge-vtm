@@ -24,7 +24,7 @@ export type LayerPathSlopeGradientResponse = {
 };
 
 export type LayerPathSlopeGradientProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
@@ -68,7 +68,7 @@ const sortSlopeColors = ( slopeColors : GradientColors ) : GradientColors => [..
 } );
 
 const LayerPathSlopeGradient = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	positions = [],
 	filePath,
 	strokeWidth = 4,
@@ -98,7 +98,7 @@ const LayerPathSlopeGradient = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				positions,
 				filePath,
 				strokeWidth,
@@ -119,14 +119,14 @@ const LayerPathSlopeGradient = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag && ( filePath || positions.length > 0 ) ) {
+		if ( uuid === null && nativeNodeHandle && ( filePath || positions.length > 0 ) ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -135,16 +135,16 @@ const LayerPathSlopeGradient = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && uuid ) {
+		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
                 return Module.updateStrokeWidth(
-                    mapViewNativeTag,
+                    nativeNodeHandle,
                     uuid,
 					strokeWidth,
 					responseInclude,
@@ -156,10 +156,10 @@ const LayerPathSlopeGradient = ( {
 	}, [strokeWidth] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && uuid ) {
+		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
                return Module.updateSlopeColors(
-					mapViewNativeTag,
+					nativeNodeHandle,
 					uuid,
 					strokeWidth,
 					slopeColors,
@@ -172,10 +172,10 @@ const LayerPathSlopeGradient = ( {
 	}, [[...slopeColors].map( entry => entry.join( '' ) ).join( '' )] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && uuid ) {
+		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
                 return Module.updateCoordinatesSimplified(
-					mapViewNativeTag,
+					nativeNodeHandle,
 					uuid,
 					strokeWidth,
 					slopeSimplificationTolerance,
@@ -192,11 +192,11 @@ const LayerPathSlopeGradient = ( {
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
+		if ( nativeNodeHandle ) {
 			if ( uuid ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						setUuid( null )

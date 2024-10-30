@@ -20,7 +20,7 @@ export type LayerPathResponse = {
 };
 
 export type LayerPathProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
@@ -42,7 +42,7 @@ const defaultStyle : GeometryStyle = {
 }
 
 const LayerPath = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	positions = [],
 	filePath,
 	responseInclude = responseIncludeDefaults,
@@ -67,7 +67,7 @@ const LayerPath = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				positions,
 				filePath,
 				style,
@@ -85,14 +85,14 @@ const LayerPath = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag && ( filePath || positions.length > 0 ) ) {
+		if ( uuid === null && nativeNodeHandle && ( filePath || positions.length > 0 ) ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -101,16 +101,16 @@ const LayerPath = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && uuid ) {
+		if ( nativeNodeHandle && uuid ) {
 				promiseQueue.enqueue( () => {
 					return Module.updateStyle(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid,
 						style,
 						responseInclude
@@ -122,11 +122,11 @@ const LayerPath = ( {
 	}, [Object.values( style ).join( '' )] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
+		if ( nativeNodeHandle ) {
 			if ( uuid ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid : string ) => {
 						setUuid( null );

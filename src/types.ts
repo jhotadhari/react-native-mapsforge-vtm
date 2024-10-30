@@ -76,7 +76,7 @@ export type GeometryStyle = {
 };
 
 export interface mapEvent {
-    nativeTag: number;
+    nativeNodeHandle: number;
     zoomLevel: number;
     zoom: number;
     scale: number;

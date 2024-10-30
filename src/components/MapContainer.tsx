@@ -30,14 +30,14 @@ import { MapContainerModule } from '../nativeMapModules';
 import { isValidPosition } from '../utils';
 import type { Location, mapEvent } from '../types';
 
-const createFragment = ( mapViewNativeTag: number ) : void => {
+const createFragment = ( nativeNodeHandle: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
 	if ( create ) {
 		try {
 			UIManager.dispatchViewManagerCommand(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				create.toString(),
-				[mapViewNativeTag],
+				[nativeNodeHandle],
 			);
 		} catch ( err ) {
 			console.log( 'Error', err );
@@ -56,8 +56,8 @@ export interface MapLifeCycleResponse extends mapEvent {
 
 export type MapContainerProps = {
 	children?: React.ReactNode;
-	mapViewNativeTag?: null | number;
-	setMapViewNativeTag?: null | Dispatch<SetStateAction<number | null>>;
+	nativeNodeHandle?: null | number;
+	setNativeNodeHandle?: null | Dispatch<SetStateAction<number | null>>;
 	onPause?: null | ( ( response: MapLifeCycleResponse ) => void );
 	onResume?: null | ( ( response: MapLifeCycleResponse ) => void );
 	width?: number;
@@ -93,8 +93,8 @@ const numOrBoolToNum = ( numOrBool: number | boolean | undefined, defaultVal: 1 
 
 const MapContainer = ( {
 	children,
-	mapViewNativeTag = null,	// It's not possible to control the nativeTag. It's a prop just to lift the state up.
-	setMapViewNativeTag = null,
+	nativeNodeHandle = null,	// It's not possible to control the nativeNodeHandle. It's a prop just to lift the state up.
+	setNativeNodeHandle = null,
 	onPause = null,
 	onResume = null,
 	width,
@@ -121,9 +121,9 @@ const MapContainer = ( {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
 
-	const [mapViewNativeTag_, setMapViewNativeTag_] = useState< number | null >( null );
-	mapViewNativeTag = mapViewNativeTag ? mapViewNativeTag : mapViewNativeTag_;
-	setMapViewNativeTag = setMapViewNativeTag ? setMapViewNativeTag : setMapViewNativeTag_;
+	const [nativeNodeHandle_, setNativeNodeHandle_] = useState< number | null >( null );
+	nativeNodeHandle = nativeNodeHandle ? nativeNodeHandle : nativeNodeHandle_;
+	setNativeNodeHandle = setNativeNodeHandle ? setNativeNodeHandle : setNativeNodeHandle_;
 
 	const mapLayersCreated = useMapLayersCreated( findNodeHandle( ref?.current ) );
 
@@ -143,133 +143,133 @@ const MapContainer = ( {
 	useEffect( () => {
 		const nodeHandle = findNodeHandle( ref?.current );
 		if ( nodeHandle ) {
-			setMapViewNativeTag( nodeHandle );
+			setNativeNodeHandle( nodeHandle );
 		}
 	}, [] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
-			createFragment( mapViewNativeTag );
+		if ( nativeNodeHandle ) {
+			createFragment( nativeNodeHandle );
 		}
-	}, [mapViewNativeTag] );
+	}, [nativeNodeHandle] );
 
 
 	// center changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setCenter( mapViewNativeTag, center );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setCenter( nativeNodeHandle, center );
 		}
 	}, [Object.values( center ).join( '' )] );
 	// moveEnabled changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'moveEnabled', moveEnabled );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'moveEnabled', moveEnabled );
 		}
 	}, [moveEnabled] );
 	// tiltEnabled changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'tiltEnabled', tiltEnabled );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'tiltEnabled', tiltEnabled );
 		}
 	}, [tiltEnabled] );
 	// rotationEnabled changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'rotationEnabled', rotationEnabled );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'rotationEnabled', rotationEnabled );
 		}
 	}, [rotationEnabled] );
 	// zoomEnabled changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setPropsInteractionsEnabled( mapViewNativeTag, 'zoomEnabled', zoomEnabled );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setPropsInteractionsEnabled( nativeNodeHandle, 'zoomEnabled', zoomEnabled );
 		}
 	}, [zoomEnabled] );
 	// zoomLevel changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setZoomLevel( mapViewNativeTag, zoomLevel );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setZoomLevel( nativeNodeHandle, zoomLevel );
 		}
 	}, [zoomLevel] );
 	// minZoom changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setMinZoom( mapViewNativeTag, minZoom );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setMinZoom( nativeNodeHandle, minZoom );
 		}
 	}, [minZoom] );
 	// maxZoom changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setMaxZoom( mapViewNativeTag, maxZoom );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setMaxZoom( nativeNodeHandle, maxZoom );
 		}
 	}, [maxZoom] );
 	// tilt changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'tilt', tilt );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'tilt', tilt );
 		}
 	}, [tilt] );
 	// minTilt changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'minTilt', minTilt );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'minTilt', minTilt );
 		}
 	}, [minTilt] );
 	// maxTilt changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'maxTilt', maxTilt );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxTilt', maxTilt );
 		}
 	}, [maxTilt] );
 
 	// bearing changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'bearing', bearing );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'bearing', bearing );
 		}
 	}, [bearing] );
 	// minBearing changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'minBearing', minBearing );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'minBearing', minBearing );
 		}
 	}, [minBearing] );
 	// maxBearing changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'maxBearing', maxBearing );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxBearing', maxBearing );
 		}
 	}, [maxBearing] );
 
 	// roll changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'roll', roll );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'roll', roll );
 		}
 	}, [roll] );
 	// minRoll changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'minRoll', minRoll );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'minRoll', minRoll );
 		}
 	}, [minRoll] );
 	// maxRoll changed.
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setViewport( mapViewNativeTag, 'maxRoll', maxRoll );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setViewport( nativeNodeHandle, 'maxRoll', maxRoll );
 		}
 	}, [maxRoll] );
 
 	// hgtDirPath
 	useEffect( () => {
-		if ( mapLayersCreated && mapViewNativeTag ) {
-			MapContainerModule.setHgtDirPath( mapViewNativeTag, hgtDirPath );
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setHgtDirPath( nativeNodeHandle, hgtDirPath );
 		}
 	}, [hgtDirPath] );
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
-			if ( response.nativeTag === mapViewNativeTag ) {
+			if ( response.nativeNodeHandle === nativeNodeHandle ) {
 				switch( response.type ) {
 					case 'onPause':
 						if ( onPause ) {
@@ -287,7 +287,7 @@ const MapContainer = ( {
 		return () => {
 			eventListener.remove();
 		};
-	}, [mapViewNativeTag] );
+	}, [nativeNodeHandle] );
 
 	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
 	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : React.Children.map( children, child => {
@@ -307,7 +307,7 @@ const MapContainer = ( {
 		newChild = child && type ? cloneElement(
 			child,
 			{
-				...( { mapViewNativeTag } ),
+				...( { nativeNodeHandle } ),
 				...( isMapLayer ? { reactTreeIndex: lastIndex } : {} ),
 				...( child?.props?.children && { children: wrapChildren( child.props.children ) } ),
 			},

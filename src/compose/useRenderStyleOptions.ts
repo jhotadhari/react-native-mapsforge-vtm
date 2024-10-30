@@ -29,10 +29,10 @@ export type RenderStyleOptionsCollection = {
 
 const useRenderStyleOptions = ( {
 	renderTheme,
-	nativeTag,
+	nativeNodeHandle,
 } : {
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
-	nativeTag?: number | null,
+	nativeNodeHandle?: number | null,
 } ) : {
 	renderStyleDefaultId: string | null,
 	renderStyleOptions: XmlRenderTheme[],
@@ -45,7 +45,7 @@ const useRenderStyleOptions = ( {
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'RenderThemeParsed', ( result : {
-			nativeTag: number,
+			nativeNodeHandle: number,
 			filePath: string,
 			collection: RenderStyleOptionsCollection,
 		} ) => {
@@ -63,7 +63,7 @@ const useRenderStyleOptions = ( {
 		return () => {
 			eventListener.remove();
 		};
-	}, [nativeTag] );
+	}, [nativeNodeHandle] );
 
 
 	// ??? should reset on prop change !!!
@@ -78,7 +78,7 @@ const useRenderStyleOptions = ( {
 				}
 			} ).catch( ( err: any ) => console.log( 'ERROR', err ) );
 		}
-	}, [nativeTag, renderTheme] );
+	}, [nativeNodeHandle, renderTheme] );
 
 	return {
 		renderStyleDefaultId,

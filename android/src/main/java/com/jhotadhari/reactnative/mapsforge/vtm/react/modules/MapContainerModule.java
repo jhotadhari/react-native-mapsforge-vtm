@@ -26,9 +26,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void getLayersCreated(int reactTag, Promise promise ) {
+    public void getLayersCreated(int nativeNodeHandle, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.resolve( false );
             }
@@ -39,9 +39,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         }
     }
     @ReactMethod
-    public void setZoomLevel(int reactTag, int zoom, Promise promise ) {
+    public void setZoomLevel(int nativeNodeHandle, int zoom, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -56,9 +56,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setCenter(int reactTag, ReadableMap center, Promise promise ) {
+    public void setCenter(int nativeNodeHandle, ReadableMap center, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -75,9 +75,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
 	@ReactMethod
-	public void setToBounds(int reactTag, ReadableMap bounds, Promise promise ) {
+	public void setToBounds(int nativeNodeHandle, ReadableMap bounds, Promise promise ) {
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
@@ -98,9 +98,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
     @ReactMethod
-    public void setMinZoom(int reactTag, int minZoom, Promise promise ) {
+    public void setMinZoom(int nativeNodeHandle, int minZoom, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -113,9 +113,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setMaxZoom(int reactTag, int maxZoom, Promise promise ) {
+    public void setMaxZoom(int nativeNodeHandle, int maxZoom, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -127,9 +127,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         }
     }
     @ReactMethod
-    public void zoomIn(int reactTag, Promise promise ) {
+    public void zoomIn(int nativeNodeHandle, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -143,9 +143,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
         }
     }
     @ReactMethod
-    public void zoomOut(int reactTag, Promise promise ) {
+    public void zoomOut(int nativeNodeHandle, Promise promise ) {
         try {
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
             }
@@ -160,9 +160,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
 	@ReactMethod
-	public void setPropsInteractionsEnabled( int reactTag, String propKey, int value, Promise promise ) {
+	public void setPropsInteractionsEnabled( int nativeNodeHandle, String propKey, int value, Promise promise ) {
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
@@ -189,9 +189,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
 	@ReactMethod
-	public void setViewport( int reactTag, String propKey, float value, Promise promise ) {
+	public void setViewport( int nativeNodeHandle, String propKey, float value, Promise promise ) {
 		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" );
 			}
@@ -239,9 +239,9 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
 	@ReactMethod
-	public void setHgtDirPath(int reactTag, String hgtDirPath, Promise promise ) {
+	public void setHgtDirPath(int nativeNodeHandle, String hgtDirPath, Promise promise ) {
 		try {
-			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 
 			if ( null == mapFragment ) {
                 promise.reject( "Error", "Unable to find mapView" );

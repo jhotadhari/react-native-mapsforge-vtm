@@ -37,7 +37,7 @@ const ExampleDem = ( {
     appDirs,
 } ) => {
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -52,7 +52,7 @@ const ExampleDem = ( {
     const AttributionComponent = tileOptions[0].attribution;
 
 	useMapEvents( {
-		nativeTag: mainMapViewId,
+		nativeNodeHandle: mapViewNativeNodeHandle,
 		onMapEvent: event => {
             if ( event.center ) {
                 setCurrentCenter( event.center );
@@ -96,8 +96,8 @@ const ExampleDem = ( {
                 height={ mapHeight }
                 zoomLevel={ 10 }
                 hgtDirPath={ appDirs.dem }
-                mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
-                setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
+                nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+                setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
             >
 
                 <LayerBitmapTile

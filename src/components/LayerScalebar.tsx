@@ -17,14 +17,14 @@ export type LayerScalebarResponse = {
 };
 
 export type LayerScalebarProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	onCreate?: null | ( ( response: LayerScalebarResponse ) => void );
 	onRemove?: null | ( ( response: LayerScalebarResponse ) => void );
 };
 
 const LayerScalebar = ( {
-	mapViewNativeTag = null,
+	nativeNodeHandle = null,
 	reactTreeIndex,
 	onCreate,
 	onRemove,
@@ -37,7 +37,7 @@ const LayerScalebar = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				reactTreeIndex
 			).then( ( response: LayerScalebarResponse ) => {
 				setUuid( response.uuid );
@@ -48,14 +48,14 @@ const LayerScalebar = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag ) {
+		if ( uuid === null && nativeNodeHandle ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -64,7 +64,7 @@ const LayerScalebar = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 	] );
 

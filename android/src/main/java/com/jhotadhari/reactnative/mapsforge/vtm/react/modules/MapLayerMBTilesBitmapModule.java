@@ -38,7 +38,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     }
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
-	public void createLayer( int reactTag, int reactTreeIndex, Promise promise ) {}
+	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
 	protected void addTileSourceToResponse( WritableMap responseParams, MBTilesTileSource tileSource ) {
 		WritableMap boundsParams = new WritableNativeMap();
@@ -78,7 +78,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 
     @ReactMethod
     public void createLayer(
-		int reactTag,
+		int nativeNodeHandle,
 		@Nullable String mapFile,
 		int alpha,
 		@Nullable String transparentColor,
@@ -90,8 +90,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
                 promise.reject( "WARNING", "mapFile is null" );
 			}
 
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView or mapFragment" );
@@ -141,8 +141,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     }
 
 	@ReactMethod
-	public void removeLayer(int reactTag, String uuid, Promise promise) {
-		super.removeLayer( reactTag, uuid, promise );
+	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
 }

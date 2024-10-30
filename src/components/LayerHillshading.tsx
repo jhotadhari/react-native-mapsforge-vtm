@@ -26,7 +26,7 @@ export type LayerHillshadingResponse = {
 };
 
 export type LayerHillshadingProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	zoomMin?: number;
@@ -52,7 +52,7 @@ const shadingAlgorithmOptionsDefaults : ShadingAlgorithmOptions = {
 };
 
 const LayerHillshading = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	hgtDirPath,
 	zoomMin = 6,
 	zoomMax = 20,
@@ -78,7 +78,7 @@ const LayerHillshading = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				hgtDirPath,
 				zoomMin,
 				zoomMax,
@@ -99,14 +99,14 @@ const LayerHillshading = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag ) {
+		if ( uuid === null && nativeNodeHandle ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -115,17 +115,17 @@ const LayerHillshading = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
+		if ( nativeNodeHandle ) {
 			if ( uuid ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid: string ) => {
 						setUuid( null );

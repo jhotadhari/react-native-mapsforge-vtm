@@ -45,7 +45,7 @@ const ExampleLayerPath = ( {
     appDirs,
 } ) => {
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -68,7 +68,7 @@ const ExampleLayerPath = ( {
 	const [stipple,setStipple] = useState( 50 );
 
 	useMapEvents( {
-		nativeTag: mainMapViewId,
+		nativeNodeHandle: mapViewNativeNodeHandle,
 		onMapEvent: event => {
             if ( event.center ) {
                 setCurrentCenter( event.center );
@@ -82,7 +82,7 @@ const ExampleLayerPath = ( {
 
     const onChange = response => {
         if ( useGpx && response.bounds ) {
-            MapContainerModule.setToBounds( mainMapViewId, response.bounds );
+            MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
             setCoordinates( response.coordinates );
@@ -213,8 +213,8 @@ const ExampleLayerPath = ( {
         } } >
             <MapContainer
                 height={ mapHeight }
-                mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
-                setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
+                nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+                setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
             >
 
                 <LayerBitmapTile

@@ -30,13 +30,13 @@ public class MapLayerScalebarModule extends MapLayerBase {
 
     @ReactMethod
     public void createLayer(
-            int reactTag,
+            int nativeNodeHandle,
             int reactTreeIndex,
             Promise promise
     ) {
         try {
-            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), reactTag );
-            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), reactTag );
+            MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+            MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 
             if ( mapFragment == null || null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView or mapFragment" );
@@ -74,8 +74,8 @@ public class MapLayerScalebarModule extends MapLayerBase {
     }
 
     @ReactMethod
-    public void removeLayer(int reactTag, String uuid, Promise promise) {
-		super.removeLayer( reactTag, uuid, promise );
+    public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
 }

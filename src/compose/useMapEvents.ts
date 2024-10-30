@@ -11,17 +11,17 @@ import { NativeEventEmitter } from 'react-native';
 import type { mapEvent  } from '../types';
 
 const useMapEvents = ( {
-	nativeTag,
+	nativeNodeHandle,
 	onMapEvent,
 } : {
-	nativeTag: null | number,
+	nativeNodeHandle: null | number,
 	onMapEvent?: null | ( ( response: mapEvent ) => void ),
 } ) : void => {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'onMapEvent', response => {
-			if ( response.nativeTag === nativeTag && isFunction( onMapEvent ) ) {
+			if ( response.nativeNodeHandle === nativeNodeHandle && isFunction( onMapEvent ) ) {
                 onMapEvent( response );
 			}
 		} );
@@ -29,7 +29,7 @@ const useMapEvents = ( {
 			eventListener.remove();
 		};
 	}, [
-		nativeTag,
+		nativeNodeHandle,
 		onMapEvent,
 	] );
 

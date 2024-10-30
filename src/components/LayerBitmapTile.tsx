@@ -17,7 +17,7 @@ export type LayerBitmapTileResponse = {
 };
 
 export type LayerBitmapTileProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	url?: string;
 	zoomMin?: number;
@@ -29,7 +29,7 @@ export type LayerBitmapTileProps = {
 };
 
 const LayerBitmapTile = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	reactTreeIndex,
     url = 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png',
     zoomMin = 1,
@@ -48,7 +48,7 @@ const LayerBitmapTile = ( {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				url,
 				Math.round( zoomMin ),
 				Math.round( zoomMax ),
@@ -66,14 +66,14 @@ const LayerBitmapTile = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag ) {
+		if ( uuid === null && nativeNodeHandle ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -82,15 +82,15 @@ const LayerBitmapTile = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag && uuid ) {
+		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
                 return Module.removeLayer(
-					mapViewNativeTag,
+					nativeNodeHandle,
 					uuid
 				).then( ( removedUuid: string ) => {
 					setUuid( null );

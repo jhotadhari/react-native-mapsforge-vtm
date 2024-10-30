@@ -22,22 +22,22 @@ import java.util.List;
 
 public class Utils {
 
-    public static MapFragment getMapFragment(ReactContext reactContext, int reactTag ) {
+    public static MapFragment getMapFragment(ReactContext reactContext, int nativeNodeHandle ) {
         try {
             FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
             if ( null == activity ) {
                 return null;
             }
-            MapFragment mapFragment = (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) reactTag );
+            MapFragment mapFragment = (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) nativeNodeHandle );
             return mapFragment;
         } catch(Exception e) {
             return null;
         }
     }
 
-    public static MapView getMapView(ReactContext reactContext, int reactTag ) {
+    public static MapView getMapView(ReactContext reactContext, int nativeNodeHandle ) {
         try {
-            MapFragment mapFragment = getMapFragment( reactContext, reactTag );
+            MapFragment mapFragment = getMapFragment( reactContext, nativeNodeHandle );
             if ( null == mapFragment ) {
                 return null;
             }

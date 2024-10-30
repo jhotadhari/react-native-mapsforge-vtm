@@ -32,7 +32,7 @@ export type LayerMapsforgeResponse = {
 };
 
 export type LayerMapsforgeProps = {
-	mapViewNativeTag?: null | number;
+	nativeNodeHandle?: null | number;
 	reactTreeIndex: number;
 	mapFile?: `/${string}` | `content://${string}`;
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
@@ -44,7 +44,7 @@ export type LayerMapsforgeProps = {
 };
 
 const LayerMapsforge = ( {
-	mapViewNativeTag,
+	nativeNodeHandle,
 	reactTreeIndex,
 	mapFile,
 	renderTheme = 'DEFAULT',
@@ -63,14 +63,14 @@ const LayerMapsforge = ( {
 
 	const { renderStyleDefaultId } = useRenderStyleOptions( ( {
 		renderTheme,
-		nativeTag: mapViewNativeTag,
+		nativeNodeHandle: nativeNodeHandle,
 	} ) );
 
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
-				mapViewNativeTag,
+				nativeNodeHandle,
 				mapFile,
 				renderTheme,
 				renderStyle,
@@ -88,14 +88,14 @@ const LayerMapsforge = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && mapViewNativeTag && mapFile ) {
+		if ( uuid === null && nativeNodeHandle && mapFile ) {
 			createLayer();
 		}
 		return () => {
-			if ( uuid && mapViewNativeTag ) {
+			if ( uuid && nativeNodeHandle ) {
 				promiseQueue.enqueue( () => {
 					return Module.removeLayer(
-						mapViewNativeTag,
+						nativeNodeHandle,
 						uuid
 					).then( ( removedUuid: string ) => {
 						onRemove ? onRemove( { uuid: removedUuid } ) : null;
@@ -104,13 +104,13 @@ const LayerMapsforge = ( {
 			}
 		};
 	}, [
-		mapViewNativeTag,
+		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
 	] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
+		if ( nativeNodeHandle ) {
 			if ( uuid ) {
 				let shouldRecreate = true;
 				if (
@@ -123,7 +123,7 @@ const LayerMapsforge = ( {
 				if ( shouldRecreate ) {
 					promiseQueue.enqueue( () => {
 						return Module.removeLayer(
-							mapViewNativeTag,
+							nativeNodeHandle,
 							uuid
 						).then( ( removedUuid: string ) => {
 							setUuid( null );

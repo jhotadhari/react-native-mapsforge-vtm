@@ -39,7 +39,7 @@ const ExampleLayerPathSlopeGradient = ( {
     appDirs,
 } ) => {
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -78,7 +78,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
     const onChange = response => {
         if ( response.bounds ) {
-            MapContainerModule.setToBounds( mainMapViewId, response.bounds );
+            MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
             setCoordinates( response.coordinates );
@@ -187,8 +187,8 @@ const ExampleLayerPathSlopeGradient = ( {
 
         <MapContainer
             height={ mapHeight }
-            mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
-            setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
+            nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+            setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
         >
 
             <LayerBitmapTile

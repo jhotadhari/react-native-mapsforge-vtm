@@ -15,29 +15,29 @@ import {
  */
 const { MapContainerModule } = NativeModules;
 
-const useMapLayersCreated = ( mapViewNativeTag: null | number | undefined ): boolean =>  {
+const useMapLayersCreated = ( nativeNodeHandle: null | number | undefined ): boolean =>  {
 
 	const [mapLayersCreated, setMapLayersCreated] = useState( false );
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLayersCreated', result => {
-			if ( result.nativeTag === mapViewNativeTag ) {
+			if ( result.nativeNodeHandle === nativeNodeHandle ) {
 				setMapLayersCreated( true );
 			}
 		} );
 		return () => {
 			eventListener.remove();
 		};
-	}, [mapViewNativeTag] );
+	}, [nativeNodeHandle] );
 
 	useEffect( () => {
-		if ( mapViewNativeTag ) {
-			MapContainerModule.getLayersCreated( mapViewNativeTag ).then( ( created: boolean ) => {
+		if ( nativeNodeHandle ) {
+			MapContainerModule.getLayersCreated( nativeNodeHandle ).then( ( created: boolean ) => {
 				setMapLayersCreated( created );
 			} ).catch( ( err: any ) => console.log( 'Error', err ) );
 		}
-	}, [mapViewNativeTag] );
+	}, [nativeNodeHandle] );
 
 	return mapLayersCreated;
 };

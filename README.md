@@ -38,10 +38,10 @@ import {
 } from 'react-native-mapsforge-vtm';
 
 const MapEvents = ( {
-	nativeTag,
+	nativeNodeHandle,
 } ) => {
 	useMapEvents( {
-		nativeTag,
+		nativeNodeHandle,
 		onMapEvent: event => {
 			console.log( 'onMapEvent event', event ); // debug
 		},
@@ -53,7 +53,7 @@ const App = () => {
 
 	const { width, height } = useWindowDimensions();
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );     // To lift the mainMapViewId state into the app
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );     // To lift the mapViewNativeNodeHandle state into the app
 
 	const [renderOverlayOptions, setRenderOverlayOptions] = useState( [] );
 
@@ -79,7 +79,7 @@ const App = () => {
 		renderStyleOptions,
 	} = useRenderStyleOptions( ( {
 		renderTheme,
-		nativeTag: mainMapViewId,
+		nativeNodeHandle: mapViewNativeNodeHandle,
 	} ) );
 
 	const [renderStyle, setRenderStyle] = useState( renderStyleDefaultId );
@@ -107,8 +107,8 @@ const App = () => {
     return <SafeAreaView>
 
         <MapContainer
-            mapViewNativeTag={ mainMapViewId /* Not possible to control this prop, it's just to lift the state up */ }
-            setMapViewNativeTag={ setMainMapViewId }
+            nativeNodeHandle={ mapViewNativeNodeHandle /* Not possible to control this prop, it's just to lift the state up */ }
+            setNativeNodeHandle={ setMapViewNativeNodeHandle }
             height={ height }
             width={ width /* defaults to full width */ }
             center={ {
@@ -128,7 +128,7 @@ const App = () => {
          >
 
             <MapEvents
-                nativeTag={ mainMapViewId }
+                nativeNodeHandle={ mapViewNativeNodeHandle }
             />
 
             <LayerBitmapTile

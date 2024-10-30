@@ -44,7 +44,7 @@ const ExampleLayerMapsforge = ( {
     appDirs,
 } ) => {
 
-	const [mainMapViewId, setMainMapViewId] = useState( null );
+	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -65,7 +65,7 @@ const ExampleLayerMapsforge = ( {
 		renderStyleOptions,
 	} = useRenderStyleOptions( ( {
 		renderTheme,
-		nativeTag: mainMapViewId,
+		nativeNodeHandle: mapViewNativeNodeHandle,
 	} ) );
 
 	const [renderStyle, setRenderStyle] = useState( renderStyleDefaultId );
@@ -96,7 +96,7 @@ const ExampleLayerMapsforge = ( {
 
     const onChange = response => {
         if ( response.bounds ) {
-            MapContainerModule.setToBounds( mainMapViewId, response.bounds )
+            MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds )
         }
         if ( response.comment ) {
             setMapFileComment( response.comment )
@@ -205,8 +205,8 @@ const ExampleLayerMapsforge = ( {
 
         <MapContainer
             height={ mapHeight }
-            mapViewNativeTag={ mainMapViewId }          // Moves the state up into this example component.
-            setMapViewNativeTag={ setMainMapViewId }    // Moves the state up into this example component.
+            nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+            setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
         >
 
             <LayerMapsforge
