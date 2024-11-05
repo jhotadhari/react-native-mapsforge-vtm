@@ -14,3 +14,16 @@ export const BUILT_IN_THEMES = [
 	'OSMARENDER',
 	'TRONRENDER',
 ] as const;
+
+export const MarkerHotspotPlaces = [
+    'NONE',
+    'CENTER',
+    'BOTTOM_CENTER',
+    'TOP_CENTER',
+    'RIGHT_CENTER',
+    'LEFT_CENTER',
+    'UPPER_RIGHT_CORNER',
+    'LOWER_RIGHT_CORNER',
+    'UPPER_LEFT_CORNER',
+    'LOWER_LEFT_CORNER',
+] as const;

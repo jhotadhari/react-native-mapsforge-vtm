@@ -1,3 +1,4 @@
+import { MarkerHotspotPlaces } from './constants';
 
 import type { LayerBitmapTileResponse,LayerBitmapTileProps  } from './components/LayerBitmapTile';
 import type { ShadingAlgorithm, ShadingAlgorithmOptions, LayerHillshadingResponse, LayerHillshadingProps  } from './components/LayerHillshading';
@@ -85,4 +86,14 @@ export interface mapEvent {
     roll: number;
     tilt: number;
     center: Location;
+};
+
+export type MarkerSymbol = {
+	width?: number;
+	height?: number;
+	filePath?: `/${string}` | `content://${string}`;
+	fillColor?: `#${string}`;
+	strokeColor?: `#${string}`;
+	strokeWidth?: number;
+	hotspotPlace?: typeof MarkerHotspotPlaces[number];
 };

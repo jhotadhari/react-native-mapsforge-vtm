@@ -24,6 +24,7 @@ import ExampleLayerMBTilesBitmap from './examples/ExampleLayerMBTilesBitmap.jsx'
 import ExampleLayerPath from './examples/ExampleLayerPath.jsx';
 import ExampleLayerPathSlopeGradient from './examples/ExampleLayerPathSlopeGradient.jsx';
 import ExampleDem from './examples/ExampleDem.jsx';
+import ExampleMarker from './examples/ExampleMarker.jsx';
 import { LINKING_ERROR } from './constants.js';
 
 const HelperModule = NativeModules.HelperModule
@@ -67,6 +68,11 @@ const exampleOptions = [
 		label: 'Example DEM',
 		value: 'ExampleDem',
 		component: ExampleDem,
+	},
+	{
+		label: 'Example Marker',
+		value: 'ExampleMarker',
+		component: ExampleMarker,
 	},
 ];
 

@@ -69,6 +69,7 @@ public class HelperModule extends ReactContextBaseJavaModule {
 				"mapfiles",
 				"mapstyles",
 				"tracks",
+				"marker",
 			};
 			for ( int i = 0; i < subdirs.length; i++ ) {
 				String pathName = externalMediaDirs[0].toString() + "/" + subdirs[i];

@@ -9,6 +9,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerBitmapTile
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerHillshadingModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMBTilesBitmapModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMapsforgeModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerMarkerModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerPathSlopeGradientModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerScalebarModule;
@@ -39,6 +40,7 @@ public class MapsforgeVtmPackage implements ReactPackage {
         modules.add(new MapLayerScalebarModule(reactContext));
         modules.add(new MapLayerPathModule(reactContext));
         modules.add(new MapLayerPathSlopeGradientModule(reactContext));
+        modules.add(new MapLayerMarkerModule(reactContext));
 //        modules.add(new MapMarkerModule(reactContext));
 //        modules.add(new MapPolylineModule(reactContext));
         return modules;
