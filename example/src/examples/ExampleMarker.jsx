@@ -15,40 +15,26 @@ import {
  */
 import {
 	MapContainer,
-	LayerPath,
 	LayerBitmapTile,
 	LayerScalebar,
 	LayerMarker,
 	Marker,
-	nativeMapModules,
-	useMapEvents,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
 
 /**
  * Internal dependencies
  */
 import { barTopPadding } from '../constants.js';
-import { formatSeconds, randomNumber } from '../utils.js';
-import Center from '../components/Center.jsx';
+import { randomNumber } from '../utils.js';
 import TopBar from '../components/TopBar.jsx';
-import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
-import { PlusMinusControl, rowBtnStyle } from '../components/RowControls.jsx';
-
-// const strokeColor = '#00ff00';
-// const stippleColor = '#ff0000';
-
 
 const getRandomPositions = length => Array.apply( null, Array( length ) ).map( () => ( {
     lng: randomNumber( -77, -76 ),
     lat: randomNumber( -10, -9 ),
 } ) );
-
-
-
 
 const ExampleMarker = ( {
     setSelectedExample,
@@ -71,81 +57,42 @@ const ExampleMarker = ( {
         setPositions( getRandomPositions( positions.length ) );
     };
 
-	// const [useGpx, setUseGpx] = useState( true );
-
-	// const [filePath, setFilePath] = useState( '' );
-	// const [positions, setPositions] = useState( [] );
-
-	// const [coordinates,setCoordinates] = useState( [] );
-
-	// const [strokeWidth,setStrokeWidth] = useState( 10 );
-	// const [stipple,setStipple] = useState( 50 );
-
-    // const onMapEvent = event => event.center
-    //     ? setCurrentCenter( event.center )
-    //     : null
-
-	// useMapEvents( {
-	// 	nativeNodeHandle: mapViewNativeNodeHandle,
-	// 	onMapEvent,
-	// } );
-
     if ( null === appDirs ) {
         return null;
     }
 
     const symbols = [
-        // {},
+        {},
         {
             height: 100,
-            text: 'text',
             textMargin: 20,
             textPositionY: 0,
             textStrokeWidth: 3,
             filePath: appDirs.marker + '/marker_red.png',
             hotspotPlace: 'BOTTOM_CENTER',
         },
-        // {
-        //     width: 30,
-        //     height: 30,
-        //     strokeColor: '#ff0000',
-        //     strokeWidth: 10,
-        // },
-        // {
-        //     width: 37,
-        //     height: 64,
-        //     filePath: appDirs.marker + '/marker.svg',
-        //     hotspotPlace: 'BOTTOM_CENTER',
-        // },
-        // {
-        //     width: 37,
-        //     height: 64,
-        //     filePath: appDirs.marker + '/marker_red.png',
-        //     hotspotPlace: 'BOTTOM_CENTER',
-        // },
+        {
+            width: 80,
+            height: 80,
+            textMargin: 20,
+            textStrokeWidth: 3,
+            textPositionY: 7,
+            strokeColor: '#ff0000',
+            fillColor: '#eeeeee',
+            strokeWidth: 5,
+            hotspotPlace: 'CENTER',
+        },
+        {
+            height: 100,
+            textMargin: 20,
+            textPositionY: 0,
+            textStrokeWidth: 3,
+            filePath: appDirs.marker + '/marker.svg',
+            hotspotPlace: 'BOTTOM_CENTER',
+        },
     ];
 
-    // const onChange = response => {
-    //     if ( useGpx && response.bounds ) {
-    //         MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
-    //     }
-    //     if ( response.coordinates ) {
-    //         setCoordinates( response.coordinates );
-    //     }
-    // };
-
-    // let fileLabel = filePath.split( '/' );
-    // fileLabel = fileLabel[fileLabel.length-1];
-
     const AttributionComponent = tileOptions[0].attribution;
-
-    // const lineStyle = {
-    //     strokeWidth,
-    //     stipple,
-    //     stippleColor,
-    //     strokeColor,
-    // };
-
 
 	return <View style={ {
         height,
@@ -182,73 +129,7 @@ const ExampleMarker = ( {
                     title={ 'Randomize positions' }
                 />
 
-                {/* { ! useGpx && <View style={ { width: '80%', flexDirection: 'row', marginLeft: 40 } } >
-
-                <Button
-                    style={ rowBtnStyle }
-                    disabled={ promiseQueueState > 0 }
-                    onPress={ () => {
-                        if ( currentCenter ) {
-                            setPositions( [...positions, currentCenter ] );
-                        }
-                    } }
-                    title=' + '
-                />
-                <Button
-                    style={ rowBtnStyle }
-                    disabled={ promiseQueueState > 0 || positions.length === 0 }
-                    onPress={ () => {
-                        if ( currentCenter && positions.length > 0 ) {
-                            const newPositions = [...positions];
-                            newPositions.pop()
-                            setPositions( newPositions );
-                        }
-                    } }
-                    title=' - '
-                />
-                </View> } */}
-
-                {/* { useGpx && <View style={ { width: '80%' } } ><FilesFromDirPickerModalControl
-                    headerLabel={ 'gpx File' }
-                    buttonLabel={ 'gpx File ' + fileLabel }
-                    NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no gpx files in this Directory!</Text><Text style={ style }>{ appDirs.tracks }</Text></View> }
-                    dir={ appDirs.tracks }
-                    filePattern={ /.*\.gpx$/ }
-                    values={ [filePath] }
-                    onChange={ value => setFilePath( value ) }
-                    closeOnChange={ true }
-                    disabled={ promiseQueueState > 0 }
-                /></View> } */}
-
             </View>
-
-            {/* <PlusMinusControl
-                style={ style }
-                containerStyle={ { marginBottom: 10 } }
-                promiseQueueState={ promiseQueueState }
-                label={ 'Stroke width' }
-                value={ strokeWidth }
-                setValue={ setStrokeWidth }
-                minValue={ 1 }
-                textAppend={ strokeColor }
-            />
-
-            <PlusMinusControl
-                style={ style }
-                promiseQueueState={ promiseQueueState }
-                label={ 'Stripple width' }
-                value={ stipple }
-                setValue={ setStipple }
-                step={ 10 }
-                minValue={ 0 }
-                textAppend={ stippleColor }
-            />
-
-            { coordinates && coordinates.length > 0 && <View style={ { marginTop: 10 } }>
-                <Text style={ style }>Number of points: { coordinates.length }</Text>
-                <Text style={ style }>Total distance: { Math.round( coordinates[coordinates.length-1].distance ) / 1000 } km</Text>
-                { coordinates[0].hasOwnProperty( 'time' ) && <Text style={ style }>Total time: { formatSeconds( coordinates[coordinates.length-1].time - coordinates[0].time ) }</Text> }
-            </View> } */}
 
         </TopBar>
 
@@ -266,8 +147,6 @@ const ExampleMarker = ( {
                 responseInclude={ { center: 2 } }
                 nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
-                // onPause={ onMapEvent }
-                // onResume={ onMapEvent }
             >
 
                 <LayerBitmapTile
@@ -277,43 +156,28 @@ const ExampleMarker = ( {
 
                 <LayerMarker>
                     { [...positions].map( ( pos, index ) => {
-
                         return <Marker
                             key={ index }
                             position={ pos }
-                            // symbol={ symbols[index % symbols.length] }
                             symbol={ {
-                                height: 100,
-                                text: index + 1 + '',
-                                textMargin: 20,
-                                textPositionY: 0,
-                                filePath: appDirs.marker + '/marker_red.png',
-                                hotspotPlace: 'BOTTOM_CENTER',
+                                ...symbols[index % symbols.length],
+                                text: index + '',
+                            } }
+                            onPress={ response => {
+                                console.log( 'debug onPress response, index', response, index ); // debug
+                            } }
+                            onLongPress={ response => {
+                                console.log( 'debug onLongPress response, index', response, index ); // debug
                             } }
                         />;
                     } ) }
                 </LayerMarker>
 
-                {/* <LayerPath
-                    positions={ ! useGpx && positions.length > 1 ? positions : null }
-                    filePath={ useGpx ? filePath : null }
-                    style={ lineStyle }
-                    responseInclude={ {
-                        bounds: 1,
-                        coordinates: 1,
-                    } }
-                    onCreate={ onChange }
-                    onChange={ onChange }
-                /> */}
 
                 <LayerScalebar/>
 
             </MapContainer>
 
-            {/* <Center
-                height={ mapHeight }
-                width={ width }
-            /> */}
         </View>
 
         <AttributionComponent style={ {

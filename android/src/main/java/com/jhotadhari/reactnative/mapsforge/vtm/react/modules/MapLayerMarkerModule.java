@@ -77,12 +77,19 @@ public class MapLayerMarkerModule extends MapLayerBase {
 
 			ItemizedLayer.OnItemGestureListener<MarkerInterface> listener = new ItemizedLayer.OnItemGestureListener() {
 				@Override
-				public boolean onItemSingleTapUp(int i, Object o) {
+				public boolean onItemSingleTapUp( int i, Object o ) {
+					MarkerItem markerItem = (MarkerItem) o;
+					WritableMap params = new WritableNativeMap();
+					params.putString( "uuid", markerItem.getUid().toString() );
+					Utils.sendEvent(  mapFragment.getReactContext(), "MarkerItemSingleTapUp", params );
 					return false;
 				}
-
 				@Override
-				public boolean onItemLongPress(int i, Object o) {
+				public boolean onItemLongPress( int i, Object o ) {
+					MarkerItem markerItem = (MarkerItem) o;
+					WritableMap params = new WritableNativeMap();
+					params.putString( "uuid", markerItem.getUid().toString() );
+					Utils.sendEvent(  mapFragment.getReactContext(), "MarkerItemLongPress", params );
 					return false;
 				}
 			};

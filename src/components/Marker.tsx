@@ -11,6 +11,7 @@ import promiseQueue from '../promiseQueue';
 import { MarkerHotspotPlaces } from '../constants';
 import { MapLayerMarkerModule } from '../nativeMapModules';
 import type { Location, MarkerSymbol } from '../types';
+import { NativeEventEmitter } from 'react-native';
 
 const Module = MapLayerMarkerModule;
 
@@ -29,6 +30,8 @@ export type MarkerProps = {
 	onCreate?: null | ( ( response: MarkerResponse ) => void );
 	onChange?: null | ( ( response: MarkerResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
+	onPress?: null | ( ( response: MarkerResponse ) => void );
+	onLongPress?: null | ( ( response: MarkerResponse ) => void );
 };
 
 const Marker = ( {
@@ -42,6 +45,8 @@ const Marker = ( {
 	onRemove,
 	onChange,
 	onError,
+	onPress,
+	onLongPress,
 } : MarkerProps ) => {
 
 	// @ts-ignore
@@ -110,6 +115,36 @@ const Marker = ( {
 	}, [
 		position ? ( position.lng + position.lat ) : null,
 		symbol ? Object.values( symbol ).join( '' ) : null,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'MarkerItemSingleTapUp', response => {
+			if ( response.uuid === uuid && onPress ) {
+                onPress( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		uuid,
+		onPress,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'MarkerItemLongPress', response => {
+			if ( response.uuid === uuid && onLongPress ) {
+                onLongPress( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		uuid,
+		onLongPress,
 	] );
 
 	return null;

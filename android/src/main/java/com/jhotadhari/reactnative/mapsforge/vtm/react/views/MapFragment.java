@@ -27,6 +27,7 @@ import android.widget.RelativeLayout;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -453,6 +454,10 @@ public class MapFragment extends Fragment {
 			propHeightForLayoutSize = heightForLayoutSize;
 			fixViewLayoutSize();
 		}
+	}
+
+	public ReactContext getReactContext() {
+		return mapViewManager.getReactContext();
 	}
 
 }
