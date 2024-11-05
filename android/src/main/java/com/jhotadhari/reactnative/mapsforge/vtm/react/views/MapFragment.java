@@ -356,10 +356,6 @@ public class MapFragment extends Fragment {
 		if ( propResponseInclude.getInt( "tilt" ) >= includeLevel ) {
 			params.putDouble( "tilt", mapPosition.getTilt() );
 		}
-
-		Log.d("testtest propResponseInclude.getInt( \"center\" )", String.valueOf(propResponseInclude.getInt( "center" )));
-
-
 		// center
 		if ( propResponseInclude.getInt( "center" ) >= includeLevel ) {
 			WritableMap center = new WritableNativeMap();

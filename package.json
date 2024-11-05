@@ -45,7 +45,14 @@
   },
   "keywords": [
     "react-native",
-    "android"
+    "android",
+    "maps",
+    "offline",
+    "mapsforge",
+    "vector",
+    "mbtiles",
+    "hillshading",
+    "map"
   ],
   "repository": {
     "type": "git",

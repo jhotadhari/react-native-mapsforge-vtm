@@ -87,10 +87,6 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	  */
 	@Nullable
 	@Override public Map<String, Integer> getCommandsMap() {
-
-
-//		Log.d("testtest", "1".asString() ) ;
-
 		return MapBuilder.of("create", COMMAND_CREATE);
 	}
 
