@@ -10,7 +10,7 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MarkerHotspotPlaces } from '../constants';
 import { MapLayerMarkerModule } from '../nativeMapModules';
-import type { ResponseInclude, Location, MarkerSymbol } from '../types';
+import type { Location, MarkerSymbol } from '../types';
 
 const Module = MapLayerMarkerModule;
 
@@ -93,10 +93,6 @@ const Marker = ( {
 	] );
 
 	useEffect( () => {
-
-		console.log( 'debug symbol changed', symbol ? Object.values( symbol ).join( '' ) : null ); // debug
-
-
         if ( nativeNodeHandle && !! uuid ) {
             promiseQueue.enqueue( () => {
                 return Module.removeMarker(
@@ -114,8 +110,6 @@ const Marker = ( {
 	}, [
 		position ? ( position.lng + position.lat ) : null,
 		symbol ? Object.values( symbol ).join( '' ) : null,
-
-		// ??? responseInclude
 	] );
 
 	return null;

@@ -62,7 +62,6 @@ public class MapLayerMarkerModule extends MapLayerBase {
     public void createLayer(
 		int nativeNodeHandle,
 		ReadableMap symbolMap,
-		ReadableMap responseInclude,
 		int reactTreeIndex,
 		Promise promise
     ) {
@@ -210,16 +209,35 @@ public class MapLayerMarkerModule extends MapLayerBase {
 		ContentResolver contentResolver,
 		Promise promise
 	) {
-
 		int width = 30;
 		int height = 30;
+		int textWidth = 0;
+		int textHeight = 0;
 		String fillColor = null;
 		String strokeColor = null;
 		int strokeWidth = 5;
 		Bitmap bitmap = null;
+		String text = null;
+		String textColor = "#111111";
+		int textMargin = 10;
+		Paint textPainter = null;
 		if ( null != symbolMap ) {
 			width = symbolMap.hasKey( "width" ) ? symbolMap.getInt( "width" ) : width;
 			height = symbolMap.hasKey( "height" ) ? symbolMap.getInt( "height" ) : height;
+			if ( symbolMap.hasKey( "text" ) ) {
+				text = symbolMap.getString( "text");
+				textColor = symbolMap.hasKey( "textColor" ) ? symbolMap.getString( "textColor") : textColor;
+				textMargin = symbolMap.hasKey( "textMargin" ) ? symbolMap.getInt( "textMargin") : textMargin;
+				textPainter = CanvasAdapter.newPaint();
+				textPainter.setStyle( Paint.Style.STROKE );
+				textPainter.setStrokeWidth( symbolMap.hasKey( "textStrokeWidth" ) ? symbolMap.getInt( "textStrokeWidth" ) : 3 );
+				textPainter.setTextSize( 30 );
+				textPainter.setColor( Color.parseColor( textColor ) );
+				textWidth = ( (int) textPainter.getTextWidth( text ) + 2 * textMargin );
+				textHeight = ( (int) textPainter.getTextHeight( text ) + 2 * textMargin );
+				width = Math.max( textWidth, width );
+				height = Math.max( textHeight, height );
+			}
 			fillColor = symbolMap.hasKey( "fillColor" ) ? symbolMap.getString( "fillColor") : fillColor;
 			fillColor = fillColor != null && fillColor.startsWith( "#" ) ? fillColor : null;
 			strokeColor = symbolMap.hasKey( "strokeColor" ) ? symbolMap.getString( "strokeColor") : strokeColor;
@@ -242,48 +260,31 @@ public class MapLayerMarkerModule extends MapLayerBase {
 		if ( null != bitmap ) {
 			markerCanvas.drawBitmapScaled( bitmap );
 		}
-
 		if ( null != fillColor ) {
-			markerCanvasDrawCircle(
-				markerCanvas,
-				width,
-				height,
-				fillColor,
-				Paint.Style.FILL,
-				null
-			);
+			markerCanvasDrawCircle( markerCanvas, width, height, fillColor, Paint.Style.FILL,null );
 		}
 		if ( null != strokeColor ) {
-			markerCanvasDrawCircle(
-				markerCanvas,
-				width,
-				height,
-				strokeColor,
-				Paint.Style.STROKE,
-				strokeWidth
-			);
+			markerCanvasDrawCircle( markerCanvas, width, height, strokeColor, Paint.Style.STROKE, strokeWidth );
 		}
-
 		// Fallback
 		if ( null == bitmap && fillColor == null && strokeColor == null ){
-			markerCanvasDrawCircle(
-				markerCanvas,
-				width,
-				height,
-				"#ff0000",
-				Paint.Style.FILL,
-				null
-			);
-			markerCanvasDrawCircle(
-				markerCanvas,
-				width,
-				height,
-				"#000000",
-				Paint.Style.STROKE,
-				strokeWidth
-			);
+			markerCanvasDrawCircle( markerCanvas, width, height,"#ff0000", Paint.Style.FILL, null );
+			markerCanvasDrawCircle( markerCanvas, width, height, "#000000", Paint.Style.STROKE, strokeWidth );
 		}
-
+		// text
+		if ( text != null ) {
+			Bitmap textBitmap = CanvasAdapter.newBitmap(textWidth + textMargin, textHeight + textMargin, 0 );
+			Canvas textCanvas = CanvasAdapter.newCanvas();
+			textCanvas.setBitmap( textBitmap );
+			textCanvas.drawText( text, textMargin, textHeight - textMargin, textPainter );
+			float textPositionX = symbolMap.hasKey( "textPositionX" )
+				? (float) symbolMap.getDouble( "textPositionX" )
+				: width * 0.5f - ( textWidth * 0.5f );
+			float textPositionY = symbolMap.hasKey( "textPositionY" )
+				? (float) symbolMap.getDouble( "textPositionY" )
+				: 0;
+			markerCanvas.drawBitmap( textBitmap, textPositionX, textPositionY );
+		}
 		return bitmapPoi;
 	}
 

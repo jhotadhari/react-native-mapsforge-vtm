@@ -96,4 +96,9 @@ export type MarkerSymbol = {
 	strokeColor?: `#${string}`;
 	strokeWidth?: number;
 	hotspotPlace?: typeof MarkerHotspotPlaces[number];
+    text?: string;
+    textMargin?: number;
+    textStrokeWidth?: number;
+    textPositionX?: number;
+    textPositionY?: number;
 };

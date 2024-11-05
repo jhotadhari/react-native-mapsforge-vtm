@@ -95,31 +95,34 @@ const ExampleMarker = ( {
     }
 
     const symbols = [
-        {},
+        // {},
         {
-            width: 30,
-            height: 30,
-            fillColor: '#dddddd',
-            strokeColor: '#000000',
-        },
-        {
-            width: 30,
-            height: 30,
-            strokeColor: '#ff0000',
-            strokeWidth: 10,
-        },
-        {
-            width: 37,
-            height: 64,
-            filePath: appDirs.marker + '/marker.svg',
-            hotspotPlace: 'BOTTOM_CENTER',
-        },
-        {
-            width: 37,
-            height: 64,
+            height: 100,
+            text: 'text',
+            textMargin: 20,
+            textPositionY: 0,
+            textStrokeWidth: 3,
             filePath: appDirs.marker + '/marker_red.png',
             hotspotPlace: 'BOTTOM_CENTER',
         },
+        // {
+        //     width: 30,
+        //     height: 30,
+        //     strokeColor: '#ff0000',
+        //     strokeWidth: 10,
+        // },
+        // {
+        //     width: 37,
+        //     height: 64,
+        //     filePath: appDirs.marker + '/marker.svg',
+        //     hotspotPlace: 'BOTTOM_CENTER',
+        // },
+        // {
+        //     width: 37,
+        //     height: 64,
+        //     filePath: appDirs.marker + '/marker_red.png',
+        //     hotspotPlace: 'BOTTOM_CENTER',
+        // },
     ];
 
     // const onChange = response => {
@@ -272,15 +275,21 @@ const ExampleMarker = ( {
                     cacheSize={ 10 * 1024 * 1024 }  // 10 mb
                 />
 
-                <LayerMarker
-                    symbol={ symbols[1] }
-                >
+                <LayerMarker>
                     { [...positions].map( ( pos, index ) => {
 
                         return <Marker
                             key={ index }
                             position={ pos }
-                            symbol={ symbols[index % symbols.length] }
+                            // symbol={ symbols[index % symbols.length] }
+                            symbol={ {
+                                height: 100,
+                                text: index + 1 + '',
+                                textMargin: 20,
+                                textPositionY: 0,
+                                filePath: appDirs.marker + '/marker_red.png',
+                                hotspotPlace: 'BOTTOM_CENTER',
+                            } }
                         />;
                     } ) }
                 </LayerMarker>
