@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2024-11-06
+Markers, hurrah.
+
+### Added
+- `LayerMarker` to hold `Marker` components.
+    - Markers support raster image or svg symbols. Or symbols fallback to a customizable circle.
+    - Markers support `press` and `longPress` events. Furthermore events can be triggered at any position on the map.
+
+### Changed
+- Responds types extend the `ResponseBase` interface.
+
+### Fixed
+- Example `PickerModalControl`, if options are empty. Conditions have to be boolean, otherwise react wants to render them as text, without `Text` component.
+
 ## [0.1.3] - 2024-10-30
 Just updated README.md
 
@@ -33,6 +47,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.2.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.0...v0.1.1

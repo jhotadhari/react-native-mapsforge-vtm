@@ -2,7 +2,22 @@
 
 React Native components to build vector maps using [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). Offline rendering of OpenStreetMap data. Android only
 
-**Just some ideas in early development state. Do not use this for production!**
+**Just some ideas in early development state. Do not use this for production!** ... Well, you can use it, but things are changing!
+
+## Roadmap
+
+Some things will change sometime soonish:
+
+- Marker improvements: clustering and support for drag and drop.
+- Gesture events for Path layers.
+- Fix the zickzacky appearance of `PathLayer`.
+- Path simplification for both Path layers.
+- Changing the `LayerPathSlopeGradient` props, to be able to control the order of simplification and smoothing, and to apply those steps multiple times.
+- Changing the `LayerPathSlopeGradient` component to support gradients as well for speed, elevation or any kind of data.
+- Maybe merging the path components: `LayerPathSlopeGradient` and `LayerPath`.
+- Hillshading improvements.
+- Gesture events for `MapContainer`.
+- ...
 
 ## Installation
 
@@ -25,6 +40,7 @@ import React, {
 import {
   useWindowDimensions,
   SafeAreaView,
+  ToastAndroid,
 } from 'react-native';
 import {
   MapContainer,
@@ -34,6 +50,8 @@ import {
   LayerHillshading,
   LayerPathSlopeGradient,
   LayerScalebar,
+	LayerMarker,
+	Marker,
   useMapEvents,
   useRenderStyleOptions,
   nativeMapModules,
@@ -92,7 +110,7 @@ const App = () => {
   useMapEvents( {
     nativeNodeHandle,
     onMapEvent: event => {
-      console.log( 'onMapEvent event', event ); // debug
+      console.log( 'onMapEvent event', event );
     },
   } );
 
@@ -119,10 +137,6 @@ const App = () => {
       onPause={ response => console.log( 'lifecycle event onPause', response ) }
       onResume={ response => console.log( 'lifecycle event onResume', response ) }
     >
-
-      <MapEvents
-        nativeNodeHandle={ mapViewNativeNodeHandle }
-      />
 
       <LayerBitmapTile
         url={ 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png' }
@@ -180,6 +194,42 @@ const App = () => {
         filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to gpx file */ }
       />
 
+      <LayerMarker>
+        <Marker
+          position={ lng: -76.813, lat: -11.813 }
+          onPress={ response => {
+              ToastAndroid.show( 'Marker pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+          } }
+          symbol={ {
+              height: 100,
+              textMargin: 20,
+              textPositionY: 0,
+              textStrokeWidth: 3,
+              filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to raster image or svg file */ }
+              hotspotPlace: 'BOTTOM_CENTER',
+              text: 'hello',
+          } }
+        />
+        <Marker
+          position={ lng: -75.814, lat: -12.274 }
+          onLongPress={ response => {
+              ToastAndroid.show( 'Marker long pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+          } }
+          symbol={ {
+              width: 80,
+              height: 80,
+              textMargin: 20,
+              textStrokeWidth: 3,
+              textPositionY: 7,
+              strokeColor: '#ff0000',
+              fillColor: '#eeeeee',
+              strokeWidth: 5,
+              hotspotPlace: 'CENTER',
+              text: 'hello',
+          } }
+        />
+      </LayerMarker>
+
       <LayerScalebar/>
 
     </MapContainer>
@@ -208,6 +258,13 @@ MIT
 ## Credits
 
 - It's just a wrapper with limited features around [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). **All credits to mapsforge and vtm!!!**
+- Dependencies of [vtm](https://github.com/mapsforge/vtm): [Game Controller Extension for libGDX](https://github.com/libgdx/gdx-controllers), [AndroidSVG](https://bigbadaboom.github.io/androidsvg/), [Simple Logging Facade for Java](https://www.slf4j.org/), [OkHttp](https://square.github.io/okhttp/), [Okio](https://github.com/square/okio), [Protocol Buffers - Google's data interchange format](https://github.com/protocolbuffers/protobuf), [MapBox Vector Tile - Java](https://github.com/wdtinc/mapbox-vector-tile-java)
+- [JTS Topology Suite](https://github.com/locationtech/jts)
+- Most of the hillshading code is copied from [mapsforge](https://github.com/mapsforge/mapsforge)
+- To retrieve the elevation for certain coordinates, most code is copied from [mapsforge](https://github.com/mapsforge/mapsforge) and [Java OpenStreetMap Editor - Plugins - ElevationProfile](https://github.com/JOSM/josm-plugins/tree/master/ElevationProfile)
+- [Android GPX Parser](https://github.com/ticofab/android-gpx-parser)
+- [Simplification of a 2D-polyline or a 3D-polyline](https://github.com/hgoebl/simplify-java/)
+- For smoothing data: [Savitzky–Golay filter in Java](https://github.com/vaccovecrana/savitzky-golay)
 - Always helpful: [Lodash](https://lodash.com)
 - To help limiting the amount of data that flows through the bottleneck between react and java: [queue-promise](https://www.npmjs.com/package/queue-promise)
 - [Keep a Changelog](https://www.npmjs.com/package/keep-a-changelog) helps maintaining a [CHANGELOG.md](https://github.com/jhotadhari/react-native-mapsforge-vtm/blob/main/CHANGELOG.md).

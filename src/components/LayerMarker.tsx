@@ -1,71 +1,53 @@
 /**
  * External dependencies
  */
-import { useEffect, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 
 /**
  * Internal dependencies
  */
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
-import { MapLayerMBTilesBitmapModule } from '../nativeMapModules';
-import type { Bounds, Location, ResponseBase } from '../types';
+import { MapLayerMarkerModule } from '../nativeMapModules';
+import type { MarkerSymbol, ResponseBase } from '../types';
 
-const Module = MapLayerMBTilesBitmapModule;
+const Module = MapLayerMarkerModule;
 
-export interface LayerMBTilesBitmapResponse extends ResponseBase {
-	bounds?: Bounds;
-	minZoom?: number;
-	maxZoom?: number;
-	supportedFormats?: string[];
-	attribution?: null | string;
-	version?: string;
-	format?: string;
-	description?: string;
-	center?: Location;
-};
-
-export type LayerMBTilesBitmapProps = {
+export type LayerMarkerProps = {
+	children?: React.ReactNode;
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
-	mapFile?: `/${string}`;
-	alpha?: number;
-	transparentColor?: `#${string}`;
+    symbol?: null | MarkerSymbol;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onCreate?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
-	onChange?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
+	onCreate?: null | ( ( response: ResponseBase ) => void );
+	onChange?: null | ( ( response: ResponseBase ) => void );
 	onError?: null | ( ( err: any ) => void );
 };
 
-const LayerMBTilesBitmap = ( {
+const LayerMarker = ( {
+	children,
 	nativeNodeHandle,
+	symbol = null,
 	reactTreeIndex,
-    mapFile,
-    alpha = 256,
-    transparentColor,
 	onCreate,
 	onRemove,
 	onChange,
 	onError,
-} : LayerMBTilesBitmapProps ) => {
+} : LayerMarkerProps ) => {
 
 	// @ts-ignore
 	const [random, setRandom] = useState<number>( 0 );
 	const [uuid, setUuid] = useRefState( null );
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
-    alpha = Math.round( alpha );
-
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
 			return Module.createLayer(
 				nativeNodeHandle,
-				mapFile,
-				alpha,
-				transparentColor,
+				symbol,
 				reactTreeIndex
-			).then( ( response: LayerMBTilesBitmapResponse ) => {
+			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				( null === triggerCreateNew
@@ -77,7 +59,7 @@ const LayerMBTilesBitmap = ( {
 	};
 
 	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle && mapFile ) {
+		if ( uuid === null && nativeNodeHandle ) {
 			createLayer();
 		}
 		return () => {
@@ -110,18 +92,38 @@ const LayerMBTilesBitmap = ( {
 						setTriggerCreateNew( Math.random() );
 					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
-			} else if ( uuid === null && mapFile ) {
+			} else if ( uuid === null ) {
 				setTriggerCreateNew( Math.random() );
 			}
 		}
 	}, [
-		mapFile,
-		alpha,
-		transparentColor,
+		symbol ? Object.values( symbol ).join( '' ) : null,
 	] );
 
-	return null;
-};
-LayerMBTilesBitmap.isMapLayer = true;
+    if ( ! uuid ) {
+        return null;
+    }
 
-export default LayerMBTilesBitmap;
+	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children ? null : Children.map( children, child => {
+		let newChild = child;
+		if ( ! isValidElement<{ children?: React.ReactNode }>( child )) {
+			return newChild
+		}
+		newChild = cloneElement(
+			child,
+			{
+				...( { layerUuid: uuid } ),
+				...( child?.props?.children && { children: wrapChildren( child.props.children ) } ),
+			},
+		);
+		return newChild;
+	} );
+
+	const wrappedChildren = wrapChildren( children );
+
+    return wrappedChildren;
+
+};
+LayerMarker.isMapLayer = true;
+
+export default LayerMarker;

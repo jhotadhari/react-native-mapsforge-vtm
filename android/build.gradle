@@ -97,7 +97,7 @@ dependencies {
   implementation "com.facebook.react:react-native:+"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
-	// gpx parser
+	// gpx parser https://github.com/ticofab/android-gpx-parser
 	implementation 'com.github.ticofab:android-gpx-parser:2.3.1'
 
 	// simplify-java - Simplification of a 2D-polyline or a 3D-polyline
@@ -135,7 +135,6 @@ dependencies {
 	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0'
 	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
 	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
-	implementation 'com.caverock:androidsvg:1.4'
 	// vtm JTS overlays
 	implementation 'com.github.mapsforge.vtm:vtm-jts:0.22.0'
 	// https://github.com/locationtech/jts/issues/145
@@ -150,8 +149,6 @@ dependencies {
 	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
 	implementation 'com.google.protobuf:protobuf-java:3.6.1'
 	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
-	// https://github.com/locationtech/jts/issues/145
-	implementation 'org.locationtech.jts:jts-core:1.15.1'
 //	// vtm Mapbox vector tiles
 //	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
 //	implementation 'com.google.protobuf:protobuf-java:3.6.1'

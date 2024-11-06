@@ -1,19 +1,20 @@
+import { MarkerHotspotPlaces } from './constants';
 
-import type { LayerBitmapTileResponse,LayerBitmapTileProps  } from './components/LayerBitmapTile';
-import type { ShadingAlgorithm, ShadingAlgorithmOptions, LayerHillshadingResponse, LayerHillshadingProps  } from './components/LayerHillshading';
+import type { LayerBitmapTileProps  } from './components/LayerBitmapTile';
+import type { ShadingAlgorithm, ShadingAlgorithmOptions, LayerHillshadingProps  } from './components/LayerHillshading';
 import type { LayerMapsforgeResponse, LayerMapsforgeProps  } from './components/LayerMapsforge';
 import type { LayerMBTilesBitmapResponse, LayerMBTilesBitmapProps  } from './components/LayerMBTilesBitmap';
 import type { LayerPathResponse, LayerPathProps  } from './components/LayerPath';
 import type { GradientColors, LayerPathSlopeGradientResponse, LayerPathSlopeGradientProps  } from './components/LayerPathSlopeGradient';
-import type { LayerScalebarResponse, LayerScalebarProps  } from './components/LayerScalebar';
+import type { LayerScalebarProps  } from './components/LayerScalebar';
 import type { MapContainerProps, MapLifeCycleResponse } from './components/MapContainer';
+import type { LayerMarkerProps } from './components/LayerMarker';
+import type { MarkerProps, MarkerResponse } from './components/Marker';
 
 export type {
-    LayerBitmapTileResponse,
     LayerBitmapTileProps,
     ShadingAlgorithm,
     ShadingAlgorithmOptions,
-    LayerHillshadingResponse,
     LayerHillshadingProps,
     LayerMapsforgeResponse,
     LayerMapsforgeProps,
@@ -24,10 +25,12 @@ export type {
     GradientColors,
     LayerPathSlopeGradientResponse,
     LayerPathSlopeGradientProps,
-    LayerScalebarResponse,
     LayerScalebarProps,
     MapContainerProps,
     MapLifeCycleResponse,
+    LayerMarkerProps,
+    MarkerProps,
+    MarkerResponse,
 };
 
 export type Bounds = {
@@ -35,6 +38,10 @@ export type Bounds = {
 	minLng: number;
 	maxLat: number;
 	maxLng: number;
+};
+
+export interface ResponseBase {
+    uuid: string;
 };
 
 export interface Location {
@@ -85,4 +92,19 @@ export interface mapEvent {
     roll: number;
     tilt: number;
     center: Location;
+};
+
+export type MarkerSymbol = {
+	width?: number;
+	height?: number;
+	filePath?: `/${string}` | `content://${string}`;
+	fillColor?: `#${string}`;
+	strokeColor?: `#${string}`;
+	strokeWidth?: number;
+	hotspotPlace?: typeof MarkerHotspotPlaces[number];
+    text?: string;
+    textMargin?: number;
+    textStrokeWidth?: number;
+    textPositionX?: number;
+    textPositionY?: number;
 };

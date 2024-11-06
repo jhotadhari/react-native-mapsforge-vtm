@@ -17,7 +17,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -27,6 +26,7 @@ import android.widget.RelativeLayout;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -356,10 +356,6 @@ public class MapFragment extends Fragment {
 		if ( propResponseInclude.getInt( "tilt" ) >= includeLevel ) {
 			params.putDouble( "tilt", mapPosition.getTilt() );
 		}
-
-		Log.d("testtest propResponseInclude.getInt( \"center\" )", String.valueOf(propResponseInclude.getInt( "center" )));
-
-
 		// center
 		if ( propResponseInclude.getInt( "center" ) >= includeLevel ) {
 			WritableMap center = new WritableNativeMap();
@@ -457,6 +453,10 @@ public class MapFragment extends Fragment {
 			propHeightForLayoutSize = heightForLayoutSize;
 			fixViewLayoutSize();
 		}
+	}
+
+	public ReactContext getReactContext() {
+		return mapViewManager.getReactContext();
 	}
 
 }

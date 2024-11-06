@@ -95,3 +95,14 @@ export const MapLayerHillshadingModule = NativeModules.MapLayerHillshadingModule
 			},
 		},
 	);
+
+export const MapLayerMarkerModule = NativeModules.MapLayerMarkerModule
+	? NativeModules.MapLayerMarkerModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);

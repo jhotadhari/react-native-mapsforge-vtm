@@ -10,6 +10,7 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerHillshadingModule } from '../nativeMapModules';
 import { get } from 'lodash-es';
+import type { ResponseBase } from '../types';
 
 const Module = MapLayerHillshadingModule;
 
@@ -19,10 +20,6 @@ export type ShadingAlgorithmOptions = {
 	linearity?: number;
 	scale?: number;
 	heightAngle?: number;
-};
-
-export type LayerHillshadingResponse = {
-	uuid: string
 };
 
 export type LayerHillshadingProps = {
@@ -35,9 +32,9 @@ export type LayerHillshadingProps = {
 	shadingAlgorithmOptions?: ShadingAlgorithmOptions;
 	magnitude?: number;
 	cacheSize?: number;
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
-	onCreate?: null | ( ( response: LayerHillshadingResponse ) => void );
-	onChange?: null | ( ( response: LayerHillshadingResponse ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
+	onCreate?: null | ( ( response: ResponseBase ) => void );
+	onChange?: null | ( ( response: ResponseBase ) => void );
 	onError?: null | ( ( err: any ) => void );
 };
 
@@ -90,7 +87,7 @@ const LayerHillshading = ( {
 				magnitude,
 				cacheSize,
 				reactTreeIndex
-			).then( ( response : LayerHillshadingResponse ) => {
+			).then( ( response : ResponseBase ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				( null === triggerCreateNew
