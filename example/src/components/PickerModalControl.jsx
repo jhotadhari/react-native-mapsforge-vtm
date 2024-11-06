@@ -42,7 +42,7 @@ const PickerModalControl = ( {
 		style,
 		options,
 	} ) => {
-		return <FlatList	// ??? should be scrollable
+		return <FlatList
 			data={ options }
 			style={ {
 				...style,
@@ -102,11 +102,11 @@ const PickerModalControl = ( {
 			<View style={ {
 				maxHeight: Math.min( height * 0.8, itemHeight * ( options.length + ( extraOptions ? extraOptions.length : 0 ) ) ),
 			} } >
-				{ extraOptions && extraOptions.length && ExtraOptionsHeader && <ExtraOptionsHeader/> }
-				{ extraOptions && extraOptions.length && <OptionsFlatList style={ { marginBottom: 10 } } options={ extraOptions } /> }
+				{ extraOptions && extraOptions.length > 0 && ExtraOptionsHeader && <ExtraOptionsHeader/> }
+				{ extraOptions && extraOptions.length > 0 && <OptionsFlatList style={ { marginBottom: 10 } } options={ extraOptions } /> }
 
-				{ options.length && OptionsHeader && <OptionsHeader/> }
-				{ options.length && <OptionsFlatList options={ options } /> }
+				{ options.length > 0 && OptionsHeader && <OptionsHeader/> }
+				{ options.length > 0 && <OptionsFlatList options={ options } /> }
 			</View>
 
 			{ ! options.length && NoOptionsComponent && <NoOptionsComponent/>}
