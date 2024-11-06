@@ -104,7 +104,7 @@ const LayerMarker = ( {
         return null;
     }
 
-	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children ? null : Children.map( children, ( child, index ) => {
+	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children ? null : Children.map( children, child => {
 		let newChild = child;
 		if ( ! isValidElement<{ children?: React.ReactNode }>( child )) {
 			return newChild
