@@ -1,7 +1,10 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.facebook.react.bridge.Promise;
@@ -14,16 +17,22 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.Coordinate;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-import com.jhotadhari.reactnative.mapsforge.vtm.layers.vector.PathLayer;
+import com.jhotadhari.reactnative.mapsforge.vtm.layers.vector.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.joda.time.DateTime;
 import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
 import org.oscim.core.GeoPoint;
+import org.oscim.layers.Layer;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
 import org.xmlpull.v1.XmlPullParserException;
@@ -32,7 +41,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,50 +50,369 @@ import java.util.UUID;
 
 import io.ticofab.androidgpxparser.parser.GPXParser;
 import io.ticofab.androidgpxparser.parser.domain.Gpx;
-import io.ticofab.androidgpxparser.parser.domain.Point;
 import io.ticofab.androidgpxparser.parser.domain.TrackPoint;
 
 public class MapLayerPathModule extends MapLayerBase {
+
+	protected Map<String, VectorLayer> layers = new HashMap<>();
+
+	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
 
 	public String getName() {
 		return "MapLayerPathModule";
 	}
 
-	protected Map<String, List<TrackPoint>> trackPointsMap = new HashMap<>();
-
 	public MapLayerPathModule(ReactApplicationContext context) {
 		super(context);
 	}
 
-	protected static List<TrackPoint> positionsToTrackPointList( ReadableArray positions ) {
-		List<TrackPoint> trackPoints = new ArrayList<>();
-
-
-		for (int index = 0; index < positions.size(); index++) {
-			ReadableType readableType = positions.getType(index);
+	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray positions ) {
+		Coordinate[] jtsCoordinates = new Coordinate[positions.size()];
+		for ( int i = 0; i < positions.size(); i++ ) {
+			ReadableType readableType = positions.getType( i );
 			if ( readableType == ReadableType.Map ) {
-				ReadableMap position = positions.getMap( index );
-				Point.Builder pointBuilder = new TrackPoint.Builder()
-					.setLatitude( position.getDouble( "lat" ) )
-					.setLongitude( position.getDouble( "lng" ) );
-				if ( position.hasKey("alt" ) ) {
-					pointBuilder.setElevation( position.getDouble( "alt" ) );
-				}
-				if ( position.hasKey("time" ) ) {
-					pointBuilder.setTime( new DateTime( position.getLong( "time" ) ) );
-				}
-				TrackPoint point =  (TrackPoint) pointBuilder.build();
-				trackPoints.add( point );
+				ReadableMap position = positions.getMap( i );
+				jtsCoordinates[i] = new Coordinate(
+					(double) position.getDouble( "lng" ),
+					(double) position.getDouble( "lat" ),
+					(double) ( position.hasKey( "alt" ) ? position.getDouble( "alt" ) : 0 )
+				);
 			}
 		}
+		return jtsCoordinates;
+	}
 
-		return trackPoints;
+	protected Coordinate[] loadGpxToJtsCoordinates( Context context, String filePath, Promise promise ) throws URISyntaxException, IOException {
+		Coordinate[] jtsCoordinates = new Coordinate[0];
+
+		InputStream in = null;
+		if ( filePath.startsWith( "content://" ) ) {
+			DocumentFile dir = DocumentFile.fromSingleUri( context, Uri.parse( filePath ) );
+			if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
+				return null;
+			}
+			if ( ! Utils.hasScopedStoragePermission( context, filePath, false ) ) {
+				promise.reject( "Error", "No scoped storage read permission for filePath " + filePath ); return null;
+			}
+			in = context.getContentResolver().openInputStream( Uri.parse( filePath ) );
+			assert in != null;
+		}
+
+		if ( filePath.startsWith( "/" ) ) {
+			File gpxFile = new File( filePath );
+			if( ! gpxFile.exists() || ! gpxFile.isFile() || ! gpxFile.canRead() ) {
+				return null;
+			}
+			in = new FileInputStream( gpxFile );
+		}
+		if( in == null ) {
+			return null;
+		}
+
+		GPXParser parser = new GPXParser();
+		Gpx parsedGpx = null;
+		try {
+			parsedGpx = parser.parse( in );
+		} catch ( IOException | XmlPullParserException e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e ); return jtsCoordinates;
+		}
+		if ( parsedGpx == null ) {
+			promise.reject( "Error", "Unable to parse gpx file: " + filePath ); return jtsCoordinates;
+		}
+		List points = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
+		jtsCoordinates = new Coordinate[points.size()];
+		for ( int i = 0; i < points.size(); i++) {
+			TrackPoint point = (TrackPoint) points.get( i );
+			jtsCoordinates[i] = new Coordinate(
+				point.getLongitude(),
+				point.getLatitude(),
+				point.getElevation(),
+				point.getTime()
+			);
+		}
+		return jtsCoordinates;
 	}
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
-	protected Style buildStyleFromMap( ReadableMap styleMap ) {
+	@ReactMethod
+	public void createLayer(
+		int nativeNodeHandle,
+		ReadableArray positions,
+		String filePath,
+		ReadableMap styleMap,
+		ReadableMap responseInclude,
+		float gestureScreenDistance,
+		int reactTreeIndex,
+		Promise promise
+	) {
+		try {
+			MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( mapFragment == null || null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
+			}
+
+			String uuid = UUID.randomUUID().toString();
+
+			// The promise response
+			WritableMap responseParams = new WritableNativeMap();
+
+			// Init layer
+			VectorLayer vectorLayer = new VectorLayer(
+				mapView.map(),
+				uuid,
+				mapFragment.getReactContext(),
+				"PathGesture",
+				gestureScreenDistance
+			);
+
+			// Store layer.
+			layers.put( uuid, vectorLayer );
+
+			// Convert input params to jtsCoordinates
+			Coordinate[] jtsCoordinates = new Coordinate[0];
+			if ( null != positions && positions.size() > 0 ) {
+				jtsCoordinates = readableArrayToJtsCoordinates( positions );
+			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
+				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
+			}
+			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
+				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;
+			}
+
+			// Store coordinates
+			originalJtsCoordinatesMap.put( uuid, jtsCoordinates );
+
+			// Draw line.
+			drawLineForCoordinates(
+				jtsCoordinates,
+				getStyleBuilderFromMap( styleMap ),
+				uuid,
+				vectorLayer
+			);
+
+			addStuffToResponse( uuid, responseInclude, 0, responseParams );
+
+			// Add layer to map
+			mapView.map().layers().add(
+				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
+				vectorLayer
+			);
+			mapView.map().updateMap(true);
+
+			// Resolve layer hash
+			responseParams.putString( "uuid", uuid );
+			promise.resolve( responseParams );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	protected void drawLineForCoordinates(
+		Coordinate[] jtsCoordinates,
+		Style.Builder styleBuilder,
+		String uuid,
+		VectorLayer vectorLayer
+	) {
+		if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
+			return;
+		}
+		Style style = styleBuilder.build();
+		for (int i = 0; i < jtsCoordinates.length; i++) {
+			if ( i != 0 ) {
+				double[] segment = new double[4];
+				segment[0] = jtsCoordinates[i].x;
+				segment[1] = jtsCoordinates[i].y;
+				segment[2] = jtsCoordinates[i-1].x;
+				segment[3] = jtsCoordinates[i-1].y;
+				vectorLayer.add( new LineDrawable(
+					segment,
+					style
+				) );
+			}
+		}
+	}
+
+	@ReactMethod
+	public void triggerEvent(
+		int nativeNodeHandle,
+		String layerUuid,
+		float x,
+		float y,
+		Promise promise
+	) {
+		MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+		if ( mapFragment == null || null == mapView ) {
+			promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
+		}
+		VectorLayer vectorLayer = layers.get( layerUuid );
+		if ( vectorLayer == null ) {
+			promise.reject( "Error", "Unable to find vectorLayer" ); return;
+		}
+		WritableMap params = vectorLayer.containsGetResponse( x, y );
+		if (  null != params ) {
+			// Add type
+			params.putString( "type", "trigger" );
+			// Add eventPosition
+			WritableMap eventPosition = new WritableNativeMap();
+			GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint( x, y );
+			eventPosition.putDouble("lng", eventPoint.getLongitude() );
+			eventPosition.putDouble("lat", eventPoint.getLatitude() );
+			params.putMap( "eventPosition", eventPosition );
+			// sendEvent
+			Utils.sendEvent( mapFragment.getReactContext(), vectorLayer.getGestureEventName(), params );
+		}
+		promise.resolve( params );
+	}
+
+	@ReactMethod
+	public void updateStyle( int nativeNodeHandle, String uuid, ReadableMap styleMap, ReadableMap responseInclude, Promise promise ) {
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		Log.d( "testtest uuid", uuid );
+		try {
+			MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( mapFragment == null || null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
+			}
+			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
+			if ( -1 == layerIndex ) {
+				promise.reject( "Error", "Layer index not found" ); return;
+			}
+			VectorLayer vectorLayer = layers.get( uuid );
+			if ( null == vectorLayer ) {
+				promise.reject( "Error", "Layer not found" ); return;
+			}
+
+			Log.d( "testtest vectorLayer", vectorLayer.toString());
+
+			// Create new vectorLayer.
+			VectorLayer vectorLayerNew = new VectorLayer(
+				mapView.map(),
+				uuid,
+				mapFragment.getReactContext(),
+				vectorLayer.getGestureEventName(),
+				vectorLayer.getGestureScreenDistance()
+			);
+
+			Log.d( "testtest vectorLayerNew", vectorLayerNew.toString());
+
+			// draw new
+			drawLineForCoordinates(
+				originalJtsCoordinatesMap.get( uuid ),
+				getStyleBuilderFromMap( styleMap ),
+				uuid,
+				vectorLayerNew
+			);
+
+			// Replace old vectorLayer with new one on map.
+			mapView.map().layers().set( layerIndex, vectorLayerNew );
+			layers.put( uuid, vectorLayerNew );
+			mapView.map().updateMap( true );
+
+			addStuffToResponse( uuid, responseInclude, 1, responseParams );
+
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
+	public void updateGestureScreenDistance( int nativeNodeHandle, String uuid, float gestureScreenDistance, ReadableMap responseInclude, Promise promise ) {
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView" ); return;
+			}
+			VectorLayer vectorLayer = layers.get( uuid );
+			if ( null == vectorLayer ) {
+				promise.reject( "Error", "Unable to find vectorLayer" ); return;
+			}
+			vectorLayer.setGestureScreenDistance( gestureScreenDistance );
+			addStuffToResponse( uuid, responseInclude, 1, responseParams );
+		} catch( Exception e ) {
+			promise.reject( "Error", e );
+		}
+		promise.resolve( responseParams );
+	}
+
+	protected void addStuffToResponse( String uuid, ReadableMap responseInclude, int includeLevel, WritableMap responseParams ) {
+		// Maybe add coordinates to promise response.
+		if ( responseInclude.getInt( "coordinates" ) > includeLevel ) {
+			addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
+		}
+		// Maybe add bounds to response.
+		if ( responseInclude.getInt( "bounds" ) > includeLevel ) {
+			addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
+		}
+	}
+
+	protected void addBoundsToResponse(
+		@Nullable Coordinate[] jtsCoordinates,
+		WritableMap responseParams
+	) {
+		if ( null != jtsCoordinates ) {
+			Geometry geometry = new LineString( new CoordinateArraySequence( jtsCoordinates ), new GeometryFactory() );
+			Envelope boundingBox = geometry.getEnvelopeInternal();
+			WritableMap boundsParams = new WritableNativeMap();
+			boundsParams.putDouble("minLat", boundingBox.getMinY());
+			boundsParams.putDouble("minLng", boundingBox.getMinX());
+			boundsParams.putDouble("maxLat", boundingBox.getMaxY());
+			boundsParams.putDouble("maxLng", boundingBox.getMaxX());
+			responseParams.putMap("bounds", boundsParams);
+		}
+	}
+
+	protected void addCoordinatesToResponse(
+		@Nullable Coordinate[] jtsCoordinates,
+		WritableMap responseParams
+	) {
+		if ( null != jtsCoordinates && jtsCoordinates.length > 0 && ! responseParams.hasKey( "coordinates" ) ) {
+			WritableArray coordinatesResponseArray = new WritableNativeArray();
+			double accumulatedDistance = 0;
+			for (int i = 0; i < jtsCoordinates.length; i++) {
+				double distanceToLast = i == 0
+					? 0
+					: new GeoPoint(
+					(double) jtsCoordinates[i].y,
+					(double) jtsCoordinates[i].x
+				).sphericalDistance( new GeoPoint(
+					(double) jtsCoordinates[i-1].y,
+					(double) jtsCoordinates[i-1].x
+				) );
+				accumulatedDistance += distanceToLast;
+				WritableMap position = getResponsePositionFromJtsCoordinate( jtsCoordinates[i], accumulatedDistance );
+				coordinatesResponseArray.pushMap( position );
+			}
+			// Add to responseParams.
+			responseParams.putArray( "coordinates", coordinatesResponseArray );
+		}
+	}
+
+	protected WritableMap getResponsePositionFromJtsCoordinate( Coordinate coordinate, double accumulatedDistance ){
+		WritableMap position = new WritableNativeMap();
+		position.putDouble( "lng", (double) coordinate.x );
+		position.putDouble( "lat", (double) coordinate.y );
+		position.putDouble( "alt", (double) coordinate.z );
+		position.putDouble( "distance", (double) accumulatedDistance );
+		DateTime time = coordinate.dateTime;
+		if ( null != time ) {
+			position.putDouble( "time", (double) ( time.getMillis() / 1000L ) );
+		}
+		return position;
+	}
+
+	protected Style.Builder getStyleBuilderFromMap( ReadableMap styleMap ) {
 		Style.Builder styleBuilder = Style.builder();
 		if ( styleMap.hasKey( "strokeWidth" ) ) {
 			styleBuilder.strokeWidth( (float) styleMap.getDouble( "strokeWidth" ) );
@@ -153,252 +481,40 @@ public class MapLayerPathModule extends MapLayerBase {
 			styleBuilder.transparent( styleMap.getBoolean( "transparent" ) );
 		}
 
-		return styleBuilder.build();
-	}
-
-	protected void addBoundsToResponse(
-		PathLayer pathLayer,
-		WritableMap responseParams
-	){
-		LineDrawable line = pathLayer.getDrawable();
-		Envelope boundingBox = line.getGeometry().getEnvelopeInternal();
-		WritableMap boundsParams = new WritableNativeMap();
-		boundsParams.putDouble("minLat", boundingBox.getMinY());
-		boundsParams.putDouble("minLng", boundingBox.getMinX());
-		boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-		boundsParams.putDouble("maxLng", boundingBox.getMaxX());
-		responseParams.putMap("bounds", boundsParams);
-	}
-
-	protected void addCoordinatesToResponse(
-		List<TrackPoint> trackPoints,
-		WritableMap responseParams
-	) {
-		WritableArray coordinatesResponseArray = new WritableNativeArray();
-		double accumulatedDistance = 0;
-		for (int i = 0; i < trackPoints.size(); i++) {
-			TrackPoint point = (TrackPoint) trackPoints.get( i );
-			double distanceToLast = 0;
-			if ( i > 0 ) {
-				TrackPoint pointLast = (TrackPoint) trackPoints.get( i - 1 );
-				distanceToLast = new GeoPoint(
-					(double) point.getLatitude(),
-					(double) point.getLongitude()
-				).sphericalDistance( new GeoPoint(
-					(double) pointLast.getLatitude(),
-					(double) pointLast.getLongitude()
-				) );
-			}
-			accumulatedDistance += distanceToLast;
-			WritableMap position = new WritableNativeMap();
-			position.putDouble( "lng", (double) point.getLongitude() );
-			position.putDouble( "lat", (double) point.getLatitude() );
-			position.putDouble( "distance", (double) accumulatedDistance );
-			Double elevation = point.getElevation();
-			if ( null != elevation ) {
-				position.putDouble( "alt", elevation );
-			}
-			DateTime time = point.getTime();
-			if ( null != time ) {
-				position.putDouble( "time", (double) ( time.getMillis() / 1000L ) );
-			}
-			coordinatesResponseArray.pushMap( position );
-		}
-		// Add to responseParams.
-		responseParams.putArray( "coordinates", coordinatesResponseArray );
-	}
-
-	protected void drawTrackPoints(
-		List<TrackPoint> trackPoints,
-		PathLayer pathLayer
-	) {
-		for (int index = 0; index < trackPoints.size(); index++) {
-			TrackPoint point = (TrackPoint) trackPoints.get( index );
-			pathLayer.addPoint( new GeoPoint(
-				(Double) point.getLatitude(),
-				(Double) point.getLongitude()
-			) );
-		}
-	}
-
-	protected List<TrackPoint> getTrackPointsFromProps(
-		MapView mapView,
-		ReadableArray positions,
-		String filePath,
-		WritableMap responseParams,
-		Promise promise
-	) {
-		List<TrackPoint> trackPoints = new ArrayList<>();
-		if ( null != positions && positions.size() > 0 ) {
-			trackPoints = positionsToTrackPointList( positions );
-		} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
-			try {
-				InputStream in = null;
-				if ( filePath.startsWith( "content://" ) ) {
-					DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), Uri.parse( filePath ) );
-					if ( dir == null || ! dir.exists() || ! dir.isFile() ) {
-						promise.reject( "Error", "filePath does not exist or is not a file" ); return null;
-					}
-					if ( ! Utils.hasScopedStoragePermission( mapView.getContext(), filePath, false ) ) {
-						promise.reject( "Error", "No scoped storage read permission for filePath " + filePath ); return null;
-					}
-					in = mapView.getContext().getContentResolver().openInputStream( Uri.parse( filePath ) );
-					assert in != null;
-				}
-
-				if ( filePath.startsWith( "/" ) ) {
-					File gpxFile = new File( filePath );
-					if( ! gpxFile.exists() || ! gpxFile.isFile() || ! gpxFile.canRead() ) {
-						promise.reject( "Error", "filePath does not exist or is not a file. " + filePath ); return null;
-					}
-					in = new FileInputStream( gpxFile );
-				}
-				if( in == null ) {
-					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
-				}
-
-				GPXParser parser = new GPXParser();
-				Gpx parsedGpx = null;
-				try {
-					parsedGpx = parser.parse(in);
-				} catch ( IOException | XmlPullParserException e) {
-					e.printStackTrace();
-					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
-				}
-				if (parsedGpx == null) {
-					promise.reject( "Error", "Unable to load gpx file: " + filePath ); return null;
-				} else {
-					trackPoints = parsedGpx.getTracks().get(0).getTrackSegments().get(0).getTrackPoints();
-				}
-			} catch( Exception e ) {
-				e.printStackTrace();
-				promise.reject( "Error", e );
-			}
-		}
-		return trackPoints;
+		return styleBuilder;
 	}
 
 	@ReactMethod
-	public void createLayer(
-		int nativeNodeHandle,
-		ReadableArray positions,
-		String filePath,
-		ReadableMap styleMap,
-		ReadableMap responseInclude,
-		int reactTreeIndex,
-		Promise promise
-	) {
-		try {
-			MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
-
-			if ( mapFragment == null || null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
-			}
-
-			// The promise response
-			WritableMap responseParams = new WritableNativeMap();
-
-			// Init layer
-			PathLayer pathLayer = new PathLayer( mapView.map(), buildStyleFromMap( styleMap ) );
-
-			// Store layer.
-			String uuid = UUID.randomUUID().toString();
-			layers.put( uuid, pathLayer );
-
-			List<TrackPoint> trackPoints = getTrackPointsFromProps(
-				mapView,
-				positions,
-				filePath,
-				responseParams,
-				promise
-			);
-			if ( null == trackPoints || trackPoints.isEmpty() ) {
-				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;
-			}
-
-			// Store trackPoints
-			trackPointsMap.put( uuid, trackPoints );
-
-			// Draw line.
-			drawTrackPoints( trackPoints, pathLayer );
-
-			// Maybe add coordinates to response.
-			if ( ! trackPoints.isEmpty() && responseInclude.getInt( "coordinates" ) > 0 ) {
-				addCoordinatesToResponse( trackPoints, responseParams );
-			}
-
-			// Maybe add bounds to response.
-			if ( responseInclude.getInt( "bounds" ) > 0 ) {
-				addBoundsToResponse( pathLayer, responseParams );
-			}
-
-			// Add layer to map
-			mapView.map().layers().add(
-				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
-				pathLayer
-			);
-			mapView.map().updateMap(true);
-
-			// Resolve layer hash
-			responseParams.putString( "uuid", uuid );
-			promise.resolve( responseParams );
-		} catch( Exception e ) {
-			e.printStackTrace();
-			promise.reject( "Error", e );
-		}
-	}
-
-	@ReactMethod
-	public void updateStyle( int nativeNodeHandle, String uuid, ReadableMap styleMap, ReadableMap responseInclude, Promise promise ) {
-		WritableMap responseParams = new WritableNativeMap();
-		try {
-			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
-			if ( null == mapView ) {
-                promise.reject( "Error", "Unable to find mapView" ); return;
-			}
-
-			int layerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
-			if ( -1 == layerIndex ) {
-				promise.reject( "Error", "Layer not found" ); return;
-			}
-
-			// Create new vectorLayer.
-			PathLayer pathLayerNew = new PathLayer( mapView.map(), buildStyleFromMap( styleMap ) );
-
-			// Draw new.
-			List<TrackPoint> trackPoints = trackPointsMap.get( uuid );
-			if ( null == trackPoints ) {
-				promise.reject( "Error", "Unable to find coordinates" ); return;
-			}
-			drawTrackPoints( trackPoints, pathLayerNew );
-
-			// Replace old vectorLayer with new one on map.
-			mapView.map().layers().set( layerIndex, pathLayerNew );
-			layers.put( uuid, pathLayerNew );
-			mapView.map().updateMap( true );
-
-			// Maybe add coordinates to promise response.
-			if ( responseInclude.getInt( "coordinates" ) > 1 ) {
-				addCoordinatesToResponse( trackPoints, responseParams );
-			}
-
-			// Maybe add bounds to response.
-			if ( responseInclude.getInt( "bounds" ) > 1 ) {
-				addBoundsToResponse( pathLayerNew, responseParams );
-			}
-
-		} catch( Exception e ) {
-			e.printStackTrace();
-			promise.reject( "Error ", e );
-		}
-		promise.resolve( responseParams );
-	}
-
-	@ReactMethod
-	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
-		trackPointsMap.remove( uuid );
+	public void removeLayer( int nativeNodeHandle, String uuid, Promise promise ) {
+		originalJtsCoordinatesMap.remove( uuid );
 		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
+	/**
+	 * Copy of parent, because layers is different
+	 */
+	protected int getLayerIndexInMapLayers(
+		int nativeNodeHandle,
+		String uuid
+	) {
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+		if ( null == mapView ) {
+			return -1;
+		}
+
+		Layer layer = layers.get( uuid );
+		if ( null == layer ) {
+			return -1;
+		}
+
+		int layerIndex = -1;
+		int i = 0;
+		while ( layerIndex == -1 || i < mapView.map().layers().size() ) {
+			if ( layer == mapView.map().layers().get( i ) ) {
+				layerIndex = i;
+			}
+			i++;
+		}
+		return layerIndex;
+	}
 }

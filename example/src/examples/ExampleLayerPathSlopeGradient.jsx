@@ -6,7 +6,6 @@ import React, {
 } from 'react';
 import {
 	Text,
-	PixelRatio,
 	ToastAndroid,
 	useWindowDimensions,
 	View,
@@ -28,15 +27,13 @@ const { MapContainerModule, MapLayerPathSlopeGradientModule } = nativeMapModules
 /**
  * Internal dependencies
  */
-import ModalControl from '../components/ModalControl.jsx';
 import Center from '../components/Center.jsx';
 import { barTopPadding } from '../constants.js';
 import { formatSeconds } from '../utils.js';
 import TopBar from '../components/TopBar.jsx';
-import Button from '../components/Button.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
-import { PlusMinusControl, ButtonControl, rowBtnStyle, ControlWrapper } from '../components/RowControls.jsx';
+import { PlusMinusControl, ButtonControl, EventRowControl } from '../components/RowControls.jsx';
 
 const ExampleLayerPathSlopeGradient = ( {
     setSelectedExample,
@@ -187,54 +184,15 @@ const ExampleLayerPathSlopeGradient = ( {
                 buttonLabel="swap"
             />
 
-            <ControlWrapper
-                containerStyle={ { marginBottom: 10 } }
+            <EventRowControl
                 style={ style }
-                label={ 'Events' }
-                value={ '' }
-            >
-                <Button
-                    style={ {
-                        marginRight: 10,
-                        width: 81,
-                        textAlign: 'center',
-                    } }
-                    disabled={ promiseQueueState > 0 || ! layerUuid }
-                    onPress={ () => {
-                        if ( mapViewNativeNodeHandle && layerUuid ) {
-                            MapLayerPathSlopeGradientModule.triggerEvent(
-                                mapViewNativeNodeHandle,
-                                layerUuid,
-                                PixelRatio.getPixelSizeForLayoutSize( width ) / 2,
-                                PixelRatio.getPixelSizeForLayoutSize( mapHeight ) / 2
-                            ).catch( err => console.log( 'ERROR', err ) );
-                        }
-                    } }
-                    title={ 'trigger' }
-                />
-
-                <ModalControl
-                    style={ style }
-                    buttonStyle={ rowBtnStyle }
-                    buttonLabel={ '?' }
-                    headerLabel={ 'Events' }
-                    disabled={ promiseQueueState > 0 }
-                >
-                    <Text style={ {...style, marginBottom: 10} }>
-                        LayerPathSlopeGradient supports press, longPress and doubleTab events.
-                    </Text>
-                    <Text style={ {...style, marginBottom: 10} }>
-                        Furthermore an event can be triggered at any map position, here the center.
-                    </Text>
-                    <Text style={ {...style, marginBottom: 10} }>
-                        The gesture buffer distance can be controlled.
-                    </Text>
-                    <Text style={ style }>
-                        The response includes: event distance to the path, nearest point at path and the event position.
-                    </Text>
-                </ModalControl>
-
-            </ControlWrapper>;
+                promiseQueueState={ promiseQueueState }
+                mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
+                layerUuid={ layerUuid }
+                width={ width }
+                mapHeight={ mapHeight }
+                module={ MapLayerPathSlopeGradientModule }
+            />
 
             { coordinates && coordinates.length > 0 && <View>
                 <Text style={ style }>Number of points: { coordinates.length }</Text>
@@ -263,7 +221,9 @@ const ExampleLayerPathSlopeGradient = ( {
                 <LayerPathSlopeGradient
                     onCreate={ onChange }
                     filePath={ filePath }
-                    strokeWidth={ strokeWidth }
+                    style={ {
+                        strokeWidth,
+                    } }
                     slopeColors={ slopeColors }
                     slopeSimplificationTolerance={ slopeSimplificationTolerance }
                     flattenWindowSize={ flattenWindowSize }

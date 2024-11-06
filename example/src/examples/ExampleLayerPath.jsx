@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import {
 	Text,
+	ToastAndroid,
 	useWindowDimensions,
 	View,
 } from 'react-native';
@@ -22,7 +23,7 @@ import {
 	useMapEvents,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
+const { MapContainerModule, MapLayerPathModule } = nativeMapModules;
 
 /**
  * Internal dependencies
@@ -34,10 +35,9 @@ import TopBar from '../components/TopBar.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
-import { PlusMinusControl, rowBtnStyle } from '../components/RowControls.jsx';
+import { PlusMinusControl, rowBtnStyle, EventRowControl } from '../components/RowControls.jsx';
 
-const strokeColor = '#00ff00';
-const stippleColor = '#ff0000';
+const strokeColor = '#ff0000';
 
 const ExampleLayerPath = ( {
     setSelectedExample,
@@ -46,6 +46,8 @@ const ExampleLayerPath = ( {
 } ) => {
 
 	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
+
+	const [layerUuid, setLayerUuid] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -64,8 +66,7 @@ const ExampleLayerPath = ( {
 
 	const [coordinates,setCoordinates] = useState( [] );
 
-	const [strokeWidth,setStrokeWidth] = useState( 10 );
-	const [stipple,setStipple] = useState( 50 );
+	const [strokeWidth,setStrokeWidth] = useState( 5 );
 
     const onMapEvent = event => event.center
         ? setCurrentCenter( event.center )
@@ -80,6 +81,9 @@ const ExampleLayerPath = ( {
     }
 
     const onChange = response => {
+        if ( response.uuid ) {
+            setLayerUuid( response.uuid )
+        }
         if ( useGpx && response.bounds ) {
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
@@ -95,8 +99,6 @@ const ExampleLayerPath = ( {
 
     const lineStyle = {
         strokeWidth,
-        stipple,
-        stippleColor,
         strokeColor,
     };
 
@@ -188,15 +190,14 @@ const ExampleLayerPath = ( {
                 textAppend={ strokeColor }
             />
 
-            <PlusMinusControl
+            <EventRowControl
                 style={ style }
                 promiseQueueState={ promiseQueueState }
-                label={ 'Stripple width' }
-                value={ stipple }
-                setValue={ setStipple }
-                step={ 10 }
-                minValue={ 0 }
-                textAppend={ stippleColor }
+                mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
+                layerUuid={ layerUuid }
+                width={ width }
+                mapHeight={ mapHeight }
+                module={ MapLayerPathModule }
             />
 
             { coordinates && coordinates.length > 0 && <View style={ { marginTop: 10 } }>
@@ -235,6 +236,18 @@ const ExampleLayerPath = ( {
                     } }
                     onCreate={ onChange }
                     onChange={ onChange }
+                    onPress={ response => {
+                        ToastAndroid.show( 'Path pressed', ToastAndroid.SHORT );
+                    } }
+                    onLongPress={ response => {
+                        ToastAndroid.show( 'Path long pressed', ToastAndroid.SHORT );
+                    } }
+                    onDoubleTap={ response => {
+                        ToastAndroid.show( 'Path double tabbed', ToastAndroid.SHORT );
+                    } }
+                    onTrigger={ response => {
+                        ToastAndroid.show( 'Path triggered', ToastAndroid.SHORT );
+                    } }
                 />
 
                 <LayerScalebar/>

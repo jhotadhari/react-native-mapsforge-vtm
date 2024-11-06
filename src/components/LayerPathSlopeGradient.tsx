@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
-import type { ResponseInclude, Location, LocationExtended, Bounds, ResponseBase } from '../types';
+import type { ResponseInclude, Location, LocationExtended, GeometryStyle, Bounds, ResponseBase } from '../types';
+import type { LayerPathGestureResponse } from './LayerPath';
 import { NativeEventEmitter } from 'react-native';
 
 const Module = MapLayerPathSlopeGradientModule;
@@ -22,13 +23,6 @@ export interface LayerPathSlopeGradientResponse extends ResponseBase {
 	bounds?: Bounds;
 };
 
-export interface LayerPathSlopeGradientGestureResponse extends ResponseBase {
-	type: string;
-	distance: number;
-	nearestPoint: Location;
-	eventPosition: Location;
-};
-
 export type LayerPathSlopeGradientProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
@@ -37,17 +31,17 @@ export type LayerPathSlopeGradientProps = {
 	responseInclude?: ResponseInclude;
 	gestureScreenDistance?: number;
 	slopeColors?: GradientColors;
-	strokeWidth?: number;
+	style?: GeometryStyle;
 	slopeSimplificationTolerance?: number;
 	flattenWindowSize?: number;	// should be odd and greater 5.
 	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onChange?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
-	onPress?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
-	onLongPress?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
-	onDoubleTap?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
-	onTrigger?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
+	onPress?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onLongPress?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onDoubleTap?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onTrigger?: null | ( ( response: LayerPathGestureResponse ) => void );
 };
 
 // 0	never include in response.
@@ -79,11 +73,15 @@ const sortSlopeColors = ( slopeColors : GradientColors ) : GradientColors => [..
 	return 0;
 } );
 
+const defaultStyle : GeometryStyle = {
+	strokeWidth: 4,
+}
+
 const LayerPathSlopeGradient = ( {
 	nativeNodeHandle,
 	positions = [],
 	filePath,
-	strokeWidth = 4,
+	style = defaultStyle,
 	slopeColors = slopeColorsDefault,
 	slopeSimplificationTolerance = 7,
 	flattenWindowSize = 9,
@@ -106,11 +104,11 @@ const LayerPathSlopeGradient = ( {
 	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
 
 	positions = positions || [];
-	strokeWidth = strokeWidth > 0 ? Math.round( strokeWidth ) : 4;
 	slopeSimplificationTolerance = slopeSimplificationTolerance >= 0 ? Math.round( slopeSimplificationTolerance ) : 7;
 	flattenWindowSize = flattenWindowSize % 2 != 0 && flattenWindowSize > 5 ? flattenWindowSize : 9;
 	slopeColors = sortSlopeColors( slopeColors.length > 0 ? slopeColors : slopeColorsDefault );
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
+	style = {...defaultStyle, ...style };
 
 	const createLayer = () => {
 		setUuid( false );
@@ -119,7 +117,7 @@ const LayerPathSlopeGradient = ( {
 				nativeNodeHandle,
 				positions,
 				filePath,
-				strokeWidth,
+				style,
 				slopeColors,
 				slopeSimplificationTolerance,
 				flattenWindowSize,
@@ -162,17 +160,17 @@ const LayerPathSlopeGradient = ( {
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
-                return Module.updateStrokeWidth(
+                return Module.updateStyle(
                     nativeNodeHandle,
                     uuid,
-					strokeWidth,
+					style,
 					responseInclude,
 				).then( ( response: LayerPathSlopeGradientResponse ) => {
 					onChange ? onChange( response ) : null;
                 } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
 		}
-	}, [strokeWidth] );
+	}, [Object.values( style ).join( '' )] );
 
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
@@ -195,7 +193,7 @@ const LayerPathSlopeGradient = ( {
                return Module.updateSlopeColors(
 					nativeNodeHandle,
 					uuid,
-					strokeWidth,
+					style,
 					slopeColors,
 					responseInclude,
 				).then( ( response: LayerPathSlopeGradientResponse ) => {
@@ -211,7 +209,7 @@ const LayerPathSlopeGradient = ( {
                 return Module.updateCoordinatesSimplified(
 					nativeNodeHandle,
 					uuid,
-					strokeWidth,
+					style,
 					slopeSimplificationTolerance,
 					flattenWindowSize,
 					responseInclude,
@@ -252,7 +250,7 @@ const LayerPathSlopeGradient = ( {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'PathSlopeGradientGesture', ( response : LayerPathSlopeGradientGestureResponse ) => {
+		let eventListener = eventEmitter.addListener( 'PathSlopeGradientGesture', ( response : LayerPathGestureResponse ) => {
 			if ( response.uuid === uuid ) {
 				switch( response.type ) {
 					case 'doubleTap':
@@ -275,7 +273,10 @@ const LayerPathSlopeGradient = ( {
 		};
 	}, [
 		uuid,
+		onDoubleTap,
+		onLongPress,
 		onPress,
+		onTrigger,
 	] );
 
 	return null;

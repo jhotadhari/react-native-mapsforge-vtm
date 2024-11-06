@@ -43,8 +43,16 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		mGestureScreenDistance = gestureScreenDistance;
 	}
 
-	public void updateGestureScreenDistance( float gestureScreenDistance ) {
+	public void setGestureScreenDistance( float gestureScreenDistance ) {
 		mGestureScreenDistance = gestureScreenDistance;
+	}
+
+	public float getGestureScreenDistance() {
+		return mGestureScreenDistance;
+	}
+
+	public String getGestureEventName() {
+		return mGestureEventName;
 	}
 
 	@Override

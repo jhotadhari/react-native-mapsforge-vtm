@@ -10,6 +10,7 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
 import type { ResponseInclude, Location, LocationExtended, GeometryStyle, Bounds, ResponseBase } from '../types';
+import { NativeEventEmitter } from 'react-native';
 
 const Module = MapLayerPathModule;
 
@@ -18,17 +19,29 @@ export interface LayerPathResponse extends ResponseBase {
 	bounds?: Bounds;
 };
 
+export interface LayerPathGestureResponse extends ResponseBase {
+	type: string;
+	distance: number;
+	nearestPoint: Location;
+	eventPosition: Location;
+};
+
 export type LayerPathProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
+	gestureScreenDistance?: number;
 	style?: GeometryStyle;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerPathResponse ) => void );
 	onChange?: null | ( ( response: LayerPathResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
+	onPress?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onLongPress?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onDoubleTap?: null | ( ( response: LayerPathGestureResponse ) => void );
+	onTrigger?: null | ( ( response: LayerPathGestureResponse ) => void );
 };
 
 // 0	never include in response.
@@ -49,12 +62,17 @@ const LayerPath = ( {
 	positions = [],
 	filePath,
 	responseInclude = responseIncludeDefaults,
+	gestureScreenDistance = 20,
 	reactTreeIndex,
 	style = defaultStyle,
 	onCreate,
 	onRemove,
 	onChange,
 	onError,
+	onPress,
+	onLongPress,
+	onDoubleTap,
+	onTrigger,
 } : LayerPathProps ) => {
 
 	// @ts-ignore
@@ -75,6 +93,7 @@ const LayerPath = ( {
 				filePath,
 				style,
 				responseInclude,
+				gestureScreenDistance,
 				reactTreeIndex
 			).then( ( response: LayerPathResponse ) => {
 				setUuid( response.uuid );
@@ -147,6 +166,37 @@ const LayerPath = ( {
 		),
 		filePath,
 		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'PathGesture', ( response : LayerPathGestureResponse ) => {
+			if ( response.uuid === uuid ) {
+				switch( response.type ) {
+					case 'doubleTap':
+						onDoubleTap ? onDoubleTap( response ) : null;
+						break;
+					case 'LongPress':
+						onLongPress ? onLongPress( response ) : null;
+						break;
+					case 'press':
+						onPress ? onPress( response ) : null;
+						break;
+					case 'trigger':
+						onTrigger ? onTrigger( response ) : null;
+						break;
+				}
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		uuid,
+		onDoubleTap,
+		onLongPress,
+		onPress,
+		onTrigger,
 	] );
 
 	return null;
