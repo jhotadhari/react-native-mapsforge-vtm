@@ -9,18 +9,15 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerScalebarModule } from '../nativeMapModules';
+import type { ResponseBase } from '../types';
 
 const Module = MapLayerScalebarModule;
-
-export type LayerScalebarResponse = {
-	uuid: string;
-};
 
 export type LayerScalebarProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
-	onCreate?: null | ( ( response: LayerScalebarResponse ) => void );
-	onRemove?: null | ( ( response: LayerScalebarResponse ) => void );
+	onCreate?: null | ( ( response: ResponseBase ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onError?: null | ( ( err: any ) => void );
 };
 
@@ -42,7 +39,7 @@ const LayerScalebar = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				reactTreeIndex
-			).then( ( response: LayerScalebarResponse ) => {
+			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				onCreate ? onCreate( response ) : null;

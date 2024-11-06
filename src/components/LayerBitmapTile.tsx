@@ -9,12 +9,9 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerBitmapTileModule } from '../nativeMapModules';
+import type { ResponseBase } from '../types';
 
 const Module = MapLayerBitmapTileModule;
-
-export type LayerBitmapTileResponse = {
-	uuid: string;
-};
 
 export type LayerBitmapTileProps = {
 	nativeNodeHandle?: null | number;
@@ -23,9 +20,9 @@ export type LayerBitmapTileProps = {
 	zoomMin?: number;
 	zoomMax?: number;
 	cacheSize?: number;
-	onCreate?: null | ( ( result: { uuid: string } ) => void );
-	onRemove?: null | ( ( result: { uuid: string } ) => void );
-	onChange?: null | ( ( result: { uuid: string } ) => void );
+	onCreate?: null | ( ( result: ResponseBase ) => void );
+	onRemove?: null | ( ( result: ResponseBase ) => void );
+	onChange?: null | ( ( result: ResponseBase ) => void );
 	onError?: null | ( ( err: any ) => void );
 };
 
@@ -57,7 +54,7 @@ const LayerBitmapTile = ( {
 				Math.round( zoomMax ),
 				Math.round( cacheSize ),
 				reactTreeIndex
-			).then( ( response: LayerBitmapTileResponse ) => {
+			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				( null === triggerCreateNew

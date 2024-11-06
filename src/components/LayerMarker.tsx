@@ -9,22 +9,18 @@ import { Children, cloneElement, isValidElement, useEffect, useState } from 'rea
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerMarkerModule } from '../nativeMapModules';
-import type { MarkerSymbol } from '../types';
+import type { MarkerSymbol, ResponseBase } from '../types';
 
 const Module = MapLayerMarkerModule;
-
-export type LayerMarkerResponse = {
-	uuid: string;
-};
 
 export type LayerMarkerProps = {
 	children?: React.ReactNode;
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
     symbol?: null | MarkerSymbol;
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
-	onCreate?: null | ( ( response: LayerMarkerResponse ) => void );
-	onChange?: null | ( ( response: LayerMarkerResponse ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
+	onCreate?: null | ( ( response: ResponseBase ) => void );
+	onChange?: null | ( ( response: ResponseBase ) => void );
 	onError?: null | ( ( err: any ) => void );
 };
 
@@ -51,7 +47,7 @@ const LayerMarker = ( {
 				nativeNodeHandle,
 				symbol,
 				reactTreeIndex
-			).then( ( response: LayerMarkerResponse ) => {
+			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
 				setRandom( Math.random() );
 				( null === triggerCreateNew
@@ -110,7 +106,6 @@ const LayerMarker = ( {
 
 	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children ? null : Children.map( children, ( child, index ) => {
 		let newChild = child;
-
 		if ( ! isValidElement<{ children?: React.ReactNode }>( child )) {
 			return newChild
 		}
@@ -121,7 +116,6 @@ const LayerMarker = ( {
 				...( child?.props?.children && { children: wrapChildren( child.props.children ) } ),
 			},
 		);
-
 		return newChild;
 	} );
 

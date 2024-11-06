@@ -14,13 +14,13 @@ import { MapLayerMapsforgeModule } from '../nativeMapModules';
 import { BUILT_IN_THEMES } from '../constants';
 import type {
 	Bounds,
-	Location
+	Location,
+	ResponseBase
 } from '../types';
 
 const Module = MapLayerMapsforgeModule;
 
-export type LayerMapsforgeResponse = {
-	uuid: string;
+export interface LayerMapsforgeResponse extends ResponseBase {
 	bounds?: Bounds;
 	center?: Location;
 	createdBy?: string;
@@ -38,7 +38,7 @@ export type LayerMapsforgeProps = {
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	renderStyle?: string;
 	renderOverlays?: string[];
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerMapsforgeResponse ) => void );
 	onChange?: null | ( ( response: LayerMapsforgeResponse ) => void );
 	onError?: null | ( ( err: any ) => void );

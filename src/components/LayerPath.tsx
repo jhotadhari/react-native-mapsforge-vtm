@@ -9,13 +9,13 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathModule } from '../nativeMapModules';
-import type { ResponseInclude, Location, LocationExtended, GeometryStyle } from '../types';
+import type { ResponseInclude, Location, LocationExtended, GeometryStyle, Bounds, ResponseBase } from '../types';
 
 const Module = MapLayerPathModule;
 
-export type LayerPathResponse = {
-	uuid: string;
+export interface LayerPathResponse extends ResponseBase {
 	coordinates?: LocationExtended[];
+	bounds?: Bounds;
 };
 
 export type LayerPathProps = {
@@ -25,7 +25,7 @@ export type LayerPathProps = {
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
 	style?: GeometryStyle;
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerPathResponse ) => void );
 	onChange?: null | ( ( response: LayerPathResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
@@ -134,7 +134,7 @@ const LayerPath = ( {
 					).then( () => {
 						setUuid( null );
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );;
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			} else if ( uuid === null && ( filePath || positions.length > 0 ) ) {
 				setTriggerCreateNew( Math.random() );

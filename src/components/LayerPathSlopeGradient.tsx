@@ -9,16 +9,16 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
-import type { ResponseInclude, Location, LocationExtended } from '../types';
+import type { ResponseInclude, Location, LocationExtended, Bounds, ResponseBase } from '../types';
 
 const Module = MapLayerPathSlopeGradientModule;
 
 export type GradientColors = [number, `#${string}`][];
 
-export type LayerPathSlopeGradientResponse = {
-	uuid: string;
+export interface LayerPathSlopeGradientResponse extends ResponseBase  {
 	coordinates?: LocationExtended[];
 	coordinatesSimplified?: LocationExtended[];
+	bounds?: Bounds;
 };
 
 export type LayerPathSlopeGradientProps = {
@@ -31,7 +31,7 @@ export type LayerPathSlopeGradientProps = {
 	strokeWidth?: number;
 	slopeSimplificationTolerance?: number;
 	flattenWindowSize?: number;	// should be odd and greater 5.
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onChange?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onError?: null | ( ( err: any ) => void );

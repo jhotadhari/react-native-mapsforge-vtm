@@ -9,12 +9,11 @@ import { useEffect, useState } from 'react';
 import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerMBTilesBitmapModule } from '../nativeMapModules';
-import type { Bounds, Location } from '../types';
+import type { Bounds, Location, ResponseBase } from '../types';
 
 const Module = MapLayerMBTilesBitmapModule;
 
-export type LayerMBTilesBitmapResponse = {
-	uuid: string;
+export interface LayerMBTilesBitmapResponse extends ResponseBase {
 	bounds?: Bounds;
 	minZoom?: number;
 	maxZoom?: number;
@@ -32,7 +31,7 @@ export type LayerMBTilesBitmapProps = {
 	mapFile?: `/${string}`;
 	alpha?: number;
 	transparentColor?: `#${string}`;
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
 	onChange?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
 	onError?: null | ( ( err: any ) => void );

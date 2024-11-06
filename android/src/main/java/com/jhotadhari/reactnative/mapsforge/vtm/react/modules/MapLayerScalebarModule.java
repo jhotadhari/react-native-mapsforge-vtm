@@ -53,6 +53,8 @@ public class MapLayerScalebarModule extends MapLayerBase {
 			MapScaleBarLayer mapScaleBarLayer = new MapScaleBarLayer( mapView.map(), mapScaleBar );
 			mapScaleBarLayer.getRenderer().setPosition( GLViewport.Position.BOTTOM_LEFT );
 			mapScaleBarLayer.getRenderer().setOffset(5 * CanvasAdapter.getScale(), 0 );
+
+			// Add layer to map
 			mapView.map().layers().add(
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				mapScaleBarLayer
