@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2024-11-06
+Path improvements
+
+### Added
+- Gesture events for both Path layers. Added props: `onPress`, `onLongPress` and `onDoubleTap`.
+- Trigger event at any point at the map, for both Path layers. Added prop: `onTrigger`. Added method `triggerEvent` to path modules.
+- Possibility to simplify paths. Added prop: `simplificationTolerance`.
+
+### Changed
+- Both path layer modules. Now they work the same way and `MapLayerPathSlopeGradientModule` extends `MapLayerPathModule`.
+- Removed `strokeWidth` prop from `LayerPathSlopeGradient`. Now it uses the same `style` prop like `PathLayer`. Just that the color will be overwritten by the gradient color.
+
+### Fixed
+- The zickzacky appearance of `PathLayer`. Now it uses the same way of rendering like the `LayerPathSlopeGradient` component.
+
 ## [0.2.0] - 2024-11-06
 Markers, hurrah.
 
@@ -47,6 +62,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.3.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.1...v0.1.2

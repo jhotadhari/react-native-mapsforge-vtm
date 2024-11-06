@@ -20,6 +20,7 @@ import Button from './Button.jsx';
 import useDirInfo from '../compose/useDirInfo';
 
 const DirPickerModalControl = ( {
+	style,
 	disabled,
 	buttonLabel,
 	buttonLabelFallback,
@@ -64,7 +65,7 @@ const DirPickerModalControl = ( {
 			setModalVisible={ setModalVisible }
 			modalVisible={ modalVisible }
 			headerLabel={ headerLabel }
-			style={ { width: width * ( 2 / 3 ) } }
+			style={ { width: width * ( 2 / 3 ), ...( style ? style : {} ) } }
 		>
 
 			<Text style={ { marginBottom: 10} } >

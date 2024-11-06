@@ -27,6 +27,7 @@ const FilesFromDirPickerModalControl = ( {
     extraOptions,
     ExtraOptionsHeader,
     OptionsHeader,
+    style,
 } ) => {
 
     const { navChildren } = useDirInfo( dir || null );
@@ -43,6 +44,7 @@ const FilesFromDirPickerModalControl = ( {
     }, [navChildren] );
 
 	return <PickerModalControl
+        style={ style }
         hasSelectAll={ hasSelectAll }
         options={ options }
         extraOptions={ extraOptions }

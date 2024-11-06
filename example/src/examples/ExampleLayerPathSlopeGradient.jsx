@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import {
 	Text,
+	ToastAndroid,
 	useWindowDimensions,
 	View,
 } from 'react-native';
@@ -21,17 +22,18 @@ import {
 	nativeMapModules,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
+const { MapContainerModule, MapLayerPathSlopeGradientModule } = nativeMapModules;
 
 /**
  * Internal dependencies
  */
+import Center from '../components/Center.jsx';
 import { barTopPadding } from '../constants.js';
 import { formatSeconds } from '../utils.js';
 import TopBar from '../components/TopBar.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
-import { PlusMinusControl, ButtonControl, rowBtnStyle } from '../components/RowControls.jsx';
+import { PlusMinusControl, ButtonControl, EventRowControl } from '../components/RowControls.jsx';
 
 const ExampleLayerPathSlopeGradient = ( {
     setSelectedExample,
@@ -40,6 +42,10 @@ const ExampleLayerPathSlopeGradient = ( {
 } ) => {
 
 	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
+
+	const [layerUuid, setLayerUuid] = useState( null );
+
+	const [isSetToBounds, setIsSetToBounds] = useState( false );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -55,6 +61,7 @@ const ExampleLayerPathSlopeGradient = ( {
 	const [coordinatesSimplified,setCoordinatesSimplified] = useState( [] );
 
 	const [strokeWidth,setStrokeWidth] = useState( 5 );
+	const [simplificationTolerance,setSimplificationTolerance] = useState( 0.00001 );
 	const [slopeSimplificationTolerance,setSlopeSimplificationTolerance] = useState( 7 );
 	const [flattenWindowSize,setFlattenWindowSize] = useState( 9 );
 
@@ -77,7 +84,11 @@ const ExampleLayerPathSlopeGradient = ( {
     }
 
     const onChange = response => {
-        if ( response.bounds ) {
+        if ( response.uuid ) {
+            setLayerUuid( response.uuid )
+        }
+        if ( response.bounds && ! isSetToBounds ) {
+            setIsSetToBounds( true );
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
@@ -120,6 +131,7 @@ const ExampleLayerPathSlopeGradient = ( {
             } } >
 
                 <View style={ { width: '100%' } } ><FilesFromDirPickerModalControl
+                    style={ style }
                     headerLabel={ 'gpx File' }
                     buttonLabel={ 'gpx File ' + fileLabel }
                     NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no gpx files in this Directory!</Text><Text style={ style }>{ appDirs.tracks }</Text></View> }
@@ -135,6 +147,19 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
+                containerStyle={ { marginBottom: 10 } }
+                promiseQueueState={ promiseQueueState }
+                label={ 'Simplify' }
+                value={ simplificationTolerance }
+                setValue={ newVal => setSimplificationTolerance( Math.round( newVal * 100000 ) / 100000 ) }
+                minValue={ 0 }
+                step={ 0.00001 }
+            />
+
+            <PlusMinusControl
+                style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Stroke width' }
@@ -145,6 +170,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Simplification' }
@@ -156,6 +182,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Smoothen' }
@@ -168,12 +195,24 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <ButtonControl
                 style={ style }
+                valueMinWidth={ 55 }
                 buttonStyle={ { width: 81 } }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Colors' }
                 onPress={ swapColors }
                 buttonLabel="swap"
+            />
+
+            <EventRowControl
+                style={ style }
+                valueMinWidth={ 55 }
+                promiseQueueState={ promiseQueueState }
+                mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
+                layerUuid={ layerUuid }
+                width={ width }
+                mapHeight={ mapHeight }
+                module={ MapLayerPathSlopeGradientModule }
             />
 
             { coordinates && coordinates.length > 0 && <View>
@@ -185,35 +224,61 @@ const ExampleLayerPathSlopeGradient = ( {
 
         </TopBar>
 
-        <MapContainer
-            height={ mapHeight }
-            nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
-            setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
-        >
+        <View style={ {
+            height: mapHeight,
+            width,
+        } } >
+            <MapContainer
+                height={ mapHeight }
+                nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+                setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
+            >
 
-            <LayerBitmapTile
-                url={ tileOptions[0].value }
-                cacheSize={ 10 * 1024 * 1024 }  // 10 mb
+                <LayerBitmapTile
+                    url={ tileOptions[0].value }
+                    cacheSize={ 10 * 1024 * 1024 }  // 10 mb
+                />
+
+                <LayerPathSlopeGradient
+                    onCreate={ onChange }
+                    filePath={ filePath }
+                    style={ {
+                        strokeWidth,
+                    } }
+                    simplificationTolerance={ simplificationTolerance }
+                    slopeColors={ slopeColors }
+                    slopeSimplificationTolerance={ slopeSimplificationTolerance }
+                    flattenWindowSize={ flattenWindowSize }
+                    responseInclude={ {
+                        bounds: 1,
+                        coordinates: 1,
+                        coordinatesSimplified: 2,
+                    } }
+                    onChange={ onChange }
+                    onPress={ response => {
+                        ToastAndroid.show( 'Path pressed', ToastAndroid.SHORT );
+                    } }
+                    onLongPress={ response => {
+                        ToastAndroid.show( 'Path long pressed', ToastAndroid.SHORT );
+                    } }
+                    onDoubleTap={ response => {
+                        ToastAndroid.show( 'Path double tabbed', ToastAndroid.SHORT );
+                    } }
+                    onTrigger={ response => {
+                        ToastAndroid.show( 'Path triggered', ToastAndroid.SHORT );
+                    } }
+                />
+
+                <LayerScalebar/>
+
+            </MapContainer>
+
+            <Center
+                height={ mapHeight }
+                width={ width }
             />
 
-            <LayerPathSlopeGradient
-                filePath={ filePath }
-                strokeWidth={ strokeWidth }
-                slopeColors={ slopeColors }
-                slopeSimplificationTolerance={ slopeSimplificationTolerance }
-                flattenWindowSize={ flattenWindowSize }
-                responseInclude={ {
-                    bounds: 1,
-                    coordinates: 1,
-                    coordinatesSimplified: 2,
-                } }
-                onCreate={ onChange }
-                onChange={ onChange }
-            />
-
-            <LayerScalebar/>
-
-        </MapContainer>
+        </View>
 
         <AttributionComponent style={ {
             margin: 5,

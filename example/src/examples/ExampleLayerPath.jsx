@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import {
 	Text,
+	ToastAndroid,
 	useWindowDimensions,
 	View,
 } from 'react-native';
@@ -22,7 +23,7 @@ import {
 	useMapEvents,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
+const { MapContainerModule, MapLayerPathModule } = nativeMapModules;
 
 /**
  * Internal dependencies
@@ -34,10 +35,9 @@ import TopBar from '../components/TopBar.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
-import { PlusMinusControl, rowBtnStyle } from '../components/RowControls.jsx';
+import { PlusMinusControl, rowBtnStyle, EventRowControl } from '../components/RowControls.jsx';
 
-const strokeColor = '#00ff00';
-const stippleColor = '#ff0000';
+const strokeColor = '#ff0000';
 
 const ExampleLayerPath = ( {
     setSelectedExample,
@@ -46,6 +46,10 @@ const ExampleLayerPath = ( {
 } ) => {
 
 	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
+
+	const [layerUuid, setLayerUuid] = useState( null );
+
+	const [isSetToBounds, setIsSetToBounds] = useState( false );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -64,8 +68,8 @@ const ExampleLayerPath = ( {
 
 	const [coordinates,setCoordinates] = useState( [] );
 
-	const [strokeWidth,setStrokeWidth] = useState( 10 );
-	const [stipple,setStipple] = useState( 50 );
+	const [strokeWidth,setStrokeWidth] = useState( 5 );
+	const [simplificationTolerance,setSimplificationTolerance] = useState( 0.00001 );
 
     const onMapEvent = event => event.center
         ? setCurrentCenter( event.center )
@@ -80,7 +84,11 @@ const ExampleLayerPath = ( {
     }
 
     const onChange = response => {
-        if ( useGpx && response.bounds ) {
+        if ( response.uuid ) {
+            setLayerUuid( response.uuid )
+        }
+        if ( useGpx && response.bounds && ! isSetToBounds ) {
+            setIsSetToBounds( true );
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
@@ -95,8 +103,6 @@ const ExampleLayerPath = ( {
 
     const lineStyle = {
         strokeWidth,
-        stipple,
-        stippleColor,
         strokeColor,
     };
 
@@ -131,6 +137,7 @@ const ExampleLayerPath = ( {
                     disabled={ promiseQueueState > 0 }
                     onPress={ () => {
                         setUseGpx( ! useGpx );
+                        setIsSetToBounds( false );
                         setCoordinates( null )
                     } }
                     title={ useGpx ? 'gpx' : 'positions' }
@@ -163,6 +170,7 @@ const ExampleLayerPath = ( {
                 </View> }
 
                 { useGpx && <View style={ { width: '80%' } } ><FilesFromDirPickerModalControl
+                    style={ style }
                     headerLabel={ 'gpx File' }
                     buttonLabel={ 'gpx File ' + fileLabel }
                     NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no gpx files in this Directory!</Text><Text style={ style }>{ appDirs.tracks }</Text></View> }
@@ -178,6 +186,7 @@ const ExampleLayerPath = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Stroke width' }
@@ -189,13 +198,25 @@ const ExampleLayerPath = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
+                containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
-                label={ 'Stripple width' }
-                value={ stipple }
-                setValue={ setStipple }
-                step={ 10 }
+                label={ 'Simplify' }
+                value={ simplificationTolerance }
+                setValue={ newVal => setSimplificationTolerance( Math.round( newVal * 100000 ) / 100000 ) }
                 minValue={ 0 }
-                textAppend={ stippleColor }
+                step={ 0.00001 }
+            />
+
+            <EventRowControl
+                style={ style }
+                valueMinWidth={ 55 }
+                promiseQueueState={ promiseQueueState }
+                mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
+                layerUuid={ layerUuid }
+                width={ width }
+                mapHeight={ mapHeight }
+                module={ MapLayerPathModule }
             />
 
             { coordinates && coordinates.length > 0 && <View style={ { marginTop: 10 } }>
@@ -232,8 +253,21 @@ const ExampleLayerPath = ( {
                         bounds: 1,
                         coordinates: 1,
                     } }
+                    simplificationTolerance={ simplificationTolerance }
                     onCreate={ onChange }
                     onChange={ onChange }
+                    onPress={ response => {
+                        ToastAndroid.show( 'Path pressed', ToastAndroid.SHORT );
+                    } }
+                    onLongPress={ response => {
+                        ToastAndroid.show( 'Path long pressed', ToastAndroid.SHORT );
+                    } }
+                    onDoubleTap={ response => {
+                        ToastAndroid.show( 'Path double tabbed', ToastAndroid.SHORT );
+                    } }
+                    onTrigger={ response => {
+                        ToastAndroid.show( 'Path triggered', ToastAndroid.SHORT );
+                    } }
                 />
 
                 <LayerScalebar/>

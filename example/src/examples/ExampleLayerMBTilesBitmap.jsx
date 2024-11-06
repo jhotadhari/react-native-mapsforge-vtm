@@ -99,9 +99,10 @@ const ExampleLayerMBTilesBitmap = ( {
             </Text>
 
             <View style={ { marginBottom: 10 } } ><FilesFromDirPickerModalControl
+                style={ style }
                 headerLabel={ 'Map File' }
                 buttonLabel={ 'Map File ' + mapFileLabel }
-                NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no mbtiles map files in this Directory!</Text><Text style={ style }>{ appDirs.mapfiles }</Text></View> }
+                NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no raster MBtiles map files in this Directory!</Text><Text style={ style }>{ appDirs.mapfiles }</Text></View> }
                 dir={ appDirs.mapfiles }
                 filePattern={ /.*\.mbtiles$/ }
                 values={ [mapFile] }

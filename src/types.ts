@@ -4,7 +4,7 @@ import type { LayerBitmapTileProps  } from './components/LayerBitmapTile';
 import type { ShadingAlgorithm, ShadingAlgorithmOptions, LayerHillshadingProps  } from './components/LayerHillshading';
 import type { LayerMapsforgeResponse, LayerMapsforgeProps  } from './components/LayerMapsforge';
 import type { LayerMBTilesBitmapResponse, LayerMBTilesBitmapProps  } from './components/LayerMBTilesBitmap';
-import type { LayerPathResponse, LayerPathProps  } from './components/LayerPath';
+import type { LayerPathResponse, LayerPathGestureResponse, LayerPathProps  } from './components/LayerPath';
 import type { GradientColors, LayerPathSlopeGradientResponse, LayerPathSlopeGradientProps  } from './components/LayerPathSlopeGradient';
 import type { LayerScalebarProps  } from './components/LayerScalebar';
 import type { MapContainerProps, MapLifeCycleResponse } from './components/MapContainer';
@@ -21,6 +21,7 @@ export type {
     LayerMBTilesBitmapResponse,
     LayerMBTilesBitmapProps,
     LayerPathResponse,
+    LayerPathGestureResponse,
     LayerPathProps,
     GradientColors,
     LayerPathSlopeGradientResponse,
