@@ -112,6 +112,8 @@ const LayerPathSlopeGradient = ( {
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 	style = {...defaultStyle, ...style };
 
+	const supportsGestures = !! onPress || !! onLongPress || !! onDoubleTap;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
@@ -124,6 +126,7 @@ const LayerPathSlopeGradient = ( {
 				slopeSimplificationTolerance,
 				flattenWindowSize,
 				responseInclude,
+				!! supportsGestures,
 				gestureScreenDistance,
 				simplificationTolerance,
 				reactTreeIndex
@@ -277,6 +280,7 @@ const LayerPathSlopeGradient = ( {
 		};
 	}, [
 		uuid,
+		!! supportsGestures,
 		onDoubleTap,
 		onLongPress,
 		onPress,

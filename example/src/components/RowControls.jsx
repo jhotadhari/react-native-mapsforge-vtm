@@ -158,6 +158,9 @@ export const EventRowControl = ( {
         <Text style={ {...style, marginBottom: 10} }>
             The gesture buffer distance can be controlled.
         </Text>
+        <Text style={ {...style, marginBottom: 10} }>
+            Gesture events slow down the UI. If the layer doesn't have onPress|onLongPress|onDoubleTap functions, gesture support is disabled. Events can still be triggered.
+        </Text>
         <Text style={ style }>
             The response includes: event distance to the path, nearest point at path and the event position.
         </Text>

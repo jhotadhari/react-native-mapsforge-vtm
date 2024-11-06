@@ -18,6 +18,7 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 
 	protected final ReactContext mReactContext;
 	protected final String mUuid;
+	protected final Boolean mSupportsGestures;
 	protected final String mGestureEventName;
 	protected float mGestureScreenDistance = 30f;
 
@@ -25,6 +26,7 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		super( map, index );
 		mReactContext = null;
 		mUuid = null;
+		mSupportsGestures = false;
 		mGestureEventName = null;
 	}
 
@@ -32,13 +34,15 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		super( map );
 		mReactContext = null;
 		mUuid = null;
+		mSupportsGestures = false;
 		mGestureEventName = null;
 	}
 
-	public VectorLayer( Map map, String uuid, ReactContext reactContext, String gestureEventName, float gestureScreenDistance ) {
+	public VectorLayer( Map map, String uuid, ReactContext reactContext, Boolean supportsGestures, String gestureEventName, float gestureScreenDistance ) {
 		super( map );
 		mReactContext = reactContext;
 		mUuid = uuid;
+		mSupportsGestures = supportsGestures;
 		mGestureEventName = gestureEventName;
 		mGestureScreenDistance = gestureScreenDistance;
 	}
@@ -55,9 +59,13 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		return mGestureEventName;
 	}
 
+	public boolean getSupportsGestures() {
+		return mSupportsGestures;
+	}
+
 	@Override
 	public boolean onGesture( Gesture g, MotionEvent e ) {
-		if ( mReactContext == null ) {
+		if ( mReactContext == null || ! mSupportsGestures ) {
 			return false;
 		}
 		WritableMap params = containsGetResponse( e.getX(), e.getY() );

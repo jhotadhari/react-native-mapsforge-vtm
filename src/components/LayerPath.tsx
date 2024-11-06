@@ -86,6 +86,8 @@ const LayerPath = ( {
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 	style = {...defaultStyle, ...style };
 
+	const supportsGestures = !! onPress || !! onLongPress || !! onDoubleTap;
+
 	const createLayer = () => {
 		setUuid( false );
 		promiseQueue.enqueue( () => {
@@ -95,6 +97,7 @@ const LayerPath = ( {
 				filePath,
 				style,
 				responseInclude,
+				!! supportsGestures,
 				gestureScreenDistance,
 				simplificationTolerance,
 				reactTreeIndex
@@ -197,6 +200,7 @@ const LayerPath = ( {
 		};
 	}, [
 		uuid,
+		!! supportsGestures,
 		onDoubleTap,
 		onLongPress,
 		onPress,

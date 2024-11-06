@@ -152,6 +152,7 @@ public class MapLayerPathModule extends MapLayerBase {
 		String filePath,
 		ReadableMap styleMap,
 		ReadableMap responseInclude,
+		boolean supportsGestures,
 		float gestureScreenDistance,
 		float simplificationTolerance,
 		int reactTreeIndex,
@@ -174,6 +175,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				mapView.map(),
 				uuid,
 				mapFragment.getReactContext(),
+				supportsGestures,
 				"PathGesture",
 				gestureScreenDistance
 			);
@@ -303,6 +305,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				mapView.map(),
 				uuid,
 				mapFragment.getReactContext(),
+				vectorLayer.getSupportsGestures(),
 				vectorLayer.getGestureEventName(),
 				vectorLayer.getGestureScreenDistance()
 			);

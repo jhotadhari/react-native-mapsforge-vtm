@@ -60,6 +60,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 		double slopeSimplificationTolerance,
 		int flattenWindowSize,
 		ReadableMap responseInclude,
+		boolean supportsGestures,
 		float gestureScreenDistance,
 		float simplificationTolerance,
 		int reactTreeIndex,
@@ -83,6 +84,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 				mapView.map(),
 				uuid,
 				mapFragment.getReactContext(),
+				supportsGestures,
 				"PathSlopeGradientGesture",
 				gestureScreenDistance
 			);
@@ -344,6 +346,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 				mapView.map(),
 				uuid,
 				mapFragment.getReactContext(),
+				vectorLayer.getSupportsGestures(),
 				vectorLayer.getGestureEventName(),
 				vectorLayer.getGestureScreenDistance()
 			);
@@ -422,6 +425,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 				mapView.map(),
 				uuid,
 				mapFragment.getReactContext(),
+				vectorLayer.getSupportsGestures(),
 				vectorLayer.getGestureEventName(),
 				vectorLayer.getGestureScreenDistance()
 			);
