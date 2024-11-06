@@ -38,6 +38,10 @@ export type Bounds = {
 	maxLng: number;
 };
 
+export interface ResponseBase {
+    uuid: string;
+};
+
 export interface Location {
 	lng: number;
 	lat: number;

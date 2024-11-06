@@ -81,6 +81,7 @@ public class MapLayerMarkerModule extends MapLayerBase {
 				public boolean onItemSingleTapUp( int i, Object o ) {
 					MarkerItem markerItem = (MarkerItem) o;
 					WritableMap params = new WritableNativeMap();
+					params.putInt( "index", i );
 					params.putString( "uuid", markerItem.getUid().toString() );
 					Utils.sendEvent(  mapFragment.getReactContext(), "MarkerItemSingleTapUp", params );
 					return false;
@@ -89,6 +90,7 @@ public class MapLayerMarkerModule extends MapLayerBase {
 				public boolean onItemLongPress( int i, Object o ) {
 					MarkerItem markerItem = (MarkerItem) o;
 					WritableMap params = new WritableNativeMap();
+					params.putInt( "index", i );
 					params.putString( "uuid", markerItem.getUid().toString() );
 					Utils.sendEvent(  mapFragment.getReactContext(), "MarkerItemLongPress", params );
 					return false;
@@ -171,6 +173,8 @@ public class MapLayerMarkerModule extends MapLayerBase {
 			);
 			markerItem.setMarker( symbol );
 		}
+		// Add index to response.
+		responseParams.putInt( "index", markerLayer.getItemList().size() );
 		// Add marker to markerLayer.
 		markerLayer.addItem( markerItem );
 		// Store marker
@@ -417,7 +421,6 @@ public class MapLayerMarkerModule extends MapLayerBase {
 			if (it.isInside(dx, dy)) {
 				inside = i;
 				MarkerItem markerItem = (MarkerItem) item;
-
 				WritableMap markerParams = new WritableNativeMap();
 				markerParams.putString( "uuid", markerItem.getUid().toString() );
 				markerParams.putInt( "index", i );

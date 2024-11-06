@@ -10,13 +10,13 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MarkerHotspotPlaces } from '../constants';
 import { MapLayerMarkerModule } from '../nativeMapModules';
-import type { Location, MarkerSymbol } from '../types';
+import type { Location, MarkerSymbol, ResponseBase } from '../types';
 import { NativeEventEmitter } from 'react-native';
 
 const Module = MapLayerMarkerModule;
 
-export type MarkerResponse = {
-	uuid: string;
+export interface MarkerResponse extends ResponseBase {
+	index: number;
 };
 
 export type MarkerProps = {
@@ -26,7 +26,7 @@ export type MarkerProps = {
     title?: string;
     description?: string;
     symbol?: null | MarkerSymbol;
-	onRemove?: null | ( ( response: { uuid: string } ) => void );
+	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: MarkerResponse ) => void );
 	onChange?: null | ( ( response: MarkerResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
@@ -121,7 +121,7 @@ const Marker = ( {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'MarkerItemSingleTapUp', response => {
+		let eventListener = eventEmitter.addListener( 'MarkerItemSingleTapUp', ( response : MarkerResponse ) => {
 			if ( response.uuid === uuid && onPress ) {
                 onPress( response );
 			}
@@ -136,7 +136,7 @@ const Marker = ( {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'MarkerItemLongPress', response => {
+		let eventListener = eventEmitter.addListener( 'MarkerItemLongPress', ( response : MarkerResponse ) => {
 			if ( response.uuid === uuid && onLongPress ) {
                 onLongPress( response );
 			}
@@ -151,7 +151,7 @@ const Marker = ( {
 
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'MarkerItemTriggerEvent', response => {
+		let eventListener = eventEmitter.addListener( 'MarkerItemTriggerEvent', ( response : MarkerResponse ) => {
 			if ( response.uuid === uuid && onTrigger ) {
                 onTrigger( response );
 			}
