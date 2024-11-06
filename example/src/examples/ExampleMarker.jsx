@@ -116,7 +116,10 @@ const ExampleMarker = ( {
                 Marker Example
             </Text>
             <Text style={ { ...style, marginBottom: 10 } }>
-                ???
+                100 random markers. With raster and svg symbols. Or different fallback circle symbols. Symbols support labels, here they are labelled by index.
+            </Text>
+            <Text style={ { ...style, marginBottom: 10 } }>
+                Markers support press and longPress events. Furthermore an event can be triggered at any map position, here the center.
             </Text>
 
             <View style={ {
@@ -132,12 +135,12 @@ const ExampleMarker = ( {
                     onPress={ () => {
                         randomizePositions()
                     } }
-                    title={ 'Randomize positions' }
+                    title={ 'Randomize Markers' }
                 />
 
                 <Button
                     style={ { marginRight: 10 } }
-                    disabled={ promiseQueueState > 0 }
+                    disabled={ promiseQueueState > 0 || ! markerLayerUuid }
                     onPress={ () => {
                         if ( mapViewNativeNodeHandle && markerLayerUuid ) {
                             MapLayerMarkerModule.triggerEvent(
@@ -145,10 +148,10 @@ const ExampleMarker = ( {
                                 markerLayerUuid,
                                 PixelRatio.getPixelSizeForLayoutSize( width ) / 2,
                                 PixelRatio.getPixelSizeForLayoutSize( mapHeight ) / 2
-                            ).catch( err => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+                            ).catch( err => console.log( 'ERROR', err ) );
                         }
                     } }
-                    title={ 'Trigger' }
+                    title={ 'Trigger Event' }
                 />
 
             </View>
@@ -199,7 +202,6 @@ const ExampleMarker = ( {
                         />;
                     } ) }
                 </LayerMarker>
-
 
                 <LayerScalebar/>
 
