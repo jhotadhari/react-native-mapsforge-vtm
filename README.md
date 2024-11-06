@@ -2,7 +2,22 @@
 
 React Native components to build vector maps using [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). Offline rendering of OpenStreetMap data. Android only
 
-**Just some ideas in early development state. Do not use this for production!**
+**Just some ideas in early development state. Do not use this for production!** ... Well, you can use it, but things are changing!
+
+## Roadmap
+
+Some things will change sometime soonish:
+
+- Marker improvements: clustering and support for drag and drop.
+- Gesture events for Path layers.
+- Fix the zickzacky appearance of `PathLayer`.
+- Path simplification for both Path layers.
+- Changing the `LayerPathSlopeGradient` props, to be able to control the order of simplification and smoothing, and to apply those steps multiple times.
+- Changing the `LayerPathSlopeGradient` component to support gradients as well for speed, elevation or any kind of data.
+- Maybe merging the path components: `LayerPathSlopeGradient` and `LayerPath`.
+- Hillshading improvements.
+- Gesture events for `MapContainer`.
+- ...
 
 ## Installation
 
@@ -25,6 +40,7 @@ import React, {
 import {
   useWindowDimensions,
   SafeAreaView,
+  ToastAndroid,
 } from 'react-native';
 import {
   MapContainer,
@@ -34,6 +50,8 @@ import {
   LayerHillshading,
   LayerPathSlopeGradient,
   LayerScalebar,
+	LayerMarker,
+	Marker,
   useMapEvents,
   useRenderStyleOptions,
   nativeMapModules,
@@ -175,6 +193,42 @@ const App = () => {
         // ] }
         filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to gpx file */ }
       />
+
+      <LayerMarker>
+        <Marker
+          position={ lng: -76.813, lat: -11.813 }
+          onPress={ response => {
+              ToastAndroid.show( 'Marker pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+          } }
+          symbol={ {
+              height: 100,
+              textMargin: 20,
+              textPositionY: 0,
+              textStrokeWidth: 3,
+              filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to raster image or svg file */ }
+              hotspotPlace: 'BOTTOM_CENTER',
+              text: 'hello',
+          } }
+        />
+        <Marker
+          position={ lng: -75.814, lat: -12.274 }
+          onLongPress={ response => {
+              ToastAndroid.show( 'Marker long pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+          } }
+          symbol={ {
+              width: 80,
+              height: 80,
+              textMargin: 20,
+              textStrokeWidth: 3,
+              textPositionY: 7,
+              strokeColor: '#ff0000',
+              fillColor: '#eeeeee',
+              strokeWidth: 5,
+              hotspotPlace: 'CENTER',
+              text: 'hello',
+          } }
+        />
+      </LayerMarker>
 
       <LayerScalebar/>
 
