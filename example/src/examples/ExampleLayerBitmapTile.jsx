@@ -107,6 +107,7 @@ const ExampleLayerBitmapTile = ( {
             </Text>
 
             <PickerModalControl
+                style={ style }
                 headerLabel={ 'Tile source' }
                 options={ tileOptions }
                 values={ [source] }

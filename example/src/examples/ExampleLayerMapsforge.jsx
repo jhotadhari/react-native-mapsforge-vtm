@@ -133,6 +133,7 @@ const ExampleLayerMapsforge = ( {
             </Text>
 
             <View style={ { marginBottom: 10 } } ><FilesFromDirPickerModalControl
+                style={ style }
                 headerLabel={ 'Map File' }
                 buttonLabel={ 'Map File ' + mapFileLabel }
                 NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no map files in this Directory!</Text><Text style={ style }>{ appDirs.mapfiles }</Text></View> }
@@ -145,6 +146,7 @@ const ExampleLayerMapsforge = ( {
             /></View>
 
             <View style={ { marginBottom: 10 } } ><FilesFromDirPickerModalControl
+                style={ style }
                 headerLabel={ 'Render theme' }
                 buttonLabel={ 'Render theme ' + renderThemeLabel }
                 ExtraOptionsHeader={ () => <Text style={ { ...style, marginBottom: 10 } }>Built in render themes:</Text> }
@@ -160,6 +162,7 @@ const ExampleLayerMapsforge = ( {
             /></View>
 
             <View style={ { marginBottom: 10 } } ><PickerModalControl
+                style={ style }
                 headerLabel={ 'Render style' }
                 disabled={ promiseQueueState > 0 || ! renderStyleOptions.length }
                 buttonLabel={ 'Render style ' + renderStyleLabel }
@@ -170,6 +173,7 @@ const ExampleLayerMapsforge = ( {
             /></View>
 
             <PickerModalControl
+                style={ style }
                 buttonLabel={ 'Render style options' }
                 headerLabel={ 'Render style options' }
                 disabled={ promiseQueueState > 0 || ! renderStyleOptions.length }

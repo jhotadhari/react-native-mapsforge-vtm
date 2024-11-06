@@ -163,6 +163,7 @@ const ExampleLayerPath = ( {
                 </View> }
 
                 { useGpx && <View style={ { width: '80%' } } ><FilesFromDirPickerModalControl
+                    style={ style }
                     headerLabel={ 'gpx File' }
                     buttonLabel={ 'gpx File ' + fileLabel }
                     NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no gpx files in this Directory!</Text><Text style={ style }>{ appDirs.tracks }</Text></View> }
