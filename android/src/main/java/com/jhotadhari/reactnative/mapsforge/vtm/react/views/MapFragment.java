@@ -17,7 +17,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;

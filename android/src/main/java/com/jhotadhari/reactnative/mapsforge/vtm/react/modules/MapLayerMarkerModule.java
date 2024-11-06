@@ -3,7 +3,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
@@ -23,22 +22,22 @@ import org.oscim.backend.canvas.Bitmap;
 import org.oscim.backend.canvas.Canvas;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
+import org.oscim.core.Box;
 import org.oscim.core.GeoPoint;
+import org.oscim.core.Point;
+import org.oscim.core.Tile;
 import org.oscim.layers.Layer;
 import org.oscim.layers.marker.ItemizedLayer;
 import org.oscim.layers.marker.MarkerInterface;
 import org.oscim.layers.marker.MarkerItem;
-import org.oscim.layers.marker.MarkerLayer;
 import org.oscim.layers.marker.MarkerSymbol;
-import org.oscim.layers.vector.VectorLayer;
+import org.oscim.map.Viewport;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -47,6 +46,8 @@ public class MapLayerMarkerModule extends MapLayerBase {
     public String getName() {
         return "MapLayerMarkerModule";
     }
+
+	protected final Point mTmpPoint = new Point();
 
 	public MapLayerMarkerModule(ReactApplicationContext context) {
         super(context);
@@ -354,6 +355,77 @@ public class MapLayerMarkerModule extends MapLayerBase {
 			( (float) ( ( width - strokeWith ) + ( height - strokeWith ) ) / 2 ) * 0.5f,
 			painter
 		);
+	}
+
+	@ReactMethod
+	public void triggerEvent(
+		int nativeNodeHandle,
+		String layerUuid,
+		float x,
+		float y,
+		Promise promise
+	) {
+		MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+		if ( mapFragment == null || null == mapView ) {
+			promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
+		}
+		ItemizedLayer markerLayer = layers.get( layerUuid );
+		if ( markerLayer == null ) {
+			promise.reject( "Error", "Unable to find markerLayer" ); return;
+		}
+
+		WritableMap params = new WritableNativeMap();
+
+		int size = markerLayer.getItemList().size();
+		if (size == 0)
+			return;
+
+		int eventX = (int) x - mapView.map().getWidth() / 2;
+		int eventY = (int) y - mapView.map().getHeight() / 2;
+		Viewport mapPosition = mapView.map().viewport();
+
+		Box box = mapPosition.getBBox(null, Tile.SIZE / 2);
+		box.map2mercator();
+		box.scale(1E6);
+
+		int inside = -1;
+
+		// squared dist: 50x50 px ~ 2mm on 400dpi
+		// 20x20 px on baseline mdpi (160dpi)
+		double dist = (20 * CanvasAdapter.getScale()) * (20 * CanvasAdapter.getScale());
+
+		for (int i = 0; i < size; i++) {
+			if ( inside >= 0 ) {
+				continue;
+			}
+			MarkerInterface item = markerLayer.getItemList().get(i);
+
+			if (!box.contains(item.getPoint().longitudeE6,
+				item.getPoint().latitudeE6))
+				continue;
+
+			mapPosition.toScreenPoint(item.getPoint(), mTmpPoint);
+
+			float dx = (float) (eventX - mTmpPoint.x);
+			float dy = (float) (eventY - mTmpPoint.y);
+
+			MarkerSymbol it = item.getMarker();
+			if (it == null)
+				return;
+
+			if (it.isInside(dx, dy)) {
+				inside = i;
+				MarkerItem markerItem = (MarkerItem) item;
+
+				WritableMap markerParams = new WritableNativeMap();
+				markerParams.putString( "uuid", markerItem.getUid().toString() );
+				markerParams.putInt( "index", i );
+				params = markerParams.copy();
+				Utils.sendEvent(  mapFragment.getReactContext(), "MarkerItemTriggerEvent", markerParams );
+			}
+		}
+		promise.resolve( params );
 	}
 
 	@ReactMethod

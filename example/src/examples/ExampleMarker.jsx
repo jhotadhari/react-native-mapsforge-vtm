@@ -7,6 +7,8 @@ import React, {
 import {
 	Text,
 	useWindowDimensions,
+	ToastAndroid,
+	PixelRatio,
 	View,
 } from 'react-native';
 
@@ -20,13 +22,16 @@ import {
 	LayerMarker,
 	Marker,
 	usePromiseQueueState,
+    nativeMapModules,
 } from 'react-native-mapsforge-vtm';
+const { MapLayerMarkerModule } = nativeMapModules;
 
 /**
  * Internal dependencies
  */
 import { barTopPadding } from '../constants.js';
 import { randomNumber } from '../utils.js';
+import Center from '../components/Center.jsx';
 import TopBar from '../components/TopBar.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
 import Button from '../components/Button.jsx';
@@ -43,6 +48,7 @@ const ExampleMarker = ( {
 } ) => {
 
 	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
+	const [markerLayerUuid, setMarkerLayerUuid] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -129,6 +135,22 @@ const ExampleMarker = ( {
                     title={ 'Randomize positions' }
                 />
 
+                <Button
+                    style={ { marginRight: 10 } }
+                    disabled={ promiseQueueState > 0 }
+                    onPress={ () => {
+                        if ( mapViewNativeNodeHandle && markerLayerUuid ) {
+                            MapLayerMarkerModule.triggerEvent(
+                                mapViewNativeNodeHandle,
+                                markerLayerUuid,
+                                PixelRatio.getPixelSizeForLayoutSize( width ) / 2,
+                                PixelRatio.getPixelSizeForLayoutSize( mapHeight ) / 2
+                            ).catch( err => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+                        }
+                    } }
+                    title={ 'Trigger' }
+                />
+
             </View>
 
         </TopBar>
@@ -154,7 +176,9 @@ const ExampleMarker = ( {
                     cacheSize={ 10 * 1024 * 1024 }  // 10 mb
                 />
 
-                <LayerMarker>
+                <LayerMarker
+                    onCreate={ response => response.uuid ? setMarkerLayerUuid( response.uuid ) : null }
+                >
                     { [...positions].map( ( pos, index ) => {
                         return <Marker
                             key={ index }
@@ -164,10 +188,13 @@ const ExampleMarker = ( {
                                 text: index + '',
                             } }
                             onPress={ response => {
-                                console.log( 'debug onPress response, index', response, index ); // debug
+                                ToastAndroid.show( 'Marker pressed. index: ' + index, ToastAndroid.SHORT );
                             } }
                             onLongPress={ response => {
-                                console.log( 'debug onLongPress response, index', response, index ); // debug
+                                ToastAndroid.show( 'Marker long pressed. index: ' + index, ToastAndroid.SHORT );
+                            } }
+                            onTrigger={ response => {
+                                ToastAndroid.show( 'Marker triggered. index: ' + index, ToastAndroid.SHORT );
                             } }
                         />;
                     } ) }
@@ -177,6 +204,11 @@ const ExampleMarker = ( {
                 <LayerScalebar/>
 
             </MapContainer>
+
+            <Center
+                height={ mapHeight }
+                width={ width }
+            />
 
         </View>
 

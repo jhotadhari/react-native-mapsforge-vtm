@@ -32,6 +32,7 @@ export type MarkerProps = {
 	onError?: null | ( ( err: any ) => void );
 	onPress?: null | ( ( response: MarkerResponse ) => void );
 	onLongPress?: null | ( ( response: MarkerResponse ) => void );
+	onTrigger?: null | ( ( response: MarkerResponse ) => void );
 };
 
 const Marker = ( {
@@ -47,6 +48,7 @@ const Marker = ( {
 	onError,
 	onPress,
 	onLongPress,
+	onTrigger,
 } : MarkerProps ) => {
 
 	// @ts-ignore
@@ -107,7 +109,7 @@ const Marker = ( {
                 ).then( () => {
                     setUuid( null );
                     setTriggerCreateNew( Math.random() );
-                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );;
+                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
             } );
         } else if ( uuid === null && position ) {
             setTriggerCreateNew( Math.random() );
@@ -145,6 +147,21 @@ const Marker = ( {
 	}, [
 		uuid,
 		onLongPress,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'MarkerItemTriggerEvent', response => {
+			if ( response.uuid === uuid && onTrigger ) {
+                onTrigger( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		uuid,
+		onTrigger,
 	] );
 
 	return null;

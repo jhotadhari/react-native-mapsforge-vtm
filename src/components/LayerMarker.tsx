@@ -94,7 +94,7 @@ const LayerMarker = ( {
 					).then( () => {
 						setUuid( null );
 						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );;
+					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 				} );
 			} else if ( uuid === null ) {
 				setTriggerCreateNew( Math.random() );
