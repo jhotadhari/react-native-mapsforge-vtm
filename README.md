@@ -50,8 +50,8 @@ import {
   LayerHillshading,
   LayerPathSlopeGradient,
   LayerScalebar,
-	LayerMarker,
-	Marker,
+  LayerMarker,
+  Marker,
   useMapEvents,
   useRenderStyleOptions,
   nativeMapModules,
@@ -198,34 +198,34 @@ const App = () => {
         <Marker
           position={ lng: -76.813, lat: -11.813 }
           onPress={ response => {
-              ToastAndroid.show( 'Marker pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+            ToastAndroid.show( 'Marker pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
           } }
           symbol={ {
-              height: 100,
-              textMargin: 20,
-              textPositionY: 0,
-              textStrokeWidth: 3,
-              filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to raster image or svg file */ }
-              hotspotPlace: 'BOTTOM_CENTER',
-              text: 'hello',
+            height: 100,
+            textMargin: 20,
+            textPositionY: 0,
+            textStrokeWidth: 3,
+            filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to raster image or svg file */ }
+            hotspotPlace: 'BOTTOM_CENTER',
+            text: 'hello',
           } }
         />
         <Marker
           position={ lng: -75.814, lat: -12.274 }
           onLongPress={ response => {
-              ToastAndroid.show( 'Marker long pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
+            ToastAndroid.show( 'Marker long pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
           } }
           symbol={ {
-              width: 80,
-              height: 80,
-              textMargin: 20,
-              textStrokeWidth: 3,
-              textPositionY: 7,
-              strokeColor: '#ff0000',
-              fillColor: '#eeeeee',
-              strokeWidth: 5,
-              hotspotPlace: 'CENTER',
-              text: 'hello',
+            width: 80,
+            height: 80,
+            textMargin: 20,
+            textStrokeWidth: 3,
+            textPositionY: 7,
+            strokeColor: '#ff0000',
+            fillColor: '#eeeeee',
+            strokeWidth: 5,
+            hotspotPlace: 'CENTER',
+            text: 'hello',
           } }
         />
       </LayerMarker>
