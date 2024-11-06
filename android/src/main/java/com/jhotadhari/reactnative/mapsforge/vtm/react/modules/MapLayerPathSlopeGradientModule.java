@@ -2,6 +2,7 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
@@ -32,10 +33,14 @@ import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
+import org.oscim.event.Gesture;
+import org.oscim.event.MotionEvent;
 import org.oscim.layers.Layer;
 import org.oscim.layers.vector.VectorLayer;
+import org.oscim.layers.vector.geometries.Drawable;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
+import org.oscim.utils.geom.GeomBuilder;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
@@ -203,7 +208,37 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			WritableMap responseParams = new WritableNativeMap();
 
 			// Init layer
-			VectorLayer vectorLayer = new VectorLayer( mapView.map() );
+			VectorLayer vectorLayer = new VectorLayer( mapView.map() ) {
+				@Override
+				public boolean onGesture( Gesture g, MotionEvent e ) {
+					if ( g instanceof Gesture.Tap ) {
+						Log.d("testtest contains", String.valueOf(contains(e.getX(), e.getY())));
+						if (contains(e.getX(), e.getY())) {
+							System.out.println("VectorLayer tap " + mapView.map().viewport().fromScreenPoint(e.getX(), e.getY()));
+							return true;
+						}
+					}
+					return false;
+				}
+
+				public synchronized boolean contains( float x, float y ) {
+					GeoPoint geoPoint = mMap.viewport().fromScreenPoint( x, y );
+					org.locationtech.jts.geom.Point point = new GeomBuilder().point( geoPoint.getLongitude(), geoPoint.getLatitude() ).toPoint();
+					float distance = getCoordinateDistanceFromScreenDistance( x, y, 30 );
+					for ( Drawable drawable : tmpDrawables ) {
+						if ( drawable.getGeometry().buffer( distance ).contains( point ) )
+							return true;
+					}
+					return false;
+				}
+
+				private float getCoordinateDistanceFromScreenDistance( float x, float y, float screenDistance ) {
+					return (float) Math.abs(
+						mMap.viewport().fromScreenPoint( x, y ).getLongitude()
+							- mMap.viewport().fromScreenPoint( x + screenDistance, y ).getLongitude()
+					);
+				}
+			};
 
 			// Store layer.
 			String uuid = UUID.randomUUID().toString();
