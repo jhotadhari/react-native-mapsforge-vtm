@@ -9,14 +9,12 @@ React Native components to build vector maps using [Mapsforges fork of vtm](http
 Some things will change sometime soonish:
 
 - Marker improvements: clustering and support for drag and drop.
-- Gesture events for Path layers.
-- Fix the zickzacky appearance of `PathLayer`.
-- Path simplification for both Path layers.
 - Changing the `LayerPathSlopeGradient` props, to be able to control the order of simplification and smoothing, and to apply those steps multiple times.
 - Changing the `LayerPathSlopeGradient` component to support gradients as well for speed, elevation or any kind of data.
 - Maybe merging the path components: `LayerPathSlopeGradient` and `LayerPath`.
 - Hillshading improvements.
 - Gesture events for `MapContainer`.
+- New components for geometry like polygons and circles.
 - ...
 
 ## Installation

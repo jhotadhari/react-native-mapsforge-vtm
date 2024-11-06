@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+Path improvements
+
+### Added
+- Gesture events for both Path layers. Added props: `onPress`, `onLongPress` and `onDoubleTap`.
+- Trigger event at any point at the map, for both Path layers. Added prop: `onTrigger`. Added method `triggerEvent` to path modules.
+- Possibility to simplify paths. Added prop: `simplificationTolerance`.
+
+### Changed
+- Both path layer modules. Now they work the same way and `MapLayerPathSlopeGradientModule` extends `MapLayerPathModule`.
+
+### Fixed
+- The zickzacky appearance of `PathLayer`. Now it uses the same way of rendering like the `LayerPathSlopeGradient` component.
 
 ## [0.2.0] - 2024-11-06
 Markers, hurrah.
