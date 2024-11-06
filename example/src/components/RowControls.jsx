@@ -25,6 +25,7 @@ export const ControlWrapper = ( {
     style,
     label,
     value,
+    valueMinWidth,
     textAppend,
     children,
 } ) => {
@@ -35,7 +36,7 @@ export const ControlWrapper = ( {
         ...containerStyle,
     } }>
         <Text style={ {...style, marginRight: 10, minWidth: 100 } }>{ label }:</Text>
-        { value !== null && <Text style={ {...style, marginRight: 10, minWidth: 30  } }>{ value }</Text> }
+        { value !== null && <Text style={ {...style, marginRight: 10, minWidth: valueMinWidth || 30  } }>{ value }</Text> }
         { children }
         { textAppend && <Text style={ { ...style, marginLeft: 10 }} >{ textAppend }</Text> }
     </View>;
@@ -50,12 +51,14 @@ export const ButtonControl = ( {
     buttonLabel,
     buttonStyle,
     onPress,
+    valueMinWidth,
 } ) => {
     return <ControlWrapper
         containerStyle={ containerStyle }
         style={ style }
         label={ label }
         textAppend={ textAppend }
+        valueMinWidth={ valueMinWidth }
     >
         <Button
             style={ { ...rowBtnStyle, ...buttonStyle } }
@@ -72,6 +75,7 @@ export const PlusMinusControl = ( {
     promiseQueueState,
     label,
     value,
+    valueMinWidth,
     minValue,
     setValue,
     step,
@@ -83,6 +87,7 @@ export const PlusMinusControl = ( {
         style={ style }
         label={ label }
         value={ value }
+        valueMinWidth={ valueMinWidth }
         textAppend={ textAppend }
     >
         <Button
@@ -107,6 +112,7 @@ export const EventRowControl = ( {
     mapViewNativeNodeHandle,
     layerUuid,
     width,
+    valueMinWidth,
     mapHeight,
     module,
 } ) => <ControlWrapper
@@ -114,6 +120,7 @@ export const EventRowControl = ( {
     style={ style }
     label={ 'Events' }
     value={ '' }
+    valueMinWidth={ valueMinWidth }
 >
     <Button
         style={ {

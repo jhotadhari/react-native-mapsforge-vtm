@@ -45,6 +45,8 @@ const ExampleLayerPathSlopeGradient = ( {
 
 	const [layerUuid, setLayerUuid] = useState( null );
 
+	const [isSetToBounds, setIsSetToBounds] = useState( false );
+
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
 	const { width, height } = useWindowDimensions();
@@ -59,6 +61,7 @@ const ExampleLayerPathSlopeGradient = ( {
 	const [coordinatesSimplified,setCoordinatesSimplified] = useState( [] );
 
 	const [strokeWidth,setStrokeWidth] = useState( 5 );
+	const [simplificationTolerance,setSimplificationTolerance] = useState( 0.00001 );
 	const [slopeSimplificationTolerance,setSlopeSimplificationTolerance] = useState( 7 );
 	const [flattenWindowSize,setFlattenWindowSize] = useState( 9 );
 
@@ -84,7 +87,8 @@ const ExampleLayerPathSlopeGradient = ( {
         if ( response.uuid ) {
             setLayerUuid( response.uuid )
         }
-        if ( response.bounds ) {
+        if ( response.bounds && ! isSetToBounds ) {
+            setIsSetToBounds( true );
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
@@ -143,6 +147,19 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
+                containerStyle={ { marginBottom: 10 } }
+                promiseQueueState={ promiseQueueState }
+                label={ 'Simplify' }
+                value={ simplificationTolerance }
+                setValue={ newVal => setSimplificationTolerance( Math.round( newVal * 100000 ) / 100000 ) }
+                minValue={ 0 }
+                step={ 0.00001 }
+            />
+
+            <PlusMinusControl
+                style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Stroke width' }
@@ -153,6 +170,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Simplification' }
@@ -164,6 +182,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Smoothen' }
@@ -176,6 +195,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <ButtonControl
                 style={ style }
+                valueMinWidth={ 55 }
                 buttonStyle={ { width: 81 } }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
@@ -186,6 +206,7 @@ const ExampleLayerPathSlopeGradient = ( {
 
             <EventRowControl
                 style={ style }
+                valueMinWidth={ 55 }
                 promiseQueueState={ promiseQueueState }
                 mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
                 layerUuid={ layerUuid }
@@ -224,6 +245,7 @@ const ExampleLayerPathSlopeGradient = ( {
                     style={ {
                         strokeWidth,
                     } }
+                    simplificationTolerance={ simplificationTolerance }
                     slopeColors={ slopeColors }
                     slopeSimplificationTolerance={ slopeSimplificationTolerance }
                     flattenWindowSize={ flattenWindowSize }

@@ -30,6 +30,7 @@ export type LayerPathSlopeGradientProps = {
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
 	gestureScreenDistance?: number;
+	simplificationTolerance?: number;
 	slopeColors?: GradientColors;
 	style?: GeometryStyle;
 	slopeSimplificationTolerance?: number;
@@ -82,6 +83,7 @@ const LayerPathSlopeGradient = ( {
 	positions = [],
 	filePath,
 	style = defaultStyle,
+	simplificationTolerance = 0,
 	slopeColors = slopeColorsDefault,
 	slopeSimplificationTolerance = 7,
 	flattenWindowSize = 9,
@@ -123,6 +125,7 @@ const LayerPathSlopeGradient = ( {
 				flattenWindowSize,
 				responseInclude,
 				gestureScreenDistance,
+				simplificationTolerance,
 				reactTreeIndex
 			).then( ( response: LayerPathSlopeGradientResponse ) => {
 				setUuid( response.uuid );
@@ -244,6 +247,7 @@ const LayerPathSlopeGradient = ( {
 			? [...positions].map( pos => pos.lng + pos.lat ).join( '' )
 			: null
 		),
+		simplificationTolerance,
 		filePath,
 		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
 	] );

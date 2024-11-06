@@ -2,7 +2,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
@@ -17,6 +16,7 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.Coordinate;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layers.vector.VectorLayer;
@@ -66,7 +66,7 @@ public class MapLayerPathModule extends MapLayerBase {
 		super(context);
 	}
 
-	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray positions ) {
+	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray positions, float simplificationToloerance ) {
 		Coordinate[] jtsCoordinates = new Coordinate[positions.size()];
 		for ( int i = 0; i < positions.size(); i++ ) {
 			ReadableType readableType = positions.getType( i );
@@ -79,10 +79,14 @@ public class MapLayerPathModule extends MapLayerBase {
 				);
 			}
 		}
+		if ( simplificationToloerance > 0 ) {
+			Simplify<Coordinate> simplify = new Simplify<Coordinate>( new Coordinate[0] );
+			jtsCoordinates = simplify.simplify( jtsCoordinates, simplificationToloerance, true );
+		}
 		return jtsCoordinates;
 	}
 
-	protected Coordinate[] loadGpxToJtsCoordinates( Context context, String filePath, Promise promise ) throws URISyntaxException, IOException {
+	protected Coordinate[] loadGpxToJtsCoordinates( Context context, String filePath, float simplificationTolerance, Promise promise ) throws URISyntaxException, IOException {
 		Coordinate[] jtsCoordinates = new Coordinate[0];
 
 		InputStream in = null;
@@ -131,6 +135,10 @@ public class MapLayerPathModule extends MapLayerBase {
 				point.getTime()
 			);
 		}
+		if ( simplificationTolerance > 0 ) {
+			Simplify<Coordinate> simplify = new Simplify<Coordinate>( new Coordinate[0] );
+			jtsCoordinates = simplify.simplify( jtsCoordinates, simplificationTolerance, true );
+		}
 		return jtsCoordinates;
 	}
 
@@ -145,6 +153,7 @@ public class MapLayerPathModule extends MapLayerBase {
 		ReadableMap styleMap,
 		ReadableMap responseInclude,
 		float gestureScreenDistance,
+		float simplificationTolerance,
 		int reactTreeIndex,
 		Promise promise
 	) {
@@ -175,9 +184,9 @@ public class MapLayerPathModule extends MapLayerBase {
 			// Convert input params to jtsCoordinates
 			Coordinate[] jtsCoordinates = new Coordinate[0];
 			if ( null != positions && positions.size() > 0 ) {
-				jtsCoordinates = readableArrayToJtsCoordinates( positions );
+				jtsCoordinates = readableArrayToJtsCoordinates( positions, simplificationTolerance );
 			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
-				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
+				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, simplificationTolerance, promise );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
 				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;
@@ -274,7 +283,6 @@ public class MapLayerPathModule extends MapLayerBase {
 	public void updateStyle( int nativeNodeHandle, String uuid, ReadableMap styleMap, ReadableMap responseInclude, Promise promise ) {
 		WritableMap responseParams = new WritableNativeMap();
 		responseParams.putString( "uuid", uuid );
-		Log.d( "testtest uuid", uuid );
 		try {
 			MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
@@ -290,8 +298,6 @@ public class MapLayerPathModule extends MapLayerBase {
 				promise.reject( "Error", "Layer not found" ); return;
 			}
 
-			Log.d( "testtest vectorLayer", vectorLayer.toString());
-
 			// Create new vectorLayer.
 			VectorLayer vectorLayerNew = new VectorLayer(
 				mapView.map(),
@@ -300,8 +306,6 @@ public class MapLayerPathModule extends MapLayerBase {
 				vectorLayer.getGestureEventName(),
 				vectorLayer.getGestureScreenDistance()
 			);
-
-			Log.d( "testtest vectorLayerNew", vectorLayerNew.toString());
 
 			// draw new
 			drawLineForCoordinates(

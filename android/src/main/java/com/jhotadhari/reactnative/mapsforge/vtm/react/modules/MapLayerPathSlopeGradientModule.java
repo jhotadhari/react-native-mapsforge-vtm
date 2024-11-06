@@ -61,6 +61,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 		int flattenWindowSize,
 		ReadableMap responseInclude,
 		float gestureScreenDistance,
+		float simplificationTolerance,
 		int reactTreeIndex,
 		Promise promise
     ) {
@@ -92,9 +93,9 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 			// Convert input params to jtsCoordinates
 			Coordinate[] jtsCoordinates = new Coordinate[0];
 			if ( null != positions && positions.size() > 0 ) {
-				jtsCoordinates = readableArrayToJtsCoordinates( positions );
+				jtsCoordinates = readableArrayToJtsCoordinates( positions, simplificationTolerance );
 			} else if ( filePath != null && filePath.length() > 0 && filePath.endsWith( ".gpx" ) ) {
-				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, promise );
+				jtsCoordinates = loadGpxToJtsCoordinates( mapView.getContext(), filePath, simplificationTolerance, promise );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
 				promise.reject( "Error", "Unable to parse positions or gpx file" ); return;

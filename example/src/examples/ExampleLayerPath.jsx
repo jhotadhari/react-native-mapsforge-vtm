@@ -49,6 +49,8 @@ const ExampleLayerPath = ( {
 
 	const [layerUuid, setLayerUuid] = useState( null );
 
+	const [isSetToBounds, setIsSetToBounds] = useState( false );
+
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
 	const { width, height } = useWindowDimensions();
@@ -67,6 +69,7 @@ const ExampleLayerPath = ( {
 	const [coordinates,setCoordinates] = useState( [] );
 
 	const [strokeWidth,setStrokeWidth] = useState( 5 );
+	const [simplificationTolerance,setSimplificationTolerance] = useState( 0.00001 );
 
     const onMapEvent = event => event.center
         ? setCurrentCenter( event.center )
@@ -84,7 +87,8 @@ const ExampleLayerPath = ( {
         if ( response.uuid ) {
             setLayerUuid( response.uuid )
         }
-        if ( useGpx && response.bounds ) {
+        if ( useGpx && response.bounds && ! isSetToBounds ) {
+            setIsSetToBounds( true );
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
         if ( response.coordinates ) {
@@ -133,6 +137,7 @@ const ExampleLayerPath = ( {
                     disabled={ promiseQueueState > 0 }
                     onPress={ () => {
                         setUseGpx( ! useGpx );
+                        setIsSetToBounds( false );
                         setCoordinates( null )
                     } }
                     title={ useGpx ? 'gpx' : 'positions' }
@@ -181,6 +186,7 @@ const ExampleLayerPath = ( {
 
             <PlusMinusControl
                 style={ style }
+                valueMinWidth={ 55 }
                 containerStyle={ { marginBottom: 10 } }
                 promiseQueueState={ promiseQueueState }
                 label={ 'Stroke width' }
@@ -190,8 +196,21 @@ const ExampleLayerPath = ( {
                 textAppend={ strokeColor }
             />
 
+            <PlusMinusControl
+                style={ style }
+                valueMinWidth={ 55 }
+                containerStyle={ { marginBottom: 10 } }
+                promiseQueueState={ promiseQueueState }
+                label={ 'Simplify' }
+                value={ simplificationTolerance }
+                setValue={ newVal => setSimplificationTolerance( Math.round( newVal * 100000 ) / 100000 ) }
+                minValue={ 0 }
+                step={ 0.00001 }
+            />
+
             <EventRowControl
                 style={ style }
+                valueMinWidth={ 55 }
                 promiseQueueState={ promiseQueueState }
                 mapViewNativeNodeHandle={ mapViewNativeNodeHandle }
                 layerUuid={ layerUuid }
@@ -234,6 +253,7 @@ const ExampleLayerPath = ( {
                         bounds: 1,
                         coordinates: 1,
                     } }
+                    simplificationTolerance={ simplificationTolerance }
                     onCreate={ onChange }
                     onChange={ onChange }
                     onPress={ response => {

@@ -33,6 +33,7 @@ export type LayerPathProps = {
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
 	gestureScreenDistance?: number;
+	simplificationTolerance?: number;
 	style?: GeometryStyle;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerPathResponse ) => void );
@@ -65,6 +66,7 @@ const LayerPath = ( {
 	gestureScreenDistance = 20,
 	reactTreeIndex,
 	style = defaultStyle,
+	simplificationTolerance = 0,
 	onCreate,
 	onRemove,
 	onChange,
@@ -94,6 +96,7 @@ const LayerPath = ( {
 				style,
 				responseInclude,
 				gestureScreenDistance,
+				simplificationTolerance,
 				reactTreeIndex
 			).then( ( response: LayerPathResponse ) => {
 				setUuid( response.uuid );
@@ -164,6 +167,7 @@ const LayerPath = ( {
 			? [...positions].map( pos => pos.lng + pos.lat ).join( '' )
 			: null
 		),
+		simplificationTolerance,
 		filePath,
 		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
 	] );
