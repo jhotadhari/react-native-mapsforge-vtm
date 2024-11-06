@@ -86,7 +86,10 @@ const ModalWrapper = ( {
 						} }
 					>
 
-						<Text>{ headerLabel || '' }</Text>
+						<Text style={ {
+							...( style.color && { color: style.color } ),
+							...( style.backgroundColor && { backgroundColor: style.backgroundColor } ),
+						} }>{ headerLabel || '' }</Text>
 
 						{ onSelectAllNone && <Button
 							onPress={ onSelectAllNone }

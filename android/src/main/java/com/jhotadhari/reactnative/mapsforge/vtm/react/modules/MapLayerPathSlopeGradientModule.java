@@ -2,8 +2,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -22,6 +22,7 @@ import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.Coordinate;
 import com.jhotadhari.reactnative.mapsforge.vtm.Gradient;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.layers.vector.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.joda.time.DateTime;
@@ -33,14 +34,9 @@ import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeoPoint;
-import org.oscim.event.Gesture;
-import org.oscim.event.MotionEvent;
 import org.oscim.layers.Layer;
-import org.oscim.layers.vector.VectorLayer;
-import org.oscim.layers.vector.geometries.Drawable;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
-import org.oscim.utils.geom.GeomBuilder;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
@@ -193,6 +189,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		double slopeSimplificationTolerance,
 		int flattenWindowSize,
 		ReadableMap responseInclude,
+		float gestureScreenDistance,
 		int reactTreeIndex,
 		Promise promise
     ) {
@@ -204,44 +201,21 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
                 promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
             }
 
+			String uuid = UUID.randomUUID().toString();
+
 			// The promise response
 			WritableMap responseParams = new WritableNativeMap();
 
 			// Init layer
-			VectorLayer vectorLayer = new VectorLayer( mapView.map() ) {
-				@Override
-				public boolean onGesture( Gesture g, MotionEvent e ) {
-					if ( g instanceof Gesture.Tap ) {
-						Log.d("testtest contains", String.valueOf(contains(e.getX(), e.getY())));
-						if (contains(e.getX(), e.getY())) {
-							System.out.println("VectorLayer tap " + mapView.map().viewport().fromScreenPoint(e.getX(), e.getY()));
-							return true;
-						}
-					}
-					return false;
-				}
-
-				public synchronized boolean contains( float x, float y ) {
-					GeoPoint geoPoint = mMap.viewport().fromScreenPoint( x, y );
-					org.locationtech.jts.geom.Point point = new GeomBuilder().point( geoPoint.getLongitude(), geoPoint.getLatitude() ).toPoint();
-					float distance = getCoordinateDistanceFromScreenDistance( x, y, 30 );
-					for ( Drawable drawable : tmpDrawables ) {
-						if ( drawable.getGeometry().buffer( distance ).contains( point ) )
-							return true;
-					}
-					return false;
-				}
-
-				private float getCoordinateDistanceFromScreenDistance( float x, float y, float screenDistance ) {
-					return (float) Math.abs(
-						mMap.viewport().fromScreenPoint( x, y ).getLongitude()
-							- mMap.viewport().fromScreenPoint( x + screenDistance, y ).getLongitude()
-					);
-				}
-			};
+			VectorLayer vectorLayer = new VectorLayer(
+				mapView.map(),
+				uuid,
+				mapFragment.getReactContext(),
+				"PathSlopeGradientGesture",
+				gestureScreenDistance
+			);
 
 			// Store layer.
-			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, vectorLayer );
 
 			// Convert input params to jtsCoordinates
@@ -306,6 +280,39 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
             promise.reject( "Error", e );
         }
     }
+
+	@ReactMethod
+	public void triggerEvent(
+		int nativeNodeHandle,
+		String layerUuid,
+		float x,
+		float y,
+		Promise promise
+	) {
+		MapFragment mapFragment = Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+		if ( mapFragment == null || null == mapView ) {
+			promise.reject( "Error", "Unable to find mapView or mapFragment" ); return;
+		}
+		VectorLayer vectorLayer = layers.get( layerUuid );
+		if ( vectorLayer == null ) {
+			promise.reject( "Error", "Unable to find vectorLayer" ); return;
+		}
+		WritableMap params = vectorLayer.containsGetResponse( x, y );
+		if (  null != params ) {
+			// Add type
+			params.putString( "type", "trigger" );
+			// Add eventPosition
+			WritableMap eventPosition = new WritableNativeMap();
+			GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint( x, y );
+			eventPosition.putDouble("lng", eventPoint.getLongitude() );
+			eventPosition.putDouble("lat", eventPoint.getLatitude() );
+			params.putMap( "eventPosition", eventPosition );
+			// sendEvent
+			Utils.sendEvent( mapFragment.getReactContext(), "PathSlopeGradientGesture", params );
+		}
+		promise.resolve( params );
+	}
 
 	protected static double getSlopeBetweenCoordinates( Coordinate jtsCoordinate, Coordinate jtsCoordinatePrev ) {
 		double distance = new GeoPoint(
@@ -436,6 +443,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 		Promise promise
 	) {
 		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
 		try {
 
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
@@ -499,6 +507,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	@ReactMethod
 	public void updateStrokeWidth( int nativeNodeHandle, String uuid, int strokeWidth, ReadableMap responseInclude, Promise promise ) {
 		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
@@ -545,8 +554,45 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	@ReactMethod
+	public void updateGestureScreenDistance( int nativeNodeHandle, String uuid, float gestureScreenDistance, ReadableMap responseInclude, Promise promise ) {
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+                promise.reject( "Error", "Unable to find mapView" ); return;
+			}
+
+			VectorLayer vectorLayer = layers.get( uuid );
+			if ( null == vectorLayer ) {
+                promise.reject( "Error", "Unable to find vectorLayer" ); return;
+			}
+
+			vectorLayer.updateGestureScreenDistance( gestureScreenDistance );
+
+			// Maybe add coordinatesSimplified to response.
+			if ( responseInclude.getInt( "coordinatesSimplified" ) > 1 ) {
+				addCoordinatesSimplifiedToResponse( coordinatesSimplifiedMap.get( uuid ), responseParams );
+			}
+			// Maybe add coordinates to promise response.
+			if ( responseInclude.getInt( "coordinates" ) > 1 ) {
+				addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
+			}
+			// Maybe add bounds to response.
+			if ( responseInclude.getInt( "bounds" ) > 1 ) {
+				addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
+			}
+
+		} catch( Exception e ) {
+			promise.reject( "Error", e );
+		}
+		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
 	public void updateSlopeColors( int nativeNodeHandle, String uuid, int strokeWidth, ReadableArray slopeColors, ReadableMap responseInclude, Promise promise ) {
 		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
@@ -645,35 +691,39 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	protected void addBoundsToResponse(
-		Coordinate[] jtsCoordinates,
+		@Nullable Coordinate[] jtsCoordinates,
 		WritableMap responseParams
 	) {
-		Geometry geometry = new LineString( new CoordinateArraySequence( jtsCoordinates ), new GeometryFactory() );
-		Envelope boundingBox = geometry.getEnvelopeInternal();
-		WritableMap boundsParams = new WritableNativeMap();
-		boundsParams.putDouble("minLat", boundingBox.getMinY());
-		boundsParams.putDouble("minLng", boundingBox.getMinX());
-		boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-		boundsParams.putDouble("maxLng", boundingBox.getMaxX());
-		responseParams.putMap("bounds", boundsParams);
+		if ( null != jtsCoordinates ) {
+			Geometry geometry = new LineString( new CoordinateArraySequence( jtsCoordinates ), new GeometryFactory() );
+			Envelope boundingBox = geometry.getEnvelopeInternal();
+			WritableMap boundsParams = new WritableNativeMap();
+			boundsParams.putDouble("minLat", boundingBox.getMinY());
+			boundsParams.putDouble("minLng", boundingBox.getMinX());
+			boundsParams.putDouble("maxLat", boundingBox.getMaxY());
+			boundsParams.putDouble("maxLng", boundingBox.getMaxX());
+			responseParams.putMap("bounds", boundsParams);
+		}
 	}
 
 	protected void addCoordinatesSimplifiedToResponse(
-		CoordPoint[] coordinatesSimplified,
+		@Nullable CoordPoint[] coordinatesSimplified,
 		WritableMap responseParams
 	) {
-		WritableArray coordinatesSimplifiedResponseArray = new WritableNativeArray();
-		for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
-			coordinatesSimplifiedResponseArray.pushMap( coordinatesSimplified[i].toResponseMap() );
+		if ( null != coordinatesSimplified ) {
+			WritableArray coordinatesSimplifiedResponseArray = new WritableNativeArray();
+			for ( int i = 0; i < coordinatesSimplified.length; i++ ) {
+				coordinatesSimplifiedResponseArray.pushMap( coordinatesSimplified[i].toResponseMap() );
+			}
+			responseParams.putArray( "coordinatesSimplified", coordinatesSimplifiedResponseArray );
 		}
-		responseParams.putArray( "coordinatesSimplified", coordinatesSimplifiedResponseArray );
 	}
 
 	protected void addCoordinatesToResponse(
-		Coordinate[] jtsCoordinates,
+		@Nullable Coordinate[] jtsCoordinates,
 		WritableMap responseParams
 	) {
-		if ( jtsCoordinates.length > 0 && ! responseParams.hasKey( "coordinates" ) ) {
+		if ( null != jtsCoordinates && jtsCoordinates.length > 0 && ! responseParams.hasKey( "coordinates" ) ) {
 			WritableArray coordinatesResponseArray = new WritableNativeArray();
 			double accumulatedDistance = 0;
 			for (int i = 0; i < jtsCoordinates.length; i++) {
@@ -696,7 +746,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 	}
 
 	// Implements Point, so Simplify can use an array of these.
-	private static class CoordPoint implements Point {
+	protected static class CoordPoint implements Point {
 
 		int index;		// index within original coordinates
 		double lat;		// latitude
@@ -749,6 +799,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerBase {
 			return alt + 100000;				// Ensure value is greater than 0.
 		}
 
+		@NonNull
 		@Override
 		public String toString() {
 			return "[" + "index=" + index + " lat=" + lat + ", lng=" + lng + ", alt=" + alt + ", accumulatedDistance=" + accumulatedDistance + ", distanceLast=" + distancePrev + ", slope=" + slope + ']';

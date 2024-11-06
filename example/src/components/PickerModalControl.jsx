@@ -15,6 +15,7 @@ import ModalWrapper from './ModalWrapper.jsx';
 import Button from './Button.jsx';
 
 const PickerModalControl = ( {
+	style,
 	disabled,
 	buttonLabel,
 	buttonLabelFallback,
@@ -96,7 +97,7 @@ const PickerModalControl = ( {
 			headerLabel={ headerLabel }
 			selectAllNoneLabel={ selectAllNoneLabel }
 			onSelectAllNone={ onSelectAllNone }
-			style={ { width: width * ( 2 / 3 ) } }
+			style={ { width: width * ( 2 / 3 ), ...( style ? style : {} ) } }
 		>
 
 			<View style={ {

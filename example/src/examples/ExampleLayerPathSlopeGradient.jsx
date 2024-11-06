@@ -6,6 +6,8 @@ import React, {
 } from 'react';
 import {
 	Text,
+	PixelRatio,
+	ToastAndroid,
 	useWindowDimensions,
 	View,
 } from 'react-native';
@@ -21,17 +23,20 @@ import {
 	nativeMapModules,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
+const { MapContainerModule, MapLayerPathSlopeGradientModule } = nativeMapModules;
 
 /**
  * Internal dependencies
  */
+import ModalControl from '../components/ModalControl.jsx';
+import Center from '../components/Center.jsx';
 import { barTopPadding } from '../constants.js';
 import { formatSeconds } from '../utils.js';
 import TopBar from '../components/TopBar.jsx';
+import Button from '../components/Button.jsx';
 import FilesFromDirPickerModalControl from '../components/FilesFromDirPickerModalControl.jsx';
 import { tileOptions } from './ExampleLayerBitmapTile.jsx';
-import { PlusMinusControl, ButtonControl, rowBtnStyle } from '../components/RowControls.jsx';
+import { PlusMinusControl, ButtonControl, rowBtnStyle, ControlWrapper } from '../components/RowControls.jsx';
 
 const ExampleLayerPathSlopeGradient = ( {
     setSelectedExample,
@@ -40,6 +45,8 @@ const ExampleLayerPathSlopeGradient = ( {
 } ) => {
 
 	const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );
+
+	const [layerUuid, setLayerUuid] = useState( null );
 
 	const [barTopHeight,setBarTopHeight] = useState( 0 );
 
@@ -77,6 +84,9 @@ const ExampleLayerPathSlopeGradient = ( {
     }
 
     const onChange = response => {
+        if ( response.uuid ) {
+            setLayerUuid( response.uuid )
+        }
         if ( response.bounds ) {
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
@@ -120,6 +130,7 @@ const ExampleLayerPathSlopeGradient = ( {
             } } >
 
                 <View style={ { width: '100%' } } ><FilesFromDirPickerModalControl
+                    style={ style }
                     headerLabel={ 'gpx File' }
                     buttonLabel={ 'gpx File ' + fileLabel }
                     NoOptionsComponent={ () => <View><Text style={ { ...style, marginBottom: 10 } }>There are no gpx files in this Directory!</Text><Text style={ style }>{ appDirs.tracks }</Text></View> }
@@ -176,6 +187,55 @@ const ExampleLayerPathSlopeGradient = ( {
                 buttonLabel="swap"
             />
 
+            <ControlWrapper
+                containerStyle={ { marginBottom: 10 } }
+                style={ style }
+                label={ 'Events' }
+                value={ '' }
+            >
+                <Button
+                    style={ {
+                        marginRight: 10,
+                        width: 81,
+                        textAlign: 'center',
+                    } }
+                    disabled={ promiseQueueState > 0 || ! layerUuid }
+                    onPress={ () => {
+                        if ( mapViewNativeNodeHandle && layerUuid ) {
+                            MapLayerPathSlopeGradientModule.triggerEvent(
+                                mapViewNativeNodeHandle,
+                                layerUuid,
+                                PixelRatio.getPixelSizeForLayoutSize( width ) / 2,
+                                PixelRatio.getPixelSizeForLayoutSize( mapHeight ) / 2
+                            ).catch( err => console.log( 'ERROR', err ) );
+                        }
+                    } }
+                    title={ 'trigger' }
+                />
+
+                <ModalControl
+                    style={ style }
+                    buttonStyle={ rowBtnStyle }
+                    buttonLabel={ '?' }
+                    headerLabel={ 'Events' }
+                    disabled={ promiseQueueState > 0 }
+                >
+                    <Text style={ {...style, marginBottom: 10} }>
+                        LayerPathSlopeGradient supports press, longPress and doubleTab events.
+                    </Text>
+                    <Text style={ {...style, marginBottom: 10} }>
+                        Furthermore an event can be triggered at any map position, here the center.
+                    </Text>
+                    <Text style={ {...style, marginBottom: 10} }>
+                        The gesture buffer distance can be controlled.
+                    </Text>
+                    <Text style={ style }>
+                        The response includes: event distance to the path, nearest point at path and the event position.
+                    </Text>
+                </ModalControl>
+
+            </ControlWrapper>;
+
             { coordinates && coordinates.length > 0 && <View>
                 <Text style={ style }>Number of points: { coordinates.length }</Text>
                 <Text style={ style }>Number of points simplified: { coordinatesSimplified.length }</Text>
@@ -185,35 +245,58 @@ const ExampleLayerPathSlopeGradient = ( {
 
         </TopBar>
 
-        <MapContainer
-            height={ mapHeight }
-            nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
-            setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
-        >
+        <View style={ {
+            height: mapHeight,
+            width,
+        } } >
+            <MapContainer
+                height={ mapHeight }
+                nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
+                setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
+            >
 
-            <LayerBitmapTile
-                url={ tileOptions[0].value }
-                cacheSize={ 10 * 1024 * 1024 }  // 10 mb
+                <LayerBitmapTile
+                    url={ tileOptions[0].value }
+                    cacheSize={ 10 * 1024 * 1024 }  // 10 mb
+                />
+
+                <LayerPathSlopeGradient
+                    onCreate={ onChange }
+                    filePath={ filePath }
+                    strokeWidth={ strokeWidth }
+                    slopeColors={ slopeColors }
+                    slopeSimplificationTolerance={ slopeSimplificationTolerance }
+                    flattenWindowSize={ flattenWindowSize }
+                    responseInclude={ {
+                        bounds: 1,
+                        coordinates: 1,
+                        coordinatesSimplified: 2,
+                    } }
+                    onChange={ onChange }
+                    onPress={ response => {
+                        ToastAndroid.show( 'Path pressed', ToastAndroid.SHORT );
+                    } }
+                    onLongPress={ response => {
+                        ToastAndroid.show( 'Path long pressed', ToastAndroid.SHORT );
+                    } }
+                    onDoubleTap={ response => {
+                        ToastAndroid.show( 'Path double tabbed', ToastAndroid.SHORT );
+                    } }
+                    onTrigger={ response => {
+                        ToastAndroid.show( 'Path triggered', ToastAndroid.SHORT );
+                    } }
+                />
+
+                <LayerScalebar/>
+
+            </MapContainer>
+
+            <Center
+                height={ mapHeight }
+                width={ width }
             />
 
-            <LayerPathSlopeGradient
-                filePath={ filePath }
-                strokeWidth={ strokeWidth }
-                slopeColors={ slopeColors }
-                slopeSimplificationTolerance={ slopeSimplificationTolerance }
-                flattenWindowSize={ flattenWindowSize }
-                responseInclude={ {
-                    bounds: 1,
-                    coordinates: 1,
-                    coordinatesSimplified: 2,
-                } }
-                onCreate={ onChange }
-                onChange={ onChange }
-            />
-
-            <LayerScalebar/>
-
-        </MapContainer>
+        </View>
 
         <AttributionComponent style={ {
             margin: 5,

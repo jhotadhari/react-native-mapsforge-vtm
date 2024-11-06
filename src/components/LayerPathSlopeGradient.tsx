@@ -10,15 +10,23 @@ import useRefState from '../compose/useRefState';
 import promiseQueue from '../promiseQueue';
 import { MapLayerPathSlopeGradientModule } from '../nativeMapModules';
 import type { ResponseInclude, Location, LocationExtended, Bounds, ResponseBase } from '../types';
+import { NativeEventEmitter } from 'react-native';
 
 const Module = MapLayerPathSlopeGradientModule;
 
 export type GradientColors = [number, `#${string}`][];
 
-export interface LayerPathSlopeGradientResponse extends ResponseBase  {
+export interface LayerPathSlopeGradientResponse extends ResponseBase {
 	coordinates?: LocationExtended[];
 	coordinatesSimplified?: LocationExtended[];
 	bounds?: Bounds;
+};
+
+export interface LayerPathSlopeGradientGestureResponse extends ResponseBase {
+	type: string;
+	distance: number;
+	nearestPoint: Location;
+	eventPosition: Location;
 };
 
 export type LayerPathSlopeGradientProps = {
@@ -27,6 +35,7 @@ export type LayerPathSlopeGradientProps = {
 	filePath?: null | `/${string}` | `content://${string}`;
 	positions?: Location[];
 	responseInclude?: ResponseInclude;
+	gestureScreenDistance?: number;
 	slopeColors?: GradientColors;
 	strokeWidth?: number;
 	slopeSimplificationTolerance?: number;
@@ -35,6 +44,10 @@ export type LayerPathSlopeGradientProps = {
 	onCreate?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onChange?: null | ( ( response: LayerPathSlopeGradientResponse ) => void );
 	onError?: null | ( ( err: any ) => void );
+	onPress?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
+	onLongPress?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
+	onDoubleTap?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
+	onTrigger?: null | ( ( response: LayerPathSlopeGradientGestureResponse ) => void );
 };
 
 // 0	never include in response.
@@ -75,11 +88,16 @@ const LayerPathSlopeGradient = ( {
 	slopeSimplificationTolerance = 7,
 	flattenWindowSize = 9,
 	responseInclude = responseIncludeDefaults,
+	gestureScreenDistance = 20,
 	onCreate,
 	onRemove,
 	onChange,
 	reactTreeIndex,
 	onError,
+	onPress,
+	onLongPress,
+	onDoubleTap,
+	onTrigger,
 } : LayerPathSlopeGradientProps ) => {
 
 	// @ts-ignore
@@ -106,6 +124,7 @@ const LayerPathSlopeGradient = ( {
 				slopeSimplificationTolerance,
 				flattenWindowSize,
 				responseInclude,
+				gestureScreenDistance,
 				reactTreeIndex
 			).then( ( response: LayerPathSlopeGradientResponse ) => {
 				setUuid( response.uuid );
@@ -154,6 +173,21 @@ const LayerPathSlopeGradient = ( {
             } );
 		}
 	}, [strokeWidth] );
+
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+            promiseQueue.enqueue( () => {
+                return Module.updateGestureScreenDistance(
+                    nativeNodeHandle,
+                    uuid,
+					gestureScreenDistance,
+					responseInclude,
+				).then( ( response: LayerPathSlopeGradientResponse ) => {
+					onChange ? onChange( response ) : null;
+                } ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+            } );
+		}
+	}, [gestureScreenDistance] );
 
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
@@ -214,6 +248,34 @@ const LayerPathSlopeGradient = ( {
 		),
 		filePath,
 		Object.keys( responseInclude ).map( key => key + responseInclude[key] ).join( '' ),
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'PathSlopeGradientGesture', ( response : LayerPathSlopeGradientGestureResponse ) => {
+			if ( response.uuid === uuid ) {
+				switch( response.type ) {
+					case 'doubleTap':
+						onDoubleTap ? onDoubleTap( response ) : null;
+						break;
+					case 'LongPress':
+						onLongPress ? onLongPress( response ) : null;
+						break;
+					case 'press':
+						onPress ? onPress( response ) : null;
+						break;
+					case 'trigger':
+						onTrigger ? onTrigger( response ) : null;
+						break;
+				}
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		uuid,
+		onPress,
 	] );
 
 	return null;
