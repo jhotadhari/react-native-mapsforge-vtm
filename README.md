@@ -50,7 +50,6 @@ import {
   LayerScalebar,
   LayerMarker,
   Marker,
-  useMapEvents,
   useRenderStyleOptions,
   nativeMapModules,
 } from 'react-native-mapsforge-vtm';
@@ -105,13 +104,6 @@ const App = () => {
     }
   }, [renderStyle, renderStyleDefaultId] );
 
-  useMapEvents( {
-    nativeNodeHandle,
-    onMapEvent: event => {
-      console.log( 'onMapEvent event', event );
-    },
-  } );
-
   return <SafeAreaView>
 
     <MapContainer
@@ -132,8 +124,10 @@ const App = () => {
       rotationEnabled={ false }
       zoomEnabled={ true }
       hgtDirPath={ '/storage/emulated/0/...' /* If you need altitude data of map center in MapEvents. Absolute path or content uri to dem directory. Bad performance with content uri */ }
-      onPause={ response => console.log( 'lifecycle event onPause', response ) }
-      onResume={ response => console.log( 'lifecycle event onResume', response ) }
+      responseInclude={ { center: 2, zoomLevel: 2 } }
+      onPause={ response => console.log( 'lifecycle event', response ) }
+      onResume={ response => console.log( 'lifecycle event', response ) }
+      onMapEvent={ response => console.log( 'map move event', response ) }
     >
 
       <LayerBitmapTile

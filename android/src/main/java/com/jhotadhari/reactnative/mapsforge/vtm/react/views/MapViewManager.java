@@ -58,6 +58,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private String propHgtDirPath;
 	private ReadableMap propResponseInclude;
 	private int propMapEventRate;
+	private boolean propEmitsMapEvents;
 
 	ReactApplicationContext reactContext;
 
@@ -250,6 +251,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propMapEventRate = value;
 	}
 
+	@ReactProp( name="emitsMapEvents" )
+	public void setEmitsMapEvents( FrameLayout view, int value ) {		// boolean doesn't work, let's use int
+		propEmitsMapEvents = value == 1;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
@@ -291,7 +297,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 			propResponseInclude,
 
-			propMapEventRate
+			propMapEventRate,
+			propEmitsMapEvents
 		);
 
 		setupLayout( parentView );

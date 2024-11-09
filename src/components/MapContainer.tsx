@@ -29,7 +29,7 @@ import { get, isBoolean, isNumber } from 'lodash-es';
 import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
-import type { Location, mapEvent, ResponseInclude } from '../types';
+import type { Location, MapEventResponse, ResponseInclude } from '../types';
 
 const createFragment = ( nativeNodeHandle: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
@@ -51,7 +51,7 @@ const useDefaultWidth = ( propsWidth: number | undefined ) => {
 	return propsWidth || width;
 };
 
-export interface MapLifeCycleResponse extends mapEvent {
+export interface MapLifeCycleResponse extends MapEventResponse {
 	type: 'onPause' | 'onResume';
 };
 
@@ -61,6 +61,7 @@ export type MapContainerProps = {
 	setNativeNodeHandle?: null | Dispatch<SetStateAction<number | null>>;
 	onPause?: null | ( ( response: MapLifeCycleResponse ) => void );
 	onResume?: null | ( ( response: MapLifeCycleResponse ) => void );
+	onMapEvent?: null | ( ( response: MapEventResponse ) => void );
 	width?: number;
 	height?: number;
 	center?: Location;
@@ -84,6 +85,7 @@ export type MapContainerProps = {
 	responseInclude?: ResponseInclude;
 	onError?: null | ( ( err: any ) => void );
 	mapEventRate?: number;
+	emitsMapEvents?: null | boolean;
 };
 
 const defaultCenter : Location = {
@@ -115,6 +117,7 @@ const MapContainer = ( {
 	setNativeNodeHandle = null,
 	onPause = null,
 	onResume = null,
+	onMapEvent,
 	width,
 	height = 200,
 	center = defaultCenter,
@@ -138,6 +141,7 @@ const MapContainer = ( {
 	responseInclude = responseIncludeDefaults,
 	onError,
 	mapEventRate = 100,
+	emitsMapEvents = null,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
@@ -160,6 +164,8 @@ const MapContainer = ( {
 	maxZoom = isNumber( maxZoom ) ? Math.round( maxZoom ) : 20;
 
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
+
+	emitsMapEvents = isBoolean( emitsMapEvents ) ? emitsMapEvents : !! onMapEvent;
 
 	useEffect( () => {
 		const nodeHandle = findNodeHandle( ref?.current );
@@ -321,6 +327,14 @@ const MapContainer = ( {
 		}
 	}, [mapEventRate] );
 
+	// emitsMapEvents
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setEmitsMapEvents( nativeNodeHandle, emitsMapEvents ? 1 : 0 )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [emitsMapEvents] );
+
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
@@ -342,7 +356,26 @@ const MapContainer = ( {
 		return () => {
 			eventListener.remove();
 		};
-	}, [nativeNodeHandle] );
+	}, [
+		nativeNodeHandle,
+		onPause,
+		onResume,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'onMapEvent', ( response : MapEventResponse ) => {
+			if ( response.nativeNodeHandle === nativeNodeHandle && onMapEvent ) {
+                onMapEvent( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		nativeNodeHandle,
+		onMapEvent,
+	] );
 
 	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
 	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : Children.map( children, child => {
@@ -401,6 +434,7 @@ const MapContainer = ( {
 			hgtDirPath={ hgtDirPath }
 			responseInclude={ responseInclude }
 			mapEventRate={ mapEventRate }
+			emitsMapEvents={ emitsMapEvents ? 1 : 0 }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

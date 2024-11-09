@@ -45,6 +45,7 @@ type Props = {
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	responseInclude: ResponseInclude;
 	mapEventRate: number;
+	emitsMapEvents: 1 | 0;
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null

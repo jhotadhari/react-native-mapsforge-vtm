@@ -284,4 +284,19 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 		}
 	}
 
+	@ReactMethod
+	public void setEmitsMapEvents( int nativeNodeHandle, int emitsMapEvents, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
+			}
+			mapFragment.updateUpdateListener( 1 == emitsMapEvents );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
 }

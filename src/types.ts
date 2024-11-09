@@ -83,7 +83,7 @@ export type GeometryStyle = {
     transparent?: boolean;
 };
 
-export interface mapEvent {
+export interface MapEventResponse {
     nativeNodeHandle: number;
     zoomLevel: number;
     zoom: number;

@@ -54,6 +54,7 @@ public class MapFragment extends Fragment {
 
 	protected HgtReader hgtReader;
 
+	protected UpdateListener updateListener;
 
 	protected RelativeLayout relativeLayout;
 	protected View view;
@@ -86,6 +87,7 @@ public class MapFragment extends Fragment {
 	protected float propMaxRoll;
 	protected String propHgtDirPath;
 	protected ReadableMap propResponseInclude;
+	protected boolean propEmitsMapEvents;
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -133,7 +135,8 @@ public class MapFragment extends Fragment {
 
 		ReadableMap responseInclude,
 
-		int mapEventRate
+		int mapEventRate,
+		boolean emitsMapEvents
 	) {
         super();
 
@@ -170,6 +173,7 @@ public class MapFragment extends Fragment {
 		propHgtDirPath = hgtDirPath;
 
 		propResponseInclude = responseInclude;
+		propEmitsMapEvents = emitsMapEvents;
     }
 
     protected void addHardwareKeyListener() {
@@ -271,6 +275,36 @@ public class MapFragment extends Fragment {
 		}
 	}
 
+	public void updateUpdateListener( boolean emitsMapEvents ) {
+		propEmitsMapEvents = emitsMapEvents;
+		if ( propEmitsMapEvents && updateListener == null ) {
+			bindUpdateListener();
+		} else if ( ! propEmitsMapEvents && updateListener != null ) {
+			unbindUpdateListener();
+		}
+	}
+
+	protected void unbindUpdateListener() {
+		if ( updateListener != null ) {
+			mapView.map().events.unbind( updateListener );
+			updateListener = null;
+		}
+	}
+
+	protected void bindUpdateListener() {
+		if ( propEmitsMapEvents && null == updateListener ) {
+			updateListener = new UpdateListener() {
+				@Override
+				public void onMapEvent( Event e, MapPosition mapPosition ) {
+					if ( rateLimiter.tryAcquire() ) {
+						Utils.sendEvent( mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
+					}
+				}
+			};
+			mapView.map().events.bind( updateListener );
+		}
+	}
+
 	protected void createMapView(View v) {
 		try {
 
@@ -302,20 +336,11 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
-			// Event listener.
-			mapView.map().events.bind( new UpdateListener() {
-				@Override
-				public void onMapEvent( Event e, MapPosition mapPosition ) {
-					if ( rateLimiter.tryAcquire() ) {
-						WritableMap params = null;
-						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
-					}
-				}
-			} );
+			bindUpdateListener();
 
 			setHgtReader();
 
-		} catch (Exception e) {
+		} catch ( Exception e ) {
 			// Something went wrong. Should notice user!!!???
 			e.printStackTrace();
 		}
@@ -422,6 +447,7 @@ public class MapFragment extends Fragment {
 
     @Override
     public void onDestroy() {
+		unbindUpdateListener();
         removeHardwareKeyListener();
 		if ( mapView != null ) {
 			mapView.onDestroy();
