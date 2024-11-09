@@ -29,6 +29,8 @@ export type LayerMBTilesBitmapProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
 	mapFile?: `/${string}`;
+	zoomMin?: number;
+	zoomMax?: number;
 	alpha?: number;
 	transparentColor?: `#${string}`;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
@@ -41,6 +43,8 @@ const LayerMBTilesBitmap = ( {
 	nativeNodeHandle,
 	reactTreeIndex,
     mapFile,
+    zoomMin = 1,
+    zoomMax = 20,
     alpha = 256,
     transparentColor,
 	onCreate,
@@ -62,6 +66,8 @@ const LayerMBTilesBitmap = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				mapFile,
+				Math.round( zoomMin ),
+				Math.round( zoomMax ),
 				alpha,
 				transparentColor,
 				reactTreeIndex
@@ -96,6 +102,17 @@ const LayerMBTilesBitmap = ( {
 		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
+	] );
+
+	// zoomMin zoomMax changed.
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.updateZoomMinZoomMax( nativeNodeHandle, uuid, zoomMin, zoomMax )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [
+		zoomMin,
+		zoomMax,
 	] );
 
 	useEffect( () => {

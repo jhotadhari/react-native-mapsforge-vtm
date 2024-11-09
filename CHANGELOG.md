@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 ### Added
 - Added prop `onMapEvent` to `mapContainer` component. It listens to the same event like the `useMapEvents` hook.
+- Added props `zoomMin` and `zoomMax` to `LayerMBTilesBitmap` component.
 
 ### Changed
 - Added prop `emitsMapEvents` to `mapContainer` component. If `false`, the map won't emit any mapEvents and the `onMapEvent` or `useMapEvents` are useless. If `undefined`|`null` it will be `true` if `onMapEvent` prop is set. **If you want to use the `useMapEvents` hook, you have to set `emitsMapEvents` to `true`!**
