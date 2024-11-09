@@ -38,6 +38,8 @@ export type LayerMapsforgeProps = {
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	renderStyle?: string;
 	renderOverlays?: string[];
+	zoomMin?: number;
+	zoomMax?: number;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: LayerMapsforgeResponse ) => void );
 	onChange?: null | ( ( response: LayerMapsforgeResponse ) => void );
@@ -51,6 +53,8 @@ const LayerMapsforge = ( {
 	renderTheme = 'DEFAULT',
 	renderStyle = '',
 	renderOverlays = [],
+    zoomMin = 1,
+    zoomMax = 30,
 	onCreate,
 	onRemove,
 	onChange,
@@ -79,6 +83,8 @@ const LayerMapsforge = ( {
 				renderTheme,
 				renderStyle,
 				renderOverlays,
+				Math.round( zoomMin ),
+				Math.round( zoomMax ),
 				reactTreeIndex
 			).then( ( response : LayerMapsforgeResponse ) => {
 				setUuid( response.uuid );
@@ -111,6 +117,17 @@ const LayerMapsforge = ( {
 		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
+	] );
+
+	// zoomMin zoomMax changed.
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.updateZoomMinZoomMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [
+		zoomMin,
+		zoomMax,
 	] );
 
 	useEffect( () => {

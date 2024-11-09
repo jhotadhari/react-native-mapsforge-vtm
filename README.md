@@ -116,7 +116,6 @@ const App = () => {
         lat: -10.65,
       } }
       zoomLevel={ 12 }
-      responseInclude={ { center: 2 } }
       minZoom={ 2 }
       maxZoom={ 20 }
       moveEnabled={ true }

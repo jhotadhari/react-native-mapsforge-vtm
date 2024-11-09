@@ -9,6 +9,7 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.HandleLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
@@ -19,10 +20,7 @@ import org.oscim.android.tiling.source.mbtiles.MBTilesTileSource;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.BoundingBox;
 import org.oscim.core.MapPosition;
-import org.oscim.event.Event;
-import org.oscim.layers.Layer;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
-import org.oscim.map.Map;
 
 import java.io.File;
 import java.util.HashMap;
@@ -39,7 +37,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
         super(context);
     }
 
-	protected java.util.Map<String, Map.UpdateListener> updateListeners = new HashMap<>();
+	protected java.util.Map<String, HandleLayerZoomBounds> handleLayerZoomBoundss = new HashMap<>();
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
@@ -80,75 +78,18 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 		}
 	}
 
-	protected void updateEnabled(
-		Layer bitmapLayer,
-		int zoomMin,
-		int zoomMax,
-		int zoomLevel
-	) {
-		if ( zoomLevel <= zoomMax && zoomLevel >= zoomMin ) {
-			bitmapLayer.setEnabled( true );
-		} else {
-			bitmapLayer.setEnabled( false );
-		}
-	}
-
-	protected String removeUpdateListener(
-		int nativeNodeHandle,
-		String uuid
-	) {
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
-		if ( null == mapView ) {
-			return "Unable to find mapView or mapFragment";
-		}
-		if ( updateListeners.containsKey( uuid ) ) {
-			Map.UpdateListener updateListenerOld = updateListeners.get( uuid );
-			mapView.map().events.unbind( updateListenerOld );
-			updateListeners.remove( uuid );
-		}
-		return null;
-	}
-
 	@ReactMethod
 	public void updateZoomMinZoomMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
-		String errorMsg = updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
+			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
+		}
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
 		if ( null != errorMsg ) {
 			promise.reject( "Error", errorMsg ); return;
 		}
 		WritableMap responseParams = new WritableNativeMap();
 		responseParams.putString( "uuid", uuid );
 		promise.resolve( responseParams );
-	}
-
-	protected String updateUpdateListener(
-		int nativeNodeHandle,
-		String uuid,
-		int zoomMin,
-		int zoomMax
-	) {
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
-		if ( null == mapView ) {
-			return "Unable to find mapView";
-		}
-		String errorMsg = removeUpdateListener( nativeNodeHandle, uuid );
-		if ( null != errorMsg ) {
-			return errorMsg;
-		}
-		Layer bitmapLayer = layers.get( uuid );
-		if ( bitmapLayer == null ) {
-			return "Unable to find bitmapLayer";
-		}
-		Map.UpdateListener updateListener = new Map.UpdateListener() {
-			@Override
-			public void onMapEvent( Event e, MapPosition mapPosition ) {
-				updateEnabled( bitmapLayer, zoomMin, zoomMax, mapPosition.getZoomLevel() );
-			}
-		};
-		updateListeners.put( uuid, updateListener );
-		mapView.map().events.bind( updateListener );
-		updateEnabled( bitmapLayer, zoomMin, zoomMax, mapView.map().viewport().getMaxZoomLevel() );
-		mapView.map().updateMap( true );
-		return null;
 	}
 
 	@ReactMethod
@@ -208,8 +149,10 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			layers.put( uuid, bitmapLayer );
 
 			// Handle zoomMin, zoomMax
-			updateEnabled( bitmapLayer, zoomMin, zoomMax, mapView.map().viewport().getMaxZoomLevel() );
-			updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+			HandleLayerZoomBounds handleLayerZoomBounds = new HandleLayerZoomBounds( this, getReactApplicationContext() );
+			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
+			handleLayerZoomBounds.updateEnabled( bitmapLayer, zoomMin, zoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
 
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
@@ -222,7 +165,11 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 
 	@ReactMethod
 	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
-		removeUpdateListener( nativeNodeHandle, uuid );
+		if ( handleLayerZoomBoundss.containsKey( uuid ) ) {
+			HandleLayerZoomBounds handleLayerZoomBounds = handleLayerZoomBoundss.get( uuid );
+			handleLayerZoomBounds.removeUpdateListener( nativeNodeHandle );
+			handleLayerZoomBoundss.remove( uuid );
+		}
 		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
