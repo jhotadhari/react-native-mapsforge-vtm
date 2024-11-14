@@ -19,11 +19,10 @@ import {
 	MapContainer,
 	LayerMapsforge,
 	LayerScalebar,
-	nativeMapModules,
+	MapContainerModule,
 	useRenderStyleOptions,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
 
 /**
  * Internal dependencies

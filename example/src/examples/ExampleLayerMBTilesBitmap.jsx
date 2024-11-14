@@ -18,10 +18,9 @@ import {
 	MapContainer,
 	LayerMBTilesBitmap,
 	LayerScalebar,
-	nativeMapModules,
+	MapContainerModule,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule } = nativeMapModules;
 
 /**
  * Internal dependencies
