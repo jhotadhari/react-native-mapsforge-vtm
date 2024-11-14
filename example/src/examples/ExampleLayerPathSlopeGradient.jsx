@@ -19,10 +19,10 @@ import {
 	LayerPathSlopeGradient,
 	LayerBitmapTile,
 	LayerScalebar,
-	nativeMapModules,
+	MapContainerModule,
+    MapLayerPathSlopeGradientModule,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
-const { MapContainerModule, MapLayerPathSlopeGradientModule } = nativeMapModules;
 
 /**
  * Internal dependencies

@@ -22,9 +22,8 @@ import {
 	LayerMarker,
 	Marker,
 	usePromiseQueueState,
-    nativeMapModules,
+    MapLayerMarkerModule,
 } from 'react-native-mapsforge-vtm';
-const { MapLayerMarkerModule } = nativeMapModules;
 
 /**
  * Internal dependencies

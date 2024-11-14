@@ -15,6 +15,7 @@ Some things will change sometime soonish:
 - Hillshading improvements.
 - Gesture events for `MapContainer`.
 - New components for geometry like polygons and circles.
+- New component `LayerGroup`.
 - ...
 
 ## Installation
@@ -51,7 +52,6 @@ import {
   LayerMarker,
   Marker,
   useRenderStyleOptions,
-  nativeMapModules,
 } from 'react-native-mapsforge-vtm';
 
 const App = () => {
@@ -240,7 +240,10 @@ Digital elevation Models, elevation data in hgt format at 3 arc second resolutio
 
 ## Contribution
 
-Contributions welcome. You can report [issues or suggest features](https://github.com/jhotadhari/react-native-mapsforge/issues). Help me coding, fork the repository and make pull requests. Or [get me a coffee](https://waterproof-webdesign.de/donate).
+Contributions welcome. You can report [issues or suggest features](https://github.com/jhotadhari/react-native-mapsforge/issues). Help me coding, [fork the repository and make pull requests](./CONTRIBUTING.md).
+
+[![liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/jhotadhari/donate)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H3162PAG)
 
 ## License
 

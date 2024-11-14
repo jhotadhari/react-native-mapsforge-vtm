@@ -15,9 +15,7 @@ import useRenderStyleOptions from './compose/useRenderStyleOptions';
 import usePromiseQueueState from './compose/usePromiseQueueState';
 import useMapEvents from './compose/useMapEvents';
 import promiseQueue from './promiseQueue';
-import * as nativeMapModules from './nativeMapModules';
 // import * as utils from './utils';
-import type * as types from './types';
 
 export {
 	MapContainer,
@@ -34,8 +32,8 @@ export {
 	usePromiseQueueState,
 	useMapEvents,
 	promiseQueue,
-	nativeMapModules,
 	// utils,
-	type types,
 };
+export * from './nativeMapModules';
+export type * from './types';
 
