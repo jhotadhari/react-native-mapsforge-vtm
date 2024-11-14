@@ -19,6 +19,8 @@ export type LayerBitmapTileProps = {
 	url?: string;
 	zoomMin?: number;
 	zoomMax?: number;
+	enabledZoomMin?: number;
+	enabledZoomMax?: number;
 	cacheSize?: number;
 	onCreate?: null | ( ( result: ResponseBase ) => void );
 	onRemove?: null | ( ( result: ResponseBase ) => void );
@@ -32,6 +34,8 @@ const LayerBitmapTile = ( {
     url = 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png',
     zoomMin = 1,
     zoomMax = 20,
+    enabledZoomMin = 1,
+    enabledZoomMax = 20,
     cacheSize =  0 * 1024 * 1024,
 	onCreate,
 	onRemove,
@@ -52,6 +56,8 @@ const LayerBitmapTile = ( {
 				url,
 				Math.round( zoomMin ),
 				Math.round( zoomMax ),
+				Math.round( enabledZoomMin ),
+				Math.round( enabledZoomMax ),
 				Math.round( cacheSize ),
 				reactTreeIndex
 			).then( ( response: ResponseBase ) => {
@@ -84,6 +90,17 @@ const LayerBitmapTile = ( {
 	}, [
 		nativeNodeHandle,
 		!! uuid,
+	] );
+
+	// enabledZoomMin enabledZoomMax changed.
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [
+		enabledZoomMin,
+		enabledZoomMax,
 	] );
 
 	useEffect( () => {

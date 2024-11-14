@@ -19,7 +19,6 @@ import {
 	LayerBitmapTile,
 	LayerHillshading,
 	LayerScalebar,
-    useMapEvents,
 } from 'react-native-mapsforge-vtm';
 
 /**
@@ -54,10 +53,6 @@ const ExampleDem = ( {
     const onMapEvent = event => event.center
         ? setCurrentCenter( event.center )
         : null
-	useMapEvents( {
-		nativeNodeHandle: mapViewNativeNodeHandle,
-		onMapEvent,
-	} );
 
 	return <View style={ {
         height,
@@ -100,6 +95,7 @@ const ExampleDem = ( {
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
                 onPause={ onMapEvent }
                 onResume={ onMapEvent }
+                onMapEvent={ onMapEvent }
                 mapEventRate={ 50 }
             >
 
@@ -123,10 +119,10 @@ const ExampleDem = ( {
 
             </MapContainer>
 
-        <Center
-            height={ mapHeight }
-            width={ width }
-        />
+            <Center
+                height={ mapHeight }
+                width={ width }
+            />
         </View>
 
         <AttributionComponent style={ {

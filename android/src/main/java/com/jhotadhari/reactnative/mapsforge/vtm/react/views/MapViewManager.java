@@ -40,8 +40,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private boolean propTiltEnabled;
 
 	private int propZoomLevel;
-	private int propMinZoom;
-	private int propMaxZoom;
+	private int propZoomMin;
+	private int propZoomMax;
 
 	private float propTilt;
 	private float propMinTilt;
@@ -58,6 +58,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private String propHgtDirPath;
 	private ReadableMap propResponseInclude;
 	private int propMapEventRate;
+	private boolean propEmitsMapEvents;
 
 	ReactApplicationContext reactContext;
 
@@ -171,8 +172,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 	@ReactPropGroup( names = {
 		"zoomLevel",
-		"minZoom",
-		"maxZoom",
+		"zoomMin",
+		"zoomMax",
 	} )
 	public void setReactPropsViewportPosInt( FrameLayout view, int index, int value ) {
 		// zoom
@@ -180,10 +181,10 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propZoomLevel = value;
 		}
 		if ( index == 1 ) {
-			propMinZoom = value;
+			propZoomMin = value;
 		}
 		if ( index == 2 ) {
-			propMaxZoom = value;
+			propZoomMax = value;
 		}
 	}
 
@@ -250,6 +251,11 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propMapEventRate = value;
 	}
 
+	@ReactProp( name="emitsMapEvents" )
+	public void setEmitsMapEvents( FrameLayout view, int value ) {		// boolean doesn't work, let's use int
+		propEmitsMapEvents = value == 1;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
 	  */
@@ -272,8 +278,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propTiltEnabled,
 
 			propZoomLevel,
-			propMinZoom,
-			propMaxZoom,
+			propZoomMin,
+			propZoomMax,
 
 			propTilt,
 			propMinTilt,
@@ -291,7 +297,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 			propResponseInclude,
 
-			propMapEventRate
+			propMapEventRate,
+			propEmitsMapEvents
 		);
 
 		setupLayout( parentView );

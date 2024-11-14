@@ -99,13 +99,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
     @ReactMethod
-    public void setMinZoom(int nativeNodeHandle, int minZoom, Promise promise ) {
+    public void setZoomMin(int nativeNodeHandle, int zoomMin, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" ); return;
             }
-			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
+			mapView.map().viewport().setMinZoomLevel( (int) zoomMin );
             promise.resolve( true );
         } catch( Exception e ) {
 			e.printStackTrace();
@@ -114,13 +114,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setMaxZoom(int nativeNodeHandle, int maxZoom, Promise promise ) {
+    public void setZoomMax(int nativeNodeHandle, int zoomMax, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" ); return;
             }
-			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
+			mapView.map().viewport().setMaxZoomLevel( (int) zoomMax );
             promise.resolve( true );
         } catch( Exception e ) {
 			e.printStackTrace();
@@ -277,6 +277,21 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 				promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
 			mapFragment.updateRateLimiterRate( mapEventRate );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setEmitsMapEvents( int nativeNodeHandle, int emitsMapEvents, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
+			}
+			mapFragment.updateUpdateListener( 1 == emitsMapEvents );
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();

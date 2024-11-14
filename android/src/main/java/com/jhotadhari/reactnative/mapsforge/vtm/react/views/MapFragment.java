@@ -54,6 +54,7 @@ public class MapFragment extends Fragment {
 
 	protected HgtReader hgtReader;
 
+	protected UpdateListener updateListener;
 
 	protected RelativeLayout relativeLayout;
 	protected View view;
@@ -73,8 +74,8 @@ public class MapFragment extends Fragment {
 	protected boolean propTiltEnabled;
 
 	protected int propZoomLevel;
-	protected int propMinZoom;
-	protected int propMaxZoom;
+	protected int propZoomMin;
+	protected int propZoomMax;
 	protected float propTilt;
 	protected float propMinTilt;
 	protected float propMaxTilt;
@@ -86,6 +87,7 @@ public class MapFragment extends Fragment {
 	protected float propMaxRoll;
 	protected String propHgtDirPath;
 	protected ReadableMap propResponseInclude;
+	protected boolean propEmitsMapEvents;
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -114,8 +116,8 @@ public class MapFragment extends Fragment {
 		boolean tiltEnabled,
 
 		int zoomLevel,
-		int minZoom,
-		int maxZoom,
+		int zoomMin,
+		int zoomMax,
 
 		float tilt,
 		float minTilt,
@@ -133,7 +135,8 @@ public class MapFragment extends Fragment {
 
 		ReadableMap responseInclude,
 
-		int mapEventRate
+		int mapEventRate,
+		boolean emitsMapEvents
 	) {
         super();
 
@@ -152,8 +155,8 @@ public class MapFragment extends Fragment {
 		propTiltEnabled = tiltEnabled;
 
 		propZoomLevel = zoomLevel;
-        propMinZoom = minZoom;
-        propMaxZoom = maxZoom;
+        propZoomMin = zoomMin;
+        propZoomMax = zoomMax;
 
 		propTilt = tilt;
 		propMinTilt = minTilt;
@@ -170,6 +173,7 @@ public class MapFragment extends Fragment {
 		propHgtDirPath = hgtDirPath;
 
 		propResponseInclude = responseInclude;
+		propEmitsMapEvents = emitsMapEvents;
     }
 
     protected void addHardwareKeyListener() {
@@ -271,6 +275,36 @@ public class MapFragment extends Fragment {
 		}
 	}
 
+	public void updateUpdateListener( boolean emitsMapEvents ) {
+		propEmitsMapEvents = emitsMapEvents;
+		if ( propEmitsMapEvents && updateListener == null ) {
+			bindUpdateListener();
+		} else if ( ! propEmitsMapEvents && updateListener != null ) {
+			unbindUpdateListener();
+		}
+	}
+
+	protected void unbindUpdateListener() {
+		if ( updateListener != null ) {
+			mapView.map().events.unbind( updateListener );
+			updateListener = null;
+		}
+	}
+
+	protected void bindUpdateListener() {
+		if ( propEmitsMapEvents && null == updateListener ) {
+			updateListener = new UpdateListener() {
+				@Override
+				public void onMapEvent( Event e, MapPosition mapPosition ) {
+					if ( rateLimiter.tryAcquire() ) {
+						Utils.sendEvent( mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
+					}
+				}
+			};
+			mapView.map().events.bind( updateListener );
+		}
+	}
+
 	protected void createMapView(View v) {
 		try {
 
@@ -287,8 +321,8 @@ public class MapFragment extends Fragment {
 			mapView.map().getEventLayer().enableZoom( propZoomEnabled );	// ??? bug, doesn't work properly, and still possible on .setZoom
 			mapView.map().getEventLayer().enableTilt( propTiltEnabled );
 
-			mapView.map().viewport().setMinZoomLevel( (int) propMinZoom );
-			mapView.map().viewport().setMaxZoomLevel( (int) propMaxZoom );
+			mapView.map().viewport().setMinZoomLevel( (int) propZoomMin );
+			mapView.map().viewport().setMaxZoomLevel( (int) propZoomMax );
 
 			mapView.map().viewport().setTilt( (float) propTilt );
 			mapView.map().viewport().setMinTilt( (float) propMinTilt );
@@ -302,20 +336,11 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinRoll( (float) propMinRoll );
 			mapView.map().viewport().setMaxRoll( (float) propMaxRoll );
 
-			// Event listener.
-			mapView.map().events.bind( new UpdateListener() {
-				@Override
-				public void onMapEvent( Event e, MapPosition mapPosition ) {
-					if ( rateLimiter.tryAcquire() ) {
-						WritableMap params = null;
-						Utils.sendEvent(  mapViewManager.getReactContext(), "onMapEvent", getResponseBase( 2 ) );
-					}
-				}
-			} );
+			bindUpdateListener();
 
 			setHgtReader();
 
-		} catch (Exception e) {
+		} catch ( Exception e ) {
 			// Something went wrong. Should notice user!!!???
 			e.printStackTrace();
 		}
@@ -422,6 +447,7 @@ public class MapFragment extends Fragment {
 
     @Override
     public void onDestroy() {
+		unbindUpdateListener();
         removeHardwareKeyListener();
 		if ( mapView != null ) {
 			mapView.onDestroy();

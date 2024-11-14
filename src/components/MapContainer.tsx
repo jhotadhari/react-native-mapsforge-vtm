@@ -29,7 +29,7 @@ import { get, isBoolean, isNumber } from 'lodash-es';
 import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
-import type { Location, mapEvent, ResponseInclude } from '../types';
+import type { Location, MapEventResponse, ResponseInclude } from '../types';
 
 const createFragment = ( nativeNodeHandle: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
@@ -51,7 +51,7 @@ const useDefaultWidth = ( propsWidth: number | undefined ) => {
 	return propsWidth || width;
 };
 
-export interface MapLifeCycleResponse extends mapEvent {
+export interface MapLifeCycleResponse extends MapEventResponse {
 	type: 'onPause' | 'onResume';
 };
 
@@ -61,6 +61,7 @@ export type MapContainerProps = {
 	setNativeNodeHandle?: null | Dispatch<SetStateAction<number | null>>;
 	onPause?: null | ( ( response: MapLifeCycleResponse ) => void );
 	onResume?: null | ( ( response: MapLifeCycleResponse ) => void );
+	onMapEvent?: null | ( ( response: MapEventResponse ) => void );
 	width?: number;
 	height?: number;
 	center?: Location;
@@ -69,8 +70,8 @@ export type MapContainerProps = {
 	rotationEnabled?: 1 | 0 | boolean
 	zoomEnabled?: 1 | 0 | boolean
 	zoomLevel?: number;
-	minZoom?: number;
-	maxZoom?: number;
+	zoomMin?: number;
+	zoomMax?: number;
 	tilt?: number;
 	minTilt?: number;
 	maxTilt?: number;
@@ -84,6 +85,7 @@ export type MapContainerProps = {
 	responseInclude?: ResponseInclude;
 	onError?: null | ( ( err: any ) => void );
 	mapEventRate?: number;
+	emitsMapEvents?: null | boolean;
 };
 
 const defaultCenter : Location = {
@@ -115,6 +117,7 @@ const MapContainer = ( {
 	setNativeNodeHandle = null,
 	onPause = null,
 	onResume = null,
+	onMapEvent,
 	width,
 	height = 200,
 	center = defaultCenter,
@@ -123,8 +126,8 @@ const MapContainer = ( {
 	rotationEnabled,
 	zoomEnabled,
 	zoomLevel,
-	minZoom,
-	maxZoom,
+	zoomMin,
+	zoomMax,
 	tilt = 0,
 	minTilt = 0,
 	maxTilt = 65,
@@ -138,6 +141,7 @@ const MapContainer = ( {
 	responseInclude = responseIncludeDefaults,
 	onError,
 	mapEventRate = 100,
+	emitsMapEvents = null,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
@@ -156,10 +160,12 @@ const MapContainer = ( {
 	tiltEnabled = numOrBoolToNum( tiltEnabled, 1 );
 
 	zoomLevel = isNumber( zoomLevel ) ? Math.round( zoomLevel ) : 12;
-	minZoom = isNumber( minZoom ) ? Math.round( minZoom ) : 3;
-	maxZoom = isNumber( maxZoom ) ? Math.round( maxZoom ) : 20;
+	zoomMin = isNumber( zoomMin ) ? Math.round( zoomMin ) : 3;
+	zoomMax = isNumber( zoomMax ) ? Math.round( zoomMax ) : 20;
 
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
+
+	emitsMapEvents = isBoolean( emitsMapEvents ) ? emitsMapEvents : !! onMapEvent;
 
 	useEffect( () => {
 		const nodeHandle = findNodeHandle( ref?.current );
@@ -217,20 +223,20 @@ const MapContainer = ( {
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [zoomLevel] );
-	// minZoom changed.
+	// zoomMin changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMinZoom( nativeNodeHandle, minZoom )
+			MapContainerModule.setZoomMin( nativeNodeHandle, zoomMin )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
-	}, [minZoom] );
-	// maxZoom changed.
+	}, [zoomMin] );
+	// zoomMax changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMaxZoom( nativeNodeHandle, maxZoom )
+			MapContainerModule.setZoomMax( nativeNodeHandle, zoomMax )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
-	}, [maxZoom] );
+	}, [zoomMax] );
 	// tilt changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
@@ -321,6 +327,14 @@ const MapContainer = ( {
 		}
 	}, [mapEventRate] );
 
+	// emitsMapEvents
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setEmitsMapEvents( nativeNodeHandle, emitsMapEvents ? 1 : 0 )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [emitsMapEvents] );
+
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
@@ -342,7 +356,26 @@ const MapContainer = ( {
 		return () => {
 			eventListener.remove();
 		};
-	}, [nativeNodeHandle] );
+	}, [
+		nativeNodeHandle,
+		onPause,
+		onResume,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'onMapEvent', ( response : MapEventResponse ) => {
+			if ( response.nativeNodeHandle === nativeNodeHandle && onMapEvent ) {
+                onMapEvent( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		nativeNodeHandle,
+		onMapEvent,
+	] );
 
 	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
 	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children || ! findNodeHandle( ref?.current ) ? null : Children.map( children, child => {
@@ -387,8 +420,8 @@ const MapContainer = ( {
 			rotationEnabled={ rotationEnabled }
 			zoomEnabled={ zoomEnabled }
 			zoomLevel={ zoomLevel }
-			minZoom={ minZoom }
-			maxZoom={ maxZoom }
+			zoomMin={ zoomMin }
+			zoomMax={ zoomMax }
 			tilt={ tilt }
 			minTilt={ minTilt }
 			maxTilt={ maxTilt }
@@ -401,6 +434,7 @@ const MapContainer = ( {
 			hgtDirPath={ hgtDirPath }
 			responseInclude={ responseInclude }
 			mapEventRate={ mapEventRate }
+			emitsMapEvents={ emitsMapEvents ? 1 : 0 }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

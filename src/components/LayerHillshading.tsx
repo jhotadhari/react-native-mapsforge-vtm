@@ -28,6 +28,8 @@ export type LayerHillshadingProps = {
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	zoomMin?: number;
 	zoomMax?: number;
+	enabledZoomMin?: number;
+	enabledZoomMax?: number;
 	shadingAlgorithm?: ShadingAlgorithm;
 	shadingAlgorithmOptions?: ShadingAlgorithmOptions;
 	magnitude?: number;
@@ -54,6 +56,8 @@ const LayerHillshading = ( {
 	hgtDirPath,
 	zoomMin = 6,
 	zoomMax = 20,
+    enabledZoomMin = 6,
+    enabledZoomMax = 20,
 	shadingAlgorithm = shadingAlgorithms.SIMPLE,
 	shadingAlgorithmOptions = shadingAlgorithmOptionsDefaults,
 	magnitude = 90,
@@ -80,12 +84,14 @@ const LayerHillshading = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				hgtDirPath,
-				zoomMin,
-				zoomMax,
+				Math.round( zoomMin ),
+				Math.round( zoomMax ),
+				Math.round( enabledZoomMin ),
+				Math.round( enabledZoomMax ),
 				shadingAlgorithm,
 				shadingAlgorithmOptions,
-				magnitude,
-				cacheSize,
+				Math.round( magnitude ),
+				Math.round( cacheSize ),
 				reactTreeIndex
 			).then( ( response : ResponseBase ) => {
 				setUuid( response.uuid );
@@ -118,6 +124,17 @@ const LayerHillshading = ( {
 		nativeNodeHandle,
 		!! uuid,
 		triggerCreateNew,
+	] );
+
+	// enabledZoomMin enabledZoomMax changed.
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [
+		enabledZoomMin,
+		enabledZoomMax,
 	] );
 
 	useEffect( () => {

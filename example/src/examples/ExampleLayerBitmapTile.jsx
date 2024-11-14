@@ -31,7 +31,7 @@ export const tileOptions = [
     {
         label: 'OpenStreetMap',
         value: 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png',
-        maxZoom: 19,
+        zoomMax: 19,
         attribution: ( { style } ) => <Text style={ style } onPress={ () => Linking.openURL( 'https://www.openstreetmap.org/copyright' ) }>
             &copy; OpenStreetMap contributors
         </Text>
@@ -39,7 +39,7 @@ export const tileOptions = [
     {
         label: 'OpenTopoMap',
         value: 'https://a.tile.opentopomap.org/{Z}/{X}/{Y}.png',
-	    maxZoom: 17,
+	    zoomMax: 17,
         attribution: ( { style } ) => <View>
             <Text style={ style } onPress={ () => Linking.openURL( 'https://www.openstreetmap.org/copyright' ) }>
                 &copy; OpenStreetMap contributors
@@ -58,7 +58,7 @@ export const tileOptions = [
     {
         label: 'Esri World Imagery',
         value: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
-	    maxZoom: 17,
+	    zoomMax: 17,
         attribution: ( { style } ) => <Text style={ style }>
             Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community
         </Text>
@@ -66,7 +66,7 @@ export const tileOptions = [
     {
         label: 'Google Maps',
         value: 'https://mt1.google.com/vt/lyrs=r&x={X}&y={Y}&z={Z}',
-        maxZoom: 19,
+        zoomMax: 19,
         attribution: ( { style } ) => <Text style={ style } onPress={ () => Linking.openURL( 'https://cloud.google.com/maps-platform/terms' ) }>
             &copy; Map data ©2024 Google ... logo missing! sorry
         </Text>
@@ -120,7 +120,7 @@ const ExampleLayerBitmapTile = ( {
 
         <MapContainer
             height={ mapHeight }
-            maxZoom={ tileOptions.find( opt => opt.value === source )?.maxZoom }
+            zoomMax={ tileOptions.find( opt => opt.value === source )?.zoomMax }
             zoomLevel={ 7 }
             center={ {
                 lng: -75.239,

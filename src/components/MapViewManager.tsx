@@ -31,8 +31,8 @@ type Props = {
 	rotationEnabled: 1 | 0
 	zoomEnabled: 1 | 0
 	zoomLevel: number;
-	minZoom: number;
-	maxZoom: number;
+	zoomMin: number;
+	zoomMax: number;
 	tilt: number;
 	minTilt: number;
 	maxTilt: number;
@@ -45,6 +45,7 @@ type Props = {
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	responseInclude: ResponseInclude;
 	mapEventRate: number;
+	emitsMapEvents: 1 | 0;
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null

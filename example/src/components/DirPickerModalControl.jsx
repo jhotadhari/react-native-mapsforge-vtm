@@ -5,8 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { sortBy } from 'lodash-es';
 import {
 	FlatList,
-	NativeModules,
-	NativeEventEmitter,
 	useWindowDimensions,
 	View,
 	Text,

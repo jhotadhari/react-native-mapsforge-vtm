@@ -20,7 +20,6 @@ import {
 	LayerBitmapTile,
 	LayerScalebar,
 	nativeMapModules,
-	useMapEvents,
 	usePromiseQueueState,
 } from 'react-native-mapsforge-vtm';
 const { MapContainerModule, MapLayerPathModule } = nativeMapModules;
@@ -74,10 +73,6 @@ const ExampleLayerPath = ( {
     const onMapEvent = event => event.center
         ? setCurrentCenter( event.center )
         : null
-	useMapEvents( {
-		nativeNodeHandle: mapViewNativeNodeHandle,
-		onMapEvent,
-	} );
 
     if ( null === appDirs ) {
         return null;
@@ -238,6 +233,7 @@ const ExampleLayerPath = ( {
                 setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
                 onPause={ onMapEvent }
                 onResume={ onMapEvent }
+                onMapEvent={ onMapEvent }
             >
 
                 <LayerBitmapTile

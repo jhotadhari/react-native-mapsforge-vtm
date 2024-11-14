@@ -9,6 +9,7 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.HandleLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
@@ -22,6 +23,7 @@ import org.oscim.core.MapPosition;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +36,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     public MapLayerMBTilesBitmapModule(ReactApplicationContext context) {
         super(context);
     }
+
+	protected java.util.Map<String, HandleLayerZoomBounds> handleLayerZoomBoundss = new HashMap<>();
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
@@ -69,15 +73,31 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			responseParams.putString( "attribution", dataSource.getAttribution() );
 			responseParams.putString( "description", dataSource.getDescription() );
 			responseParams.putString( "version", dataSource.getVersion() );
-			responseParams.putInt( "maxZoom", dataSource.getMaxZoom() );
-			responseParams.putInt( "minZoom", dataSource.getMinZoom() );
+			responseParams.putInt( "zoomMax", dataSource.getMaxZoom() );
+			responseParams.putInt( "zoomMin", dataSource.getMinZoom() );
 		}
 	}
 
-    @ReactMethod
+	@ReactMethod
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
+		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
+			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
+		}
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+		if ( null != errorMsg ) {
+			promise.reject( "Error", errorMsg ); return;
+		}
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
     public void createLayer(
 		int nativeNodeHandle,
 		@Nullable String mapFile,
+		int enabledZoomMin,
+		int enabledZoomMax,
 		int alpha,
 		@Nullable String transparentColor,
 		int reactTreeIndex,
@@ -102,6 +122,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 
 			WritableMap responseParams = new WritableNativeMap();
 
+			String uuid = UUID.randomUUID().toString();
+
 			MBTilesTileSource tileSource = new MBTilesBitmapTileSource(
 				file.getAbsolutePath(),
 				alpha,
@@ -124,8 +146,13 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			mapView.map().updateMap();
 
 			// Store layer
-			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, bitmapLayer );
+
+			// Handle enabledZoomMin, enabledZoomMax
+			HandleLayerZoomBounds handleLayerZoomBounds = new HandleLayerZoomBounds( this, getReactApplicationContext() );
+			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
+			handleLayerZoomBounds.updateEnabled( bitmapLayer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
@@ -138,6 +165,11 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 
 	@ReactMethod
 	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		if ( handleLayerZoomBoundss.containsKey( uuid ) ) {
+			HandleLayerZoomBounds handleLayerZoomBounds = handleLayerZoomBoundss.get( uuid );
+			handleLayerZoomBounds.removeUpdateListener( nativeNodeHandle );
+			handleLayerZoomBoundss.remove( uuid );
+		}
 		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 

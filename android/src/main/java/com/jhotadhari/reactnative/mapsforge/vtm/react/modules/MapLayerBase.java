@@ -22,6 +22,10 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
         super(context);
     }
 
+	public Map<String, Layer> getLayers() {
+		return layers;
+	}
+
 	@ReactMethod
 	abstract public void createLayer(
 		int nativeNodeHandle,

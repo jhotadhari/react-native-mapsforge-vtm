@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2024-11-14
+### Added
+- Added prop `onMapEvent` to `mapContainer` component. It listens to the same event like the `useMapEvents` hook.
+- Added props `enabledZoomMin` and `enabledZoomMax` to all base layer components (`LayerBitmapTile`, `LayerHillshading`, `LayerMBTilesBitmap` and `LayerMapsforge`).
+
+### Changed
+- Added prop `emitsMapEvents` to `mapContainer` component. If `false`, the map won't emit any mapEvents and the `onMapEvent` or `useMapEvents` are useless. If `undefined`|`null` it will be `true` if `onMapEvent` prop is set. **If you want to use the `useMapEvents` hook, you have to set `emitsMapEvents` to `true`!**
+- Renamed type `mapEvent` to `MapEventResponse`.
+- Renamed `minZoom`|`MaxZoom` to `zoomMin`|`zoomMax` and `setMinZoom`|`setMaxZoom` to `setZoomMin`|`setZoomMax`. It was not consistent, both naming were used by different components.
+
 ## [0.3.0] - 2024-11-06
 Path improvements
 
@@ -62,6 +72,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.4.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.1.2...v0.1.3

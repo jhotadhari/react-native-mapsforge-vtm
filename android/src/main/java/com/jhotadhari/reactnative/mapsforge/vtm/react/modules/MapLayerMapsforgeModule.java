@@ -11,6 +11,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.HandleGroupLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
@@ -33,6 +34,7 @@ import org.oscim.tiling.source.mapfile.MapInfo;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -43,6 +45,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
     public String getName() {
         return "MapLayerMapsforgeModule";
     }
+
+	protected java.util.Map<String, HandleGroupLayerZoomBounds> handleLayerZoomBoundss = new HashMap<>();
 
 	public final String[] BUILT_IN_THEMES = {
 		"DEFAULT",
@@ -254,6 +258,20 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		}
 	}
 
+	@ReactMethod
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
+		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
+			promise.reject( "Error", "Unable to find HandleGroupLayerZoomBounds" ); return;
+		}
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+		if ( null != errorMsg ) {
+			promise.reject( "Error", errorMsg ); return;
+		}
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		promise.resolve( responseParams );
+	}
+
     @ReactMethod
     public void createLayer(
 		int nativeNodeHandle,
@@ -261,6 +279,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		String renderThemePath,
 		String renderStyle,
 		ReadableArray renderOverlays,
+		int enabledZoomMin,
+		int enabledZoomMax,
 		int reactTreeIndex,
 		Promise promise
     ) {
@@ -345,6 +365,12 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, groupLayer );
 
+			// Handle enabledZoomMin, enabledZoomMax
+			HandleGroupLayerZoomBounds handleLayerZoomBounds = new HandleGroupLayerZoomBounds( this, getReactApplicationContext() );
+			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
+			handleLayerZoomBounds.updateEnabled( groupLayer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
             promise.resolve( responseParams );
@@ -356,6 +382,11 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 
 	@ReactMethod
 	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		if ( handleLayerZoomBoundss.containsKey( uuid ) ) {
+			HandleGroupLayerZoomBounds handleLayerZoomBounds = handleLayerZoomBoundss.get( uuid );
+			handleLayerZoomBounds.removeUpdateListener( nativeNodeHandle );
+			handleLayerZoomBoundss.remove( uuid );
+		}
 		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 }

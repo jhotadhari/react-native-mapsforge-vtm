@@ -48,8 +48,8 @@ const ExampleLayerMBTilesBitmap = ( {
 
 	const [mapFile, setMapFile] = useState( '' );
 
-    const [minZoom,setMinZoom] = useState( 1 );
-    const [maxZoom,setMaxZoom] = useState( 18 );
+    const [zoomMin,setZoomMin] = useState( 1 );
+    const [zoomMax,setZoomMax] = useState( 18 );
     const [attribution,setAttribution] = useState( '' );
     const [description,setDescription] = useState( '' );
 
@@ -61,11 +61,11 @@ const ExampleLayerMBTilesBitmap = ( {
         if ( response.bounds ) {
             MapContainerModule.setToBounds( mapViewNativeNodeHandle, response.bounds );
         }
-        if ( response.minZoom ) {
-            setMinZoom( response.minZoom );
+        if ( response.zoomMin ) {
+            setZoomMin( response.zoomMin );
         }
-        if ( response.maxZoom ) {
-            setMaxZoom( response.maxZoom );
+        if ( response.zoomMax ) {
+            setZoomMax( response.zoomMax );
         }
         if ( response.attribution ) {
             setAttribution( response.attribution );
@@ -119,8 +119,8 @@ const ExampleLayerMBTilesBitmap = ( {
 
         <MapContainer
             height={ mapHeight }
-            minZoom={ minZoom }
-            maxZoom={ maxZoom }
+            zoomMin={ zoomMin }
+            zoomMax={ zoomMax }
             nativeNodeHandle={ mapViewNativeNodeHandle }          // Moves the state up into this example component.
             setNativeNodeHandle={ setMapViewNativeNodeHandle }    // Moves the state up into this example component.
         >
