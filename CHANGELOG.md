@@ -5,11 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-### Fixed
-- Types export
-
 ### Changed
 - Changed export of nativeModules. They are exported directly, not bundled as a `nativeModules` object anymore.
+
+### Fixed
+- Types export
 
 ## [0.4.0] - 2024-11-14
 ### Added
