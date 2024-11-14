@@ -74,8 +74,8 @@ public class MapFragment extends Fragment {
 	protected boolean propTiltEnabled;
 
 	protected int propZoomLevel;
-	protected int propMinZoom;
-	protected int propMaxZoom;
+	protected int propZoomMin;
+	protected int propZoomMax;
 	protected float propTilt;
 	protected float propMinTilt;
 	protected float propMaxTilt;
@@ -116,8 +116,8 @@ public class MapFragment extends Fragment {
 		boolean tiltEnabled,
 
 		int zoomLevel,
-		int minZoom,
-		int maxZoom,
+		int zoomMin,
+		int zoomMax,
 
 		float tilt,
 		float minTilt,
@@ -155,8 +155,8 @@ public class MapFragment extends Fragment {
 		propTiltEnabled = tiltEnabled;
 
 		propZoomLevel = zoomLevel;
-        propMinZoom = minZoom;
-        propMaxZoom = maxZoom;
+        propZoomMin = zoomMin;
+        propZoomMax = zoomMax;
 
 		propTilt = tilt;
 		propMinTilt = minTilt;
@@ -321,8 +321,8 @@ public class MapFragment extends Fragment {
 			mapView.map().getEventLayer().enableZoom( propZoomEnabled );	// ??? bug, doesn't work properly, and still possible on .setZoom
 			mapView.map().getEventLayer().enableTilt( propTiltEnabled );
 
-			mapView.map().viewport().setMinZoomLevel( (int) propMinZoom );
-			mapView.map().viewport().setMaxZoomLevel( (int) propMaxZoom );
+			mapView.map().viewport().setMinZoomLevel( (int) propZoomMin );
+			mapView.map().viewport().setMaxZoomLevel( (int) propZoomMax );
 
 			mapView.map().viewport().setTilt( (float) propTilt );
 			mapView.map().viewport().setMinTilt( (float) propMinTilt );

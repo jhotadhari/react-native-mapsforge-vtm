@@ -73,13 +73,13 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			responseParams.putString( "attribution", dataSource.getAttribution() );
 			responseParams.putString( "description", dataSource.getDescription() );
 			responseParams.putString( "version", dataSource.getVersion() );
-			responseParams.putInt( "maxZoom", dataSource.getMaxZoom() );
-			responseParams.putInt( "minZoom", dataSource.getMinZoom() );
+			responseParams.putInt( "zoomMax", dataSource.getMaxZoom() );
+			responseParams.putInt( "zoomMin", dataSource.getMinZoom() );
 		}
 	}
 
 	@ReactMethod
-	public void updateZoomMinZoomMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
+	public void updateZoomMinMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
 		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
 			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
 		}

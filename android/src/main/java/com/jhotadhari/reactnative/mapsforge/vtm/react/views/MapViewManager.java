@@ -40,8 +40,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private boolean propTiltEnabled;
 
 	private int propZoomLevel;
-	private int propMinZoom;
-	private int propMaxZoom;
+	private int propZoomMin;
+	private int propZoomMax;
 
 	private float propTilt;
 	private float propMinTilt;
@@ -172,8 +172,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 
 	@ReactPropGroup( names = {
 		"zoomLevel",
-		"minZoom",
-		"maxZoom",
+		"zoomMin",
+		"zoomMax",
 	} )
 	public void setReactPropsViewportPosInt( FrameLayout view, int index, int value ) {
 		// zoom
@@ -181,10 +181,10 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propZoomLevel = value;
 		}
 		if ( index == 1 ) {
-			propMinZoom = value;
+			propZoomMin = value;
 		}
 		if ( index == 2 ) {
-			propMaxZoom = value;
+			propZoomMax = value;
 		}
 	}
 
@@ -278,8 +278,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propTiltEnabled,
 
 			propZoomLevel,
-			propMinZoom,
-			propMaxZoom,
+			propZoomMin,
+			propZoomMax,
 
 			propTilt,
 			propMinTilt,

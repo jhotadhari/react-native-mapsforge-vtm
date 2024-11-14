@@ -99,13 +99,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
     @ReactMethod
-    public void setMinZoom(int nativeNodeHandle, int minZoom, Promise promise ) {
+    public void setZoomMin(int nativeNodeHandle, int zoomMin, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" ); return;
             }
-			mapView.map().viewport().setMinZoomLevel( (int) minZoom );
+			mapView.map().viewport().setMinZoomLevel( (int) zoomMin );
             promise.resolve( true );
         } catch( Exception e ) {
 			e.printStackTrace();
@@ -114,13 +114,13 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setMaxZoom(int nativeNodeHandle, int maxZoom, Promise promise ) {
+    public void setZoomMax(int nativeNodeHandle, int zoomMax, Promise promise ) {
         try {
             MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
             if ( null == mapView ) {
                 promise.reject( "Error", "Unable to find mapView" ); return;
             }
-			mapView.map().viewport().setMaxZoomLevel( (int) maxZoom );
+			mapView.map().viewport().setMaxZoomLevel( (int) zoomMax );
             promise.resolve( true );
         } catch( Exception e ) {
 			e.printStackTrace();

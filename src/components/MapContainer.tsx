@@ -70,8 +70,8 @@ export type MapContainerProps = {
 	rotationEnabled?: 1 | 0 | boolean
 	zoomEnabled?: 1 | 0 | boolean
 	zoomLevel?: number;
-	minZoom?: number;
-	maxZoom?: number;
+	zoomMin?: number;
+	zoomMax?: number;
 	tilt?: number;
 	minTilt?: number;
 	maxTilt?: number;
@@ -126,8 +126,8 @@ const MapContainer = ( {
 	rotationEnabled,
 	zoomEnabled,
 	zoomLevel,
-	minZoom,
-	maxZoom,
+	zoomMin,
+	zoomMax,
 	tilt = 0,
 	minTilt = 0,
 	maxTilt = 65,
@@ -160,8 +160,8 @@ const MapContainer = ( {
 	tiltEnabled = numOrBoolToNum( tiltEnabled, 1 );
 
 	zoomLevel = isNumber( zoomLevel ) ? Math.round( zoomLevel ) : 12;
-	minZoom = isNumber( minZoom ) ? Math.round( minZoom ) : 3;
-	maxZoom = isNumber( maxZoom ) ? Math.round( maxZoom ) : 20;
+	zoomMin = isNumber( zoomMin ) ? Math.round( zoomMin ) : 3;
+	zoomMax = isNumber( zoomMax ) ? Math.round( zoomMax ) : 20;
 
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 
@@ -223,20 +223,20 @@ const MapContainer = ( {
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [zoomLevel] );
-	// minZoom changed.
+	// zoomMin changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMinZoom( nativeNodeHandle, minZoom )
+			MapContainerModule.setZoomMin( nativeNodeHandle, zoomMin )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
-	}, [minZoom] );
-	// maxZoom changed.
+	}, [zoomMin] );
+	// zoomMax changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMaxZoom( nativeNodeHandle, maxZoom )
+			MapContainerModule.setZoomMax( nativeNodeHandle, zoomMax )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
-	}, [maxZoom] );
+	}, [zoomMax] );
 	// tilt changed.
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
@@ -420,8 +420,8 @@ const MapContainer = ( {
 			rotationEnabled={ rotationEnabled }
 			zoomEnabled={ zoomEnabled }
 			zoomLevel={ zoomLevel }
-			minZoom={ minZoom }
-			maxZoom={ maxZoom }
+			zoomMin={ zoomMin }
+			zoomMax={ zoomMax }
 			tilt={ tilt }
 			minTilt={ minTilt }
 			maxTilt={ maxTilt }

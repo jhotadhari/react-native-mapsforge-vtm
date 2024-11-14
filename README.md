@@ -116,8 +116,8 @@ const App = () => {
         lat: -10.65,
       } }
       zoomLevel={ 12 }
-      minZoom={ 2 }
-      maxZoom={ 20 }
+      zoomMin={ 2 }
+      zoomMax={ 20 }
       moveEnabled={ true }
       tiltEnabled={ false }
       rotationEnabled={ false }

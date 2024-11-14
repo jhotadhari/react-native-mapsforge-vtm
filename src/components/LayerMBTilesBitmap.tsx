@@ -15,8 +15,8 @@ const Module = MapLayerMBTilesBitmapModule;
 
 export interface LayerMBTilesBitmapResponse extends ResponseBase {
 	bounds?: Bounds;
-	minZoom?: number;
-	maxZoom?: number;
+	zoomMin?: number;
+	zoomMax?: number;
 	supportedFormats?: string[];
 	attribution?: null | string;
 	version?: string;
@@ -107,7 +107,7 @@ const LayerMBTilesBitmap = ( {
 	// zoomMin zoomMax changed.
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
-			Module.updateZoomMinZoomMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
+			Module.updateZoomMinMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [

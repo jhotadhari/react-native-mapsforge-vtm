@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Added prop `emitsMapEvents` to `mapContainer` component. If `false`, the map won't emit any mapEvents and the `onMapEvent` or `useMapEvents` are useless. If `undefined`|`null` it will be `true` if `onMapEvent` prop is set. **If you want to use the `useMapEvents` hook, you have to set `emitsMapEvents` to `true`!**
 - Renamed type `mapEvent` to `MapEventResponse`.
+- Renamed `minZoom`|`MaxZoom` to `zoomMin`|`zoomMax` and `setMinZoom`|`setMaxZoom` to `setZoomMin`|`setZoomMax`. It was not consistent, both naming were used by different components.
 
 ## [0.3.0] - 2024-11-06
 Path improvements

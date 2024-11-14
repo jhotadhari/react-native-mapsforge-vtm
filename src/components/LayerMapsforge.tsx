@@ -122,7 +122,7 @@ const LayerMapsforge = ( {
 	// zoomMin zoomMax changed.
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
-			Module.updateZoomMinZoomMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
+			Module.updateZoomMinMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [

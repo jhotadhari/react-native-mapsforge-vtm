@@ -259,7 +259,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void updateZoomMinZoomMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
+	public void updateZoomMinMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
 		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
 			promise.reject( "Error", "Unable to find HandleGroupLayerZoomBounds" ); return;
 		}
