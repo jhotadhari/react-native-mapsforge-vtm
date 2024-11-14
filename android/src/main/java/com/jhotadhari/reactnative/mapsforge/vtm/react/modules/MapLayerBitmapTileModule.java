@@ -5,6 +5,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.HandleLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
@@ -16,6 +17,7 @@ import org.oscim.tiling.source.bitmap.BitmapTileSource;
 import java.io.File;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
 
 import okhttp3.Cache;
@@ -31,6 +33,8 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
         super(context);
     }
 
+	protected java.util.Map<String, HandleLayerZoomBounds> handleLayerZoomBoundss = new HashMap<>();
+
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
     public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
@@ -40,6 +44,8 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			String url,
 			int zoomMin,
 			int zoomMax,
+			int enabledZoomMin,
+			int enabledZoomMax,
 			int cacheSize,
             int reactTreeIndex,
             Promise promise
@@ -58,7 +64,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			// Define tile source.
 			URL urlParsed = new URL(url);
 			int index = url.indexOf( urlParsed.getFile() );
-			BitmapTileSource mTileSource = new BitmapTileSource(
+			BitmapTileSource tileSource = new BitmapTileSource(
 				url.substring( 0, index ),
 				url.substring( index, url.length() ),
 				zoomMin,
@@ -72,16 +78,16 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 				Cache cache = new Cache(cacheDirectory, cacheSize);
 				builder.cache( cache );
 			}
-			mTileSource.setHttpEngine( new OkHttpEngine.OkHttpFactory( builder ) );
-			mTileSource.setHttpRequestHeaders( Collections.singletonMap( "User-Agent", getCurrentActivity().getPackageName() ) );
+			tileSource.setHttpEngine( new OkHttpEngine.OkHttpFactory( builder ) );
+			tileSource.setHttpRequestHeaders( Collections.singletonMap( "User-Agent", getCurrentActivity().getPackageName() ) );
 
 			// Create layer from tile source.
-			BitmapTileLayer mBitmapLayer = new BitmapTileLayer( mapView.map(), mTileSource );
+			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource );
 
 			// Add layer to map.
 			mapView.map().layers().add(
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
-				mBitmapLayer
+				bitmapLayer
 			);
 
 			// Trigger update map.
@@ -89,7 +95,13 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 
 			// Store layer
 			String uuid = UUID.randomUUID().toString();
-			layers.put( uuid, mBitmapLayer );
+			layers.put( uuid, bitmapLayer );
+
+			// Handle enabledZoomMin, enabledZoomMax
+			HandleLayerZoomBounds handleLayerZoomBounds = new HandleLayerZoomBounds( this, getReactApplicationContext() );
+			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
+			handleLayerZoomBounds.updateEnabled( bitmapLayer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
@@ -101,7 +113,26 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
     }
 
 	@ReactMethod
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
+		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
+			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
+		}
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+		if ( null != errorMsg ) {
+			promise.reject( "Error", errorMsg ); return;
+		}
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
 	public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
+		if ( handleLayerZoomBoundss.containsKey( uuid ) ) {
+			HandleLayerZoomBounds handleLayerZoomBounds = handleLayerZoomBoundss.get( uuid );
+			handleLayerZoomBounds.removeUpdateListener( nativeNodeHandle );
+			handleLayerZoomBoundss.remove( uuid );
+		}
 		super.removeLayer( nativeNodeHandle, uuid, promise );
 	}
 
