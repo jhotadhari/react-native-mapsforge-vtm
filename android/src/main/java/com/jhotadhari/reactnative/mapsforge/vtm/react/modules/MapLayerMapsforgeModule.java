@@ -259,11 +259,11 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void updateZoomMinMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
 		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
 			promise.reject( "Error", "Unable to find HandleGroupLayerZoomBounds" ); return;
 		}
-		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 		if ( null != errorMsg ) {
 			promise.reject( "Error", errorMsg ); return;
 		}
@@ -279,8 +279,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		String renderThemePath,
 		String renderStyle,
 		ReadableArray renderOverlays,
-		int zoomMin,
-		int zoomMax,
+		int enabledZoomMin,
+		int enabledZoomMax,
 		int reactTreeIndex,
 		Promise promise
     ) {
@@ -365,11 +365,11 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, groupLayer );
 
-			// Handle zoomMin, zoomMax
+			// Handle enabledZoomMin, enabledZoomMax
 			HandleGroupLayerZoomBounds handleLayerZoomBounds = new HandleGroupLayerZoomBounds( this, getReactApplicationContext() );
 			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
-			handleLayerZoomBounds.updateEnabled( groupLayer, zoomMin, zoomMax, mapView.map().getMapPosition().getZoomLevel() );
-			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+			handleLayerZoomBounds.updateEnabled( groupLayer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );

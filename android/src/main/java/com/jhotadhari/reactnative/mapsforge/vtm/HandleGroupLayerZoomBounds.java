@@ -12,14 +12,14 @@ public class HandleGroupLayerZoomBounds extends HandleLayerZoomBounds {
 		super( module, reactApplicationContext );
 	}
 
-	public void updateEnabled( Layer layer, int zoomMin, int zoomMax, int zoomLevel ) {
-		updateEnabledGroup( (GroupLayer) layer, zoomMin, zoomMax, zoomLevel );
-		super.updateEnabled( (Layer) layer, zoomMin, zoomMax, zoomLevel );
+	public void updateEnabled( Layer layer, int enabledZoomMin, int enabledZoomMax, int zoomLevel ) {
+		updateEnabledGroup( (GroupLayer) layer, enabledZoomMin, enabledZoomMax, zoomLevel );
+		super.updateEnabled( (Layer) layer, enabledZoomMin, enabledZoomMax, zoomLevel );
 	}
 
-	protected void updateEnabledGroup( GroupLayer groupLayer, int zoomMin, int zoomMax, int zoomLevel ) {
+	protected void updateEnabledGroup( GroupLayer groupLayer, int enabledZoomMin, int enabledZoomMax, int zoomLevel ) {
 		for ( int i = 0; i < groupLayer.layers.size(); i++ ) {
-			if ( zoomLevel <= zoomMax && zoomLevel >= zoomMin ) {
+			if ( zoomLevel <= enabledZoomMax && zoomLevel >= enabledZoomMin ) {
 				groupLayer.layers.get( i ).setEnabled( true );
 			} else {
 				groupLayer.layers.get( i ).setEnabled( false );

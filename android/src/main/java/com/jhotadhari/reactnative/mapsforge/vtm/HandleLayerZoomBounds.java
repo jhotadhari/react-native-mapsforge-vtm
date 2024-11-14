@@ -24,11 +24,11 @@ public class HandleLayerZoomBounds {
 
 	public void updateEnabled(
 		Layer layer,
-		int zoomMin,
-		int zoomMax,
+		int enabledZoomMin,
+		int enabledZoomMax,
 		int zoomLevel
 	) {
-		if ( zoomLevel <= zoomMax && zoomLevel >= zoomMin ) {
+		if ( zoomLevel <= enabledZoomMax && zoomLevel >= enabledZoomMin ) {
 			layer.setEnabled( true );
 		} else {
 			layer.setEnabled( false );
@@ -50,8 +50,8 @@ public class HandleLayerZoomBounds {
 	public String updateUpdateListener(
 		int nativeNodeHandle,
 		String uuid,
-		int zoomMin,
-		int zoomMax
+		int enabledZoomMin,
+		int enabledZoomMax
 	) {
 		MapView mapView = (MapView) Utils.getMapView( reactApplicationContext, nativeNodeHandle );
 		if ( null == mapView ) {
@@ -68,11 +68,11 @@ public class HandleLayerZoomBounds {
 		updateListener = new Map.UpdateListener() {
 			@Override
 			public void onMapEvent( Event e, MapPosition mapPosition ) {
-				updateEnabled( layer, zoomMin, zoomMax, mapPosition.getZoomLevel() );
+				updateEnabled( layer, enabledZoomMin, enabledZoomMax, mapPosition.getZoomLevel() );
 			}
 		};
 		mapView.map().events.bind( updateListener );
-		updateEnabled( layer, zoomMin, zoomMax, mapView.map().viewport().getMaxZoomLevel() );
+		updateEnabled( layer, enabledZoomMin, enabledZoomMax, mapView.map().viewport().getMaxZoomLevel() );
 		mapView.map().updateMap( true );
 		return null;
 	}

@@ -79,11 +79,11 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void updateZoomMinMax( int nativeNodeHandle, String uuid, int zoomMin, int zoomMax, Promise promise ) {
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
 		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
 			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
 		}
-		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 		if ( null != errorMsg ) {
 			promise.reject( "Error", errorMsg ); return;
 		}
@@ -96,8 +96,8 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
     public void createLayer(
 		int nativeNodeHandle,
 		@Nullable String mapFile,
-		int zoomMin,
-		int zoomMax,
+		int enabledZoomMin,
+		int enabledZoomMax,
 		int alpha,
 		@Nullable String transparentColor,
 		int reactTreeIndex,
@@ -148,11 +148,11 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			// Store layer
 			layers.put( uuid, bitmapLayer );
 
-			// Handle zoomMin, zoomMax
+			// Handle enabledZoomMin, enabledZoomMax
 			HandleLayerZoomBounds handleLayerZoomBounds = new HandleLayerZoomBounds( this, getReactApplicationContext() );
 			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
-			handleLayerZoomBounds.updateEnabled( bitmapLayer, zoomMin, zoomMax, mapView.map().getMapPosition().getZoomLevel() );
-			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, zoomMin, zoomMax );
+			handleLayerZoomBounds.updateEnabled( bitmapLayer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
 
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );

@@ -15,8 +15,8 @@ const Module = MapLayerMBTilesBitmapModule;
 
 export interface LayerMBTilesBitmapResponse extends ResponseBase {
 	bounds?: Bounds;
-	zoomMin?: number;
-	zoomMax?: number;
+	enabledZoomMin?: number;
+	enabledZoomMax?: number;
 	supportedFormats?: string[];
 	attribution?: null | string;
 	version?: string;
@@ -29,8 +29,8 @@ export type LayerMBTilesBitmapProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
 	mapFile?: `/${string}`;
-	zoomMin?: number;
-	zoomMax?: number;
+	enabledZoomMin?: number;
+	enabledZoomMax?: number;
 	alpha?: number;
 	transparentColor?: `#${string}`;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
@@ -43,8 +43,8 @@ const LayerMBTilesBitmap = ( {
 	nativeNodeHandle,
 	reactTreeIndex,
     mapFile,
-    zoomMin = 1,
-    zoomMax = 20,
+    enabledZoomMin = 1,
+    enabledZoomMax = 20,
     alpha = 256,
     transparentColor,
 	onCreate,
@@ -66,8 +66,8 @@ const LayerMBTilesBitmap = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				mapFile,
-				Math.round( zoomMin ),
-				Math.round( zoomMax ),
+				Math.round( enabledZoomMin ),
+				Math.round( enabledZoomMax ),
 				alpha,
 				transparentColor,
 				reactTreeIndex
@@ -104,15 +104,15 @@ const LayerMBTilesBitmap = ( {
 		triggerCreateNew,
 	] );
 
-	// zoomMin zoomMax changed.
+	// enabledZoomMin enabledZoomMax changed.
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
-			Module.updateZoomMinMax( nativeNodeHandle, uuid, Math.round( zoomMin ), Math.round( zoomMax ) )
+			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [
-		zoomMin,
-		zoomMax,
+		enabledZoomMin,
+		enabledZoomMax,
 	] );
 
 	useEffect( () => {
