@@ -10,6 +10,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.HandleLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.HillshadingTileSource;
@@ -23,6 +24,7 @@ import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.UUID;
 
 public class MapLayerHillshadingModule extends MapLayerBase {
@@ -33,6 +35,8 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 
     public MapLayerHillshadingModule(ReactApplicationContext context) { super(context); }
 
+	protected java.util.Map<String, HandleLayerZoomBounds> handleLayerZoomBoundss = new HashMap<>();
+
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
@@ -42,6 +46,8 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String hgtDirPath,
 			int zoomMin,
 			int zoomMax,
+			int enabledZoomMin,
+			int enabledZoomMax,
 			String shadingAlgorithmKey,
 			ReadableMap shadingAlgorithmOptions,
 			int magnitude,
@@ -126,6 +132,13 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String uuid = UUID.randomUUID().toString();
 			layers.put( uuid, layer );
 
+			// Handle enabledZoomMin, enabledZoomMax
+			HandleLayerZoomBounds handleLayerZoomBounds = new HandleLayerZoomBounds( this, getReactApplicationContext() );
+			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
+			handleLayerZoomBounds.updateEnabled( layer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
+			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+
+
 			// Resolve promise
 			responseParams.putString( "uuid", uuid );
 			promise.resolve( responseParams );
@@ -134,6 +147,20 @@ public class MapLayerHillshadingModule extends MapLayerBase {
             promise.reject( "Error", e );
         }
     }
+
+	@ReactMethod
+	public void updateEnabledZoomMinMax( int nativeNodeHandle, String uuid, int enabledZoomMin, int enabledZoomMax, Promise promise ) {
+		if ( ! handleLayerZoomBoundss.containsKey( uuid ) ) {
+			promise.reject( "Error", "Unable to find HandleLayerZoomBounds" ); return;
+		}
+		String errorMsg = handleLayerZoomBoundss.get( uuid ).updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
+		if ( null != errorMsg ) {
+			promise.reject( "Error", errorMsg ); return;
+		}
+		WritableMap responseParams = new WritableNativeMap();
+		responseParams.putString( "uuid", uuid );
+		promise.resolve( responseParams );
+	}
 
     @ReactMethod
     public void removeLayer(int nativeNodeHandle, String uuid, Promise promise) {
