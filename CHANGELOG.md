@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- `LayerMBTilesBitmap` `NullPointerException`. `dataSource.getBounds()` might be null.
 
 ## [0.5.0] - 2024-11-14
 ### Changed
