@@ -1,51 +1,92 @@
+#!/usr/bin/env bash
+
+# Setup OS specific stuff
+case "$OS" in
+	mac)
+		grep=ggrep
+		sed=gsed
+	;;
+	*)
+		grep=grep
+		sed=sed
+	;;
+esac
+
+# Text formatting
+T_RED=$(tput setaf 1)
+T_RESET=$(tput sgr0)
+
+# Check OS specific stuff
+if [ -z $( which $grep ) ]; then
+	echo "${T_RED}ERROR${T_RESET} command not found: $grep"
+	if [ $OS = mac ]; then
+		echo "You are on mac and need to install GNU Grep"
+		echo "Try: brew install grep"
+	fi
+	exit 1
+fi
+
+if [ -z $( which $sed ) ]; then
+	echo "${T_RED}ERROR${T_RESET} command not found: $sed"
+	if [ $OS = mac ]; then
+		echo "You are on mac and need to install GNU sed"
+		echo "Try: brew install gnu-sed"
+	fi
+	exit 1
+fi
 
 # Check if gh cli is installed.
 if [[ -z $( gh --version ) ]]; then
-    echo "GitHub CLI should be installed. See https://cli.github.com"
+    echo "${T_RED}ERROR${T_RESET} GitHub CLI should be installed. See https://cli.github.com"
     exit 1
 fi
 
 # Check if CHANGELOG.md is valid.
 if [[ -z $( ./node_modules/.bin/changelog ) ]]; then
-    echo 'Unable to parse `CHANGELOG.md`'
+    echo "${T_RED}ERROR${T_RESET} Unable to parse \`CHANGELOG.md\`"
     exit 1
 fi
 
 # CHANGELOG.md should have a Unreleased section.
-if [[ -z $( grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
-    echo '`CHANGELOG.md` should have a `Unreleased` section'
+if [[ -z $( $grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
+    echo "${T_RED}ERROR${T_RESET} \`CHANGELOG.md\` should have a \`[Unreleased]\` section"
     exit 1
 fi
 
-# typeScript ompile should not complain.
+# typeScript compile should not complain.
 if [[ ! -z $( yarn run tsc ) ]]; then
-    echo "Unable to publish. TypeScript compile complains."
+    echo "${T_RED}ERROR${T_RESET} Unable to publish. TypeScript compile complains errors. Fix them first!"
     exit 1
 fi
 
 # git status should be clean.
 if [[ ! -z $( git status --short ) ]]; then
-    echo "Unable to publish. Uncommited changes."
+    echo "${T_RED}ERROR${T_RESET} Unable to publish. Uncommited changes."
     git status --short
     exit 1
 fi
 
 # version should be specified as first arg.
 if [[ -z $1 ]]; then
-    echo 'No version specified. Run `npm run publish <version>`'
+    echo "${T_RED}ERROR${T_RESET} No version specified. Run \`yarn run publish <version>\` (Just the version number. Without prepending \`v\`)"
     exit 1
 fi
 
 # version should be semver.
 next_version=$1
-pat="[0-9]+\.[0-9]+\.[0-9]+"
+pat="^[0-9]+\.[0-9]+\.[0-9]+$"
 if ! [[ "$next_version" =~ $pat ]]; then
-    echo 'Version should be SemVer. Run `npm run publish <major>.<minor>.<patch>`'
+    echo "${T_RED}ERROR${T_RESET} Version should be SemVer. Run \`yarn run publish <major>.<minor>.<patch>\`"
     exit 1
 fi
 
 # new version should be higher then current version.
-newest_version=$( git tag -l --sort=-version:refname 'v*' | head -n 1 |  sed -r 's/v//g' )
+git fetch --tags
+if ! [[ $? == 0 ]]; then
+    echo "${T_RED}ERROR${T_RESET} git fetch tags failed. Command was \`git fetch --tags\`"
+    exit 1
+fi
+newest_version=$( git tag -l --sort=-version:refname 'v*' | head -n 1 | $sed -r 's/v//g' )
 verlte() {
     [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
 }
@@ -54,67 +95,77 @@ verlt() {
 
 }
 if ! [ -z $( verlt $newest_version $next_version || echo "1") ]; then
-    echo "New version should be higher then current version ${newest_version}"
+    echo "${T_RED}ERROR${T_RESET} New version should be higher then current version ${newest_version}"
     exit 1
 fi
 
 # current branch should start with release*.
 release_branch=$( git rev-parse --abbrev-ref HEAD )
 if ! [[ $release_branch == release* ]]; then
-    echo 'Current branch name should start with `release`'
+    echo "${T_RED}ERROR${T_RESET} Current branch name should start with \`release\`"
     exit 1
 fi
 
 # bump package version, update CHANGELOG.md and commit changes.
 current_version=$( node -p "require('./package.json').version" )
-sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" package.json
+$sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" package.json
 current_version=$( node -p "require('./example/package.json').version" )
-sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" example/package.json
+$sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" example/package.json
 ./node_modules/.bin/changelog --release "${next_version}"
 git add .
 git commit -m "Bump version ${next_version}"
 
-# checkout main, merge release, tag and push.
+# git checkout main
 git checkout main
-git merge $release_branch --no-ff --commit --no-edit
 if ! [[ $? == 0 ]]; then
-    echo "git merge into main failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    echo "${T_RED}ERROR${T_RESET} git checkout failed. Command was \`git checkout main\`"
     exit 1
 fi
+
+# git merge release_branch
+git merge $release_branch --no-ff --commit --no-edit
+if ! [[ $? == 0 ]]; then
+    echo "${T_RED}ERROR${T_RESET} git merge into main failed. Command was \`git merge $release_branch --no-ff --commit --no-edit\`"
+    exit 1
+fi
+
+# git tag
 git tag "v${next_version}"
 
-# push
+# git push
 git push
 git push origin "v${next_version}"
 if ! [[ $? == 0 ]]; then
-    echo "git push failed. Command was \"git push && git push origin \"v${next_version}\""
+    echo "${T_RED}ERROR${T_RESET} git push failed. Command was \`git push && git push origin \"v${next_version}\"\`"
     exit 1
 fi
 
 # add release description from changelog and publish the release.
 line_from=$(( $( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md ) + 1 ))
 line_to=$(( $( awk "/## \[${newest_version}\]/{ print NR; exit }" CHANGELOG.md ) - 1 ))
-if [[ -z $( gh release list | grep "v${next_version}" ) ]]; then
+if [[ -z $( gh release list | $grep "v${next_version}" ) ]]; then
     gh_command='create'
 else
     gh_command='edit'
 fi
-sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${next_version}" --draft=false -F -
+$sed -n ${line_from},${line_to}p CHANGELOG.md | gh release "${gh_command}" "v${next_version}" --draft=false -F -
 if ! [[ $? == 0 ]]; then
-    echo "Failed to add github release. Command was \"sed -n ${line_from},${line_to}p CHANGELOG.md | gh release \"${gh_command}\" \"v${next_version}\" --draft=false -F -\""
+    echo "${T_RED}ERROR${T_RESET} Failed to add github release. Command was \`$sed -n ${line_from},${line_to}p CHANGELOG.md | gh release \"${gh_command}\" \"v${next_version}\" --draft=false -F -\`"
     exit 1
 fi
 
-# checkout development, merge main, Add Unreleased section to CHANGELOG.md and push.
+# checkout development, merge release-branch into development
 git checkout development
 git merge $release_branch --no-ff --commit --no-edit
 if ! [[ $? == 0 ]]; then
-    echo "git merge into development failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
+    echo "${T_RED}ERROR${T_RESET} git merge into development failed. Command was \"git merge $release_branch --no-ff --commit --no-edit\""
     exit 1
 fi
+
+# Add [Unreleased] section to CHANGELOG.md and push.
 line=$( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md )
 awk -i inplace "NR==${line}{print \"## [Unreleased]\n\"}1" CHANGELOG.md
 ./node_modules/.bin/changelog
 git add CHANGELOG.md
-git commit -m "Add Unreleased section to CHANGELOG.md"
+git commit -m "Add [Unreleased] section to CHANGELOG.md"
 git push
