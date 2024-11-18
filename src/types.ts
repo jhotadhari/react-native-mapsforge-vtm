@@ -10,6 +10,7 @@ import type { LayerScalebarProps  } from './components/LayerScalebar';
 import type { MapContainerProps, MapLifeCycleResponse } from './components/MapContainer';
 import type { LayerMarkerProps } from './components/LayerMarker';
 import type { MarkerProps, MarkerResponse } from './components/Marker';
+import type { XmlRenderTheme, RenderStyleOptionsCollection } from './compose/useRenderStyleOptions';
 
 export type {
     LayerBitmapTileProps,
@@ -32,6 +33,8 @@ export type {
     LayerMarkerProps,
     MarkerProps,
     MarkerResponse,
+    XmlRenderTheme,
+    RenderStyleOptionsCollection,
 };
 
 export type Bounds = {
