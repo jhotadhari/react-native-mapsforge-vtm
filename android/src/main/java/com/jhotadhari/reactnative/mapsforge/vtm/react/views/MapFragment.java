@@ -17,7 +17,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -46,9 +45,9 @@ import org.oscim.layers.Layer;
 import org.oscim.map.Map.UpdateListener;
 
 import java.io.File;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 
 public class MapFragment extends Fragment {
 
@@ -88,6 +87,7 @@ public class MapFragment extends Fragment {
 	protected String propHgtDirPath;
 	protected ReadableMap propResponseInclude;
 	protected boolean propEmitsMapEvents;
+	protected List<String> propEmitsHardwareKeyUp;
 
 	protected FixedWindowRateLimiter rateLimiter;
     protected String hardwareKeyListenerUid = null;
@@ -136,7 +136,8 @@ public class MapFragment extends Fragment {
 		ReadableMap responseInclude,
 
 		int mapEventRate,
-		boolean emitsMapEvents
+		boolean emitsMapEvents,
+		List<String> emitsHardwareKeyUp
 	) {
         super();
 
@@ -174,33 +175,22 @@ public class MapFragment extends Fragment {
 
 		propResponseInclude = responseInclude;
 		propEmitsMapEvents = emitsMapEvents;
+		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
     }
+
+	public void updateHardwareKeyListener( List<String> emitsHardwareKeyUp ) {
+		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
+		removeHardwareKeyListener();
+		addHardwareKeyListener();
+	}
 
     protected void addHardwareKeyListener() {
         try {
-            HardwareKeyListener hardwareKeyListener = new HardwareKeyListener() {
-                @Override
-                public boolean onKeyUp(int keyCode, KeyEvent event) {
-                    String keyCodeString = null;
-                    for ( Field field : KeyEvent.class.getFields() ) {
-                        if ( null == keyCodeString && field.getName().startsWith( "KEYCODE_" ) ) {
-                            try {
-                                int fieldKeyCode = (int) field.get( event );
-                                if ( fieldKeyCode == keyCode ) {
-                                    keyCodeString = field.getName();
-                                }
-                            } catch (IllegalAccessException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    }
-                    WritableMap params = new WritableNativeMap();
-                    params.putInt( "keyCode", keyCode );
-                    params.putString( "keyCodeString", keyCodeString );
-                    Utils.sendEvent( mapViewManager.getReactContext(), "onHardwareKeyUp", params );
-                    return true;
-                }
-            };
+            HardwareKeyListener hardwareKeyListener = new HardwareKeyListener(
+				propEmitsHardwareKeyUp,
+				mapViewManager.getReactContext(),
+				this.getId()
+			);
             Class[] cArg = new Class[1];
             cArg[0] = HardwareKeyListener.class;
             Method meth = mapViewManager.getReactContext().getCurrentActivity().getClass().getMethod(
@@ -223,7 +213,7 @@ public class MapFragment extends Fragment {
             if ( null != hardwareKeyListenerUid ) {
                 Class[] cArg = new Class[1];
                 cArg[0] = String.class;
-                Method meth = mapViewManager.getReactContext().getCurrentActivity().getClass().getDeclaredMethod(
+                Method meth = mapViewManager.getReactContext().getCurrentActivity().getClass().getMethod(
 					"removeHardwareKeyListener",
 					cArg
                 );

@@ -4,6 +4,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
@@ -13,6 +14,9 @@ import org.oscim.android.MapView;
 import org.oscim.core.BoundingBox;
 import org.oscim.core.MapPosition;
 import org.oscim.core.Tile;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MapContainerModule extends ReactContextBaseJavaModule {
 
@@ -292,6 +296,25 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 				promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
 			mapFragment.updateUpdateListener( 1 == emitsMapEvents );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setEmitsHardwareKeyUp( int nativeNodeHandle, ReadableArray emitsHardwareKeyUpArray, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
+			}
+			List<String> emitsHardwareKeyUp = new ArrayList<String>();
+			for ( int i = 0; i < emitsHardwareKeyUpArray.size(); i++ ) {
+				emitsHardwareKeyUp.add( emitsHardwareKeyUpArray.getString( i ) );
+			}
+			mapFragment.updateHardwareKeyListener( emitsHardwareKeyUp );
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();

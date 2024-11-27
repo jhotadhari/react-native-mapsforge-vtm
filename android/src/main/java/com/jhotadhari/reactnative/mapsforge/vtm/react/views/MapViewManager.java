@@ -19,6 +19,8 @@ import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.annotations.ReactPropGroup;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class MapViewManager extends ViewGroupManager<FrameLayout> {
@@ -59,6 +61,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private ReadableMap propResponseInclude;
 	private int propMapEventRate;
 	private boolean propEmitsMapEvents;
+	private List<String> propEmitsHardwareKeyUp;
 
 	ReactApplicationContext reactContext;
 
@@ -256,13 +259,20 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propEmitsMapEvents = value == 1;
 	}
 
+	@ReactProp( name="emitsHardwareKeyUp" )
+	public void setEmitsHardwareKeyUp( FrameLayout view, ReadableArray value ) {
+		List<String> emitsHardwareKeyUp = new ArrayList<String>();
+		for ( int i = 0; i < value.size(); i++ ) {
+			emitsHardwareKeyUp.add( value.getString( i ) );
+		}
+		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
+	}
+
 	/**
 	 * Replace React Native view with a custom fragment
-	  */
+	 */
 	public void createFragment( FrameLayout root, int reactNativeViewId ) {
 		ViewGroup parentView = ( ViewGroup ) root.findViewById( reactNativeViewId );
-
-
 
 		mapFragment = new MapFragment(
 			this,
@@ -298,7 +308,8 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propResponseInclude,
 
 			propMapEventRate,
-			propEmitsMapEvents
+			propEmitsMapEvents,
+			propEmitsHardwareKeyUp
 		);
 
 		setupLayout( parentView );

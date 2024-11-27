@@ -5,7 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- prop `onHardwareKeyUp` to `MapContainer` component. Function that gets called when certain hardware keys are pressed.
+- prop `emitsHardwareKeyUp` to `MapContainer` component. Defines which hardware key events are consumed (keycodes: `KEYCODE_VOLUME_UP` or `KEYCODE_VOLUME_DOWN`). If they are consumed, these events don't bubble, `onHardwareKeyUp` js event is triggers and `MapContainer:onHardwareKeyUp` function is called.
+
 ### Fixed
+- `HardwareKeyListener` consumes all key events and prevents bubbling, breaks all key events. Now it only consumes the event if prop `emitsHardwareKeyUp` contains event keycode (`KEYCODE_VOLUME_UP` or `KEYCODE_VOLUME_DOWN`).
 - Missing type exports: `XmlRenderTheme`, `RenderStyleOptionsCollection`.
 
 ## [0.5.1] - 2024-11-16
@@ -21,11 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.4.0] - 2024-11-14
 ### Added
-- Added prop `onMapEvent` to `mapContainer` component. It listens to the same event like the `useMapEvents` hook.
+- Added prop `onMapEvent` to `MapContainer` component. It listens to the same event like the `useMapEvents` hook.
 - Added props `enabledZoomMin` and `enabledZoomMax` to all base layer components (`LayerBitmapTile`, `LayerHillshading`, `LayerMBTilesBitmap` and `LayerMapsforge`).
 
 ### Changed
-- Added prop `emitsMapEvents` to `mapContainer` component. If `false`, the map won't emit any mapEvents and the `onMapEvent` or `useMapEvents` are useless. If `undefined`|`null` it will be `true` if `onMapEvent` prop is set. **If you want to use the `useMapEvents` hook, you have to set `emitsMapEvents` to `true`!**
+- Added prop `emitsMapEvents` to `MapContainer` component. If `false`, the map won't emit any mapEvents and the `onMapEvent` or `useMapEvents` are useless. If `undefined`|`null` it will be `true` if `onMapEvent` prop is set. **If you want to use the `useMapEvents` hook, you have to set `emitsMapEvents` to `true`!**
 - Renamed type `mapEvent` to `MapEventResponse`.
 - Renamed `minZoom`|`MaxZoom` to `zoomMin`|`zoomMax` and `setMinZoom`|`setMaxZoom` to `setZoomMin`|`setZoomMax`. It was not consistent, both naming were used by different components.
 

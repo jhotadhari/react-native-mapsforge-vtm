@@ -112,3 +112,9 @@ export type MarkerSymbol = {
     textPositionX?: number;
     textPositionY?: number;
 };
+
+export type HardwareKeyEventResponse = {
+	nativeNodeHandle: number;
+	keyCode: number;
+	keyCodeString: 'KEYCODE_VOLUME_UP' | 'KEYCODE_VOLUME_DOWN';
+};

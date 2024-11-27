@@ -10,7 +10,7 @@ import {
 /**
  * Internal dependencies
  */
-import type { Location, ResponseInclude } from '../types';
+import type { HardwareKeyEventResponse, Location, ResponseInclude } from '../types';
 
 const ComponentName = 'MapViewManager';
 
@@ -46,6 +46,7 @@ type Props = {
 	responseInclude: ResponseInclude;
 	mapEventRate: number;
 	emitsMapEvents: 1 | 0;
+	emitsHardwareKeyUp: HardwareKeyEventResponse['keyCodeString'][];
 };
 
 const MapViewManager = UIManager.getViewManagerConfig( ComponentName ) != null
