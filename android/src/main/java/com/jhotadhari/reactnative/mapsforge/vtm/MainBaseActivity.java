@@ -35,13 +35,7 @@ public abstract class MainBaseActivity extends ReactActivity {
         if ( ! hardwareKeyListeners.isEmpty() ) {
             String keyCodeString = getKeyEventKeyCodeString( event );
             for ( HardwareKeyListener hardwareKeyListener : hardwareKeyListeners.values() ) {
-
-                boolean emitEvent = false;
-                for ( String buttonKeyCodeString : hardwareKeyListener.buttons ) {
-                    emitEvent = emitEvent || buttonKeyCodeString.equals( keyCodeString );
-                }
-
-                if ( emitEvent ) {
+                if ( hardwareKeyListener.buttons.contains( keyCodeString ) ) {
                     if ( event.getDownTime() != event.getEventTime() ) { // only on up events
                         hardwareKeyListener.onKeyUp( keyCodeString, event );
                     }
