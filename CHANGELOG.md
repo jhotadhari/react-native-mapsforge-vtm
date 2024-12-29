@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [0.5.2] - 2024-12-29
 ### Added
 - prop `onHardwareKeyUp` to `MapContainer` component. Function that gets called when certain hardware keys are pressed.
@@ -95,6 +97,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.2...HEAD
 [0.5.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.4.0...v0.5.0
