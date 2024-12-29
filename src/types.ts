@@ -87,15 +87,15 @@ export type GeometryStyle = {
 };
 
 export interface MapEventResponse {
-    nativeNodeHandle: number;
-    zoomLevel: number;
-    zoom: number;
-    scale: number;
-    zoomScale: number;
-    bearing: number;
-    roll: number;
-    tilt: number;
-    center: Location;
+    nativeNodeHandle?: number;
+    zoomLevel?: number;
+    zoom?: number;
+    scale?: number;
+    zoomScale?: number;
+    bearing?: number;
+    roll?: number;
+    tilt?: number;
+    center?: Location;
 };
 
 export type MarkerSymbol = {

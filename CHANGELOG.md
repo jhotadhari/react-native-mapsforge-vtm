@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - prop `onHardwareKeyUp` to `MapContainer` component. Function that gets called when certain hardware keys are pressed.
 - prop `emitsHardwareKeyUp` to `MapContainer` component. Defines which hardware key events are consumed (keycodes: `KEYCODE_VOLUME_UP` or `KEYCODE_VOLUME_DOWN`). If they are consumed, these events don't bubble, `onHardwareKeyUp` js event is triggers and `MapContainer:onHardwareKeyUp` function is called.
 
+### Changed
+- Make all `MapEventResponse` properties optional.
+
 ### Fixed
 - `HardwareKeyListener` consumes all key events and prevents bubbling, breaks all key events. Now it only consumes the event if prop `emitsHardwareKeyUp` contains event keycode (`KEYCODE_VOLUME_UP` or `KEYCODE_VOLUME_DOWN`).
 - Missing type exports: `XmlRenderTheme`, `RenderStyleOptionsCollection`.
