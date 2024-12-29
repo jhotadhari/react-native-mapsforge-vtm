@@ -29,7 +29,7 @@ import { get, isBoolean, isNumber } from 'lodash-es';
 import MapViewManager from './MapViewManager';
 import useMapLayersCreated from '../compose/useMapLayersCreated';
 import { MapContainerModule } from '../nativeMapModules';
-import type { Location, MapEventResponse, ResponseInclude } from '../types';
+import type { HardwareKeyEventResponse, Location, MapEventResponse, ResponseInclude } from '../types';
 
 const createFragment = ( nativeNodeHandle: number ) : void => {
 	const create = UIManager.getViewManagerConfig( 'MapViewManager' )?.Commands?.create;
@@ -62,6 +62,7 @@ export type MapContainerProps = {
 	onPause?: null | ( ( response: MapLifeCycleResponse ) => void );
 	onResume?: null | ( ( response: MapLifeCycleResponse ) => void );
 	onMapEvent?: null | ( ( response: MapEventResponse ) => void );
+	onHardwareKeyUp?: null | ( ( response: HardwareKeyEventResponse ) => void );
 	width?: number;
 	height?: number;
 	center?: Location;
@@ -86,6 +87,7 @@ export type MapContainerProps = {
 	onError?: null | ( ( err: any ) => void );
 	mapEventRate?: number;
 	emitsMapEvents?: null | boolean;
+	emitsHardwareKeyUp?: null | HardwareKeyEventResponse['keyCodeString'][];
 };
 
 const defaultCenter : Location = {
@@ -118,6 +120,7 @@ const MapContainer = ( {
 	onPause = null,
 	onResume = null,
 	onMapEvent,
+	onHardwareKeyUp,
 	width,
 	height = 200,
 	center = defaultCenter,
@@ -142,6 +145,7 @@ const MapContainer = ( {
 	onError,
 	mapEventRate = 100,
 	emitsMapEvents = null,
+	emitsHardwareKeyUp = null,
 } : MapContainerProps ) => {
 
 	const ref = useRef<number | Component<any, any, any> | ComponentClass<any, any> | null>( null );
@@ -166,6 +170,10 @@ const MapContainer = ( {
 	responseInclude = { ...responseIncludeDefaults, ...responseInclude };
 
 	emitsMapEvents = isBoolean( emitsMapEvents ) ? emitsMapEvents : !! onMapEvent;
+
+	emitsHardwareKeyUp = ! emitsHardwareKeyUp
+		? ['KEYCODE_VOLUME_UP','KEYCODE_VOLUME_DOWN']
+		: emitsHardwareKeyUp;
 
 	useEffect( () => {
 		const nodeHandle = findNodeHandle( ref?.current );
@@ -335,6 +343,14 @@ const MapContainer = ( {
 		}
 	}, [emitsMapEvents] );
 
+	// emitsMapEvents
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setEmitsHardwareKeyUp( nativeNodeHandle, emitsHardwareKeyUp )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [emitsHardwareKeyUp] );
+
 	useEffect( () => {
 		const eventEmitter = new NativeEventEmitter();
 		let eventListener = eventEmitter.addListener( 'MapLifecycle', ( response : MapLifeCycleResponse ) => {
@@ -375,6 +391,21 @@ const MapContainer = ( {
 	}, [
 		nativeNodeHandle,
 		onMapEvent,
+	] );
+
+	useEffect( () => {
+		const eventEmitter = new NativeEventEmitter();
+		let eventListener = eventEmitter.addListener( 'onHardwareKeyUp', ( response : HardwareKeyEventResponse ) => {
+			if ( response.nativeNodeHandle === nativeNodeHandle && onMapEvent ) {
+                onHardwareKeyUp && onHardwareKeyUp( response );
+			}
+		} );
+		return () => {
+			eventListener.remove();
+		};
+	}, [
+		nativeNodeHandle,
+		onHardwareKeyUp,
 	] );
 
 	let lastIndex = 0; // It starts with the MapFragment event layer. Otherwise it would be -1 here.
@@ -435,6 +466,7 @@ const MapContainer = ( {
 			responseInclude={ responseInclude }
 			mapEventRate={ mapEventRate }
 			emitsMapEvents={ emitsMapEvents ? 1 : 0 }
+			emitsHardwareKeyUp={ emitsHardwareKeyUp }
 		/>
 		{ mapLayersCreated && wrappedChildren }
 	</ScrollView>;

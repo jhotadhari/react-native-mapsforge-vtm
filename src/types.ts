@@ -10,6 +10,7 @@ import type { LayerScalebarProps  } from './components/LayerScalebar';
 import type { MapContainerProps, MapLifeCycleResponse } from './components/MapContainer';
 import type { LayerMarkerProps } from './components/LayerMarker';
 import type { MarkerProps, MarkerResponse } from './components/Marker';
+import type { XmlRenderTheme, RenderStyleOptionsCollection } from './compose/useRenderStyleOptions';
 
 export type {
     LayerBitmapTileProps,
@@ -32,6 +33,8 @@ export type {
     LayerMarkerProps,
     MarkerProps,
     MarkerResponse,
+    XmlRenderTheme,
+    RenderStyleOptionsCollection,
 };
 
 export type Bounds = {
@@ -84,15 +87,15 @@ export type GeometryStyle = {
 };
 
 export interface MapEventResponse {
-    nativeNodeHandle: number;
-    zoomLevel: number;
-    zoom: number;
-    scale: number;
-    zoomScale: number;
-    bearing: number;
-    roll: number;
-    tilt: number;
-    center: Location;
+    nativeNodeHandle?: number;
+    zoomLevel?: number;
+    zoom?: number;
+    scale?: number;
+    zoomScale?: number;
+    bearing?: number;
+    roll?: number;
+    tilt?: number;
+    center?: Location;
 };
 
 export type MarkerSymbol = {
@@ -108,4 +111,10 @@ export type MarkerSymbol = {
     textStrokeWidth?: number;
     textPositionX?: number;
     textPositionY?: number;
+};
+
+export type HardwareKeyEventResponse = {
+	nativeNodeHandle: number;
+	keyCode: number;
+	keyCodeString: 'KEYCODE_VOLUME_UP' | 'KEYCODE_VOLUME_DOWN';
 };
