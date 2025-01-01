@@ -45,6 +45,7 @@ type Props = {
 	hgtDirPath?: `/${string}` | `content://${string}`;
 	responseInclude: ResponseInclude;
 	mapEventRate: number;
+	hgtReadFileRate: number;
 	emitsMapEvents: 1 | 0;
 	emitsHardwareKeyUp: HardwareKeyEventResponse['keyCodeString'][];
 };

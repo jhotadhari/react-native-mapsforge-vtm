@@ -60,6 +60,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private String propHgtDirPath;
 	private ReadableMap propResponseInclude;
 	private int propMapEventRate;
+	private int propHgtReadFileRate;
 	private boolean propEmitsMapEvents;
 	private List<String> propEmitsHardwareKeyUp;
 
@@ -205,7 +206,6 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		"minRoll",
 		"maxRoll",
 	} )
-
 	public void setReactPropsViewportPosFloat( FrameLayout view, int index, float value ) {
 		// tilt
 		if ( index == 0 ) {
@@ -240,7 +240,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	}
 
 	@ReactProp( name="hgtDirPath" )
-	public void setReactPropCenter( FrameLayout view, String value ) {
+	public void setReactPropHgtDirPath( FrameLayout view, String value ) {
 		propHgtDirPath = value;
 	}
 
@@ -249,9 +249,17 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propResponseInclude = value;
 	}
 
-	@ReactProp( name="mapEventRate" )
-	public void setReactPropMapEventRate( FrameLayout view, int value ) {
-		propMapEventRate = value;
+	@ReactPropGroup( names = {
+		"mapEventRate",
+		"hgtReadFileRate",
+	} )
+	public void setReactPropRate( FrameLayout view, int index, int value ) {
+		if ( index == 0 ) {
+			propMapEventRate = value;
+		}
+		if ( index == 1 ) {
+			propHgtReadFileRate = value;
+		}
 	}
 
 	@ReactProp( name="emitsMapEvents" )
@@ -308,6 +316,7 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propResponseInclude,
 
 			propMapEventRate,
+			propHgtReadFileRate,
 			propEmitsMapEvents,
 			propEmitsHardwareKeyUp
 		);

@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- Add prop `hgtReadFileRate` to `MapContainerModule`. To control `HgtReader` read file throttle rate.
+
+### Changed
+- `HgtReader`: Purge hgt file data if not neighbors.
 
 ## [0.5.2] - 2024-12-29
 ### Added

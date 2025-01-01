@@ -85,6 +85,7 @@ public class MapFragment extends Fragment {
 	protected float propMinRoll;
 	protected float propMaxRoll;
 	protected String propHgtDirPath;
+	protected int propHgtReadFileRate;
 	protected ReadableMap propResponseInclude;
 	protected boolean propEmitsMapEvents;
 	protected List<String> propEmitsHardwareKeyUp;
@@ -136,6 +137,7 @@ public class MapFragment extends Fragment {
 		ReadableMap responseInclude,
 
 		int mapEventRate,
+		int hgtReadFileRate,
 		boolean emitsMapEvents,
 		List<String> emitsHardwareKeyUp
 	) {
@@ -174,8 +176,10 @@ public class MapFragment extends Fragment {
 		propHgtDirPath = hgtDirPath;
 
 		propResponseInclude = responseInclude;
+		propHgtReadFileRate = hgtReadFileRate;
 		propEmitsMapEvents = emitsMapEvents;
 		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
+
     }
 
 	public void updateHardwareKeyListener( List<String> emitsHardwareKeyUp ) {
@@ -234,11 +238,23 @@ public class MapFragment extends Fragment {
 
 	public void setPropHgtDirPath( String hgtDirPath ) {
 		propHgtDirPath = hgtDirPath;
-		setHgtReader();
+		if ( null != hgtDirPath ) {
+			setHgtReader();
+		} else {
+			hgtReader = null;
+		}
 	}
 
 	public void updateRateLimiterRate( int mapEventRate ) {
 		rateLimiter = new FixedWindowRateLimiter( mapEventRate, 1 );
+	}
+
+	public void updateHgtReadFileRate( int hgtReadFileRate ) {
+		propHgtReadFileRate = hgtReadFileRate;
+		if ( null == hgtReader ) {
+			setHgtReader();
+		}
+		hgtReader.updateRateLimiterWindowSize( hgtReadFileRate );
 	}
 
 	protected void setHgtReader() {
@@ -260,7 +276,7 @@ public class MapFragment extends Fragment {
 				}
 			}
 			if ( null != demFolder ) {
-				hgtReader = new HgtReader( demFolder );
+				hgtReader = new HgtReader( demFolder, propHgtReadFileRate );
 			}
 		}
 	}
