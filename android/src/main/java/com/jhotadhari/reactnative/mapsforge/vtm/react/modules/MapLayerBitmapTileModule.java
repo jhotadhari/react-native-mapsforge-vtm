@@ -46,7 +46,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			int zoomMax,
 			int enabledZoomMin,
 			int enabledZoomMax,
-			int cacheSize,
+			int cacheSize,	// mb
             int reactTreeIndex,
             Promise promise
     ) {
@@ -75,7 +75,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			OkHttpClient.Builder builder = new OkHttpClient.Builder();
 			if ( cacheSize > 0 ) {
 				File cacheDirectory = new File(getReactApplicationContext().getExternalCacheDir(), "tiles");
-				Cache cache = new Cache(cacheDirectory, cacheSize);
+				Cache cache = new Cache(cacheDirectory, cacheSize * 1024 * 1024 );
 				builder.cache( cache );
 			}
 			tileSource.setHttpEngine( new OkHttpEngine.OkHttpFactory( builder ) );

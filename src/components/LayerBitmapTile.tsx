@@ -21,7 +21,7 @@ export type LayerBitmapTileProps = {
 	zoomMax?: number;
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
-	cacheSize?: number;
+	cacheSize?: number;	// mb
 	onCreate?: null | ( ( result: ResponseBase ) => void );
 	onRemove?: null | ( ( result: ResponseBase ) => void );
 	onChange?: null | ( ( result: ResponseBase ) => void );
@@ -36,7 +36,7 @@ const LayerBitmapTile = ( {
     zoomMax = 20,
     enabledZoomMin = 1,
     enabledZoomMax = 20,
-    cacheSize =  0 * 1024 * 1024,
+    cacheSize = 0,
 	onCreate,
 	onRemove,
 	onChange,

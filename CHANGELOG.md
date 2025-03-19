@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - `LayerHillshading`: Should update on `magnitude` or `cacheSize` changes.
+- `LayerBitmapTile`: property `cacheSize` was not working.
 - Missing export `useMapLayersCreated`.
 
 ## [0.5.2] - 2024-12-29
