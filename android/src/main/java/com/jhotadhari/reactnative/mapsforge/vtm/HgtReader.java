@@ -41,10 +41,18 @@ public class HgtReader {
 
 	private static final int SRTM_EXTENT = 1; // degree
 
-	public HgtReader( DemFolder demFolder ) {
-		this.demFolder = demFolder;
-		indexHgtFiles();
+	protected List<TileKey> hgtFileInfoWithData = new ArrayList<TileKey>();
 
+	protected FixedWindowRateLimiter rateLimiter;
+
+	public HgtReader( DemFolder demFolder, int rateLimiterWindowSize ) {
+		this.demFolder = demFolder;
+		rateLimiter = new FixedWindowRateLimiter( rateLimiterWindowSize, 1 );
+		indexHgtFiles();
+	}
+
+	public void updateRateLimiterWindowSize( int rateLimiterWindowSize ) {
+		rateLimiter = new FixedWindowRateLimiter( rateLimiterWindowSize, 1 );
 	}
 
 	/**
@@ -125,6 +133,30 @@ public class HgtReader {
 		};
 	}
 
+	protected void purgeHgtFileInfoMapData( Map<TileKey, HgtFileInfo> hgtFileInfoMap, TileKey tileKey ) {
+		int threshold = 2;
+		int i = 0;
+		while( i < hgtFileInfoWithData.size() ) {
+			TileKey tkey = hgtFileInfoWithData.get( i );
+			if (
+				tkey.east < tileKey.east - threshold
+				|| tkey.east > tileKey.east + threshold
+				|| tkey.north > tileKey.north + threshold
+				|| tkey.north < tileKey.north - threshold
+			) {
+				if ( hgtFileInfoMap.containsKey( tkey ) ) {
+					HgtFileInfo info = hgtFileInfoMap.get( tileKey );
+					if ( null != info ) {
+						info.resetData();
+						hgtFileInfoWithData.remove( tkey );
+						i = i - 1;
+					}
+				}
+			}
+			i = i + 1;
+		}
+	}
+
 	/**
 	 * Mostly copy of org.openstreetmap.josm.plugins.elevation.HgtReader readElevation
 	 * See https://github.com/JOSM/josm-plugins/blob/5026c5627f2cacfb2410505a869fd915211edf41/ElevationProfile/src/org/openstreetmap/josm/plugins/elevation/HgtReader.java#L148C26-L148C39
@@ -142,9 +174,15 @@ public class HgtReader {
 				if ( hgtFileInfoMap.containsKey( tileKey ) ) {
 					HgtFileInfo info = hgtFileInfoMap.get( tileKey );
 					short[][] data = info.getData();
-					int[] index = getIndex(lng, lat, data.length);
-					altitude = data[index[0]][index[1]];
+					if ( null != data ) {
+						if ( ! hgtFileInfoWithData.contains( tileKey ) ) {
+							hgtFileInfoWithData.add( tileKey );
+						}
+						int[] index = getIndex(lng, lat, data.length);
+						altitude = data[index[0]][index[1]];
+					}
 				}
+				purgeHgtFileInfoMapData( hgtFileInfoMap, tileKey );
 			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -226,7 +264,7 @@ public class HgtReader {
 		}
 
 		public short[][] getData() {
-			if ( data == null ) {
+			if ( data == null && rateLimiter.tryAcquire() ) {
 				try {
 					data = readHgtFile( file.openInputStream() );
 				} catch ( IOException e ) {
@@ -234,6 +272,12 @@ public class HgtReader {
 				}
 			}
 			return data;
+		}
+
+		public void resetData() {
+			if ( data != null ) {
+				data = null;
+			}
 		}
 	}
 

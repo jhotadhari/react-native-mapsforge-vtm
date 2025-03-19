@@ -86,6 +86,7 @@ export type MapContainerProps = {
 	responseInclude?: ResponseInclude;
 	onError?: null | ( ( err: any ) => void );
 	mapEventRate?: number;
+	hgtReadFileRate?: number;
 	emitsMapEvents?: null | boolean;
 	emitsHardwareKeyUp?: null | HardwareKeyEventResponse['keyCodeString'][];
 };
@@ -144,6 +145,7 @@ const MapContainer = ( {
 	responseInclude = responseIncludeDefaults,
 	onError,
 	mapEventRate = 100,
+	hgtReadFileRate = 500,
 	emitsMapEvents = null,
 	emitsHardwareKeyUp = null,
 } : MapContainerProps ) => {
@@ -314,7 +316,7 @@ const MapContainer = ( {
 	// hgtDirPath
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setHgtDirPath( nativeNodeHandle, hgtDirPath )
+			MapContainerModule.setHgtDirPath( nativeNodeHandle, hgtDirPath || null )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [hgtDirPath] );
@@ -330,10 +332,18 @@ const MapContainer = ( {
 	// mapEventRate
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setMapEventRate( nativeNodeHandle, mapEventRate )
+			MapContainerModule.setRate( nativeNodeHandle, 'mapEventRate', mapEventRate )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [mapEventRate] );
+
+	// hgtReadFileRate
+	useEffect( () => {
+		if ( mapLayersCreated && nativeNodeHandle ) {
+			MapContainerModule.setRate( nativeNodeHandle, 'hgtReadFileRate', hgtReadFileRate )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [hgtReadFileRate] );
 
 	// emitsMapEvents
 	useEffect( () => {
@@ -465,6 +475,7 @@ const MapContainer = ( {
 			hgtDirPath={ hgtDirPath }
 			responseInclude={ responseInclude }
 			mapEventRate={ mapEventRate }
+			hgtReadFileRate={ hgtReadFileRate }
 			emitsMapEvents={ emitsMapEvents ? 1 : 0 }
 			emitsHardwareKeyUp={ emitsHardwareKeyUp }
 		/>

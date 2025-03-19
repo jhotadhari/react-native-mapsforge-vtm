@@ -14,6 +14,7 @@ import Marker from './components/Marker';
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
 import usePromiseQueueState from './compose/usePromiseQueueState';
 import useMapEvents from './compose/useMapEvents';
+import useMapLayersCreated from './compose/useMapLayersCreated';
 import promiseQueue from './promiseQueue';
 // import * as utils from './utils';
 
@@ -31,6 +32,7 @@ export {
 	useRenderStyleOptions,
 	usePromiseQueueState,
 	useMapEvents,
+	useMapLayersCreated,
 	promiseQueue,
 	// utils,
 };

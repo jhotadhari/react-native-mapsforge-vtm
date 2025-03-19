@@ -61,7 +61,7 @@ fi
 
 # git status should be clean.
 if [[ ! -z $( git status --short ) ]]; then
-    echo "${T_RED}ERROR${T_RESET} Unable to publish. Uncommited changes."
+    echo "${T_RED}ERROR${T_RESET} Unable to publish. Uncommitted changes."
     git status --short
     exit 1
 fi

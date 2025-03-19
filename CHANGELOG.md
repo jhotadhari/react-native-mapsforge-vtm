@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] - 2025-03-19
+### Added
+- Add prop `hgtReadFileRate` to `MapContainerModule`. To control `HgtReader` read file throttle rate.
+
+### Changed
+- `HgtReader`: Purge hgt file data if not neighbors.
+
+### Fixed
+- `LayerHillshading`: Should update on `magnitude` or `cacheSize` changes.
+- `LayerBitmapTile`: property `cacheSize` was not working.
+- Missing export `useMapLayersCreated`.
+
 ## [0.5.2] - 2024-12-29
 ### Added
 - prop `onHardwareKeyUp` to `MapContainer` component. Function that gets called when certain hardware keys are pressed.
@@ -95,6 +107,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.5.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.4.0...v0.5.0
