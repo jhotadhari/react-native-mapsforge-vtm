@@ -158,6 +158,8 @@ const LayerHillshading = ( {
 		zoomMin,
 		zoomMax,
 		shadingAlgorithm,
+		magnitude,
+		cacheSize,
 		Object.keys( shadingAlgorithmOptions ).map( key => key + get( shadingAlgorithmOptions, key ) ).join( '' ),
 	] );
 

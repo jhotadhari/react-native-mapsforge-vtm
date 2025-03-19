@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - `HgtReader`: Purge hgt file data if not neighbors.
 
+### Fixed
+- `LayerHillshading`: Should update on `magnitude` or `cacheSize` changes.
+
 ## [0.5.2] - 2024-12-29
 ### Added
 - prop `onHardwareKeyUp` to `MapContainer` component. Function that gets called when certain hardware keys are pressed.
