@@ -179,7 +179,6 @@ public class MapFragment extends Fragment {
 		propHgtReadFileRate = hgtReadFileRate;
 		propEmitsMapEvents = emitsMapEvents;
 		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
-
     }
 
 	public void updateHardwareKeyListener( List<String> emitsHardwareKeyUp ) {

@@ -8,6 +8,17 @@ import { NativeModules } from 'react-native';
  */
 import { LINKING_ERROR } from './constants';
 
+export const CanvasAdapterModule = NativeModules.CanvasAdapterModule
+	? NativeModules.CanvasAdapterModule
+	: new Proxy(
+		{},
+		{
+			get() {
+				throw new Error( LINKING_ERROR );
+			},
+		},
+	);
+
 export const MapContainerModule = NativeModules.MapContainerModule
 	? NativeModules.MapContainerModule
 	: new Proxy(

@@ -4,6 +4,7 @@ import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.uimanager.ViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.CanvasAdapterModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapContainerModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerBitmapTileModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.modules.MapLayerHillshadingModule;
@@ -41,8 +42,7 @@ public class MapsforgeVtmPackage implements ReactPackage {
         modules.add(new MapLayerPathModule(reactContext));
         modules.add(new MapLayerPathSlopeGradientModule(reactContext));
         modules.add(new MapLayerMarkerModule(reactContext));
-//        modules.add(new MapMarkerModule(reactContext));
-//        modules.add(new MapPolylineModule(reactContext));
+        modules.add(new CanvasAdapterModule(reactContext));
         return modules;
     }
 
