@@ -279,6 +279,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 		String renderThemePath,
 		String renderStyle,
 		ReadableArray renderOverlays,
+		boolean hasBuildings,
+		boolean hasLabels,
 		int enabledZoomMin,
 		int enabledZoomMax,
 		int reactTreeIndex,
@@ -338,17 +340,17 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			IRenderTheme theme = loadTheme( nativeNodeHandle, renderThemePath, renderStyle, renderOverlays, promise );
 			tileLayer.setTheme( theme );
 
-			// Building layer
-			BuildingLayer buildingLayer = new BuildingLayer( mapView.map(), tileLayer );
-
-			// Label layer
-			LabelLayer labelLayer = new LabelLayer( mapView.map(), tileLayer );
-
 			// Combine to groupLayer.
 			GroupLayer groupLayer = new GroupLayer( mapView.map() );
 			groupLayer.layers.add( tileLayer );
+			if ( hasBuildings ) {
+				BuildingLayer buildingLayer = new BuildingLayer( mapView.map(), tileLayer );
 			groupLayer.layers.add( buildingLayer );
+			}
+			if ( hasLabels ) {
+				LabelLayer labelLayer = new LabelLayer( mapView.map(), tileLayer );
 			groupLayer.layers.add( labelLayer );
+			}
 
 			// Replace previous added tilelayer with groupLayer.
 			// set doesn't work, have to remove and add.
@@ -374,6 +376,118 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			// Resolve layer uuid
 			responseParams.putString( "uuid", uuid );
             promise.resolve( responseParams );
+        } catch( Exception e ) {
+			e.printStackTrace();
+            promise.reject( "Error", e );
+        }
+    }
+
+	@ReactMethod
+	public void toogleBuildings(int nativeNodeHandle, String uuid, boolean hasBuildings, Promise promise) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView" );  return;
+			}
+			// Find groupLayer
+			GroupLayer groupLayer = (GroupLayer) layers.get( uuid );
+			if ( null == groupLayer ) {
+				promise.reject( "Error", "Unable to find groupLayer" );  return;
+			}
+			// Find buildingLayer and tileLayer.
+			BuildingLayer buildingLayer = null;
+			VectorTileLayer tileLayer = null;
+			for ( int i = 0; i < groupLayer.layers.size(); i++ ) {
+				if ( groupLayer.layers.get( i ) instanceof BuildingLayer ) {
+					buildingLayer = (BuildingLayer) groupLayer.layers.get( i );
+				}
+				if ( groupLayer.layers.get( i ) instanceof VectorTileLayer ) {
+					tileLayer = (VectorTileLayer)  groupLayer.layers.get( i );
+				}
+				if ( null != buildingLayer && null != tileLayer ) {
+					break;
+				}
+			}
+			// Do toggle.
+			if ( hasBuildings && null == buildingLayer && null != tileLayer ) {
+				// Add new buildingLayer to groupLayer.
+				buildingLayer = new BuildingLayer( mapView.map(), tileLayer );
+				groupLayer.layers.add( buildingLayer );
+			} else if ( ! hasBuildings && null != buildingLayer ) {
+				// Remove buildingLayer from groupLayer.
+				groupLayer.layers.remove( buildingLayer );
+			}
+			// Set map layers.
+			int groupLayerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
+			if ( groupLayerIndex != -1 ) {
+				// Replace previous groupLayer and add new groupLayer..
+				// set doesn't work, have to remove and add.
+				mapView.map().layers().remove( groupLayerIndex );
+				mapView.map().layers().add(
+					groupLayerIndex,
+					groupLayer
+				);
+			}
+			// Trigger map update.
+			mapView.map().updateMap( true );
+			// Resolve uuid
+			promise.resolve( uuid );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void toogleLabels(int nativeNodeHandle, String uuid, boolean hasLabels, Promise promise) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView" );  return;
+			}
+			// Find groupLayer
+			GroupLayer groupLayer = (GroupLayer) layers.get( uuid );
+			if ( null == groupLayer ) {
+				promise.reject( "Error", "Unable to find groupLayer" );  return;
+			}
+			// Find buildingLayer and tileLayer.
+			LabelLayer labelLayer = null;
+			VectorTileLayer tileLayer = null;
+			for ( int i = 0; i < groupLayer.layers.size(); i++ ) {
+				if ( groupLayer.layers.get( i ) instanceof LabelLayer ) {
+					labelLayer = (LabelLayer) groupLayer.layers.get( i );
+				}
+				if ( groupLayer.layers.get( i ) instanceof VectorTileLayer ) {
+					tileLayer = (VectorTileLayer)  groupLayer.layers.get( i );
+				}
+				if ( null != labelLayer && null != tileLayer ) {
+					break;
+				}
+			}
+			// Do toggle.
+			if ( hasLabels && null == labelLayer && null != tileLayer ) {
+				// Add new labelLayer to groupLayer.
+				labelLayer = new LabelLayer( mapView.map(), tileLayer );
+				groupLayer.layers.add( labelLayer );
+			} else if ( ! hasLabels && null != labelLayer ) {
+				// Remove labelLayer from groupLayer.
+				groupLayer.layers.remove( labelLayer );
+			}
+			// Set map layers.
+			int groupLayerIndex = getLayerIndexInMapLayers( nativeNodeHandle, uuid );
+			if ( groupLayerIndex != -1 ) {
+				// Replace previous groupLayer and add new groupLayer..
+				// set doesn't work, have to remove and add.
+				mapView.map().layers().remove( groupLayerIndex );
+				mapView.map().layers().add(
+					groupLayerIndex,
+					groupLayer
+				);
+			}
+			// Trigger map update.
+			mapView.map().updateMap( true );
+			// Resolve uuid
+			promise.resolve( uuid );
         } catch( Exception e ) {
 			e.printStackTrace();
             promise.reject( "Error", e );

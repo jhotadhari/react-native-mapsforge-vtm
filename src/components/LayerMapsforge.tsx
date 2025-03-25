@@ -38,6 +38,8 @@ export type LayerMapsforgeProps = {
 	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
 	renderStyle?: string;
 	renderOverlays?: string[];
+	hasBuildings?: boolean;
+	hasLabels?: boolean;
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
@@ -53,6 +55,8 @@ const LayerMapsforge = ( {
 	renderTheme = 'DEFAULT',
 	renderStyle = '',
 	renderOverlays = [],
+	hasBuildings = true,
+	hasLabels = true,
     enabledZoomMin = 1,
     enabledZoomMax = 30,
 	onCreate,
@@ -83,6 +87,8 @@ const LayerMapsforge = ( {
 				renderTheme,
 				renderStyle,
 				renderOverlays,
+				!! hasBuildings,
+				!! hasLabels,
 				Math.round( enabledZoomMin ),
 				Math.round( enabledZoomMax ),
 				reactTreeIndex
@@ -129,6 +135,20 @@ const LayerMapsforge = ( {
 		enabledZoomMin,
 		enabledZoomMax,
 	] );
+
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.toogleBuildings( nativeNodeHandle, uuid, hasBuildings )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [hasBuildings] );
+
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.toogleLabels( nativeNodeHandle, uuid, hasLabels )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [hasLabels] );
 
 	useEffect( () => {
 		if ( nativeNodeHandle ) {
