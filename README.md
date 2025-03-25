@@ -249,6 +249,11 @@ Contributions welcome. You can report [issues or suggest features](https://githu
 
 MIT
 
+## Apps using `react-native-mapsforge-vtm`
+
+- The example app, included in the [repository](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)
+- [straymap](https://github.com/jhotadhari/straymap)
+
 ## Credits
 
 - It's just a wrapper with limited features around [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). **All credits to mapsforge and vtm!!!**
