@@ -17,6 +17,7 @@ export type LayerBitmapTileProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
 	url?: string;
+	alpha?: number;		// float between 0 and 1.
 	zoomMin?: number;
 	zoomMax?: number;
 	enabledZoomMin?: number;
@@ -34,6 +35,7 @@ const LayerBitmapTile = ( {
 	nativeNodeHandle,
 	reactTreeIndex,
     url = 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png',
+    alpha = 1,
     zoomMin = 1,
     zoomMax = 20,
     enabledZoomMin = 1,
@@ -58,6 +60,7 @@ const LayerBitmapTile = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				url,
+				alpha,	// The BitmapTileLayer will ensure its between 0 and 1.
 				Math.round( zoomMin ),
 				Math.round( zoomMax ),
 				Math.round( enabledZoomMin ),
@@ -108,6 +111,13 @@ const LayerBitmapTile = ( {
 		enabledZoomMin,
 		enabledZoomMax,
 	] );
+
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
+			Module.setAlpha( nativeNodeHandle, uuid, alpha )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [alpha] );
 
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 ### Added
 - New props for `LayerMapsforge`: `hasBuildings` and `hasLabels`.
+- New prop for `LayerBitmapTile`: `alpha` to control opacity.
 - `CanvasAdapterModule` to control `lineScale`, `textScale` and `symbolScale` of all mapsforge layers of all `MapContainer`. The methods have to be called before the first `MapContainer` is initialized.
 
 ### Changed

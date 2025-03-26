@@ -22,7 +22,6 @@ import java.util.UUID;
 
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
-import java.text.Normalizer;
 
 public class MapLayerBitmapTileModule extends MapLayerBase {
 
@@ -43,6 +42,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
     public void createLayer(
             int nativeNodeHandle,
 			String url,
+			float alpha,
 			int zoomMin,
 			int zoomMax,
 			int enabledZoomMin,
@@ -87,7 +87,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			tileSource.setHttpRequestHeaders( Collections.singletonMap( "User-Agent", getCurrentActivity().getPackageName() ) );
 
 			// Create layer from tile source.
-			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource );
+			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource, alpha );
 
 			// Add layer to map.
 			mapView.map().layers().add(
@@ -129,6 +129,28 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 		WritableMap responseParams = new WritableNativeMap();
 		responseParams.putString( "uuid", uuid );
 		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
+	public void setAlpha(int nativeNodeHandle, String uuid, float alpha, Promise promise) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView" );  return;
+			}
+			// Find groupLayer
+			BitmapTileLayer bitmapTileLayer = (BitmapTileLayer) layers.get( uuid );
+			if ( null == bitmapTileLayer ) {
+				promise.reject( "Error", "Unable to find bitmapTileLayer" );  return;
+			}
+			// Set alpha
+			bitmapTileLayer.setBitmapAlpha( alpha, true );
+			// Resolve uuid
+			promise.resolve( uuid );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
 	}
 
 	@ReactMethod
