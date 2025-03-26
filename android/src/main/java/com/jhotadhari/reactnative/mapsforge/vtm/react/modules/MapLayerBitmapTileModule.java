@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
+import java.text.Normalizer;
 
 public class MapLayerBitmapTileModule extends MapLayerBase {
 
@@ -47,6 +48,8 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			int enabledZoomMin,
 			int enabledZoomMax,
 			int cacheSize,	// mb
+			String cacheDirBase,
+			String cacheDirChild,
             int reactTreeIndex,
             Promise promise
     ) {
@@ -74,8 +77,10 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			// Setup http client, maybe with cache cache.
 			OkHttpClient.Builder builder = new OkHttpClient.Builder();
 			if ( cacheSize > 0 ) {
-				File cacheDirectory = new File(getReactApplicationContext().getExternalCacheDir(), "tiles");
-				Cache cache = new Cache(cacheDirectory, cacheSize * 1024 * 1024 );
+				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
+				cacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : Utils.slugify( url );
+				File cacheDirectory = new File( cacheDirParent, cacheDirChild );
+				Cache cache = new Cache( cacheDirectory, (long) cacheSize * 1024 * 1024 );
 				builder.cache( cache );
 			}
 			tileSource.setHttpEngine( new OkHttpEngine.OkHttpFactory( builder ) );

@@ -51,7 +51,9 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String shadingAlgorithmKey,
 			ReadableMap shadingAlgorithmOptions,
 			int magnitude,
-			int cacheSize,
+			int cacheSize,	// ??? doesn't really work. cache seems always unlimited if on.
+			String cacheDirBase,
+			String cacheDirChild,
             int reactTreeIndex,
             Promise promise
     ) {
@@ -110,9 +112,12 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			);
 
 			if ( cacheSize > 0 ) {
+				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
+				cacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
+				File cacheDirectory = new File( cacheDirParent, cacheDirChild );
 				ITileCache mCache = new TileCache(
 					getCurrentActivity(),
-					getReactApplicationContext().getExternalCacheDir().getAbsolutePath(),
+					cacheDirectory.toString(),
 					dbname
 				);
 				mCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );

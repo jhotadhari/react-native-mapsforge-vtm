@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - New props for `LayerMapsforge`: `hasBuildings` and `hasLabels`.
 - `CanvasAdapterModule` to control `lineScale`, `textScale` and `symbolScale` of all mapsforge layers of all `MapContainer`. The methods have to be called before the first `MapContainer` is initialized.
 
+### Changed
+- Individual cache dirs for `LayerHillshading`. Added props:
+    - `cacheDirBase` defaults to `/`. If `/`, java will fallback to app internal cache dir.
+    - `cacheDirChild` defaults to ``. If ``, will fallback to cache dbname.
+- Individual cache dirs for `LayerBitmapTile`. Added props:
+    - `cacheDirBase` defaults to `/`. If `/`, java will fallback to app internal cache dir.
+    - `cacheDirChild` defaults to ``. If ``, will fallback to slugify url.
+
 ## [0.5.3] - 2025-03-19
 ### Added
 - Add prop `hgtReadFileRate` to `MapContainerModule`. To control `HgtReader` read file throttle rate.

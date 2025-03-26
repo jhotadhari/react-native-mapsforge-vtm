@@ -34,6 +34,8 @@ export type LayerHillshadingProps = {
 	shadingAlgorithmOptions?: ShadingAlgorithmOptions;
 	magnitude?: number;
 	cacheSize?: number;
+	cacheDirBase?: `/${string}`;
+	cacheDirChild?: string;
 	onRemove?: null | ( ( response: ResponseBase ) => void );
 	onCreate?: null | ( ( response: ResponseBase ) => void );
 	onChange?: null | ( ( response: ResponseBase ) => void );
@@ -62,6 +64,8 @@ const LayerHillshading = ( {
 	shadingAlgorithmOptions = shadingAlgorithmOptionsDefaults,
 	magnitude = 90,
 	cacheSize = 64,
+	cacheDirBase = '/',	// if `/`, will fallback to java getReactApplicationContext().getCacheDir();
+	cacheDirChild = '',	// if ``, will fallback to cache dbname;
 	reactTreeIndex,
 	onCreate,
 	onRemove,
@@ -92,6 +96,8 @@ const LayerHillshading = ( {
 				shadingAlgorithmOptions,
 				Math.round( magnitude ),
 				Math.round( cacheSize ),
+				cacheDirBase.trim(),
+				cacheDirChild.trim(),
 				reactTreeIndex
 			).then( ( response : ResponseBase ) => {
 				setUuid( response.uuid );
@@ -160,6 +166,8 @@ const LayerHillshading = ( {
 		shadingAlgorithm,
 		magnitude,
 		cacheSize,
+		cacheDirBase,
+		cacheDirChild,
 		Object.keys( shadingAlgorithmOptions ).map( key => key + get( shadingAlgorithmOptions, key ) ).join( '' ),
 	] );
 

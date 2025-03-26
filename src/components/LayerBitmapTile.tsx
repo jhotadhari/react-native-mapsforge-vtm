@@ -22,6 +22,8 @@ export type LayerBitmapTileProps = {
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
 	cacheSize?: number;	// mb
+	cacheDirBase?: `/${string}`;
+	cacheDirChild?: string;
 	onCreate?: null | ( ( result: ResponseBase ) => void );
 	onRemove?: null | ( ( result: ResponseBase ) => void );
 	onChange?: null | ( ( result: ResponseBase ) => void );
@@ -37,6 +39,8 @@ const LayerBitmapTile = ( {
     enabledZoomMin = 1,
     enabledZoomMax = 20,
     cacheSize = 0,
+	cacheDirBase = '/',	// if `/`, will fallback to java getReactApplicationContext().getCacheDir();
+	cacheDirChild = '',	// if ``, will fallback to slugify url;
 	onCreate,
 	onRemove,
 	onChange,
@@ -59,6 +63,8 @@ const LayerBitmapTile = ( {
 				Math.round( enabledZoomMin ),
 				Math.round( enabledZoomMax ),
 				Math.round( cacheSize ),
+				cacheDirBase.trim(),
+				cacheDirChild.trim(),
 				reactTreeIndex
 			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
@@ -120,6 +126,8 @@ const LayerBitmapTile = ( {
 		zoomMin,
 		zoomMax,
 		cacheSize,
+		cacheDirBase,
+		cacheDirChild,
 	] );
 
 	return null;
