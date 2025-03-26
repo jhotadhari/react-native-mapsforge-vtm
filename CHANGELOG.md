@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2025-03-26
+### Added
+- New props for `LayerMapsforge`: `hasBuildings` and `hasLabels`.
+- New prop for `LayerBitmapTile`: `alpha` to control opacity.
+- `CanvasAdapterModule` to control `lineScale`, `textScale` and `symbolScale` of all mapsforge layers of all `MapContainer`. The methods have to be called before the first `MapContainer` is initialized.
+
+### Changed
+- Individual cache dirs for `LayerHillshading`. Added props:
+    - `cacheDirBase` defaults to `/`. If `/`, java will fallback to app internal cache dir.
+    - `cacheDirChild` defaults to ``. If ``, will fallback to cache dbname.
+- Individual cache dirs for `LayerBitmapTile`. Added props:
+    - `cacheDirBase` defaults to `/`. If `/`, java will fallback to app internal cache dir.
+    - `cacheDirChild` defaults to ``. If ``, will fallback to slugify url.
+
 ## [0.5.3] - 2025-03-19
 ### Added
 - Add prop `hgtReadFileRate` to `MapContainerModule`. To control `HgtReader` read file throttle rate.
@@ -107,6 +121,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.6.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.0...v0.5.1

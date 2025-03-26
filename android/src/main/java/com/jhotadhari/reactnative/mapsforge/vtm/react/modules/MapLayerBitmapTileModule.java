@@ -42,11 +42,14 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
     public void createLayer(
             int nativeNodeHandle,
 			String url,
+			float alpha,
 			int zoomMin,
 			int zoomMax,
 			int enabledZoomMin,
 			int enabledZoomMax,
 			int cacheSize,	// mb
+			String cacheDirBase,
+			String cacheDirChild,
             int reactTreeIndex,
             Promise promise
     ) {
@@ -74,15 +77,17 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			// Setup http client, maybe with cache cache.
 			OkHttpClient.Builder builder = new OkHttpClient.Builder();
 			if ( cacheSize > 0 ) {
-				File cacheDirectory = new File(getReactApplicationContext().getExternalCacheDir(), "tiles");
-				Cache cache = new Cache(cacheDirectory, cacheSize * 1024 * 1024 );
+				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
+				cacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : Utils.slugify( url );
+				File cacheDirectory = new File( cacheDirParent, cacheDirChild );
+				Cache cache = new Cache( cacheDirectory, (long) cacheSize * 1024 * 1024 );
 				builder.cache( cache );
 			}
 			tileSource.setHttpEngine( new OkHttpEngine.OkHttpFactory( builder ) );
 			tileSource.setHttpRequestHeaders( Collections.singletonMap( "User-Agent", getCurrentActivity().getPackageName() ) );
 
 			// Create layer from tile source.
-			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource );
+			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource, alpha );
 
 			// Add layer to map.
 			mapView.map().layers().add(
@@ -124,6 +129,28 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 		WritableMap responseParams = new WritableNativeMap();
 		responseParams.putString( "uuid", uuid );
 		promise.resolve( responseParams );
+	}
+
+	@ReactMethod
+	public void setAlpha(int nativeNodeHandle, String uuid, float alpha, Promise promise) {
+		try {
+			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				promise.reject( "Error", "Unable to find mapView" );  return;
+			}
+			// Find groupLayer
+			BitmapTileLayer bitmapTileLayer = (BitmapTileLayer) layers.get( uuid );
+			if ( null == bitmapTileLayer ) {
+				promise.reject( "Error", "Unable to find bitmapTileLayer" );  return;
+			}
+			// Set alpha
+			bitmapTileLayer.setBitmapAlpha( alpha, true );
+			// Resolve uuid
+			promise.resolve( uuid );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
 	}
 
 	@ReactMethod

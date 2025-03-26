@@ -17,11 +17,14 @@ export type LayerBitmapTileProps = {
 	nativeNodeHandle?: null | number;
 	reactTreeIndex?: number;
 	url?: string;
+	alpha?: number;		// float between 0 and 1.
 	zoomMin?: number;
 	zoomMax?: number;
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
 	cacheSize?: number;	// mb
+	cacheDirBase?: `/${string}`;
+	cacheDirChild?: string;
 	onCreate?: null | ( ( result: ResponseBase ) => void );
 	onRemove?: null | ( ( result: ResponseBase ) => void );
 	onChange?: null | ( ( result: ResponseBase ) => void );
@@ -32,11 +35,14 @@ const LayerBitmapTile = ( {
 	nativeNodeHandle,
 	reactTreeIndex,
     url = 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png',
+    alpha = 1,
     zoomMin = 1,
     zoomMax = 20,
     enabledZoomMin = 1,
     enabledZoomMax = 20,
     cacheSize = 0,
+	cacheDirBase = '/',	// if `/`, will fallback to java getReactApplicationContext().getCacheDir();
+	cacheDirChild = '',	// if ``, will fallback to slugify url;
 	onCreate,
 	onRemove,
 	onChange,
@@ -54,11 +60,14 @@ const LayerBitmapTile = ( {
 			return Module.createLayer(
 				nativeNodeHandle,
 				url,
+				alpha,	// The BitmapTileLayer will ensure its between 0 and 1.
 				Math.round( zoomMin ),
 				Math.round( zoomMax ),
 				Math.round( enabledZoomMin ),
 				Math.round( enabledZoomMax ),
 				Math.round( cacheSize ),
+				cacheDirBase.trim(),
+				cacheDirChild.trim(),
 				reactTreeIndex
 			).then( ( response: ResponseBase ) => {
 				setUuid( response.uuid );
@@ -105,6 +114,13 @@ const LayerBitmapTile = ( {
 
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
+			Module.setAlpha( nativeNodeHandle, uuid, alpha )
+			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		}
+	}, [alpha] );
+
+	useEffect( () => {
+		if ( nativeNodeHandle && uuid ) {
             promiseQueue.enqueue( () => {
                 return Module.removeLayer(
 					nativeNodeHandle,
@@ -120,6 +136,8 @@ const LayerBitmapTile = ( {
 		zoomMin,
 		zoomMax,
 		cacheSize,
+		cacheDirBase,
+		cacheDirChild,
 	] );
 
 	return null;

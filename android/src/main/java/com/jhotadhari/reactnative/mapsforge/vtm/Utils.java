@@ -6,6 +6,7 @@ import android.content.UriPermission;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
@@ -13,10 +14,12 @@ import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.oscim.android.MapView;
 
+import java.io.File;
 import java.lang.reflect.Array;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
+import java.text.Normalizer;
 import java.util.List;
 
 public class Utils {
@@ -79,4 +82,35 @@ public class Utils {
 		}
 		return false;
 	}
+
+	// Source https://glaforge.dev/posts/2024/01/08/url-slug-or-how-to-remove-accents-in-java/
+	public static String slugify( String str ) {
+		return Normalizer.normalize( str , Normalizer.Form.NFD)
+			.toLowerCase()									// "l'été, où es tu ?"
+			.replaceAll("\\p{IsM}+", "")	// "l'ete, ou es tu ?"
+			.replaceAll("\\p{IsP}+", " ")	// "l ete  ou es tu  "
+			.trim()											// "l ete  ou es tu"
+			.replaceAll("\\s+", "-");		// "l-ete-ou-es-tu"
+	}
+
+	public static File getCacheDirParent(
+		String cacheDirBase,
+		ReactApplicationContext context
+	) {
+		File cacheDirParent = null;
+		if (
+			cacheDirBase.startsWith( "/" )
+			&& cacheDirBase.length() > 1 	// first char is `/`, checks if it's empty after this.
+		) {
+			File cacheDirBaseFile = new File( cacheDirBase );
+			cacheDirParent = cacheDirBaseFile.exists() ? cacheDirBaseFile : null;
+		}
+		if ( null == cacheDirParent ) {
+			cacheDirParent = context.getCacheDir();
+		}
+		return null == cacheDirParent
+			? context.getCacheDir()
+			: cacheDirParent;
+	}
+
 }
