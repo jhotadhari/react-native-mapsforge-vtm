@@ -1,5 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.react.modules;
 
+import android.graphics.Color;
 import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
@@ -13,15 +14,19 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.HandleLayerZoomBounds;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
-import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.HillshadingTileSource;
 
+import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
+import org.mapsforge.map.android.hills.DemFolderAndroidContent;
+import org.mapsforge.map.layer.hills.DemFolder;
+import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
 import org.mapsforge.map.layer.hills.ShadingAlgorithm;
 import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.oscim.android.MapView;
-import org.oscim.android.cache.TileCache;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
+import org.oscim.tiling.source.hills.HillshadingTileSource;
+import org.oscim.android.cache.TileCache;
 
 import java.io.File;
 import java.util.HashMap;
@@ -92,6 +97,11 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			String dbname = "hillshading_" + shadingAlgorithmKey + "_" + String.valueOf( magnitude );
 			ShadingAlgorithm shadingAlgorithm;
 			switch ( shadingAlgorithmKey ) {
+
+
+				// ??? implement new algorithms
+
+
 				case "DiffuseLightShadingAlgorithm":
 					shadingAlgorithm = new DiffuseLightShadingAlgorithm( heightAngle.floatValue() );
 					dbname += "_" + String.valueOf( heightAngle );
@@ -102,13 +112,29 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 				}
 			}
 
-			HillshadingTileSource tileSource = new HillshadingTileSource(
-				getReactApplicationContext(),
-				hgtDirPath,
-				zoomMin,
-				zoomMax,
-				shadingAlgorithm,
-				(short) magnitude
+			DemFolder demFolder = null;
+			if ( hgtDirPath.startsWith( "content://" ) ) {
+				Uri uri = Uri.parse( hgtDirPath );
+				demFolder = new DemFolderAndroidContent( uri, getReactApplicationContext(), getReactApplicationContext().getContentResolver() );
+			} else if ( hgtDirPath.startsWith( "/" ) ) {
+				File demFolderFile = new File( hgtDirPath );
+				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+					demFolder = new DemFolderFS( demFolderFile );
+				}
+			}
+
+			if ( demFolder == null ) {
+				promise.reject( "Error", "Unable to find demFolder" ); return;
+			}
+
+			HillshadingTileSource hillshadingTileSource = new HillshadingTileSource(
+					zoomMin,
+					zoomMax,
+					demFolder,
+					shadingAlgorithm,
+					128,
+					Color.BLACK,
+					AndroidGraphicFactory.INSTANCE
 			);
 
 			if ( cacheSize > 0 ) {
@@ -121,17 +147,18 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 					dbname
 				);
 				mCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
-				tileSource.setCache( mCache );
+				hillshadingTileSource.setCache( mCache );
 			}
 
-			BitmapTileLayer layer = new BitmapTileLayer( mapView.map(), tileSource );
+			BitmapTileLayer layer = new BitmapTileLayer( mapView.map(), hillshadingTileSource );
 
 			mapView.map().layers().add(
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				layer
 			);
 
-			mapView.map().updateMap( true );
+			// Update map.
+			mapView.map().clearMap();
 
 			// Store layer
 			String uuid = UUID.randomUUID().toString();
@@ -142,7 +169,6 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			handleLayerZoomBoundss.put( uuid, handleLayerZoomBounds );
 			handleLayerZoomBounds.updateEnabled( layer, enabledZoomMin, enabledZoomMax, mapView.map().getMapPosition().getZoomLevel() );
 			handleLayerZoomBounds.updateUpdateListener( nativeNodeHandle, uuid, enabledZoomMin, enabledZoomMax );
-
 
 			// Resolve promise
 			responseParams.putString( "uuid", uuid );
