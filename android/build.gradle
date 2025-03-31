@@ -106,62 +106,62 @@ dependencies {
 	// savitzky–golay filter - smoothing data
 	implementation("io.vacco.savitzky-golay:savitzky-golay:1.0.1")
 
-	// mapsforge, only implement what is missing for hillshading https://github.com/mapsforge/mapsforge/blob/master/docs/Integration.md
-	implementation 'org.mapsforge:mapsforge-map-android:0.21.0'
-
 	// vtm https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
-	implementation 'com.github.mapsforge.vtm:vtm:0.22.0'
-	implementation 'com.github.mapsforge.vtm:vtm-themes:0.22.0'
-	implementation 'org.slf4j:slf4j-api:1.7.28'
+	implementation 'com.github.mapsforge.vtm:vtm:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'com.github.mapsforge.vtm:vtm-themes:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+//	implementation 'org.slf4j:slf4j-api:1.7.33'
 	implementation 'androidx.documentfile:documentfile:1.0.1'
+
 	// vtm Android
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-armeabi-v7a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-arm64-v8a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86_64'
-	implementation 'com.github.mapsforge.vtm:vtm-android:0.22.0'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-armeabi-v7a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-arm64-v8a'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-x86'
+	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-x86_64'
+	implementation 'com.github.mapsforge.vtm:vtm-android:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
 	implementation 'com.caverock:androidsvg:1.4'
-	// vtm Android (libGDX)
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-armeabi-v7a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-arm64-v8a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.22.0:natives-x86_64'
-	implementation 'com.github.mapsforge.vtm:vtm-android:0.22.0'
-	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.22.0'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-armeabi-v7a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-arm64-v8a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-x86'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0:natives-x86_64'
-	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.22.0'
-	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
-	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
+
+//	// vtm Android (libGDX)
+//	implementation 'com.github.mapsforge.vtm:vtm-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-armeabi-v7a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-arm64-v8a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-x86'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9:natives-x86_64'
+//	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+//	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
+//	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
+
 	// vtm JTS overlays
-	implementation 'com.github.mapsforge.vtm:vtm-jts:0.22.0'
-	// https://github.com/locationtech/jts/issues/145
-	implementation 'org.locationtech.jts:jts-core:1.15.1'
+	implementation 'com.github.mapsforge.vtm:vtm-jts:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'org.locationtech.jts:jts-core:1.20.0'
 	// vtm Online tiles
-	implementation 'com.github.mapsforge.vtm:vtm-http:0.22.0'
-	// https://github.com/square/okhttp/issues/4481
-	implementation 'com.squareup.okhttp3:okhttp:3.12.13'
-	implementation 'com.squareup.okio:okio:1.15.0'
+	implementation 'com.github.mapsforge.vtm:vtm-http:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+	implementation 'com.squareup.okio:okio:3.6.0'
 	// vtm MBTiles
-	implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.22.0'
-	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
-	implementation 'com.google.protobuf:protobuf-java:3.6.1'
-	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
+	implementation 'com.github.mapsforge.vtm:vtm-android-mvt:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'com.github.mapsforge.vtm:vtm-mvt:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'com.google.protobuf:protobuf-java:3.24.2'
+	implementation 'io.github.ci-cmg:mapbox-vector-tile:4.0.6'
+	// vtm Hillshading
+	implementation 'com.github.mapsforge.vtm:vtm-hillshading:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
+	implementation 'org.mapsforge:mapsforge-core:0.24.1'
+	implementation 'org.mapsforge:mapsforge-map:0.24.1'
+	implementation 'org.mapsforge:mapsforge-map-android:0.24.1'
+
+
 //	// vtm Mapbox vector tiles
-//	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.22.0'
+//	implementation 'com.github.mapsforge.vtm:vtm-mvt:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
 //	implementation 'com.google.protobuf:protobuf-java:3.6.1'
 //	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
 //	// https://github.com/locationtech/jts/issues/145
 //	implementation 'org.locationtech.jts:jts-core:1.15.1'
 //	// vtm GeoJSON vector tiles
-//	implementation 'com.github.mapsforge.vtm:vtm-json:0.22.0'
+//	implementation 'com.github.mapsforge.vtm:vtm-json:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
 //	implementation 'com.fasterxml.jackson.core:jackson-annotations:2.9.9'
 //	implementation 'com.fasterxml.jackson.core:jackson-core:2.9.9'
 //	implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
 //	// vtm jeo (indoor maps)
-//	implementation 'com.github.mapsforge.vtm:vtm-jeo:0.22.0'
+//	implementation 'com.github.mapsforge.vtm:vtm-jeo:ec8e884725e961c3a3c9f7401cafadae4a33f5c9'
 //	implementation('com.github.jeo.jeo:jeo-carto:master-SNAPSHOT') {
 //		exclude group: 'org.slf4j', module: 'slf4j-jdk14'
 //	}
