@@ -1,18 +1,3 @@
-/*
- * Copyright 2014 Ludwig M Brinckmann
- * Copyright 2015-2019 devemux86
- *
- * This program is free software: you can redistribute it and/or modify it under the
- * terms of the GNU Lesser General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
- */
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.net.Uri;
@@ -34,8 +19,8 @@ import com.jhotadhari.reactnative.mapsforge.vtm.HardwareKeyListener;
 import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-import com.jhotadhari.reactnative.mapsforge.vtm.tiling.source.hills.DemFolderSAF;
 
+import org.mapsforge.map.android.hills.DemFolderAndroidContent;
 import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.oscim.android.MapView;
@@ -85,7 +70,9 @@ public class MapFragment extends Fragment {
 	protected float propMinRoll;
 	protected float propMaxRoll;
 	protected String propHgtDirPath;
+	protected boolean propHgtInterpolation;
 	protected int propHgtReadFileRate;
+	protected int propHgtFileInfoPurgeThreshold;
 	protected ReadableMap propResponseInclude;
 	protected boolean propEmitsMapEvents;
 	protected List<String> propEmitsHardwareKeyUp;
@@ -137,7 +124,9 @@ public class MapFragment extends Fragment {
 		ReadableMap responseInclude,
 
 		int mapEventRate,
+		boolean hgtInterpolation,
 		int hgtReadFileRate,
+		int hgtFileInfoPurgeThreshold,
 		boolean emitsMapEvents,
 		List<String> emitsHardwareKeyUp
 	) {
@@ -176,7 +165,11 @@ public class MapFragment extends Fragment {
 		propHgtDirPath = hgtDirPath;
 
 		propResponseInclude = responseInclude;
+
+		propHgtInterpolation = hgtInterpolation;
 		propHgtReadFileRate = hgtReadFileRate;
+		propHgtFileInfoPurgeThreshold = hgtFileInfoPurgeThreshold;
+
 		propEmitsMapEvents = emitsMapEvents;
 		propEmitsHardwareKeyUp = emitsHardwareKeyUp;
     }
@@ -248,12 +241,17 @@ public class MapFragment extends Fragment {
 		rateLimiter = new FixedWindowRateLimiter( mapEventRate, 1 );
 	}
 
-	public void updateHgtReadFileRate( int hgtReadFileRate ) {
+	public void updateHgtReader( boolean hgtInterpolation, int hgtReadFileRate, int hgtFileInfoPurgeThreshold ) {
+		propHgtInterpolation = hgtInterpolation;
 		propHgtReadFileRate = hgtReadFileRate;
+		propHgtFileInfoPurgeThreshold = hgtFileInfoPurgeThreshold;
 		if ( null == hgtReader ) {
 			setHgtReader();
+		} else {
+			hgtReader.updateInterpolation( hgtInterpolation );
+			hgtReader.updateRateLimiterWindowSize( hgtReadFileRate );
+			hgtReader.updateHgtFileInfoPurgeThreshold( hgtFileInfoPurgeThreshold );
 		}
-		hgtReader.updateRateLimiterWindowSize( hgtReadFileRate );
 	}
 
 	protected void setHgtReader() {
@@ -265,7 +263,7 @@ public class MapFragment extends Fragment {
 				DocumentFile dir = DocumentFile.fromSingleUri( mapView.getContext(), uri );
 				if ( dir != null && dir.exists() && dir.isDirectory() ) {
 					if ( Utils.hasScopedStoragePermission( mapView.getContext(), propHgtDirPath, false ) ) {
-						demFolder = new DemFolderSAF( getContext(), propHgtDirPath );
+						demFolder = new DemFolderAndroidContent( uri, mapView.getContext(), mapView.getContext().getContentResolver() );
 					}
 				}
 			} else if ( propHgtDirPath.startsWith( "/" ) ) {
@@ -275,7 +273,12 @@ public class MapFragment extends Fragment {
 				}
 			}
 			if ( null != demFolder ) {
-				hgtReader = new HgtReader( demFolder, propHgtReadFileRate );
+				hgtReader = new HgtReader(
+					demFolder,
+					propHgtInterpolation,
+					propHgtReadFileRate,
+					propHgtFileInfoPurgeThreshold
+				);
 			}
 		}
 	}
@@ -392,7 +395,7 @@ public class MapFragment extends Fragment {
 			center.putDouble("lng", mapPosition.getLongitude());
 			center.putDouble("lat", mapPosition.getLatitude());
 			if ( null != hgtReader ) {
-				Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center );
+				Short altitude = hgtReader.getAltitudeAtPosition( (ReadableMap) center, true );
 				if ( null == altitude ) {
 					center.putNull("alt");
 				} else {

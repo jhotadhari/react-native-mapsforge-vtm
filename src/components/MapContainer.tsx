@@ -86,7 +86,9 @@ export type MapContainerProps = {
 	responseInclude?: ResponseInclude;
 	onError?: null | ( ( err: any ) => void );
 	mapEventRate?: number;
+	hgtInterpolation?: 1 | 0 | boolean;
 	hgtReadFileRate?: number;
+	hgtFileInfoPurgeThreshold?: number;
 	emitsMapEvents?: null | boolean;
 	emitsHardwareKeyUp?: null | HardwareKeyEventResponse['keyCodeString'][];
 };
@@ -145,7 +147,9 @@ const MapContainer = ( {
 	responseInclude = responseIncludeDefaults,
 	onError,
 	mapEventRate = 100,
-	hgtReadFileRate = 500,
+	hgtInterpolation,
+	hgtReadFileRate = 100,
+	hgtFileInfoPurgeThreshold = 3,
 	emitsMapEvents = null,
 	emitsHardwareKeyUp = null,
 } : MapContainerProps ) => {
@@ -164,6 +168,7 @@ const MapContainer = ( {
 	rotationEnabled = numOrBoolToNum( rotationEnabled, 1 );
 	zoomEnabled = numOrBoolToNum( zoomEnabled, 1 );
 	tiltEnabled = numOrBoolToNum( tiltEnabled, 1 );
+	hgtInterpolation = numOrBoolToNum( hgtInterpolation, 1 );
 
 	zoomLevel = isNumber( zoomLevel ) ? Math.round( zoomLevel ) : 12;
 	zoomMin = isNumber( zoomMin ) ? Math.round( zoomMin ) : 3;
@@ -332,18 +337,24 @@ const MapContainer = ( {
 	// mapEventRate
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setRate( nativeNodeHandle, 'mapEventRate', mapEventRate )
+			MapContainerModule.setEventRate( nativeNodeHandle, mapEventRate )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [mapEventRate] );
 
+	// hgtInterpolation
 	// hgtReadFileRate
+	// hgtFileInfoPurgeThreshold
 	useEffect( () => {
 		if ( mapLayersCreated && nativeNodeHandle ) {
-			MapContainerModule.setRate( nativeNodeHandle, 'hgtReadFileRate', hgtReadFileRate )
+			MapContainerModule.setHgtReader( nativeNodeHandle, hgtInterpolation, hgtReadFileRate, hgtFileInfoPurgeThreshold )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
-	}, [hgtReadFileRate] );
+	}, [
+		hgtInterpolation,
+		hgtReadFileRate,
+		hgtFileInfoPurgeThreshold,
+	] );
 
 	// emitsMapEvents
 	useEffect( () => {
@@ -475,7 +486,9 @@ const MapContainer = ( {
 			hgtDirPath={ hgtDirPath }
 			responseInclude={ responseInclude }
 			mapEventRate={ mapEventRate }
+			hgtInterpolation={ hgtInterpolation }
 			hgtReadFileRate={ hgtReadFileRate }
+			hgtFileInfoPurgeThreshold={ hgtFileInfoPurgeThreshold }
 			emitsMapEvents={ emitsMapEvents ? 1 : 0 }
 			emitsHardwareKeyUp={ emitsHardwareKeyUp }
 		/>
