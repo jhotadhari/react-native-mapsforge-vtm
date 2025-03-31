@@ -235,7 +235,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 					}
 				}
 			} );
-			mapView.map().updateMap();
+			mapView.map().clearMap();
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();

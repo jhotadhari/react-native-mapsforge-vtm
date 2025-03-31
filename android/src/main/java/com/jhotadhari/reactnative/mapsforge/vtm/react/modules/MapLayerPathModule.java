@@ -212,7 +212,7 @@ public class MapLayerPathModule extends MapLayerBase {
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				vectorLayer
 			);
-			mapView.map().updateMap(true);
+			mapView.map().clearMap();
 
 			// Resolve layer hash
 			responseParams.putString( "uuid", uuid );
@@ -321,7 +321,7 @@ public class MapLayerPathModule extends MapLayerBase {
 			// Replace old vectorLayer with new one on map.
 			mapView.map().layers().set( layerIndex, vectorLayerNew );
 			layers.put( uuid, vectorLayerNew );
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 
 			addStuffToResponse( uuid, responseInclude, 1, responseParams );
 

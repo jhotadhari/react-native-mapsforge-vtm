@@ -77,7 +77,7 @@ abstract public class MapLayerBase extends ReactContextBaseJavaModule {
 			layers.remove( uuid );
 
 			// Trigger map update.
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 
 			// Resolve uuid
 			promise.resolve( uuid );

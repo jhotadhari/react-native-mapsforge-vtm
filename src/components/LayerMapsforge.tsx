@@ -145,7 +145,7 @@ const LayerMapsforge = ( {
 
 	useEffect( () => {
 		if ( nativeNodeHandle && uuid ) {
-			Module.toogleLabels( nativeNodeHandle, uuid, hasLabels )
+			Module.toggleLabels( nativeNodeHandle, uuid, hasLabels )
 			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
 		}
 	}, [hasLabels] );
