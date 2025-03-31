@@ -8,9 +8,7 @@ export const BUILT_IN_THEMES = [
 	'DEFAULT',
 	'BIKER',
 	'MOTORIDER',
-	'MOTORIDER_DARK',
 	'NEWTRON',
-	'OSMAGRAY',
 	'OSMARENDER',
 	'TRONRENDER',
 ] as const;

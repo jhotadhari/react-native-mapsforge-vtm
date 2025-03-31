@@ -170,14 +170,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			case "MOTORIDER":
 				theme = mapView.map().setTheme( VtmThemes.MOTORIDER );
 				break;
-			case "MOTORIDER_DARK":
-				theme = mapView.map().setTheme( VtmThemes.MOTORIDER_DARK );
-				break;
 			case "NEWTRON":
 				theme = mapView.map().setTheme( VtmThemes.NEWTRON );
-				break;
-			case "OSMAGRAY":
-				theme = mapView.map().setTheme( VtmThemes.OSMAGRAY );
 				break;
 			case "OSMARENDER":
 				theme = mapView.map().setTheme( VtmThemes.OSMARENDER );
