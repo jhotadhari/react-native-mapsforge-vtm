@@ -17,11 +17,17 @@ import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
 
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.hills.DemFolderAndroidContent;
+import org.mapsforge.map.layer.hills.AClasyHillShading;
+import org.mapsforge.map.layer.hills.AdaptiveClasyHillShading;
 import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
+import org.mapsforge.map.layer.hills.HalfResClasyHillShading;
+import org.mapsforge.map.layer.hills.HiResClasyHillShading;
 import org.mapsforge.map.layer.hills.ShadingAlgorithm;
+import org.mapsforge.map.layer.hills.SimpleClasyHillShading;
 import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
+import org.mapsforge.map.layer.hills.StandardClasyHillShading;
 import org.oscim.android.MapView;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
@@ -44,6 +50,63 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
+
+	protected AClasyHillShading.ClasyParams getClasyParams( ReadableMap shadingAlgorithmOptions ) {
+		// maxSlope
+		double maxSlope = ( shadingAlgorithmOptions.hasKey( "maxSlope" )
+			? shadingAlgorithmOptions.getDouble( "maxSlope" )
+			: AClasyHillShading.MaxSlopeDefault
+		);
+		maxSlope = maxSlope > 0 && maxSlope < 100 ? maxSlope : AClasyHillShading.MaxSlopeDefault;
+		// minSlope
+		double minSlope = ( shadingAlgorithmOptions.hasKey( "minSlope" )
+			? shadingAlgorithmOptions.getDouble( "minSlope" )
+			: AClasyHillShading.MinSlopeDefault
+		);
+		minSlope = minSlope >= 0 && minSlope < 100 && minSlope < maxSlope ? minSlope : AClasyHillShading.MinSlopeDefault;
+		// asymmetryFactor
+		double asymmetryFactor = ( shadingAlgorithmOptions.hasKey( "asymmetryFactor" )
+			? shadingAlgorithmOptions.getDouble( "asymmetryFactor" )
+			: AClasyHillShading.AsymmetryFactorDefault
+		);
+		asymmetryFactor = asymmetryFactor >= 0 && asymmetryFactor <= 1 ? asymmetryFactor : AClasyHillShading.AsymmetryFactorDefault;
+		// readingThreadsCount
+		int readingThreadsCount = ( shadingAlgorithmOptions.hasKey( "readingThreadsCount" )
+			? shadingAlgorithmOptions.getInt( "readingThreadsCount" )
+			: AClasyHillShading.ReadingThreadsCountDefault
+		);
+		readingThreadsCount = readingThreadsCount > 0 ? readingThreadsCount : AClasyHillShading.ReadingThreadsCountDefault;
+		// computingThreadsCount
+		int computingThreadsCount = ( shadingAlgorithmOptions.hasKey( "computingThreadsCount" )
+			? shadingAlgorithmOptions.getInt( "computingThreadsCount" )
+			: AClasyHillShading.ComputingThreadsCountDefault
+		);
+		computingThreadsCount = computingThreadsCount >= 0 ? computingThreadsCount : AClasyHillShading.ComputingThreadsCountDefault;
+		// asymmetryFactor
+		boolean isPreprocess = ( shadingAlgorithmOptions.hasKey( "isPreprocess" )
+			? shadingAlgorithmOptions.getBoolean( "isPreprocess" )
+			: AClasyHillShading.IsPreprocessDefault
+		);
+		AClasyHillShading.ClasyParams clasyParams = new AClasyHillShading.ClasyParams();
+		clasyParams.setMaxSlope( maxSlope );
+		clasyParams.setMinSlope( minSlope );
+		clasyParams.setAsymmetryFactor( asymmetryFactor );
+		clasyParams.setReadingThreadsCount( readingThreadsCount );
+		clasyParams.setComputingThreadsCount( computingThreadsCount );
+		clasyParams.setPreprocess( isPreprocess );
+		return clasyParams;
+	}
+
+	protected String clasyParamsToString( AClasyHillShading.ClasyParams clasyParams ) {
+		return String.join( "_",
+			String.valueOf( clasyParams.getMaxSlope() ),
+			String.valueOf( clasyParams.getMinSlope() ),
+			String.valueOf( clasyParams.getAsymmetryFactor() ),
+			String.valueOf( clasyParams.getReadingThreadsCount() ),
+			String.valueOf( clasyParams.getComputingThreadsCount() ),
+			String.valueOf( clasyParams.isPreprocess() )
+		);
+	}
 
     @ReactMethod
     public void createLayer(
@@ -90,25 +153,56 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 				}
 			}
 
-			double linearity = shadingAlgorithmOptions.getDouble( "linearity" );
-			double scale = shadingAlgorithmOptions.getDouble( "scale" );
-			Double heightAngle = (Double) shadingAlgorithmOptions.getDouble( "heightAngle" );
-
 			String dbname = "hillshading_" + shadingAlgorithmKey + "_" + String.valueOf( magnitude );
 			ShadingAlgorithm shadingAlgorithm;
+			AClasyHillShading.ClasyParams clasyParams = getClasyParams( shadingAlgorithmOptions );
 			switch ( shadingAlgorithmKey ) {
-
-
-				// ??? implement new algorithms
-
-
+				case "StandardClasyHillShading":
+					shadingAlgorithm = new StandardClasyHillShading( clasyParams );
+					dbname += "_" + clasyParamsToString( clasyParams );
+					break;
+				case "SimpleClasyHillShading":
+					shadingAlgorithm = new SimpleClasyHillShading( clasyParams );
+					dbname += "_" + clasyParamsToString( clasyParams );
+					break;
+				case "HalfResClasyHillShading":
+					shadingAlgorithm = new HalfResClasyHillShading( clasyParams );
+					dbname += "_" + clasyParamsToString( clasyParams );
+					break;
+				case "HiResClasyHillShading":
+					shadingAlgorithm = new HiResClasyHillShading( clasyParams );
+					dbname += "_" + clasyParamsToString( clasyParams );
+					break;
+				case "AdaptiveClasyHillShading":
+					boolean isHqEnabled = ( shadingAlgorithmOptions.hasKey( "isHqEnabled" )
+						? shadingAlgorithmOptions.getBoolean( "isHqEnabled" )
+						: AdaptiveClasyHillShading.IsHqEnabledDefault
+					);
+					shadingAlgorithm = new AdaptiveClasyHillShading( clasyParams, isHqEnabled );
+					dbname += "_" + clasyParamsToString( clasyParams ) + "_" + String.valueOf( isHqEnabled );
+					break;
 				case "DiffuseLightShadingAlgorithm":
+					Double heightAngle = (Double) ( shadingAlgorithmOptions.hasKey( "heightAngle" )
+						? shadingAlgorithmOptions.getDouble( "heightAngle" )
+						: 50
+					);
 					shadingAlgorithm = new DiffuseLightShadingAlgorithm( heightAngle.floatValue() );
 					dbname += "_" + String.valueOf( heightAngle );
 					break;
-				default: {
+				case "SimpleShadingAlgorithm":
+					double linearity = ( shadingAlgorithmOptions.hasKey( "linearity" )
+						? shadingAlgorithmOptions.getDouble( "linearity" )
+						: 0.1
+					);
+					double scale = ( shadingAlgorithmOptions.hasKey( "scale" )
+						? shadingAlgorithmOptions.getDouble( "scale" )
+						: 0.666
+					);
 					shadingAlgorithm = new SimpleShadingAlgorithm( linearity, scale );
 					dbname += "_" + String.valueOf( linearity ) + "_" + String.valueOf( scale );
+					break;
+				default: {
+					promise.reject( "Error", "Unknown shading algorithm" ); return;
 				}
 			}
 
@@ -128,13 +222,13 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 			}
 
 			HillshadingTileSource hillshadingTileSource = new HillshadingTileSource(
-					zoomMin,
-					zoomMax,
-					demFolder,
-					shadingAlgorithm,
-					128,
-					Color.BLACK,
-					AndroidGraphicFactory.INSTANCE
+				zoomMin,
+				zoomMax,
+				demFolder,
+				shadingAlgorithm,
+				magnitude,
+				Color.BLACK,
+				AndroidGraphicFactory.INSTANCE
 			);
 
 			if ( cacheSize > 0 ) {
