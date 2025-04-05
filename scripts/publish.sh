@@ -154,6 +154,9 @@ if ! [[ $? == 0 ]]; then
     exit 1
 fi
 
+# publish to npm
+npm publish
+
 # checkout development, merge release-branch into development
 git checkout development
 git merge $release_branch --no-ff --commit --no-edit
