@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [0.7.0] - 2025-04-05
 This release contains love for elevation data <3
 
@@ -148,6 +150,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.7.0...HEAD
 [0.7.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.2...v0.5.3
