@@ -33,6 +33,7 @@ export type ShadingAlgorithmOptions = {
 	computingThreadsCount?: number;
 	isPreprocess?: boolean;
 	isHqEnabled?: boolean;
+	qualityScale?: number;
 };
 
 export type LayerHillshadingProps = {
@@ -75,7 +76,7 @@ const clasyParamsKeys = [
 ];
 
 const shadingAlgorithmsOptionKeys : { [value: string]: string[] } = {
-	CLASY_ADAPTIVE: [...clasyParamsKeys,'isHqEnabled'],
+	CLASY_ADAPTIVE: [...clasyParamsKeys,'isHqEnabled','qualityScale'],
 	CLASY_STANDARD: clasyParamsKeys,
 	CLASY_SIMPLE: clasyParamsKeys,
 	CLASY_HALF_RES: clasyParamsKeys,
@@ -95,6 +96,7 @@ const shadingAlgorithmOptionsDefaults : ShadingAlgorithmOptions = {
 	computingThreadsCount: -1,		// -1 and java fallback AvailableProcessors
 	isPreprocess: true,
 	isHqEnabled: true,
+	qualityScale: 1,
 };
 
 const LayerHillshading = ( {

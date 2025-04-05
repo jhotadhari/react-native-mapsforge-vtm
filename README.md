@@ -257,11 +257,11 @@ MIT
 
 - It's just a wrapper with limited features around [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). **All credits to mapsforge and vtm!!!**
 - Dependencies of [vtm](https://github.com/mapsforge/vtm):
-[AndroidSVG](https://bigbadaboom.github.io/androidsvg/),
-[Simple Logging Facade for Java](https://www.slf4j.org/),
-[OkHttp](https://square.github.io/okhttp/),
-[Okio](https://github.com/square/okio),
-[Protocol Buffers - Google's data interchange format](https://github.com/protocolbuffers/protobuf),
+[AndroidSVG](https://bigbadaboom.github.io/androidsvg/);
+[Simple Logging Facade for Java](https://www.slf4j.org/);
+[OkHttp](https://square.github.io/okhttp/);
+[Okio](https://github.com/square/okio);
+[Protocol Buffers - Google's data interchange format](https://github.com/protocolbuffers/protobuf);
 [MapBox Vector Tile - Java](https://github.com/wdtinc/mapbox-vector-tile-java)
 - [JTS Topology Suite](https://github.com/locationtech/jts)
 - To retrieve the elevation for certain coordinates, most code is copied from [mapsforge](https://github.com/mapsforge/mapsforge) and [JOSM-Elevation-Plugin by Harald Hetzner](https://github.com/hhtznr/JOSM-Elevation-Plugin) and [Java OpenStreetMap Editor - Plugins - ElevationProfile by Oliver Wieland](https://github.com/JOSM/josm-plugins/tree/master/ElevationProfile)

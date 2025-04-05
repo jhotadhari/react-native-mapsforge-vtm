@@ -51,7 +51,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 	// This constructor should not be called. It's just existing to overwrite the parent constructor.
 	public void createLayer( int nativeNodeHandle, int reactTreeIndex, Promise promise ) {}
 
-	protected AClasyHillShading.ClasyParams getClasyParams( ReadableMap shadingAlgorithmOptions ) {
+	protected static AClasyHillShading.ClasyParams getClasyParams( ReadableMap shadingAlgorithmOptions ) {
 		// maxSlope
 		double maxSlope = ( shadingAlgorithmOptions.hasKey( "maxSlope" )
 			? shadingAlgorithmOptions.getDouble( "maxSlope" )
@@ -97,14 +97,20 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 		return clasyParams;
 	}
 
-	protected String clasyParamsToString( AClasyHillShading.ClasyParams clasyParams ) {
+	public static String slugifyNumber( double number ) {
+		return String.valueOf( number )
+			.replace( '-', 'm' )
+			.replace( '.', 'd' );
+	}
+
+	protected static String clasyParamsToString( AClasyHillShading.ClasyParams clasyParams ) {
 		return String.join( "_",
-			String.valueOf( clasyParams.getMaxSlope() ),
-			String.valueOf( clasyParams.getMinSlope() ),
-			String.valueOf( clasyParams.getAsymmetryFactor() ),
-			String.valueOf( clasyParams.getReadingThreadsCount() ),
-			String.valueOf( clasyParams.getComputingThreadsCount() ),
-			String.valueOf( clasyParams.isPreprocess() )
+			slugifyNumber( clasyParams.getMaxSlope() ),
+			slugifyNumber( clasyParams.getMinSlope() ),
+			slugifyNumber( clasyParams.getAsymmetryFactor() ),
+			slugifyNumber( clasyParams.getReadingThreadsCount() ),
+			slugifyNumber( clasyParams.getComputingThreadsCount() ),
+			clasyParams.isPreprocess() ? "1" : "0"
 		);
 	}
 
@@ -178,8 +184,16 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 						? shadingAlgorithmOptions.getBoolean( "isHqEnabled" )
 						: AdaptiveClasyHillShading.IsHqEnabledDefault
 					);
-					shadingAlgorithm = new AdaptiveClasyHillShading( clasyParams, isHqEnabled );
-					dbname += "_" + clasyParamsToString( clasyParams ) + "_" + String.valueOf( isHqEnabled );
+					double qualityScale = ( shadingAlgorithmOptions.hasKey( "qualityScale" )
+						? shadingAlgorithmOptions.getDouble( "qualityScale" )
+						: 1
+					);
+					shadingAlgorithm = new AdaptiveClasyHillShading( clasyParams, isHqEnabled ).setCustomQualityScale( qualityScale );
+					dbname += "_" + String.join( "_",
+						clasyParamsToString( clasyParams ),
+						isHqEnabled ? "1" : "0",
+						slugifyNumber( qualityScale )
+					);
 					break;
 				case "DiffuseLightShadingAlgorithm":
 					Double heightAngle = (Double) ( shadingAlgorithmOptions.hasKey( "heightAngle" )
@@ -187,7 +201,7 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 						: 50
 					);
 					shadingAlgorithm = new DiffuseLightShadingAlgorithm( heightAngle.floatValue() );
-					dbname += "_" + String.valueOf( heightAngle );
+					dbname += "_" + slugifyNumber( heightAngle );
 					break;
 				case "SimpleShadingAlgorithm":
 					double linearity = ( shadingAlgorithmOptions.hasKey( "linearity" )
@@ -199,7 +213,10 @@ public class MapLayerHillshadingModule extends MapLayerBase {
 						: 0.666
 					);
 					shadingAlgorithm = new SimpleShadingAlgorithm( linearity, scale );
-					dbname += "_" + String.valueOf( linearity ) + "_" + String.valueOf( scale );
+					dbname += "_" + String.join( "_",
+						slugifyNumber( linearity ),
+						slugifyNumber( scale )
+					);
 					break;
 				default: {
 					promise.reject( "Error", "Unknown shading algorithm" ); return;
