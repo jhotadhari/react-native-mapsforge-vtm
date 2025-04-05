@@ -144,7 +144,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				vectorLayer
 			);
-			mapView.map().updateMap(true );
+			mapView.map().clearMap();
 
 			// Resolve promise
 			responseParams.putString( "uuid", uuid );
@@ -375,7 +375,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 			// Replace old vectorLayer with new one on map.
 			mapView.map().layers().set( layerIndex, vectorLayerNew );
 			layers.put( uuid, vectorLayerNew );
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 
 			// Maybe add coordinatesSimplified to response.
 			if ( responseInclude.hasKey( "coordinatesSimplified" ) && responseInclude.getInt( "coordinatesSimplified" ) > 1 ) {
@@ -445,7 +445,7 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 			// Replace old vectorLayer with new one on map.
 			mapView.map().layers().set( layerIndex, vectorLayerNew );
 			layers.put( uuid, vectorLayerNew );
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 
 			// Maybe add coordinatesSimplified to response.
 			if ( responseInclude.hasKey( "coordinatesSimplified" ) && responseInclude.getInt( "coordinatesSimplified" ) > 1 ) {

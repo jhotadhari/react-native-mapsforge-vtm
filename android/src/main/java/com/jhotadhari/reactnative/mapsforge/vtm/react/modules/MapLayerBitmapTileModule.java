@@ -96,7 +96,7 @@ public class MapLayerBitmapTileModule extends MapLayerBase {
 			);
 
 			// Trigger update map.
-			mapView.map().updateMap();
+			mapView.map().clearMap();
 
 			// Store layer
 			String uuid = UUID.randomUUID().toString();

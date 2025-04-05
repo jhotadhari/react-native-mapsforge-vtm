@@ -60,7 +60,8 @@ public class MapLayerScalebarModule extends MapLayerBase {
 				mapScaleBarLayer
 			);
 
-			// ??? bug, somehow need to trigger update map to show the scalebar.
+			// Update map.
+			mapView.map().clearMap();
 
 			// Store layer
 			String uuid = UUID.randomUUID().toString();

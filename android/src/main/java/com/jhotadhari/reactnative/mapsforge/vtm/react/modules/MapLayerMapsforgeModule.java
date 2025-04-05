@@ -170,14 +170,8 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			case "MOTORIDER":
 				theme = mapView.map().setTheme( VtmThemes.MOTORIDER );
 				break;
-			case "MOTORIDER_DARK":
-				theme = mapView.map().setTheme( VtmThemes.MOTORIDER_DARK );
-				break;
 			case "NEWTRON":
 				theme = mapView.map().setTheme( VtmThemes.NEWTRON );
-				break;
-			case "OSMAGRAY":
-				theme = mapView.map().setTheme( VtmThemes.OSMAGRAY );
 				break;
 			case "OSMARENDER":
 				theme = mapView.map().setTheme( VtmThemes.OSMARENDER );
@@ -361,7 +355,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 			);
 
 			// Trigger update map.
-			mapView.map().updateMap();
+			mapView.map().clearMap();
 
 			// Store layer
 			String uuid = UUID.randomUUID().toString();
@@ -429,7 +423,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				);
 			}
 			// Trigger map update.
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 			// Resolve uuid
 			promise.resolve( uuid );
 		} catch( Exception e ) {
@@ -439,7 +433,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 	}
 
 	@ReactMethod
-	public void toogleLabels(int nativeNodeHandle, String uuid, boolean hasLabels, Promise promise) {
+	public void toggleLabels(int nativeNodeHandle, String uuid, boolean hasLabels, Promise promise) {
 		try {
 			MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
@@ -485,7 +479,7 @@ public class MapLayerMapsforgeModule extends MapLayerBase {
 				);
 			}
 			// Trigger map update.
-			mapView.map().updateMap( true );
+			mapView.map().clearMap();
 			// Resolve uuid
 			promise.resolve( uuid );
         } catch( Exception e ) {

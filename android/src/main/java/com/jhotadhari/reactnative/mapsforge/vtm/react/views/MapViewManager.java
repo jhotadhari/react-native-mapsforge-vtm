@@ -1,4 +1,3 @@
-// replace with your package
 package com.jhotadhari.reactnative.mapsforge.vtm.react.views;
 
 import android.view.Choreographer;
@@ -60,7 +59,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 	private String propHgtDirPath;
 	private ReadableMap propResponseInclude;
 	private int propMapEventRate;
+	private boolean propHgtInterpolation;
 	private int propHgtReadFileRate;
+	private int propHgtFileInfoPurgeThreshold;
 	private boolean propEmitsMapEvents;
 	private List<String> propEmitsHardwareKeyUp;
 
@@ -157,8 +158,10 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		"rotationEnabled",
 		"zoomEnabled",
 		"tiltEnabled",
+		"emitsMapEvents",
+		"hgtInterpolation",
 	} )
-	public void setReactPropsInteractionsEnabled( FrameLayout view, int index, int value ) {	// boolean doesn't work, let's use int
+	public void setReactPropsBooleanInts( FrameLayout view, int index, int value ) {	// boolean doesn't work, let's use int
 
 		if ( index == 0 ) {
 			propMoveEnabled = value == 1;
@@ -172,15 +175,23 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		if ( index == 3 ) {
 			propTiltEnabled = value == 1;
 		}
+		if ( index == 4 ) {
+			propEmitsMapEvents = value == 1;
+		}
+		if ( index == 5 ) {
+			propHgtInterpolation = value == 1;
+		}
 	}
 
 	@ReactPropGroup( names = {
 		"zoomLevel",
 		"zoomMin",
 		"zoomMax",
+		"mapEventRate",
+		"hgtReadFileRate",
+		"hgtFileInfoPurgeThreshold",
 	} )
-	public void setReactPropsViewportPosInt( FrameLayout view, int index, int value ) {
-		// zoom
+	public void setReactPropsInts( FrameLayout view, int index, int value ) {
 		if ( index == 0 ) {
 			propZoomLevel = value;
 		}
@@ -189,6 +200,15 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		}
 		if ( index == 2 ) {
 			propZoomMax = value;
+		}
+		if ( index == 3 ) {
+			propMapEventRate = value;
+		}
+		if ( index == 4 ) {
+			propHgtReadFileRate = value;
+		}
+		if ( index == 5 ) {
+			propHgtFileInfoPurgeThreshold = value;
 		}
 	}
 
@@ -249,24 +269,6 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 		propResponseInclude = value;
 	}
 
-	@ReactPropGroup( names = {
-		"mapEventRate",
-		"hgtReadFileRate",
-	} )
-	public void setReactPropRate( FrameLayout view, int index, int value ) {
-		if ( index == 0 ) {
-			propMapEventRate = value;
-		}
-		if ( index == 1 ) {
-			propHgtReadFileRate = value;
-		}
-	}
-
-	@ReactProp( name="emitsMapEvents" )
-	public void setEmitsMapEvents( FrameLayout view, int value ) {		// boolean doesn't work, let's use int
-		propEmitsMapEvents = value == 1;
-	}
-
 	@ReactProp( name="emitsHardwareKeyUp" )
 	public void setEmitsHardwareKeyUp( FrameLayout view, ReadableArray value ) {
 		List<String> emitsHardwareKeyUp = new ArrayList<String>();
@@ -316,7 +318,9 @@ public class MapViewManager extends ViewGroupManager<FrameLayout> {
 			propResponseInclude,
 
 			propMapEventRate,
+			propHgtInterpolation,
 			propHgtReadFileRate,
+			propHgtFileInfoPurgeThreshold,
 			propEmitsMapEvents,
 			propEmitsHardwareKeyUp
 		);

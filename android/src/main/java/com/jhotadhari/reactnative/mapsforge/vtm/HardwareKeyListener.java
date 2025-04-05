@@ -6,7 +6,6 @@ import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
-import java.util.Collections;
 import java.util.List;
 
 public class HardwareKeyListener {

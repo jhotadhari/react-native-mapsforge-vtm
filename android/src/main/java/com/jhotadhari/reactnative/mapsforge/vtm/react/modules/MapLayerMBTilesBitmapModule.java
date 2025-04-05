@@ -145,7 +145,7 @@ public class MapLayerMBTilesBitmapModule extends MapLayerBase {
 			);
 
 			// Trigger update map.
-			mapView.map().updateMap();
+			mapView.map().clearMap();
 
 			// Store layer
 			layers.put( uuid, bitmapLayer );

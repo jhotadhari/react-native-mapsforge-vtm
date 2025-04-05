@@ -1,6 +1,6 @@
 {
   "name": "react-native-mapsforge-vtm",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "React Native components to build vector maps using Mapsforges fork of vtm. Offline rendering of OpenStreetMap data. Android only",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -41,7 +41,7 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build lib",
     "prepare": "bob build",
-    "publish": "bash ./scripts/publish.sh"
+    "release": "bash ./scripts/publish.sh"
   },
   "keywords": [
     "react-native",

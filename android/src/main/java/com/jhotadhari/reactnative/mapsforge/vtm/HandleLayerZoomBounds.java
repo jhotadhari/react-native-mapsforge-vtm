@@ -73,7 +73,7 @@ public class HandleLayerZoomBounds {
 		};
 		mapView.map().events.bind( updateListener );
 		updateEnabled( layer, enabledZoomMin, enabledZoomMax, mapView.map().viewport().getMaxZoomLevel() );
-		mapView.map().updateMap( true );
+		mapView.map().clearMap();
 		return null;
 	}
 

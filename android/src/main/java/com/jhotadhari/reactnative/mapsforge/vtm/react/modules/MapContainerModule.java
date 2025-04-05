@@ -235,7 +235,7 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 					}
 				}
 			} );
-			mapView.map().updateMap();
+			mapView.map().clearMap();
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();
@@ -274,20 +274,28 @@ public class MapContainerModule extends ReactContextBaseJavaModule {
 	}
 
 	@ReactMethod
-	public void setRate(int nativeNodeHandle, String key, int newRate, Promise promise ) {
+	public void setEventRate(int nativeNodeHandle, int newRate, Promise promise ) {
 		try {
 			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapFragment ) {
 				promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
-			switch( key ) {
-				case "mapEventRate":
-					mapFragment.updateRateLimiterRate( newRate );
-					break;
-				case "hgtReadFileRate":
-					mapFragment.updateHgtReadFileRate( newRate );
-					break;
+			mapFragment.updateRateLimiterRate( newRate );
+			promise.resolve( true );
+		} catch( Exception e ) {
+			e.printStackTrace();
+			promise.reject( "Error", e );
+		}
+	}
+
+	@ReactMethod
+	public void setHgtReader(int nativeNodeHandle, int hgtInterpolation, int hgtReadFileRate, int hgtFileInfoPurgeThreshold, Promise promise ) {
+		try {
+			MapFragment mapFragment = (MapFragment) Utils.getMapFragment( this.getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				promise.reject( "Error", "Unable to find mapFragment" ); return;
 			}
+			mapFragment.updateHgtReader( 1 == hgtInterpolation, hgtReadFileRate, hgtFileInfoPurgeThreshold );
 			promise.resolve( true );
 		} catch( Exception e ) {
 			e.printStackTrace();

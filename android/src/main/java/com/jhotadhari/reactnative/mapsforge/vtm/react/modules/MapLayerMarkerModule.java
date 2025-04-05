@@ -120,7 +120,7 @@ public class MapLayerMarkerModule extends MapLayerBase {
 				Math.min( mapView.map().layers().size(), (int) reactTreeIndex ),
 				markerLayer
 			);
-			mapView.map().updateMap(true);
+			mapView.map().clearMap();
 
 			// Resolve uuid
 			responseParams.putString( "uuid", uuid );
@@ -180,7 +180,7 @@ public class MapLayerMarkerModule extends MapLayerBase {
 		// Store marker
 		markers.put( uuid, markerItem );
 		// Update map.
-		mapView.map().updateMap( true );
+		mapView.map().clearMap();
 		// Resolve uuid
 		responseParams.putString( "uuid", uuid );
 		promise.resolve( responseParams );
@@ -455,7 +455,7 @@ public class MapLayerMarkerModule extends MapLayerBase {
 		// Remove marker from markers.
 		markers.remove( markerUuid );
 		// Update map.
-		mapView.map().updateMap( true );
+		mapView.map().clearMap();
 		// Resolve uuid
 		promise.resolve( markerUuid );
 	}

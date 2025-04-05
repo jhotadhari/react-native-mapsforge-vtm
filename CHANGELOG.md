@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2025-04-05
+This release contains love for elevation data <3
+
+### Added
+- All new *Clear Asymmetry* shading algorithms are implemented as options for `LayerHillshading` (thank you @Sublimis to create them and implement them to `mapsforge`, so I can use theme here):
+    - [`AdaptiveClasyHillShading`](https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/AdaptiveClasyHillShading.java)
+  	- [`StandardClasyHillShading`](https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/StandardClasyHillShading.java)
+  	- [`SimpleClasyHillShading`](https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/SimpleClasyHillShading.java)
+  	- [`HalfResClasyHillShading`](https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HalfResClasyHillShading.java)
+  	- [`HiResClasyHillShading`](https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HiResClasyHillShading.java)
+
+### Changed
+- Update dependencies; Update dependency `com.github.mapsforge.vtm` to version `0.25.0`.
+- The java side of the `LayerHillshading` component is entirely new. Now the component is using the new [`vtm-hillshading module`](https://github.com/mapsforge/vtm/pull/1189), implemented in `com.github.mapsforge.vtm` version `0.25.0`. Thank you @devemux86! It's much faster, stable and the generated tiles are more accurate.
+- Change the cache filename for `LayerHillshading`: Remove dots and dashes. That makes previous caches obsolete.
+- Add props to `MapContainer` component:
+  	- `hgtInterpolation` whether to interpolate elevation or not.
+  	- `hgtFileInfoPurgeThreshold` how many neighboring DEMs should be kept in memory.
+- Change `HgtReader` class (to retrieve altitude at certain coordinates):
+  	- Better performance. It's multithreaded now and loading new DEM (hgt) files into memory doesn't block the ui thread anymore.
+  	- Added support for interpolation. The code for interpolation is copied from [JOSM Elevation Plugin by Harald Hetzner](https://github.com/hhtznr/JOSM-Elevation-Plugin/tree/main), thank you @hhtznr!.
+  	- For now the `HgtReader` only supports DEMs with a resolution of 3 arc seconds. Instead of fixing this issue, I will wait that this feature will be implemented properly into mapsforge, see [#1621
+  ](https://github.com/mapsforge/mapsforge/issues/1621).
+
+### Removed
+- Remove built in themes `MOTORIDER_DARK` and `OSMAGRAY`. Because they are not existing anymore in latest version of `com.github.mapsforge.vtm`.
+
 ## [0.6.0] - 2025-03-26
 ### Added
 - New props for `LayerMapsforge`: `hasBuildings` and `hasLabels`.
@@ -121,6 +148,7 @@ Just updated README.md
 ## [0.0.1] - 2024-10-25
 First bumpy version
 
+[0.7.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.1...v0.5.2

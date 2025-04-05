@@ -14,12 +14,26 @@ import type { ResponseBase } from '../types';
 
 const Module = MapLayerHillshadingModule;
 
-export type ShadingAlgorithm = 'SimpleShadingAlgorithm' | 'DiffuseLightShadingAlgorithm';
+export type ShadingAlgorithm = 'SimpleShadingAlgorithm'
+	| 'DiffuseLightShadingAlgorithm'
+	| 'StandardClasyHillShading'
+	| 'SimpleClasyHillShading'
+	| 'HalfResClasyHillShading'
+	| 'HiResClasyHillShading'
+	| 'AdaptiveClasyHillShading';
 
 export type ShadingAlgorithmOptions = {
 	linearity?: number;
 	scale?: number;
 	heightAngle?: number;
+	maxSlope?: number;
+	minSlope?: number;
+	asymmetryFactor?: number;
+	readingThreadsCount?: number;
+	computingThreadsCount?: number;
+	isPreprocess?: boolean;
+	isHqEnabled?: boolean;
+	qualityScale?: number;
 };
 
 export type LayerHillshadingProps = {
@@ -43,14 +57,46 @@ export type LayerHillshadingProps = {
 };
 
 const shadingAlgorithms : { [value: string]: ShadingAlgorithm } = {
-	SIMPLE: 'SimpleShadingAlgorithm',
-	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',
+	CLASY_ADAPTIVE: 'AdaptiveClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/AdaptiveClasyHillShading.java
+	CLASY_STANDARD: 'StandardClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/StandardClasyHillShading.java
+	CLASY_SIMPLE: 'SimpleClasyHillShading',			// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/SimpleClasyHillShading.java
+	CLASY_HALF_RES: 'HalfResClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HalfResClasyHillShading.java
+	CLASY_HI_RES: 'HiResClasyHillShading',			// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HiResClasyHillShading.java
+	SIMPLE: 'SimpleShadingAlgorithm',				// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/SimpleShadingAlgorithm.java
+	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',	// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/DiffuseLightShadingAlgorithm.java
+};
+
+const clasyParamsKeys = [
+	'maxSlope',
+	'minSlope',
+	'asymmetryFactor',
+	'readingThreadsCount',
+	'computingThreadsCount',
+	'isPreprocess',
+];
+
+const shadingAlgorithmsOptionKeys : { [value: string]: string[] } = {
+	CLASY_ADAPTIVE: [...clasyParamsKeys,'isHqEnabled','qualityScale'],
+	CLASY_STANDARD: clasyParamsKeys,
+	CLASY_SIMPLE: clasyParamsKeys,
+	CLASY_HALF_RES: clasyParamsKeys,
+	CLASY_HI_RES: clasyParamsKeys,
+	SIMPLE: ['linearity','scale'],
+	DIFFUSE_LIGHT: ['heightAngle'],
 };
 
 const shadingAlgorithmOptionsDefaults : ShadingAlgorithmOptions = {
-	linearity: 0.1,		// SimpleShadingAlgorithm		// 1 or higher for linear grade, 0 or lower for a triple-applied sine of grade that gives high emphasis on changes in slope in near-flat areas, but reduces details within steep slopes (default 0.1).
-	scale: 0.666,		// SimpleShadingAlgorithm		// scales the input slopes, with lower values slopes will saturate later, but nuances closer to flat will suffer (default: 0.666)
-	heightAngle: 50,	// DiffuseLightShadingAlgorithm	// height angle of light source over ground (in degrees 0..90)
+	linearity: 0.1,					// 1 or higher for linear grade, 0 or lower for a triple-applied sine of grade that gives high emphasis on changes in slope in near-flat areas, but reduces details within steep slopes (default 0.1).
+	scale: 0.666,					// scales the input slopes, with lower values slopes will saturate later, but nuances closer to flat will suffer (default: 0.666)
+	heightAngle: 50,				// height angle of light source over ground (in degrees 0..90)
+	maxSlope: 80,
+	minSlope: 0,
+	asymmetryFactor: 0.5,
+	readingThreadsCount: -1,		// -1 and java fallback Math.max(1, AvailableProcessors);
+	computingThreadsCount: -1,		// -1 and java fallback AvailableProcessors
+	isPreprocess: true,
+	isHqEnabled: true,
+	qualityScale: 1,
 };
 
 const LayerHillshading = ( {
@@ -173,8 +219,13 @@ const LayerHillshading = ( {
 
 	return null;
 };
+
 LayerHillshading.isMapLayer = true;
 
 LayerHillshading.shadingAlgorithms = shadingAlgorithms;
+
+LayerHillshading.shadingAlgorithmsOptionKeys = shadingAlgorithmsOptionKeys;
+
+LayerHillshading.shadingAlgorithmOptionsDefaults = shadingAlgorithmOptionsDefaults;
 
 export default LayerHillshading;
