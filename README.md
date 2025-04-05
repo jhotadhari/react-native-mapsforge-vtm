@@ -12,7 +12,6 @@ Some things will change sometime soonish:
 - Changing the `LayerPathSlopeGradient` props, to be able to control the order of simplification and smoothing, and to apply those steps multiple times.
 - Changing the `LayerPathSlopeGradient` component to support gradients as well for speed, elevation or any kind of data.
 - Maybe merging the path components: `LayerPathSlopeGradient` and `LayerPath`.
-- Hillshading improvements.
 - Gesture events for `MapContainer`.
 - New components for geometry like polygons and circles.
 - New component `LayerGroup`.
