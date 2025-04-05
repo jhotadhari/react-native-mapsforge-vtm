@@ -68,7 +68,7 @@ fi
 
 # version should be specified as first arg.
 if [[ -z $1 ]]; then
-    echo "${T_RED}ERROR${T_RESET} No version specified. Run \`yarn run publish <version>\` (Just the version number. Without prepending \`v\`)"
+    echo "${T_RED}ERROR${T_RESET} No version specified. Run \`yarn run release <version>\` (Just the version number. Without prepending \`v\`)"
     exit 1
 fi
 
@@ -76,7 +76,7 @@ fi
 next_version=$1
 pat="^[0-9]+\.[0-9]+\.[0-9]+$"
 if ! [[ "$next_version" =~ $pat ]]; then
-    echo "${T_RED}ERROR${T_RESET} Version should be SemVer. Run \`yarn run publish <major>.<minor>.<patch>\`"
+    echo "${T_RED}ERROR${T_RESET} Version should be SemVer. Run \`yarn run release <major>.<minor>.<patch>\`"
     exit 1
 fi
 
