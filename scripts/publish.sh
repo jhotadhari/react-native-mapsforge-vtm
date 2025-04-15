@@ -48,13 +48,14 @@ if [[ -z $( ./node_modules/.bin/changelog ) ]]; then
 fi
 
 # CHANGELOG.md should have a Unreleased section.
-if [[ -z $( $grep '## \[Unreleased\]' CHANGELOG.md ) ]]; then
+if [[ -z $( $grep -P '## \[?Unreleased\]?' CHANGELOG.md ) ]]; then
     echo "${T_RED}ERROR${T_RESET} \`CHANGELOG.md\` should have a \`[Unreleased]\` section"
     exit 1
 fi
 
 # typeScript compile should not complain.
-if [[ ! -z $( yarn run tsc ) ]]; then
+yarn run tsc
+if ! [[ $? == 0 ]]; then
     echo "${T_RED}ERROR${T_RESET} Unable to publish. TypeScript compile complains errors. Fix them first!"
     exit 1
 fi
@@ -87,6 +88,9 @@ if ! [[ $? == 0 ]]; then
     exit 1
 fi
 newest_version=$( git tag -l --sort=-version:refname 'v*' | head -n 1 | $sed -r 's/v//g' )
+if ! [[ -z newest_version ]]; then
+    newest_version=$( node -p "require('./package.json').version" )
+fi
 verlte() {
     [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
 }
@@ -109,7 +113,6 @@ fi
 # bump package version, update CHANGELOG.md and commit changes.
 current_version=$( node -p "require('./package.json').version" )
 $sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" package.json
-current_version=$( node -p "require('./example/package.json').version" )
 $sed -i "0,/\"version\": \"${current_version}\"/{s/\"version\": \"${current_version}\"/\"version\": \"${next_version}\"/}" example/package.json
 ./node_modules/.bin/changelog --release "${next_version}"
 git add .
@@ -142,7 +145,14 @@ fi
 
 # add release description from changelog and publish the release.
 line_from=$(( $( awk "/## \[${next_version}\]/{ print NR; exit }" CHANGELOG.md ) + 1 ))
-line_to=$(( $( awk "/## \[${newest_version}\]/{ print NR; exit }" CHANGELOG.md ) - 1 ))
+line_to=$( awk "/## \[${newest_version}\]/{ print NR; exit }" CHANGELOG.md )
+if [[ -z $line_to ]]; then
+    line_to=$( awk "/...HEAD/{ print NR; exit }" CHANGELOG.md )
+fi
+if [[ -z $line_to ]]; then
+    line_to=$(( $( wc -l < CHANGELOG.md ) + 1 ))
+fi
+line_to=$(( $line_to - 1 ))
 if [[ -z $( gh release list | $grep "v${next_version}" ) ]]; then
     gh_command='create'
 else

@@ -64,7 +64,7 @@ We use a script to publish new versions. It handles common tasks like bumping ve
 To publish new versions, run the following:
 
 ```sh
-yarn run publish <version> && npm publish
+yarn run release <version>
 ```
 
 ### Scripts

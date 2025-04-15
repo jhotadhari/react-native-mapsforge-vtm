@@ -194,7 +194,7 @@ public class MapFragment extends Fragment {
 				cArg
             );
             Object value = meth.invoke(
-                 mapViewManager.getReactContext().getCurrentActivity(),
+			 	mapViewManager.getReactContext().getCurrentActivity(),
                 hardwareKeyListener
             );
             String uid = (String) value;
