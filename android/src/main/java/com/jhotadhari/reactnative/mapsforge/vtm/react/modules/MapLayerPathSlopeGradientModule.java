@@ -260,8 +260,8 @@ public class MapLayerPathSlopeGradientModule extends MapLayerPathModule {
 			// Init CoordPoint and add to coordinatesSimplified array.
 			coordinatesSimplified[i] = new CoordPoint(
 				i,
-				(double) jtsCoordinates[i].x,
 				(double) jtsCoordinates[i].y,
+				(double) jtsCoordinates[i].x,
 				(double) jtsCoordinates[i].z,
 				(double) accumulatedDistance,
 				jtsCoordinates[i].dateTime
