@@ -1,86 +1,72 @@
 /**
  * External dependencies
  */
-import {
-	useEffect,
-	useState,
-} from 'react';
-import {
-	NativeModules,
-	NativeEventEmitter,
-} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Internal dependencies
  */
-const { MapLayerMapsforgeModule } = NativeModules;
-import { BUILT_IN_THEMES } from '../constants';
+import LayerMapsforgeModule, {
+	type RenderStyleOption,
+} from '../NativeModules/NativeLayerMapsforge';
+import type { ErrorBase } from '../types';
+import reportNativeError from '../reportNativeError';
 
-export type XmlRenderTheme = {
-	value: string,
-	label: string,
-	default: undefined | boolean,
-	options: object,	// ???
-};
-
-export type RenderStyleOptionsCollection = {
-	[value: string]: XmlRenderTheme;
-};
-
-const useRenderStyleOptions = ( {
+/**
+ * Reads the selectable render styles (and their overlay sub-options) exposed by a render theme's
+ * <stylemenu>, e.g. to build a style/overlay picker UI for LayerMapsforge. Pure function of the
+ * theme file -- no nativeNodeHandle needed, since this isn't tied to any particular map instance.
+ * Native side caches by file path + last-modified and parses only the <stylemenu> block (see
+ * RenderThemeMenuLoader.java), not the whole theme, so calling this is cheap even on every render.
+ */
+const useRenderStyleOptions = ({
 	renderTheme,
-	nativeNodeHandle,
 	onError,
-} : {
-	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
-	nativeNodeHandle?: number | null,
-	onError?: null | ( ( err: any ) => void ),
-} ) : {
-	renderStyleDefaultId: string | null,
-	renderStyleOptions: XmlRenderTheme[],
+}: {
+	renderTheme?: string;
+	onError?: null | ((err: ErrorBase) => void);
+}): {
+	renderStyleDefaultId: string | null;
+	renderStyleOptions: RenderStyleOption[];
 } => {
+	const [renderStyleOptions, setRenderStyleOptions] = useState<
+		RenderStyleOption[]
+	>([]);
+	const [renderStyleDefaultId, setRenderStyleDefaultId] = useState<
+		string | null
+	>(null);
 
-	const [renderStyleOptions, setRenderStyleOptions] = useState<XmlRenderTheme[]>( [] );
+	// Guards against a stale in-flight response (for a renderTheme that's no longer current)
+	// clobbering state after a fast prop change -- requesting theme A then quickly switching to B
+	// should never let A's slower response land after B's and overwrite it.
+	const currentRenderThemeRef = useRef(renderTheme);
+	currentRenderThemeRef.current = renderTheme;
 
-	const [renderStyleDefaultId, setRenderStyleDefault] = useState<string | null>( null );
+	useEffect(() => {
+		setRenderStyleOptions([]);
+		setRenderStyleDefaultId(null);
 
-	useEffect( () => {
-		const eventEmitter = new NativeEventEmitter();
-		let eventListener = eventEmitter.addListener( 'RenderThemeParsed', ( result : {
-			nativeNodeHandle: number,
-			filePath: string,
-			collection: RenderStyleOptionsCollection,
-		} ) => {
-			if ( result && renderTheme === result.filePath ) {
-				setRenderStyleOptions( Object.values( result.collection ) );
-				if ( null == renderStyleDefaultId ) {
-					const defaultStyle : undefined | XmlRenderTheme = Object.values( result.collection ).find( ( obj : XmlRenderTheme ) : boolean => !! obj.default );
-					if ( undefined !== defaultStyle ) {
-						setRenderStyleDefault( defaultStyle.value );
-					}
-				}
-
-			}
-		} );
-		return () => {
-			eventListener.remove();
-		};
-	}, [nativeNodeHandle] );
-
-
-	// ??? should reset on prop change !!!
-
-	useEffect( () => {
-		if ( renderTheme ) {
-			MapLayerMapsforgeModule.getRenderThemeOptions( renderTheme ).then( ( collection : RenderStyleOptionsCollection ) => {
-				setRenderStyleOptions( Object.values( collection ) );
-				const defaultStyle = Object.values( collection ).find( obj => obj.default );
-				if ( undefined !== defaultStyle && !! defaultStyle ) {
-					setRenderStyleDefault( defaultStyle.value );
-				}
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+		if (!renderTheme) {
+			return;
 		}
-	}, [nativeNodeHandle, renderTheme] );
+
+		LayerMapsforgeModule.getRenderThemeOptions({ renderTheme })
+			.then((options) => {
+				if (currentRenderThemeRef.current !== renderTheme) {
+					return;
+				}
+				setRenderStyleOptions(options);
+				const defaultOption = options.find(
+					(option) => option.isDefault
+				);
+				setRenderStyleDefaultId(
+					defaultOption ? defaultOption.value : null
+				);
+			})
+			.catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
+	}, [renderTheme, onError]);
 
 	return {
 		renderStyleDefaultId,

@@ -11,7 +11,7 @@ public class FixedWindowRateLimiter {
 	int counter = 0;
 	// The right boundary of the window.
 	long windowBorder;
-	public FixedWindowRateLimiter(long windowSize, int maxRequestCount) {
+	public FixedWindowRateLimiter( long windowSize, int maxRequestCount) {
 		this.windowSize = windowSize;
 		this.maxRequestCount = maxRequestCount;
 		this.windowBorder = System.currentTimeMillis() + windowSize;

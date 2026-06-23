@@ -1,0 +1,29 @@
+# ignore all.
+*/**/*
+/*
+
+# include root ts js files.
+!/*.js
+!/*.ts
+
+# # include drizzle.
+# !/drizzle
+# !drizzle/**/*
+
+# include dir src.
+!/src
+!src/**/*
+
+# include dir src.
+!/example/
+example/*
+!/example/src/
+!example/src/**/*
+
+# include dir scripts.
+!/scripts
+!scripts/**/*
+
+# include dir transformer.
+!/transformer
+!transformer/**/*

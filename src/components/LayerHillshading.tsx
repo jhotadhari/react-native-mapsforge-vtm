@@ -1,69 +1,30 @@
 /**
  * External dependencies
  */
-import { useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
-import promiseQueue from '../promiseQueue';
-import { MapLayerHillshadingModule } from '../nativeMapModules';
-import { get } from 'lodash-es';
-import type { ResponseBase } from '../types';
+import LayerHillshadingModule, {
+	type LayerHillshadingProps,
+	type ShadingAlgorithm,
+	type ShadingAlgorithmOptions,
+} from '../NativeModules/NativeLayerHillshading';
+import type { ErrorBase } from '../types';
+import useLayerOrder from '../compose/useLayerOrder';
+import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
 
-const Module = MapLayerHillshadingModule;
-
-export type ShadingAlgorithm = 'SimpleShadingAlgorithm'
-	| 'DiffuseLightShadingAlgorithm'
-	| 'StandardClasyHillShading'
-	| 'SimpleClasyHillShading'
-	| 'HalfResClasyHillShading'
-	| 'HiResClasyHillShading'
-	| 'AdaptiveClasyHillShading';
-
-export type ShadingAlgorithmOptions = {
-	linearity?: number;
-	scale?: number;
-	heightAngle?: number;
-	maxSlope?: number;
-	minSlope?: number;
-	asymmetryFactor?: number;
-	readingThreadsCount?: number;
-	computingThreadsCount?: number;
-	isPreprocess?: boolean;
-	isHqEnabled?: boolean;
-	qualityScale?: number;
-};
-
-export type LayerHillshadingProps = {
-	nativeNodeHandle?: null | number;
-	reactTreeIndex?: number;
-	hgtDirPath?: `/${string}` | `content://${string}`;
-	zoomMin?: number;
-	zoomMax?: number;
-	enabledZoomMin?: number;
-	enabledZoomMax?: number;
-	shadingAlgorithm?: ShadingAlgorithm;
-	shadingAlgorithmOptions?: ShadingAlgorithmOptions;
-	magnitude?: number;
-	cacheSize?: number;
-	cacheDirBase?: `/${string}`;
-	cacheDirChild?: string;
-	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onCreate?: null | ( ( response: ResponseBase ) => void );
-	onChange?: null | ( ( response: ResponseBase ) => void );
-	onError?: null | ( ( err: any ) => void );
-};
-
-const shadingAlgorithms : { [value: string]: ShadingAlgorithm } = {
-	CLASY_ADAPTIVE: 'AdaptiveClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/AdaptiveClasyHillShading.java
-	CLASY_STANDARD: 'StandardClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/StandardClasyHillShading.java
-	CLASY_SIMPLE: 'SimpleClasyHillShading',			// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/SimpleClasyHillShading.java
-	CLASY_HALF_RES: 'HalfResClasyHillShading',		// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HalfResClasyHillShading.java
-	CLASY_HI_RES: 'HiResClasyHillShading',			// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/HiResClasyHillShading.java
-	SIMPLE: 'SimpleShadingAlgorithm',				// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/SimpleShadingAlgorithm.java
-	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',	// https://github.com/mapsforge/mapsforge/blob/master/mapsforge-map/src/main/java/org/mapsforge/map/layer/hills/DiffuseLightShadingAlgorithm.java
+export const shadingAlgorithms: { [value: string]: ShadingAlgorithm } = {
+	CLASY_ADAPTIVE: 'AdaptiveClasyHillShading',
+	CLASY_STANDARD: 'StandardClasyHillShading',
+	CLASY_SIMPLE: 'SimpleClasyHillShading',
+	CLASY_HALF_RES: 'HalfResClasyHillShading',
+	CLASY_HI_RES: 'HiResClasyHillShading',
+	SIMPLE: 'SimpleShadingAlgorithm',
+	DIFFUSE_LIGHT: 'DiffuseLightShadingAlgorithm',
 };
 
 const clasyParamsKeys = [
@@ -75,136 +36,160 @@ const clasyParamsKeys = [
 	'isPreprocess',
 ];
 
-const shadingAlgorithmsOptionKeys : { [value: string]: string[] } = {
-	CLASY_ADAPTIVE: [...clasyParamsKeys,'isHqEnabled','qualityScale'],
+export const shadingAlgorithmsOptionKeys: { [value: string]: string[] } = {
+	CLASY_ADAPTIVE: [
+		...clasyParamsKeys,
+		'isHqEnabled',
+		'qualityScale',
+	],
 	CLASY_STANDARD: clasyParamsKeys,
 	CLASY_SIMPLE: clasyParamsKeys,
 	CLASY_HALF_RES: clasyParamsKeys,
 	CLASY_HI_RES: clasyParamsKeys,
-	SIMPLE: ['linearity','scale'],
+	SIMPLE: ['linearity', 'scale'],
 	DIFFUSE_LIGHT: ['heightAngle'],
 };
 
-const shadingAlgorithmOptionsDefaults : ShadingAlgorithmOptions = {
-	linearity: 0.1,					// 1 or higher for linear grade, 0 or lower for a triple-applied sine of grade that gives high emphasis on changes in slope in near-flat areas, but reduces details within steep slopes (default 0.1).
-	scale: 0.666,					// scales the input slopes, with lower values slopes will saturate later, but nuances closer to flat will suffer (default: 0.666)
-	heightAngle: 50,				// height angle of light source over ground (in degrees 0..90)
+export const shadingAlgorithmOptionsDefaults: ShadingAlgorithmOptions = {
+	linearity: 0.1,
+	scale: 0.666,
+	heightAngle: 50,
 	maxSlope: 80,
 	minSlope: 0,
 	asymmetryFactor: 0.5,
-	readingThreadsCount: -1,		// -1 and java fallback Math.max(1, AvailableProcessors);
-	computingThreadsCount: -1,		// -1 and java fallback AvailableProcessors
+	readingThreadsCount: -1,
+	computingThreadsCount: -1,
 	isPreprocess: true,
 	isHqEnabled: true,
 	qualityScale: 1,
 };
 
-const LayerHillshading = ( {
-	nativeNodeHandle,
+const LayerHillshading = ({
 	hgtDirPath,
-	zoomMin = 6,
-	zoomMax = 20,
-    enabledZoomMin = 6,
-    enabledZoomMax = 20,
-	shadingAlgorithm = shadingAlgorithms.SIMPLE,
-	shadingAlgorithmOptions = shadingAlgorithmOptionsDefaults,
-	magnitude = 90,
-	cacheSize = 64,
-	cacheDirBase = '/',	// if `/`, will fallback to java getReactApplicationContext().getCacheDir();
-	cacheDirChild = '',	// if ``, will fallback to cache dbname;
-	reactTreeIndex,
+	zoomMin,
+	zoomMax,
+	enabledZoomMin,
+	enabledZoomMax,
+	shadingAlgorithm,
+	shadingAlgorithmOptions,
+	magnitude,
+	cacheSize,
+	cacheDirBase,
+	cacheDirChild,
 	onCreate,
 	onRemove,
 	onChange,
 	onError,
-} : LayerHillshadingProps ) => {
+}: LayerHillshadingProps) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	// @ts-ignore
-	const [random, setRandom] = useState<number>( 0 );
-	const [uuid, setUuid] = useRefState( null );
-	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
-
-	shadingAlgorithmOptions = { ...shadingAlgorithmOptionsDefaults, ...shadingAlgorithmOptions };
-	magnitude = Math.round( magnitude );
-	cacheSize = Math.round( cacheSize );
-
-	const createLayer = () => {
-		setUuid( false );
-		promiseQueue.enqueue( () => {
-			return Module.createLayer(
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle && !!hgtDirPath,
+		create: ({ triggerOnCreate, triggerOnChange }) => {
+			if (!nativeNodeHandle || !hgtDirPath) {
+				return Promise.reject<string>({
+					userInfo: {
+						errorMsg: 'Missing nativeNodeHandle or hgtDirPath',
+					},
+				} as ErrorBase);
+			}
+			return LayerHillshadingModule.createLayer({
 				nativeNodeHandle,
 				hgtDirPath,
-				Math.round( zoomMin ),
-				Math.round( zoomMax ),
-				Math.round( enabledZoomMin ),
-				Math.round( enabledZoomMax ),
-				shadingAlgorithm,
-				shadingAlgorithmOptions,
-				Math.round( magnitude ),
-				Math.round( cacheSize ),
-				cacheDirBase.trim(),
-				cacheDirChild.trim(),
-				reactTreeIndex
-			).then( ( response : ResponseBase ) => {
-				setUuid( response.uuid );
-				setRandom( Math.random() );
-				( null === triggerCreateNew
-					? ( onCreate ? onCreate( response ) : null )
-					: ( onChange ? onChange( response ) : null )
-				);
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		} );
-	};
-
-	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle ) {
-			createLayer();
-		}
-		return () => {
-			if ( uuid && nativeNodeHandle ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( ( removedUuid: string ) => {
-						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
+				...(zoomMin !== undefined && { zoomMin: Math.round(zoomMin) }),
+				...(zoomMax !== undefined && { zoomMax: Math.round(zoomMax) }),
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+				...(shadingAlgorithm && { shadingAlgorithm }),
+				...(shadingAlgorithmOptions && {
+					shadingAlgorithmOptions: {
+						...shadingAlgorithmOptionsDefaults,
+						...shadingAlgorithmOptions,
+					},
+				}),
+				...(magnitude !== undefined && {
+					magnitude: Math.round(magnitude),
+				}),
+				...(cacheSize !== undefined && {
+					cacheSize: Math.round(cacheSize),
+				}),
+				...(cacheDirBase && { cacheDirBase: cacheDirBase.trim() }),
+				...(cacheDirChild && { cacheDirChild: cacheDirChild.trim() }),
+			}).then((newUuid) => {
+				triggerOnCreate && onCreate
+					? onCreate({ nativeNodeHandle, uuid: newUuid })
+					: null;
+				triggerOnChange && onChange
+					? onChange({ nativeNodeHandle, uuid: newUuid })
+					: null;
+				return newUuid;
+			});
+		},
+		remove: (currentUuid, { triggerOnRemove }) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
 			}
-		};
-	}, [
-		nativeNodeHandle,
-		!! uuid,
-		triggerCreateNew,
-	] );
+			return LayerHillshadingModule.removeLayer({
+				nativeNodeHandle,
+				uuid: currentUuid,
+			})
+				.then((removedUuid) => {
+					triggerOnRemove && onRemove
+						? onRemove({ nativeNodeHandle, uuid: removedUuid })
+						: null;
+					return true;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
+
+	useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
-	useEffect( () => {
-		if ( nativeNodeHandle && uuid ) {
-			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
-			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+	useEffect(() => {
+		if (nativeNodeHandle && uuid) {
+			LayerHillshadingModule.updateEnabledZoomMinMax({
+				nativeNodeHandle,
+				uuid,
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
 		}
 	}, [
 		enabledZoomMin,
 		enabledZoomMax,
-	] );
+		nativeNodeHandle,
+		uuid,
+		onError,
+	]);
 
-	useEffect( () => {
-		if ( nativeNodeHandle ) {
-			if ( uuid ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( () => {
-						setUuid( null );
-						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
+	// There's no native "update in place" for these -- changing any of them requires tearing down
+	// and recreating the layer. triggerRemove resets uuid to null on success, which is what lets
+	// the hook's own mount logic re-trigger creation via triggerCreate below.
+	const shadingAlgorithmOptionsKey = JSON.stringify(shadingAlgorithmOptions);
+	useEffect(() => {
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
 			}
-		} else if ( uuid === null && hgtDirPath ) {
-			setTriggerCreateNew( Math.random() );
-		}
+		});
 	}, [
 		hgtDirPath,
 		zoomMin,
@@ -214,18 +199,18 @@ const LayerHillshading = ( {
 		cacheSize,
 		cacheDirBase,
 		cacheDirChild,
-		Object.keys( shadingAlgorithmOptions ).map( key => key + get( shadingAlgorithmOptions, key ) ).join( '' ),
-	] );
+		shadingAlgorithmOptionsKey,
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	return null;
 };
 
-LayerHillshading.isMapLayer = true;
-
+LayerHillshading.defaults = LayerHillshadingModule.getConstants();
 LayerHillshading.shadingAlgorithms = shadingAlgorithms;
-
 LayerHillshading.shadingAlgorithmsOptionKeys = shadingAlgorithmsOptionKeys;
-
-LayerHillshading.shadingAlgorithmOptionsDefaults = shadingAlgorithmOptionsDefaults;
+LayerHillshading.shadingAlgorithmOptionsDefaults =
+	shadingAlgorithmOptionsDefaults;
 
 export default LayerHillshading;

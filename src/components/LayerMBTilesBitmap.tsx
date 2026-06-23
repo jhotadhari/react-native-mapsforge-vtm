@@ -1,144 +1,149 @@
 /**
  * External dependencies
  */
-import { useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
-import promiseQueue from '../promiseQueue';
-import { MapLayerMBTilesBitmapModule } from '../nativeMapModules';
-import type { Bounds, Location, ResponseBase } from '../types';
+import LayerMBTilesBitmapModule, {
+	type LayerMBTilesBitmapProps,
+	type LayerMBTilesBitmapResponse,
+} from '../NativeModules/NativeLayerMBTilesBitmap';
+import type { ErrorBase } from '../types';
+import useLayerOrder from '../compose/useLayerOrder';
+import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
 
-const Module = MapLayerMBTilesBitmapModule;
-
-export interface LayerMBTilesBitmapResponse extends ResponseBase {
-	bounds?: Bounds;
-	enabledZoomMin?: number;
-	enabledZoomMax?: number;
-	supportedFormats?: string[];
-	attribution?: null | string;
-	version?: string;
-	format?: string;
-	description?: string;
-	center?: Location;
-};
-
-export type LayerMBTilesBitmapProps = {
-	nativeNodeHandle?: null | number;
-	reactTreeIndex?: number;
-	mapFile?: `/${string}`;
-	enabledZoomMin?: number;
-	enabledZoomMax?: number;
-	alpha?: number;
-	transparentColor?: `#${string}`;
-	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onCreate?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
-	onChange?: null | ( ( response: LayerMBTilesBitmapResponse ) => void );
-	onError?: null | ( ( err: any ) => void );
-};
-
-const LayerMBTilesBitmap = ( {
-	nativeNodeHandle,
-	reactTreeIndex,
-    mapFile,
-    enabledZoomMin = 1,
-    enabledZoomMax = 20,
-    alpha = 256,
-    transparentColor,
+const LayerMBTilesBitmap = ({
+	mapFile,
+	transparentColor,
+	alpha,
+	enabledZoomMin,
+	enabledZoomMax,
 	onCreate,
 	onRemove,
 	onChange,
 	onError,
-} : LayerMBTilesBitmapProps ) => {
+}: LayerMBTilesBitmapProps) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	// @ts-ignore
-	const [random, setRandom] = useState<number>( 0 );
-	const [uuid, setUuid] = useRefState( null );
-	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
-
-    alpha = Math.round( alpha );
-
-	const createLayer = () => {
-		setUuid( false );
-		promiseQueue.enqueue( () => {
-			return Module.createLayer(
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle && !!mapFile,
+		create: ({ triggerOnCreate, triggerOnChange }) => {
+			if (!nativeNodeHandle || !mapFile) {
+				return Promise.reject<string>({
+					userInfo: {
+						errorMsg: 'Missing nativeNodeHandle or mapFile',
+					},
+				} as ErrorBase);
+			}
+			return LayerMBTilesBitmapModule.createLayer({
 				nativeNodeHandle,
 				mapFile,
-				Math.round( enabledZoomMin ),
-				Math.round( enabledZoomMax ),
-				alpha,
-				transparentColor,
-				reactTreeIndex
-			).then( ( response: LayerMBTilesBitmapResponse ) => {
-				setUuid( response.uuid );
-				setRandom( Math.random() );
-				( null === triggerCreateNew
-					? ( onCreate ? onCreate( response ) : null )
-					: ( onChange ? onChange( response ) : null )
-				);
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		} );
-	};
-
-	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle && mapFile ) {
-			createLayer();
-		}
-		return () => {
-			if ( uuid && nativeNodeHandle ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( ( removedUuid : string ) => {
-						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
+				...(transparentColor && { transparentColor }),
+				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
+				...(enabledZoomMin && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).then((response: LayerMBTilesBitmapResponse) => {
+				triggerOnCreate && onCreate ? onCreate(response) : null;
+				triggerOnChange && onChange ? onChange(response) : null;
+				return response.uuid;
+			});
+		},
+		remove: (currentUuid, { triggerOnRemove }) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
 			}
-		};
-	}, [
-		nativeNodeHandle,
-		!! uuid,
-		triggerCreateNew,
-	] );
+			return LayerMBTilesBitmapModule.removeLayer({
+				nativeNodeHandle,
+				uuid: currentUuid,
+			})
+				.then((removedUuid) => {
+					triggerOnRemove && onRemove
+						? onRemove({ nativeNodeHandle, uuid: removedUuid })
+						: null;
+					return true;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
+
+	useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
-	useEffect( () => {
-		if ( nativeNodeHandle && uuid ) {
-			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
-			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+	useEffect(() => {
+		if (nativeNodeHandle && uuid) {
+			LayerMBTilesBitmapModule.updateEnabledZoomMinMax({
+				nativeNodeHandle,
+				uuid,
+				...(enabledZoomMin && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
 		}
 	}, [
 		enabledZoomMin,
 		enabledZoomMax,
-	] );
+		nativeNodeHandle,
+		uuid,
+		onError,
+	]);
 
-	useEffect( () => {
-		if ( nativeNodeHandle ) {
-			if ( uuid ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( () => {
-						setUuid( null );
-						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
-			} else if ( uuid === null && mapFile ) {
-				setTriggerCreateNew( Math.random() );
-			}
+	useEffect(() => {
+		if (nativeNodeHandle && uuid) {
+			LayerMBTilesBitmapModule.setAlpha({
+				nativeNodeHandle,
+				uuid,
+				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
+			}).catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
 		}
 	}, [
-		mapFile,
 		alpha,
+		nativeNodeHandle,
+		uuid,
+		onError,
+	]);
+
+	// There's no native "update in place" for these -- changing any of them requires tearing down
+	// and recreating the layer (mapFile/transparentColor are baked into the tile source at
+	// construction time). triggerRemove resets uuid to null on success, which is what lets the
+	// hook's own mount logic re-trigger creation via triggerCreate below.
+	useEffect(() => {
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
+	}, [
+		mapFile,
 		transparentColor,
-	] );
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	return null;
 };
-LayerMBTilesBitmap.isMapLayer = true;
+
+LayerMBTilesBitmap.defaults = LayerMBTilesBitmapModule.getConstants();
 
 export default LayerMBTilesBitmap;

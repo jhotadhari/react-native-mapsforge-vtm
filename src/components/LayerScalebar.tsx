@@ -1,75 +1,65 @@
 /**
  * External dependencies
  */
-import { useEffect, useState } from 'react';
+import { useContext } from 'react';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
-import promiseQueue from '../promiseQueue';
-import { MapLayerScalebarModule } from '../nativeMapModules';
-import type { ResponseBase } from '../types';
+import LayerScalebarModule, {
+	type LayerScalebarProps,
+} from '../NativeModules/NativeLayerScalebar';
+import type { ErrorBase } from '../types';
+import useLayerOrder from '../compose/useLayerOrder';
+import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
 
-const Module = MapLayerScalebarModule;
+const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-export type LayerScalebarProps = {
-	nativeNodeHandle?: null | number;
-	reactTreeIndex?: number;
-	onCreate?: null | ( ( response: ResponseBase ) => void );
-	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onError?: null | ( ( err: any ) => void );
-};
-
-const LayerScalebar = ( {
-	nativeNodeHandle = null,
-	reactTreeIndex,
-	onCreate,
-	onRemove,
-	onError,
-} : LayerScalebarProps ) => {
-
-	// @ts-ignore
-	const [random, setRandom] = useState<number>( 0 );
-	const [uuid, setUuid] = useRefState( null );
-
-	const createLayer = () => {
-		setUuid( false );
-		promiseQueue.enqueue( () => {
-			return Module.createLayer(
-				nativeNodeHandle,
-				reactTreeIndex
-			).then( ( response: ResponseBase ) => {
-				setUuid( response.uuid );
-				setRandom( Math.random() );
-				onCreate ? onCreate( response ) : null;
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		} );
-	};
-
-	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle ) {
-			createLayer();
-		}
-		return () => {
-			if ( uuid && nativeNodeHandle ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( ( removedUuid: string ) => {
-						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
+	const { uuid } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle,
+		create: ({ triggerOnCreate }) => {
+			if (!nativeNodeHandle) {
+				return Promise.reject<string>({
+					userInfo: { errorMsg: 'Missing nativeNodeHandle' },
+				} as ErrorBase);
 			}
-		};
-	}, [
-		nativeNodeHandle,
-		!! uuid,
-	] );
+			return LayerScalebarModule.createLayer({
+				nativeNodeHandle,
+			}).then((newUuid) => {
+				triggerOnCreate && onCreate
+					? onCreate({ nativeNodeHandle, uuid: newUuid })
+					: null;
+				return newUuid;
+			});
+		},
+		remove: (currentUuid, { triggerOnRemove }) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
+			}
+			return LayerScalebarModule.removeLayer({
+				nativeNodeHandle,
+				uuid: currentUuid,
+			})
+				.then((removedUuid) => {
+					triggerOnRemove && onRemove
+						? onRemove({ nativeNodeHandle, uuid: removedUuid })
+						: null;
+					return true;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
+
+	useLayerOrder(uuid);
 
 	return null;
 };
-LayerScalebar.isMapLayer = true;
 
 export default LayerScalebar;

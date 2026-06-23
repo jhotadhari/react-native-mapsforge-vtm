@@ -1,129 +1,181 @@
 /**
  * External dependencies
  */
-import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef } from 'react';
+import type { EventSubscription } from 'react-native';
+import { omit, pick } from 'lodash-es';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
-import promiseQueue from '../promiseQueue';
-import { MapLayerMarkerModule } from '../nativeMapModules';
-import type { MarkerSymbol, ResponseBase } from '../types';
+import LayerMarkerModule, {
+	type LayerMarkerProps,
+	type TriggerParams,
+} from '../NativeModules/NativeLayerMarker';
 
-const Module = MapLayerMarkerModule;
+import type { ErrorBase, EventError } from '../types';
+import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
+import useLayerOrder from '../compose/useLayerOrder';
+import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
+import MarkerLayerContext from '../context/MarkerLayerContext';
 
-export type LayerMarkerProps = {
-	children?: React.ReactNode;
-	nativeNodeHandle?: null | number;
-	reactTreeIndex?: number;
-    symbol?: null | MarkerSymbol;
-	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onCreate?: null | ( ( response: ResponseBase ) => void );
-	onChange?: null | ( ( response: ResponseBase ) => void );
-	onError?: null | ( ( err: any ) => void );
-};
+const defaultsTrigger = pick(LayerMarkerModule.getConstants(), ['strategy']);
 
-const LayerMarker = ( {
+const LayerMarker = ({
 	children,
-	nativeNodeHandle,
-	symbol = null,
-	reactTreeIndex,
+	symbol,
 	onCreate,
 	onRemove,
 	onChange,
 	onError,
-} : LayerMarkerProps ) => {
+	onMarkerEvent,
+	onMarkerPress,
+	onMarkerLongPress,
+	onMarkerTrigger,
+	triggerEvent,
+}: LayerMarkerProps) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	// @ts-ignore
-	const [random, setRandom] = useState<number>( 0 );
-	const [uuid, setUuid] = useRefState( null );
-	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
+	const errorSubscription = useRef<null | EventSubscription>(null);
 
-	const createLayer = () => {
-		setUuid( false );
-		promiseQueue.enqueue( () => {
-			return Module.createLayer(
-				nativeNodeHandle,
-				symbol,
-				reactTreeIndex
-			).then( ( response: ResponseBase ) => {
-				setUuid( response.uuid );
-				setRandom( Math.random() );
-				( null === triggerCreateNew
-					? ( onCreate ? onCreate( response ) : null )
-					: ( onChange ? onChange( response ) : null )
-				);
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		} );
-	};
-
-	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle ) {
-			createLayer();
-		}
+	useEffect(() => {
+		errorSubscription.current = LayerMarkerModule.onError(
+			(error?: EventError) => {
+				console.log('debug error', error); // debug ???
+			}
+		);
 		return () => {
-			if ( uuid && nativeNodeHandle ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( ( removedUuid : string ) => {
-						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
+			errorSubscription.current?.remove();
+			errorSubscription.current = null;
+		};
+	}, []);
+
+	const { uuid } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle,
+		create: ({ triggerOnCreate, triggerOnChange }) => {
+			if (!nativeNodeHandle) {
+				return Promise.reject<string>({
+					userInfo: { errorMsg: 'Missing nativeNodeHandle' },
+				} as ErrorBase);
+			}
+			return LayerMarkerModule.createLayer({
+				nativeNodeHandle,
+				...(symbol && { symbol }),
+			}).then((newUuid) => {
+				triggerOnCreate && onCreate
+					? onCreate({ nativeNodeHandle, uuid: newUuid })
+					: null;
+				triggerOnChange && onChange
+					? onChange({ nativeNodeHandle, uuid: newUuid })
+					: null;
+				return newUuid;
+			});
+		},
+		remove: (currentUuid, { triggerOnRemove }) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
+			}
+			return LayerMarkerModule.removeLayer({
+				nativeNodeHandle,
+				uuid: currentUuid,
+			})
+				.then((removedUuid) => {
+					triggerOnRemove && onRemove
+						? onRemove({ nativeNodeHandle, uuid: removedUuid })
+						: null;
+					return true;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
+
+	useLayerOrder(uuid);
+
+	useEffect(() => {
+		const remove = () => {
+			if (triggerEvent) {
+				triggerEvent.current = null;
 			}
 		};
-	}, [
-		nativeNodeHandle,
-		!! uuid,
-		triggerCreateNew,
-	] );
-
-	useEffect( () => {
-		if ( nativeNodeHandle ) {
-			if ( uuid ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( () => {
-						setUuid( null );
-						setTriggerCreateNew( Math.random() );
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} );
-			} else if ( uuid === null ) {
-				setTriggerCreateNew( Math.random() );
+		if (uuid) {
+			if (triggerEvent) {
+				triggerEvent.current = (params: TriggerParams) => {
+					LayerMarkerModule.triggerEvent({
+						...(nativeNodeHandle && { nativeNodeHandle }),
+						markerLayerUuid: uuid,
+						...defaultsTrigger,
+						...params,
+					});
+				};
 			}
+		} else {
+			remove();
+		}
+		return remove;
+	}, [
+		uuid,
+		triggerEvent,
+		nativeNodeHandle,
+	]);
+
+	useMarkerEventSubscription({
+		onEvent: onMarkerEvent,
+		onPress: onMarkerPress,
+		onLongPress: onMarkerLongPress,
+		onTrigger: onMarkerTrigger,
+	});
+
+	// Update the layer's default marker symbol in place when it changes,
+	// instead of tearing down and recreating the layer (which would also
+	// orphan any markers already created under it).
+	useEffect(() => {
+		if (uuid && nativeNodeHandle) {
+			LayerMarkerModule.updateLayer({
+				nativeNodeHandle,
+				uuid,
+				...(symbol && { symbol }),
+			})
+				.then((updatedUuid: string) => {
+					onChange
+						? onChange({ nativeNodeHandle, uuid: updatedUuid })
+						: null;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+				});
 		}
 	}, [
-		symbol ? Object.values( symbol ).join( '' ) : null,
-	] );
+		uuid,
+		nativeNodeHandle,
+		symbol,
+		onChange,
+		onError,
+	]);
 
-    if ( ! uuid ) {
-        return null;
-    }
+	if (!uuid) {
+		return null;
+	}
 
-	const wrapChildren = ( children: React.ReactNode ): null | React.ReactNode => ! children ? null : Children.map( children, child => {
-		let newChild = child;
-		if ( ! isValidElement<{ children?: React.ReactNode }>( child )) {
-			return newChild
-		}
-		newChild = cloneElement(
-			child,
-			{
-				...( { layerUuid: uuid } ),
-				...( child?.props?.children && { children: wrapChildren( child.props.children ) } ),
-			},
-		);
-		return newChild;
-	} );
-
-	const wrappedChildren = wrapChildren( children );
-
-    return wrappedChildren;
-
+	return (
+		<MarkerLayerContext.Provider value={{ markerLayerUuid: uuid }}>
+			{children}
+		</MarkerLayerContext.Provider>
+	);
 };
-LayerMarker.isMapLayer = true;
+
+LayerMarker.defaults = omit(LayerMarkerModule.getConstants(), [
+	'title',
+	'description',
+	'position',
+	'strategy',
+]);
+
+LayerMarker.defaultsTrigger = defaultsTrigger;
 
 export default LayerMarker;

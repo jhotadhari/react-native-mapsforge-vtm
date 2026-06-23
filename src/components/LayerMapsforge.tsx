@@ -1,195 +1,266 @@
 /**
  * External dependencies
  */
-import { useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
  */
-import useRefState from '../compose/useRefState';
-import promiseQueue from '../promiseQueue';
-import usePrevious from '../compose/usePrevious';
-import useRenderStyleOptions from '../compose/useRenderStyleOptions';
-import { MapLayerMapsforgeModule } from '../nativeMapModules';
-import { BUILT_IN_THEMES } from '../constants';
-import type {
-	Bounds,
-	Location,
-	ResponseBase
-} from '../types';
+import LayerMapsforgeModule, {
+	BUILT_IN_THEMES,
+	type LayerMapsforgeProps,
+	type LayerMapsforgeResponse,
+} from '../NativeModules/NativeLayerMapsforge';
+import type { ErrorBase, ResponseBase } from '../types';
+import useLayerOrder from '../compose/useLayerOrder';
+import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
 
-const Module = MapLayerMapsforgeModule;
-
-export interface LayerMapsforgeResponse extends ResponseBase {
-	bounds?: Bounds;
-	center?: Location;
-	createdBy?: string;
-	projectionName?: string;
-	comment?: string;
-	fileSize?: string;
-	fileVersion?: number;
-	mapDate?: string;
-};
-
-export type LayerMapsforgeProps = {
-	nativeNodeHandle?: null | number;
-	reactTreeIndex?: number;
-	mapFile?: `/${string}` | `content://${string}`;
-	renderTheme?: `/${string}` | typeof BUILT_IN_THEMES[number];
-	renderStyle?: string;
-	renderOverlays?: string[];
-	hasBuildings?: boolean;
-	hasLabels?: boolean;
+/**
+ * Buildings and labels each get their own real native layer (and uuid), registered via
+ * useLayerOrder alongside the main tile layer rather than bundled into one
+ * org.oscim.layers.GroupLayer (see CLAUDE.md). Calling useLayerOrder for all three -- main, then
+ * buildings, then labels, in that fixed order every render -- keeps them contiguous in the shared
+ * ordering registry the same way any other set of sibling layers would be. This internal component
+ * isn't part of the public API; LayerMapsforge below renders it conditionally as a child for
+ * whichever of hasBuildings/hasLabels is on, so mounting/unmounting alone drives create/remove.
+ */
+const LayerMapsforgeSubLayer = ({
+	parentUuid,
+	enabledZoomMin,
+	enabledZoomMax,
+	onError,
+	createSubLayer,
+	removeSubLayer,
+}: {
+	parentUuid: string;
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
-	onRemove?: null | ( ( response: ResponseBase ) => void );
-	onCreate?: null | ( ( response: LayerMapsforgeResponse ) => void );
-	onChange?: null | ( ( response: LayerMapsforgeResponse ) => void );
-	onError?: null | ( ( err: any ) => void );
-};
+	onError?: null | ((err: ErrorBase) => void);
+	createSubLayer: (params: {
+		nativeNodeHandle: number;
+		parentUuid: string;
+		enabledZoomMin?: number;
+		enabledZoomMax?: number;
+	}) => Promise<string>;
+	removeSubLayer: (params: {
+		nativeNodeHandle: number;
+		uuid: string;
+	}) => Promise<string>;
+}) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-const LayerMapsforge = ( {
-	nativeNodeHandle,
-	reactTreeIndex,
-	mapFile,
-	renderTheme = 'DEFAULT',
-	renderStyle = '',
-	renderOverlays = [],
-	hasBuildings = true,
-	hasLabels = true,
-    enabledZoomMin = 1,
-    enabledZoomMax = 30,
-	onCreate,
-	onRemove,
-	onChange,
-	onError,
-} : LayerMapsforgeProps ) => {
-
-	const renderStylePrev = usePrevious( renderStyle );
-
-	// @ts-ignore
-	const [random, setRandom] = useState<number>( 0 );
-	const [uuid, setUuid] = useRefState( null );
-	const [triggerCreateNew, setTriggerCreateNew] = useState<null | number>( null );
-
-	const { renderStyleDefaultId } = useRenderStyleOptions( ( {
-		renderTheme,
-		nativeNodeHandle: nativeNodeHandle,
-		onError,
-	} ) );
-
-	const createLayer = () => {
-		setUuid( false );
-		promiseQueue.enqueue( () => {
-			return Module.createLayer(
-				nativeNodeHandle,
-				mapFile,
-				renderTheme,
-				renderStyle,
-				renderOverlays,
-				!! hasBuildings,
-				!! hasLabels,
-				Math.round( enabledZoomMin ),
-				Math.round( enabledZoomMax ),
-				reactTreeIndex
-			).then( ( response : LayerMapsforgeResponse ) => {
-				setUuid( response.uuid );
-				setRandom( Math.random() );
-				( null === triggerCreateNew
-					? ( onCreate ? onCreate( response ) : null )
-					: ( onChange ? onChange( response ) : null )
-				);
-			} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		} );
-	};
-
-	useEffect( () => {
-		if ( uuid === null && nativeNodeHandle && mapFile ) {
-			createLayer();
-		}
-		return () => {
-			if ( uuid && nativeNodeHandle ) {
-				promiseQueue.enqueue( () => {
-					return Module.removeLayer(
-						nativeNodeHandle,
-						uuid
-					).then( ( removedUuid: string ) => {
-						onRemove ? onRemove( { uuid: removedUuid } ) : null;
-					} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-				} )
+	const { uuid } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle,
+		create: () => {
+			if (!nativeNodeHandle) {
+				return Promise.reject<string>({
+					userInfo: { errorMsg: 'Missing nativeNodeHandle' },
+				} as ErrorBase);
 			}
-		};
-	}, [
-		nativeNodeHandle,
-		!! uuid,
-		triggerCreateNew,
-	] );
+			return createSubLayer({
+				nativeNodeHandle,
+				parentUuid,
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			});
+		},
+		remove: (currentUuid) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
+			}
+			return removeSubLayer({ nativeNodeHandle, uuid: currentUuid })
+				.then(() => true)
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
 
-	// enabledZoomMin enabledZoomMax changed.
-	useEffect( () => {
-		if ( nativeNodeHandle && uuid ) {
-			Module.updateEnabledZoomMinMax( nativeNodeHandle, uuid, Math.round( enabledZoomMin ), Math.round( enabledZoomMax ) )
-			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
+	useLayerOrder(uuid);
+
+	useEffect(() => {
+		if (nativeNodeHandle && uuid) {
+			LayerMapsforgeModule.updateEnabledZoomMinMax({
+				nativeNodeHandle,
+				uuid,
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
 		}
 	}, [
 		enabledZoomMin,
 		enabledZoomMax,
-	] );
+		nativeNodeHandle,
+		uuid,
+		onError,
+	]);
 
-	useEffect( () => {
-		if ( nativeNodeHandle && uuid ) {
-			Module.toogleBuildings( nativeNodeHandle, uuid, hasBuildings )
-			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		}
-	}, [hasBuildings] );
+	return null;
+};
 
-	useEffect( () => {
-		if ( nativeNodeHandle && uuid ) {
-			Module.toggleLabels( nativeNodeHandle, uuid, hasLabels )
-			.catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-		}
-	}, [hasLabels] );
+const LayerMapsforge = ({
+	mapFile,
+	renderTheme,
+	renderStyle,
+	renderOverlays,
+	hasBuildings = true,
+	hasLabels = true,
+	enabledZoomMin,
+	enabledZoomMax,
+	onCreate,
+	onRemove,
+	onChange,
+	onError,
+}: LayerMapsforgeProps) => {
+	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	useEffect( () => {
-		if ( nativeNodeHandle ) {
-			if ( uuid ) {
-				let shouldRecreate = true;
-				if (
-					renderStyle !== renderStylePrev
-					&& ( ! renderStylePrev || ! renderStylePrev?.length )
-					&& ( renderStyle && renderStyleDefaultId && renderStyle === renderStyleDefaultId )
-				) {
-					shouldRecreate = false;
-				}
-				if ( shouldRecreate ) {
-					promiseQueue.enqueue( () => {
-						return Module.removeLayer(
-							nativeNodeHandle,
-							uuid
-						).then( () => {
-							setUuid( null );
-							setTriggerCreateNew( Math.random() );
-						} ).catch( ( err: any ) => { console.log( 'ERROR', err ); onError ? onError( err ) : null } );
-					} );
-				}
-			} else if ( uuid === null && mapFile ) {
-				setTriggerCreateNew( Math.random() );
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		enabled: !!nativeNodeHandle && !!mapFile,
+		create: ({ triggerOnCreate, triggerOnChange }) => {
+			if (!nativeNodeHandle || !mapFile) {
+				return Promise.reject<string>({
+					userInfo: {
+						errorMsg: 'Missing nativeNodeHandle or mapFile',
+					},
+				} as ErrorBase);
 			}
+			return LayerMapsforgeModule.createLayer({
+				nativeNodeHandle,
+				mapFile,
+				...(renderTheme && { renderTheme }),
+				...(renderStyle && { renderStyle }),
+				...(renderOverlays && { renderOverlays }),
+				hasBuildings: !!hasBuildings,
+				hasLabels: !!hasLabels,
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).then((response: LayerMapsforgeResponse) => {
+				triggerOnCreate && onCreate ? onCreate(response) : null;
+				triggerOnChange && onChange ? onChange(response) : null;
+				return response.uuid;
+			});
+		},
+		remove: (currentUuid, { triggerOnRemove }) => {
+			if (!nativeNodeHandle) {
+				return Promise.resolve(false);
+			}
+			return LayerMapsforgeModule.removeLayer({
+				nativeNodeHandle,
+				uuid: currentUuid,
+			})
+				.then((removedUuid) => {
+					triggerOnRemove && onRemove
+						? onRemove({
+								nativeNodeHandle,
+								uuid: removedUuid,
+							} as ResponseBase)
+						: null;
+					return true;
+				})
+				.catch((err: ErrorBase) => {
+					reportNativeError(err, onError);
+					return false;
+				});
+		},
+		onError,
+	});
+
+	useLayerOrder(uuid);
+
+	// enabledZoomMin/enabledZoomMax changed -- update in place, same as every other layer type.
+	useEffect(() => {
+		if (nativeNodeHandle && uuid) {
+			LayerMapsforgeModule.updateEnabledZoomMinMax({
+				nativeNodeHandle,
+				uuid,
+				...(enabledZoomMin !== undefined && {
+					enabledZoomMin: Math.round(enabledZoomMin),
+				}),
+				...(enabledZoomMax !== undefined && {
+					enabledZoomMax: Math.round(enabledZoomMax),
+				}),
+			}).catch((err: ErrorBase) => {
+				reportNativeError(err, onError);
+			});
 		}
+	}, [
+		enabledZoomMin,
+		enabledZoomMax,
+		nativeNodeHandle,
+		uuid,
+		onError,
+	]);
+
+	// mapFile/renderTheme/renderStyle/renderOverlays are baked into the tile source/theme at
+	// construction time, so changing any of them requires a full teardown + recreate (same
+	// remove-then-recreate pattern as LayerHillshading/LayerMBTilesBitmap). The buildings/labels
+	// sub-layers below are rendered conditionally on this layer's own uuid, so they tear down and
+	// recreate themselves automatically when this does -- no separate coordination needed.
+	const renderOverlaysKey =
+		renderOverlays && renderOverlays.length ? renderOverlays.join(',') : '';
+	useEffect(() => {
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
 	}, [
 		mapFile,
 		renderTheme,
 		renderStyle,
-		( renderOverlays && Array.isArray( renderOverlays ) && renderOverlays.length
-			? renderOverlays.join( '' )
-			: null
-		),
-	] );
+		renderOverlaysKey,
+		triggerRemove,
+		triggerCreate,
+	]);
 
-	return null;
+	return (
+		<>
+			{hasBuildings && uuid && (
+				<LayerMapsforgeSubLayer
+					parentUuid={uuid}
+					enabledZoomMin={enabledZoomMin}
+					enabledZoomMax={enabledZoomMax}
+					onError={onError}
+					createSubLayer={LayerMapsforgeModule.createBuildingLayer}
+					removeSubLayer={LayerMapsforgeModule.removeBuildingLayer}
+				/>
+			)}
+			{hasLabels && uuid && (
+				<LayerMapsforgeSubLayer
+					parentUuid={uuid}
+					enabledZoomMin={enabledZoomMin}
+					enabledZoomMax={enabledZoomMax}
+					onError={onError}
+					createSubLayer={LayerMapsforgeModule.createLabelLayer}
+					removeSubLayer={LayerMapsforgeModule.removeLabelLayer}
+				/>
+			)}
+		</>
+	);
 };
-LayerMapsforge.isMapLayer = true;
 
+LayerMapsforge.defaults = LayerMapsforgeModule.getConstants();
 LayerMapsforge.BUILT_IN_THEMES = BUILT_IN_THEMES;
 
 export default LayerMapsforge;
