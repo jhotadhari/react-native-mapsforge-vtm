@@ -30,12 +30,45 @@ to bisect, given how much native surface (NDK/vtm JNI) this touches.
 ### Step 2: other devDependencies in `package.json`
 
 - Go through every remaining devDependency in root `package.json` (eslint, `@eslint/*`,
-  `@react-native/eslint-config`, `@react-native-community/cli`, `typescript`, `jest`,
-  `@types/jest`, `prettier` + its plugins, `del-cli`, `turbo`) and bump to latest.
-  `@evilmartians/lefthook` and `keep-a-changelog` are this repo's own (not from the rewrite) — bump
-  those too while here.
+  `@react-native/eslint-config`, `typescript`, `prettier` + its plugins, `del-cli`, `turbo`) and
+  bump to latest. `@evilmartians/lefthook` and `keep-a-changelog` are this repo's own (not from the
+  rewrite) — bump those too while here.
+- **`@react-native-community/cli` is blocked here, not part of this step.** Confirmed 2026-06-24:
+  the CLI's own README ships a compatibility table gating major CLI versions to specific RN ranges
+  (`^15.0.0` → RN `^0.76.0`–`^0.78.0`, `^18.0.0` → RN `^0.79.0`, `^19.0.0` → RN `^0.80.0`,
+  `^20.0.0` → RN `^0.81.0`–`^0.85.0`). This repo's RN is `0.78.2`, squarely in the `^15.0.0` row —
+  bumping past that (tried `20.1.3`) reproducibly crashes `react-native start`
+  (`Cannot read properties of undefined (reading 'handle')` in
+  `@react-native-community/cli`'s `runServer.js`). Re-attempt this bump as part of Step 1 (the RN
+  version bump itself), not Step 2.
 - Re-run `yarn typecheck && yarn lint` after each batch; fix anything the version bump surfaces
   before moving on (new ESLint rules turning on, stricter TS, etc.).
+- **`typescript` was bumped to `^6.0.3`** (2026-06-24) — TS 6 changed `types` to default to an empty
+  array instead of auto-including everything under `node_modules/@types`; added
+  `"types": ["jest"]` to `tsconfig.json` to keep `it`/`describe`/etc. resolving in
+  `src/__tests__/index.test.tsx`.
+- **`jest`/`@types/jest` are blocked, NOT bumped here.** Confirmed 2026-06-24: `react-native@0.78.2`
+  itself depends on `jest-environment-node: ^29.6.3` (used by its own jest-preset). Jest 30's
+  `jest-runtime` calls `jest-mock`'s `clearMocksOnScope`, which doesn't exist on the 29.x
+  `jest-mock` that comes bundled with that pinned `jest-environment-node` — so `yarn test` fails
+  immediately with `TypeError: this._moduleMocker.clearMocksOnScope is not a function` as soon as
+  jest itself is bumped to 30.x, regardless of `@types/jest`. Re-attempt alongside the RN version
+  bump (Step 1), once `react-native`'s own `jest-environment-node` pin has moved past 29.x.
+
+**Blocked: `eslint` / `@eslint/js` stuck on 9.x, not 10.x.** Tried bumping to `eslint@10.5.0` +
+`@eslint/js@10.0.1` (alongside `@react-native/eslint-config@0.86.0`, `@eslint/compat@2.1.0`,
+`@eslint/eslintrc@3.3.5`, `eslint-config-prettier@10.1.8`, `eslint-plugin-prettier@5.5.6` — those six
+landed fine). `yarn lint` hard-crashes under ESLint 10 with `TypeError: scopeManager.addGlobals is not
+a function` in `SourceCode.finalize`. Root cause: ESLint 10 requires `ScopeManager` implementations to
+implement `addGlobals()` (see the v10 migration guide), and `@react-native/eslint-config`'s pinned
+`@typescript-eslint/parser`/`@typescript-eslint/scope-manager@^8.36.0` doesn't implement it yet. This
+isn't specific to `0.86.0` — every published `@react-native/eslint-config` version up to and including
+latest (`0.86.0`) pins the same `@typescript-eslint/*@^8.36.0`, and `@react-native/eslint-config@0.86.0`
+itself also declares `peerDependencies.eslint: "^8.0.0 || ^9.0.0"` (no `10` yet) — so this is purely an
+upstream gap (`@react-native/eslint-config` → `@typescript-eslint`), not something fixable by editing
+this repo's `eslint.config.mjs`. Left `eslint` and `@eslint/js` at `^9.22.0` (was already there) for
+now; re-attempt once either `@react-native/eslint-config` or `@typescript-eslint` ships ESLint
+10 support.
 
 ### Step 3: vtm/mapsforge native dependencies in `android/build.gradle` (the big one)
 
