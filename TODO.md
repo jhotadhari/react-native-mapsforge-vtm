@@ -90,7 +90,39 @@ this repo's `eslint.config.mjs`. Left `eslint` and `@eslint/js` at `^9.22.0` (wa
 now; re-attempt once either `@react-native/eslint-config` or `@typescript-eslint` ships ESLint
 10 support.
 
-### Step 3: vtm/mapsforge native dependencies in `android/build.gradle` (the big one)
+### Step 3: vtm/mapsforge native dependencies in `android/build.gradle` (the big one) — done 2026-06-24
+
+Bumped all `com.github.mapsforge.vtm:*` artifacts `0.25.0` → `0.28.0` (confirmed via JitPack/GitHub
+tags — the `0.28.0` working assumption was correct, not stale). Changelog read for 0.25.0→0.28.0:
+no breaking API changes relevant to this repo's usage (tile layers, hillshading, render themes, MVT,
+JTS, HTTP tiles, `ItemizedLayer`/`PathLayer`) — additive only (`ThemeCallback.getText`/`getColor`,
+`map-background-outside`, new themes, label repeat-proximity). Checked all 5 custom files this repo
+hand-rolls (`layer/PathLayer.java`, `layer/VectorLayer.java`, `layer/ItemizedLayer.java`,
+`RenderThemeMenuLoader.java`, `HgtReader.java`) against that changelog — **no vtm-native replacement
+found for any of them**, so none were deleted.
+
+**Found mid-implementation, not anticipated by the plan above:** `org.mapsforge:mapsforge-core`/
+`mapsforge-map`/`mapsforge-map-android` are stuck at `0.25.0`/`0.24.1` on Maven Central not because
+mapsforge stopped releasing, but because mapsforge **moved their publishing groupId** to
+`com.github.mapsforge.mapsforge` (matching vtm's own naming convention) for releases beyond 0.25.0 —
+that new groupId publishes straight to Maven Central (no JitPack repo needed) all the way to
+`0.28.0`, including `mapsforge-map-android`/`mapsforge-map-reader`. vtm 0.28.0 itself already depends
+on `com.github.mapsforge.mapsforge:mapsforge-core`/`mapsforge-map:0.28.0` transitively, so keeping the
+old `org.mapsforge:*:0.25.0` pins alongside it caused a **duplicate-class build failure** (both
+publish identical `org.mapsforge.map.*` packages). Fixed by switching this repo's explicit
+`mapsforge-core`/`mapsforge-map`/`mapsforge-map-android` declarations onto the new
+`com.github.mapsforge.mapsforge` groupId at `0.28.0` — this fully resolves the
+`mapsforge-map-android` lag noted below, rather than just bumping it to the equally-stale `0.25.0`.
+
+Verified: `yarn typecheck/lint/test` clean, full clean `yarn clean && ./gradlew clean &&
+./gradlew :app:assembleDebug` succeeds, and the `android-example-verifier` agent confirmed `basic`,
+`mapsforge` (render-theme/`<stylemenu>` switching), and `hillshading` (`HgtReader`/DEM) all render
+correctly on the emulator with no logcat regressions.
+
+Landed in commit `fdeef21` on branch `feature/step3-vtm-bump` (worktree
+`.claude/worktree-step3`) — not yet merged into `development`, awaiting sign-off.
+
+Original plan notes (kept for context):
 
 Current versions (as of the rewrite landing):
 
@@ -126,6 +158,19 @@ org.mapsforge:mapsforge-map-android:0.24.1   # already inconsistent with the oth
   (custom `TileSource`/`DemFolder`), since those exercise the most vtm-internal surface.
 
 ### Step 4: everything else in `android/build.gradle`
+
+**Partially done, folded into Step 3's commit (`fdeef21`) 2026-06-24** — bumped the trivial ones:
+`androidx.documentfile` `1.0.1` → `1.1.0`, `com.squareup.okio` `3.6.0` → `3.12.0` (transitive-only,
+no direct usage in this repo), `com.google.protobuf:protobuf-java` `3.24.4` → `3.25.8` (stayed within
+the 3.x line deliberately — the 4.x major bump changes generated-code APIs and `vtm-mvt`/
+`vtm-android-mvt`'s own bundled MVT-parsing classes aren't verified against a 4.x runtime, so that's
+deferred, not done). `com.goebl:simplify`, `io.vacco.savitzky-golay`, `com.caverock:androidsvg`,
+`org.locationtech.jts:jts-core`, `com.squareup.okhttp3:okhttp`, and `io.github.ci-cmg:mapbox-vector-tile`
+were all already at latest stable — left unchanged.
+
+**Still open: the protobuf-java 4.x major bump**, if/when vtm's own MVT classes are confirmed
+compatible with it (would need a dedicated MBTiles/MVT-layer regression test, not just a version
+bump).
 
 Also check for newer versions of:
 
