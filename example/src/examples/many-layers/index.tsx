@@ -6,8 +6,8 @@ import {
 	LayerPath,
 	MapContainer,
 	Marker,
-	MarkerTypes,
 	type Position,
+	type SymbolParams,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import type { Example } from '../../types';
@@ -118,7 +118,7 @@ const ExampleComponent: FC<{
 		[count, version]
 	);
 
-	const symbol : MarkerTypes.SymbolParams = useMemo(() => ({ text: '•', fillColor: '#00ff00' }), []);
+	const symbol : SymbolParams = useMemo(() => ({ text: '•', fillColor: '#00ff00' }), []);
 
 	return (
 		<View

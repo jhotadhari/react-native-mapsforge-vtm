@@ -12,14 +12,14 @@ export const BUILT_IN_THEMES = [
 	'TRONRENDER',
 ] as const;
 
-export type Bounds = {
+export type Bounds = {	// ??? this should be a ReadonlyArray<Double>; "west", "south", "east", and "north" according to https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
 	minLat: Double;
 	minLng: Double;
 	maxLat: Double;
 	maxLng: Double;
 };
 
-export type Location = {
+export type Location = {	// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
 	lng: Double;
 	lat: Double;
 };
@@ -41,7 +41,9 @@ export type RenderStyleOption = {
 	overlays: RenderStyleOverlay[];
 };
 
-interface ModuleParams {
+// Exported because LayerMapsforge.defaults (LayerMapsforge.tsx) is typed with this, and tsc's
+// declaration emit needs every type reachable from an exported value to be nameable.
+export interface ModuleParams {
 	mapFile?: string;
 	renderTheme?: string; // one of BUILT_IN_THEMES, or a `/` or `content://` path to a theme XML file.
 	renderStyle?: string;
@@ -82,7 +84,7 @@ interface GetRenderThemeOptionsParams {
 
 export interface LayerMapsforgeResponse extends ResponseBase {
 	bounds?: Bounds;
-	center?: Location;
+	center?: Location;	// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
 	createdBy?: string;
 	projectionName?: string;
 	comment?: string;

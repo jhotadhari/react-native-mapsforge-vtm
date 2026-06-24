@@ -1,58 +1,124 @@
-// export { default as MapsforgeVtmView } from './NativeViews/MapsforgeVtmViewNativeComponent';
-
 import MapContainer from './components/MapContainer';
-import * as MapContainerTypes from './NativeViews/MapsforgeVtmViewNativeComponent';
+import type {
+	MapEventResponse,
+	ResponseInclude,
+	MapContainerProps,
+} from './NativeViews/MapsforgeVtmViewNativeComponent';
 
 import LayerMarker from './components/LayerMarker';
 import Marker from './components/Marker';
-import * as MarkerTypes from './NativeModules/NativeLayerMarker';
+import type {
+	LayerMarkerProps,
+	LayerMarkerTriggerEvent,
+	MarkerEvent,
+	MarkerProps,
+	MarkerResponse,
+	SymbolParams,
+	MarkerTriggerParams,
+} from './NativeModules/NativeLayerMarker';
 
 import LayerBitmapTile from './components/LayerBitmapTile';
-import * as LayerBitmapTileTypes from './NativeModules/NativeLayerBitmapTile';
+import type { LayerBitmapTileProps } from './NativeModules/NativeLayerBitmapTile';
 
 import LayerPath from './components/LayerPath';
-import * as LayerPathTypes from './NativeModules/NativeLayerPath';
+import type {
+	Bounds,
+	GeometryStyle,
+	LayerPathGestureResponse,
+	LayerPathProps,
+	LayerPathResponse,
+	PathResponseInclude,
+	PathTriggerEvent,
+	PathTriggerParams,
+} from './NativeModules/NativeLayerPath';
 
 import LayerScalebar from './components/LayerScalebar';
-import * as LayerScalebarTypes from './NativeModules/NativeLayerScalebar';
+import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
 
 import LayerMBTilesBitmap from './components/LayerMBTilesBitmap';
-import * as LayerMBTilesBitmapTypes from './NativeModules/NativeLayerMBTilesBitmap';
+import type {
+	LayerMBTilesBitmapResponse,
+	LayerMBTilesBitmapProps,
+} from './NativeModules/NativeLayerMBTilesBitmap';
 
 import LayerHillshading from './components/LayerHillshading';
-import * as LayerHillshadingTypes from './NativeModules/NativeLayerHillshading';
+import type {
+	ShadingAlgorithm,
+	ShadingAlgorithmOptions,
+	LayerHillshadingProps,
+} from './NativeModules/NativeLayerHillshading';
 
 import LayerMapsforge from './components/LayerMapsforge';
-import * as LayerMapsforgeTypes from './NativeModules/NativeLayerMapsforge';
+import type {
+	RenderStyleOverlay,
+	RenderStyleOption,
+	LayerMapsforgeResponse,
+	LayerMapsforgeProps,
+} from './NativeModules/NativeLayerMapsforge';
+
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
-
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
-
-// import LayerPathSlopeGradient from './components/LayerPathSlopeGradient';
+import type { ErrorWithErrorMsg } from './types';
 
 export {
+	// MapContainer and MapsforgeVtmViewNativeComponent.
 	MapContainer,
-	MapContainerTypes,
+	type MapEventResponse,
+	type ResponseInclude,
+	type MapContainerProps,
+
+	// LayerMarker, Marker and NativeLayerMarker.
 	LayerMarker,
 	Marker,
-	MarkerTypes,
+	type MarkerResponse,
+	type LayerMarkerTriggerEvent,
+	type MarkerEvent,
+	type MarkerTriggerParams as TriggerParams,
+	type SymbolParams,
+	type LayerMarkerProps,
+	type MarkerProps,
+
+	// LayerBitmapTile and NativeLayerBitmapTile.
 	LayerBitmapTile,
-	LayerBitmapTileTypes,
+	type LayerBitmapTileProps,
+
+	// LayerPath and NativeLayerPath.
 	LayerPath,
-	LayerPathTypes,
+	type PathResponseInclude,
+	type GeometryStyle,
+	type PathTriggerEvent,
+	type PathTriggerParams,
+	type Bounds,
+	type LayerPathResponse,
+	type LayerPathGestureResponse,
+	type LayerPathProps,
+
+	// LayerScalebar and NativeLayerScalebar.
 	LayerScalebar,
-	LayerScalebarTypes,
+	type LayerScalebarProps,
+
+	// LayerMBTilesBitmap and NativeLayerMBTilesBitmap.
 	LayerMBTilesBitmap,
-	LayerMBTilesBitmapTypes,
+	type LayerMBTilesBitmapResponse,
+	type LayerMBTilesBitmapProps,
+
+	// LayerHillshading and NativeLayerHillshading.
 	LayerHillshading,
-	LayerHillshadingTypes,
+	type ShadingAlgorithm,
+	type ShadingAlgorithmOptions,
+	type LayerHillshadingProps,
+
+	// LayerMapsforge and NativeLayerMapsforge.
 	LayerMapsforge,
-	LayerMapsforgeTypes,
+	type RenderStyleOverlay,
+	type RenderStyleOption,
+	type LayerMapsforgeResponse,
+	type LayerMapsforgeProps,
+
+	// Other
 	useRenderStyleOptions,
 	CanvasAdapterModule,
-
-	// LayerPathSlopeGradient,
+	type ErrorWithErrorMsg,
 };
 
 export type * from './types';
-export type * from './NativeViews/MapsforgeVtmViewNativeComponent';

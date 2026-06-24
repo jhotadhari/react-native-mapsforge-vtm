@@ -1,7 +1,7 @@
 import { StyleSheet, type NativeSyntheticEvent } from 'react-native';
 import type {
 	MapEventResponse,
-	MapContainerTypes,
+	ErrorWithErrorMsg,
 } from 'react-native-mapsforge-vtm';
 
 export const sharedStyles = StyleSheet.create({
@@ -25,7 +25,7 @@ export const handleMapEvent = {
 		console.log('debug onResume', response?.nativeEvent); // debug
 	},
 	onError: (
-		response: NativeSyntheticEvent<Readonly<MapContainerTypes.MapError>>
+		response: NativeSyntheticEvent<Readonly<ErrorWithErrorMsg>>
 	) => {
 		console.log('debug onError', response?.nativeEvent); // debug
 	},

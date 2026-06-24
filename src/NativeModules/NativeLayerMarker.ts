@@ -58,7 +58,7 @@ export const FontStyle = [
 	'NORMAL',
 ] as const;
 
-export type TriggerEvent = (params: TriggerParams) => void;
+export type LayerMarkerTriggerEvent = (params: MarkerTriggerParams) => void;
 
 interface ModuleLayerParams {
 	symbol?: {
@@ -88,7 +88,7 @@ export interface ModuleParams extends ModuleLayerParams {
 	strategy?: string;
 }
 
-interface EventError {
+interface ErrorWithErrorMsg {
 	errorMsg: string;
 }
 
@@ -137,7 +137,7 @@ interface TriggerParamsBase {
 	y?: Double;
 }
 
-export interface TriggerParams {
+export interface MarkerTriggerParams {
 	nativeNodeHandle?: Int32;
 	markerLayerUuid?: string;
 	x?: Double;
@@ -178,7 +178,7 @@ export type LayerMarkerProps = {
 	onMarkerPress?: null | ((response: MarkerEvent) => void);
 	onMarkerLongPress?: null | ((response: MarkerEvent) => void);
 	onMarkerTrigger?: null | ((response: MarkerEvent) => void);
-	triggerEvent?: RefObject<null | TriggerEvent>;
+	triggerEvent?: RefObject<null | LayerMarkerTriggerEvent>;
 };
 
 export type MarkerProps = {
@@ -205,7 +205,7 @@ export interface Spec extends TurboModule {
 	removeMarker(params: RemoveMarkerParams): Promise<string>;
 	updateMarker(params: UpdateMarkerParams): Promise<string>;
 	triggerEvent(params: TriggerParamsCG): void;
-	onError: EventEmitter<EventError>;
+	onError: EventEmitter<ErrorWithErrorMsg>;
 	onMarkerEvent: EventEmitter<MarkerEvent>;
 }
 

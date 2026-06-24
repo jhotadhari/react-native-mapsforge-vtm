@@ -9,7 +9,7 @@ import { useContext, useEffect, useMemo } from 'react';
 import LayerPathModule, {
 	type LayerPathProps,
 	type LayerPathResponse,
-	type TriggerParams,
+	type PathTriggerParams,
 } from '../NativeModules/NativeLayerPath';
 import type { ErrorBase } from '../types';
 import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscription';
@@ -158,7 +158,7 @@ const LayerPath = ({
 		};
 		if (uuid) {
 			if (triggerEvent) {
-				triggerEvent.current = (params: TriggerParams) => {
+				triggerEvent.current = (params: PathTriggerParams) => {
 					LayerPathModule.triggerEvent({
 						...(nativeNodeHandle && { nativeNodeHandle }),
 						uuid,

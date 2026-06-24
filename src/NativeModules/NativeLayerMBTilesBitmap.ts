@@ -3,7 +3,9 @@ import { TurboModuleRegistry } from 'react-native';
 import type { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import type { ErrorBase, ResponseBase } from '../types';
 
-interface ModuleParams {
+// Exported because LayerMBTilesBitmap.defaults (LayerMBTilesBitmap.tsx) is typed with this, and
+// tsc's declaration emit needs every type reachable from an exported value to be nameable.
+export interface ModuleParams {
 	mapFile?: string;
 	transparentColor?: string;
 	alpha?: Double; // float between 0 and 1.
@@ -33,21 +35,21 @@ interface SetAlphaParams {
 	alpha?: Double;
 }
 
-export type Bounds = {
+export type Bounds = {	// ??? this should be a ReadonlyArray<Double>; "west", "south", "east", and "north" according to https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
 	minLat: Double;
 	minLng: Double;
 	maxLat: Double;
 	maxLng: Double;
 };
 
-export type Location = {
+export type Location = {// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
 	lng: Double;
 	lat: Double;
 };
 
 export interface LayerMBTilesBitmapResponse extends ResponseBase {
 	bounds?: Bounds;
-	center?: Location;
+	center?: Location;	// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
 	supportedFormats?: string[];
 	format?: string;
 	attribution?: string;

@@ -3,7 +3,9 @@ import { TurboModuleRegistry } from 'react-native';
 import type { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import type { ErrorBase, ResponseBase } from '../types';
 
-interface ModuleParams {
+// Exported because LayerBitmapTile.defaults (LayerBitmapTile.tsx) is typed with this, and tsc's
+// declaration emit needs every type reachable from an exported value to be nameable.
+export interface ModuleParams {
 	url?: string;
 	alpha?: Double; // float between 0 and 1.
 	zoomMin?: Int32;

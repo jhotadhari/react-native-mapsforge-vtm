@@ -20,7 +20,7 @@ type Position = ReadonlyArray<Double>;
 // 0	never include in response.
 // 1	include in lifeCycle response.
 // 2	include in lifeCycle and onMapEvent response.
-export interface ResponseInclude {
+export interface PathResponseInclude {
 	// [value: string]: Int32			 // Doesn't work with codegen
 	coordinates?: Int32;
 	bounds?: Int32;
@@ -130,9 +130,9 @@ interface RemoveLayerParams {
 	uuid: string;
 }
 
-export type TriggerEvent = (params: TriggerParams) => void;
+export type PathTriggerEvent = (params: PathTriggerParams) => void;
 
-export interface TriggerParams {
+export interface PathTriggerParams {
 	x?: Double;
 	y?: Double;
 }
@@ -143,8 +143,7 @@ interface TriggerParamsCG {
 	x?: Double;
 	y?: Double;
 }
-
-export type Bounds = {
+export type Bounds = {	// ??? this should be a ReadonlyArray<Double>; "west", "south", "east", and "north" according to https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
 	minLat: Double;
 	minLng: Double;
 	maxLat: Double;
@@ -171,7 +170,7 @@ export interface LayerPathGestureResponse extends ResponseBase {
 export type LayerPathProps = {
 	filePath?: null | `/${string}` | `content://${string}`;
 	coordinates?: GeoJsonPosition[]; // e.g. a geojson LineString's `coordinates`
-	responseInclude?: ResponseInclude;
+	responseInclude?: PathResponseInclude;
 	gestureScreenDistance?: number;
 	simplificationTolerance?: number;
 	style?: GeometryStyle;
@@ -183,7 +182,7 @@ export type LayerPathProps = {
 	onLongPress?: null | ((response: LayerPathGestureResponse) => void);
 	onDoubleTap?: null | ((response: LayerPathGestureResponse) => void);
 	onTrigger?: null | ((response: LayerPathGestureResponse) => void);
-	triggerEvent?: RefObject<null | TriggerEvent>;
+	triggerEvent?: RefObject<null | PathTriggerEvent>;
 };
 
 export interface Spec extends TurboModule {

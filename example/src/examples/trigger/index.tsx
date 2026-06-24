@@ -14,8 +14,10 @@ import {
 	LayerPath,
 	MapContainer,
 	Marker,
-	type LayerPathTypes,
-	type MarkerTypes,
+	type LayerMarkerTriggerEvent,
+	type LayerPathGestureResponse,
+	type MarkerEvent,
+	type PathTriggerEvent,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -75,7 +77,7 @@ const getRandomCoordinates = (length: number): Position[] =>
 // 	);
 // };
 
-// const triggerMarkerEvent = useRef<MarkerTypes.TriggerEvent>(null);
+// const triggerMarkerEvent = useRef<LayerMarkerTriggerEvent>(null);
 // const triggerPathEvent = useRef<LayerPathTypes.TriggerEvent>(null);
 
 const Controls: FC<{
@@ -87,8 +89,8 @@ const Controls: FC<{
 	hasPath: boolean;
 	setHasMarker: Dispatch<SetStateAction<boolean>>;
 	setHasPath: Dispatch<SetStateAction<boolean>>;
-	triggerMarkerEvent: RefObject<MarkerTypes.TriggerEvent | null>;
-	triggerPathEvent: RefObject<MarkerTypes.TriggerEvent | null>;
+	triggerMarkerEvent: RefObject<LayerMarkerTriggerEvent | null>;
+	triggerPathEvent: RefObject<PathTriggerEvent | null>;
 	setCoordinates: Dispatch<SetStateAction<Position[]>>;
 }> = ({
 	mapWidth,
@@ -206,19 +208,19 @@ const ExampleComponent: FC<{
 	const [lastMarkerEvent, setLastMarkerEvent] = useState('-');
 	const [lastPathEvent, setLastPathEvent] = useState('-');
 
-	const triggerMarkerEvent = useRef<MarkerTypes.TriggerEvent>(null);
-	const triggerPathEvent = useRef<LayerPathTypes.TriggerEvent>(null);
+	const triggerMarkerEvent = useRef<LayerMarkerTriggerEvent>(null);
+	const triggerPathEvent = useRef<PathTriggerEvent>(null);
 
 	const handleMarkerEvent = useMemo(() => {
 		return {
-			onMarkerLayerEvent: (response?: MarkerTypes.MarkerEvent) => {
+			onMarkerLayerEvent: (response?: MarkerEvent) => {
 				console.log('debug onMarkerLayerEvent', response); // debug
 				response &&
 					setLastMarkerEvent(
 						`${response.event} marker #${response.index}`
 					);
 			},
-			onEvent: (response?: MarkerTypes.MarkerEvent) => {
+			onEvent: (response?: MarkerEvent) => {
 				console.log('debug onEvent', response); // debug
 			},
 		};
@@ -226,12 +228,12 @@ const ExampleComponent: FC<{
 
 	const handlePathEvent = useMemo(() => {
 		return {
-			onPress: (response: LayerPathTypes.LayerPathGestureResponse) => {
+			onPress: (response: LayerPathGestureResponse) => {
 				console.log('debug onPress', response); // debug
 				setLastPathEvent(`press dist=${response.distance.toFixed(4)}`);
 			},
 			onLongPress: (
-				response: LayerPathTypes.LayerPathGestureResponse
+				response: LayerPathGestureResponse
 			) => {
 				console.log('debug onLongPress', response); // debug
 				setLastPathEvent(
@@ -239,14 +241,14 @@ const ExampleComponent: FC<{
 				);
 			},
 			onDoubleTap: (
-				response: LayerPathTypes.LayerPathGestureResponse
+				response: LayerPathGestureResponse
 			) => {
 				console.log('debug onDoubleTap', response); // debug
 				setLastPathEvent(
 					`doubleTap dist=${response.distance.toFixed(4)}`
 				);
 			},
-			onTrigger: (response: LayerPathTypes.LayerPathGestureResponse) => {
+			onTrigger: (response: LayerPathGestureResponse) => {
 				console.log('debug onTrigger', response); // debug
 				setLastPathEvent(
 					`trigger dist=${response.distance.toFixed(4)}`

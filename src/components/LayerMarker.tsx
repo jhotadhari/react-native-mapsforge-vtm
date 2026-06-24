@@ -10,10 +10,10 @@ import { omit, pick } from 'lodash-es';
  */
 import LayerMarkerModule, {
 	type LayerMarkerProps,
-	type TriggerParams,
+	type MarkerTriggerParams,
 } from '../NativeModules/NativeLayerMarker';
 
-import type { ErrorBase, EventError } from '../types';
+import type { ErrorBase, ErrorWithErrorMsg } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useLayerOrder from '../compose/useLayerOrder';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
@@ -42,7 +42,7 @@ const LayerMarker = ({
 
 	useEffect(() => {
 		errorSubscription.current = LayerMarkerModule.onError(
-			(error?: EventError) => {
+			(error?: ErrorWithErrorMsg) => {
 				console.log('debug error', error); // debug ???
 			}
 		);
@@ -105,7 +105,7 @@ const LayerMarker = ({
 		};
 		if (uuid) {
 			if (triggerEvent) {
-				triggerEvent.current = (params: TriggerParams) => {
+				triggerEvent.current = (params: MarkerTriggerParams) => {
 					LayerMarkerModule.triggerEvent({
 						...(nativeNodeHandle && { nativeNodeHandle }),
 						markerLayerUuid: uuid,

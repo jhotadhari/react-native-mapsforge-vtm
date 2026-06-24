@@ -4,7 +4,7 @@ import {
 	LayerMBTilesBitmap,
 	LayerScalebar,
 	MapContainer,
-	type LayerMBTilesBitmapTypes,
+	type LayerMBTilesBitmapResponse,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -42,7 +42,7 @@ const ExampleComponent: FC<{
 	const [description, setDescription] = useState('');
 
 	const handleLayerCreate = useCallback(
-		(response: LayerMBTilesBitmapTypes.LayerMBTilesBitmapResponse) => {
+		(response: LayerMBTilesBitmapResponse) => {
 			if (response.center) {
 				setCenter([response.center.lng, response.center.lat]);
 			}

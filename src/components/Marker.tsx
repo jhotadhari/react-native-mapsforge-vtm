@@ -9,6 +9,8 @@ import { omit } from 'lodash-es';
  */
 // import { MarkerHotspotPlaces } from '../constants';
 import LayerMarkerModule, {
+	FontFamily,
+	FontStyle,
 	type MarkerProps,
 } from '../NativeModules/NativeLayerMarker';
 import {
@@ -134,7 +136,9 @@ const Marker = ({
 	return null;
 };
 
-Marker.MarkerHotspotPlaces = MarkerHotspotPlaces;
+Marker.HotspotPlaces = MarkerHotspotPlaces;
+Marker.FontFamily = FontFamily;
+Marker.FontStyle = FontStyle;
 
 Marker.defaults = omit(LayerMarkerModule.getConstants(), ['strategy']);
 

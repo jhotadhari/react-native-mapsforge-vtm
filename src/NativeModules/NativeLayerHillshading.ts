@@ -26,7 +26,9 @@ export type ShadingAlgorithmOptions = {
 	qualityScale?: Double;
 };
 
-interface ModuleParams {
+// Exported because LayerHillshading.defaults (LayerHillshading.tsx) is typed with this, and tsc's
+// declaration emit needs every type reachable from an exported value to be nameable.
+export interface ModuleParams {
 	hgtDirPath?: string;
 	zoomMin?: Int32;
 	zoomMax?: Int32;

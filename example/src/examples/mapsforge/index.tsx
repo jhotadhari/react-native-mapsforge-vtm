@@ -5,7 +5,7 @@ import {
 	LayerScalebar,
 	MapContainer,
 	useRenderStyleOptions,
-	type LayerMapsforgeTypes,
+	type LayerMapsforgeResponse,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -47,7 +47,7 @@ const ExampleComponent: FC<{
 	});
 
 	const handleLayerCreate = useCallback(
-		(response: LayerMapsforgeTypes.LayerMapsforgeResponse) => {
+		(response: LayerMapsforgeResponse) => {
 			if (response.center) {
 				setCenter([response.center.lng, response.center.lat]);
 			}

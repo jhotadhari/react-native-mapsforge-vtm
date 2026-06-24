@@ -41,7 +41,7 @@ export interface ResponseInclude {
 	center?: Int32;
 }
 
-export interface MapError {
+interface ErrorWithErrorMsg {
 	errorMsg: string;
 }
 
@@ -76,7 +76,7 @@ interface MapViewProps extends ViewProps {
 	onMapUpdate?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onResume?: DirectEventHandler<Readonly<MapEventResponse>> | null;
-	onError?: DirectEventHandler<Readonly<MapError>> | null;
+	onError?: DirectEventHandler<Readonly<ErrorWithErrorMsg>> | null;
 }
 
 export type MapContainerProps = {
