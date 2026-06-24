@@ -37,13 +37,16 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 
 	// Many sibling layers can each resolve their own uuid within milliseconds of one
 	// another (e.g. a burst of layers mounting together) -- without batching, every single
-	// resolution would fire its own native reorderLayers call. Coalescing into one
-	// macrotask flush collapses a burst into a single native call carrying the final order,
-	// instead of one call per resolved uuid.
-	let flushScheduled = false;
+	// resolution would fire its own native reorderLayers call. scheduleSync below debounces
+	// (trailing edge, with a max-wait cap) rather than just deferring to the next macrotask, so a
+	// sustained burst of thousands of resolutions -- not just ones landing in the same tick --
+	// collapses into as few native calls as possible.
+	const DEBOUNCE_MS = 16;
+	const MAX_WAIT_MS = 250;
+	let debounceTimer: null | ReturnType<typeof setTimeout> = null;
+	let maxWaitTimer: null | ReturnType<typeof setTimeout> = null;
 	let pendingNativeNodeHandle: null | number = null;
 	const flush = () => {
-		flushScheduled = false;
 		const nativeNodeHandle = pendingNativeNodeHandle;
 		if (!nativeNodeHandle) {
 			return;
@@ -66,17 +69,36 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		});
 	};
 
+	const doFlush = () => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+			debounceTimer = null;
+		}
+		if (maxWaitTimer) {
+			clearTimeout(maxWaitTimer);
+			maxWaitTimer = null;
+		}
+		flush();
+	};
+
 	return {
 		order,
 		uuids,
 		cursor: undefined,
 		scheduleSync: (nativeNodeHandle) => {
 			pendingNativeNodeHandle = nativeNodeHandle;
-			if (flushScheduled) {
-				return;
+			// Trailing debounce: every call pushes the flush out, so a continuous burst only
+			// flushes once it actually goes quiet.
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
 			}
-			flushScheduled = true;
-			setTimeout(flush, 0);
+			debounceTimer = setTimeout(doFlush, DEBOUNCE_MS);
+			// Max-wait: armed once per burst (not reset), so a sustained burst can't defer the
+			// flush indefinitely -- already-resolved layers are never left unsynced for longer
+			// than MAX_WAIT_MS.
+			if (!maxWaitTimer) {
+				maxWaitTimer = setTimeout(doFlush, MAX_WAIT_MS);
+			}
 		},
 	};
 };

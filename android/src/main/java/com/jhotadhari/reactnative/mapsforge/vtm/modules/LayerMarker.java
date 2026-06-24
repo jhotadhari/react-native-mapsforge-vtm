@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @ReactModule( name = LayerMarker.NAME )
 public class LayerMarker extends NativeLayerMarkerSpec {
@@ -55,6 +56,85 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 	protected Map<String, MarkerItem> markers = new HashMap<>();
 
 	protected final Point tmpPoint = new Point();
+
+	// Rendering a marker symbol's Bitmap (canvas allocation, text measurement/drawing, image
+	// decode) is the expensive part of creating a marker -- and many markers/layers very often
+	// share an identical symbol definition (e.g. every marker using the same default symbol), so
+	// it's cached here keyed by the symbol's fully-resolved drawing params. Static/shared across
+	// all LayerMarker instances since the same symbol definition is just as reusable across
+	// different maps/layers as within one.
+	private static final Map<MarkerBitmapParams, Bitmap> bitmapCache = new ConcurrentHashMap<>();
+
+	// Every param getMarkerBitmap actually reads, after defaulting -- used both as the bitmap
+	// cache key and to drive the actual drawing, so the two can never drift apart independently.
+	// textPositionX/textPositionY are null when neither symbolMap nor symbolConstants provide
+	// one, meaning getMarkerBitmap derives a default from the other (already-keyed) params.
+	protected static final class MarkerBitmapParams {
+		final int width;
+		final int height;
+		final String fillColor;
+		final String strokeColor;
+		final String text;
+		final String filePath;
+		final int strokeWidth;
+		final int textMargin;
+		final String textColor;
+		final int textSize;
+		final String fontFamily;
+		final String fontStyle;
+		final Float textPositionX;
+		final Float textPositionY;
+
+		MarkerBitmapParams(
+			int width, int height, String fillColor, String strokeColor, String text, String filePath,
+			int strokeWidth, int textMargin, String textColor, int textSize, String fontFamily,
+			String fontStyle, Float textPositionX, Float textPositionY
+		) {
+			this.width = width;
+			this.height = height;
+			this.fillColor = fillColor;
+			this.strokeColor = strokeColor;
+			this.text = text;
+			this.filePath = filePath;
+			this.strokeWidth = strokeWidth;
+			this.textMargin = textMargin;
+			this.textColor = textColor;
+			this.textSize = textSize;
+			this.fontFamily = fontFamily;
+			this.fontStyle = fontStyle;
+			this.textPositionX = textPositionX;
+			this.textPositionY = textPositionY;
+		}
+
+		@Override
+		public boolean equals( Object o ) {
+			if ( this == o ) { return true; }
+			if ( ! ( o instanceof MarkerBitmapParams ) ) { return false; }
+			MarkerBitmapParams that = (MarkerBitmapParams) o;
+			return width == that.width
+				&& height == that.height
+				&& strokeWidth == that.strokeWidth
+				&& textMargin == that.textMargin
+				&& textSize == that.textSize
+				&& Objects.equals( fillColor, that.fillColor )
+				&& Objects.equals( strokeColor, that.strokeColor )
+				&& Objects.equals( text, that.text )
+				&& Objects.equals( filePath, that.filePath )
+				&& Objects.equals( textColor, that.textColor )
+				&& Objects.equals( fontFamily, that.fontFamily )
+				&& Objects.equals( fontStyle, that.fontStyle )
+				&& Objects.equals( textPositionX, that.textPositionX )
+				&& Objects.equals( textPositionY, that.textPositionY );
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(
+				width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
+				textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
+			);
+		}
+	}
 
 	public LayerMarker( ReactApplicationContext reactContext) {
 		super(reactContext);
@@ -471,19 +551,61 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			case "LOWER_LEFT_CORNER" -> MarkerSymbol.HotspotPlace.LOWER_LEFT_CORNER;
 			default -> MarkerSymbol.HotspotPlace.CENTER;
 		};
-		// getMarkerBitmap and return MarkerSymbol.
-		return new MarkerSymbol(
-			getMarkerBitmap(
-				symbolMap,
-				contentResolver
-			),
-			hotspotPlace,
-			false
+		// Bitmap rendering (canvas allocation, text measurement/drawing, image decode) is the
+		// expensive part and is purely a function of the resolved symbol params, so it's cached
+		// -- markers/layers sharing an identical symbol definition (very common, e.g. a shared
+		// default symbol) only pay for it once.
+		MarkerBitmapParams params = resolveMarkerBitmapParams( symbolMap );
+		Bitmap bitmap = bitmapCache.computeIfAbsent(
+			params,
+			p -> getMarkerBitmap( p, contentResolver )
+		);
+		return new MarkerSymbol( bitmap, hotspotPlace, false );
+	}
+
+	protected MarkerBitmapParams resolveMarkerBitmapParams( ReadableMap symbolMap ) {
+		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "symbol" );
+		int width = Utils.rMapHasKey( symbolMap, "width" ) ? symbolMap.getInt( "width" ) : symbolConstants.getInt( "width" );
+		int height = Utils.rMapHasKey( symbolMap, "height" ) ? symbolMap.getInt( "height" ) : symbolConstants.getInt( "height" );
+		String fillColor = Utils.rMapHasKey( symbolMap, "fillColor" ) ? symbolMap.getString( "fillColor" ) : symbolConstants.getString( "fillColor" );
+		String strokeColor = Utils.rMapHasKey( symbolMap, "strokeColor" ) ? symbolMap.getString( "strokeColor" ) : symbolConstants.getString( "strokeColor" );
+		String text = Utils.rMapHasKey( symbolMap, "text" ) ? symbolMap.getString( "text" ) : symbolConstants.getString( "text" );
+		String filePath = Utils.rMapHasKey( symbolMap, "filePath" ) ? symbolMap.getString( "filePath" ) : symbolConstants.getString( "filePath" );
+		int strokeWidth = Utils.rMapHasKey( symbolMap, "strokeWidth" ) ? symbolMap.getInt( "strokeWidth" ) : symbolConstants.getInt( "strokeWidth" );
+		int textMargin = Utils.rMapHasKey( symbolMap, "textMargin" ) ? symbolMap.getInt( "textMargin" ) : symbolConstants.getInt( "textMargin" );
+		String textColor = Utils.rMapHasKey( symbolMap, "textColor" ) ? symbolMap.getString( "textColor" ) : symbolConstants.getString( "textColor" );
+		int textSize = Utils.rMapHasKey( symbolMap, "textSize" ) ? symbolMap.getInt( "textSize" ) : symbolConstants.getInt( "textSize" );
+		String fontFamily = Utils.rMapHasKey( symbolMap, "fontFamily" ) ? symbolMap.getString( "fontFamily" ) : symbolConstants.getString( "fontFamily" );
+		String fontStyle = Utils.rMapHasKey( symbolMap, "fontStyle" ) ? symbolMap.getString( "fontStyle" ) : symbolConstants.getString( "fontStyle" );
+		// Plain if/else, not a nested ternary: a ternary mixing a primitive float branch with a
+		// null branch forces javac to unify the expression's type as primitive float, unboxing
+		// the *other* branch's boxed Float unconditionally as part of evaluating that type -- so
+		// a `cond ? (float) x : (cond2 ? (float) y : null)` blows up with an NPE the instant the
+		// innermost null is selected, even though it's never actually unboxed by hand here.
+		Float textPositionX;
+		if ( Utils.rMapHasKey( symbolMap, "textPositionX" ) ) {
+			textPositionX = (float) symbolMap.getDouble( "textPositionX" );
+		} else if ( Utils.rMapHasKey( symbolConstants, "textPositionX" ) ) {
+			textPositionX = (float) symbolConstants.getDouble( "textPositionX" );
+		} else {
+			textPositionX = null;
+		}
+		Float textPositionY;
+		if ( Utils.rMapHasKey( symbolMap, "textPositionY" ) ) {
+			textPositionY = (float) symbolMap.getDouble( "textPositionY" );
+		} else if ( Utils.rMapHasKey( symbolConstants, "textPositionY" ) ) {
+			textPositionY = (float) symbolConstants.getDouble( "textPositionY" );
+		} else {
+			textPositionY = null;
+		}
+		return new MarkerBitmapParams(
+			width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
+			textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
 		);
 	}
 
-	protected Paint.FontFamily getFontFamily( ReadableMap symbolMap, ReadableMap symbolConstants ) {
-		return switch ( Utils.rMapHasKey( symbolMap, "fontFamily" ) ? symbolMap.getString( "fontFamily" ) : symbolConstants.getString( "fontFamily" ) ) {
+	protected Paint.FontFamily getFontFamily( String fontFamily ) {
+		return switch ( fontFamily ) {
 			case "DEFAULT" -> Paint.FontFamily.DEFAULT;
 			case "DEFAULT_BOLD" -> Paint.FontFamily.DEFAULT_BOLD;
 			case "MONOSPACE" -> Paint.FontFamily.MONOSPACE;
@@ -498,8 +620,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		};
 	}
 
-	protected Paint.FontStyle getFontStyle( ReadableMap symbolMap, ReadableMap symbolConstants ) {
-		return switch ( Utils.rMapHasKey( symbolMap, "fontStyle" ) ? symbolMap.getString( "fontStyle" ) : symbolConstants.getString( "fontStyle" ) ) {
+	protected Paint.FontStyle getFontStyle( String fontStyle ) {
+		return switch ( fontStyle ) {
 			case "BOLD" -> Paint.FontStyle.BOLD;
 			case "BOLD_ITALIC" -> Paint.FontStyle.BOLD_ITALIC;
 			case "ITALIC" -> Paint.FontStyle.ITALIC;
@@ -510,37 +632,32 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 
 	protected Bitmap getMarkerBitmap(
-		ReadableMap symbolMap,
+		MarkerBitmapParams params,
 		ContentResolver contentResolver
 	) {
-		// Get params, assign defaults.
-		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "symbol" );
-		int width = Utils.rMapHasKey( symbolMap, "width" ) ? symbolMap.getInt( "width" ) : symbolConstants.getInt( "width" );
-		int height = Utils.rMapHasKey( symbolMap, "height" ) ? symbolMap.getInt( "height" ) : symbolConstants.getInt( "height" );
-		String fillColor = Utils.rMapHasKey( symbolMap, "fillColor" ) ? symbolMap.getString( "fillColor" ) : symbolConstants.getString( "fillColor" );
-		String strokeColor = Utils.rMapHasKey( symbolMap, "strokeColor" ) ? symbolMap.getString( "strokeColor" ) : symbolConstants.getString( "strokeColor" );
-		String text = Utils.rMapHasKey( symbolMap, "text" ) ? symbolMap.getString( "text" ) : symbolConstants.getString( "text" );
-		String filePath = Utils.rMapHasKey( symbolMap, "filePath" ) ? symbolMap.getString( "filePath" ) : symbolConstants.getString( "filePath" );
-		int strokeWidth = Utils.rMapHasKey( symbolMap, "strokeWidth" ) ? symbolMap.getInt( "strokeWidth" ) : symbolConstants.getInt( "strokeWidth" );
-		int textMargin = Utils.rMapHasKey( symbolMap, "textMargin" ) ? symbolMap.getInt( "textMargin" ) : symbolConstants.getInt( "textMargin" );
+		int width = params.width;
+		int height = params.height;
+		String fillColor = params.fillColor;
+		String strokeColor = params.strokeColor;
+		String text = params.text;
+		String filePath = params.filePath;
+		int strokeWidth = params.strokeWidth;
+		int textMargin = params.textMargin;
 
 		// If text, setup text painter and adjust width and height.
 		int textWidth = 0;
 		int textHeight = 0;
 		Paint textPainter = null;
 		if ( null != text ) {
-			// Get params, assign defaults.
-			String textColor = Utils.rMapHasKey( symbolMap, "textColor" ) ? symbolMap.getString( "textColor" ) : symbolConstants.getString( "textColor" );
-			int textSize = Utils.rMapHasKey( symbolMap, "textSize" ) ? symbolMap.getInt( "textSize" ) : symbolConstants.getInt( "textSize" );
 			// Setup textPainter.
 			textPainter = CanvasAdapter.newPaint();
 			textPainter.setStyle( Paint.Style.FILL );
-			textPainter.setTextSize( textSize );
+			textPainter.setTextSize( params.textSize );
 			textPainter.setTypeface(
-				getFontFamily( symbolMap, symbolConstants),
-				getFontStyle( symbolMap, symbolConstants)
+				getFontFamily( params.fontFamily ),
+				getFontStyle( params.fontStyle )
 			);
-			textPainter.setColor( Color.parseColor( textColor ) );
+			textPainter.setColor( Color.parseColor( params.textColor ) );
 			// Setup text dimensions and adjust width and height to fit text.
 			textWidth = ( (int) textPainter.getTextWidth( text ) + 2 * textMargin );
 			textHeight = ( (int) textPainter.getTextHeight( text ) + 2 * textMargin );
@@ -579,19 +696,9 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			Canvas textCanvas = CanvasAdapter.newCanvas();
 			textCanvas.setBitmap( textBitmap );
 			textCanvas.drawText( text, textMargin, textHeight - textMargin, textPainter );
-			float textPositionX = Utils.rMapHasKey( symbolMap, "textPositionX" )
-				? (float) symbolMap.getDouble( "textPositionX" )
-				: ( Utils.rMapHasKey( symbolConstants, "textPositionX" )
-					? (float) symbolConstants.getDouble( "textPositionX" )
-					: width * 0.5f - ( textWidth * 0.5f )
-				);
-			float textPositionY = Utils.rMapHasKey( symbolMap, "textPositionY" )
-				? (float) symbolMap.getDouble( "textPositionY" )
-				: ( Utils.rMapHasKey( symbolConstants, "textPositionY" )
-					? (float) symbolConstants.getDouble( "textPositionY" )
-					: 0
-				);
-			markerCanvas.drawBitmap( textBitmap, (float) textPositionX, (float) textPositionY );
+			float textPositionX = null != params.textPositionX ? params.textPositionX : width * 0.5f - ( textWidth * 0.5f );
+			float textPositionY = null != params.textPositionY ? params.textPositionY : 0;
+			markerCanvas.drawBitmap( textBitmap, textPositionX, textPositionY );
 		}
 		return markerBitmap;
 	}

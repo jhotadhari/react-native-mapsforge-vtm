@@ -111,15 +111,7 @@ public class LayerHelper {
 			return -1;
 		}
 
-		int layerIndex = -1;
-		int i = 0;
-		while ( layerIndex == -1 || i < mapView.map().layers().size() ) {
-			if ( layer == mapView.map().layers().get( i ) ) {
-				layerIndex = i;
-			}
-			i++;
-		}
-		return layerIndex;
+		return mapView.map().layers().indexOf( layer );
 	}
 
 }

@@ -118,12 +118,7 @@ public class MapContainer extends NativeMapContainerSpec {
 				}
 			}
 
-			for ( Layer layer : orderedLayers ) {
-				mapView.map().layers().remove( layer );
-			}
-			for ( Layer layer : orderedLayers ) {
-				mapView.map().layers().add( layer );
-			}
+			reorderMinimalMoves( mapView, orderedLayers );
 
 			// Removing/re-adding a tile-based layer (same as LayerHelper.addLayer) leaves its
 			// TileManager without a trigger to (re-)schedule tile jobs -- plain updateMap() only
@@ -150,6 +145,104 @@ public class MapContainer extends NativeMapContainerSpec {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
 		}
+	}
+
+	/**
+	 * Reorders mapView's layers to match orderedLayers using the minimum number of remove+add
+	 * moves, rather than unconditionally removing and re-adding every single one of them.
+	 * mapView.map().layers() is backed by a CopyOnWriteArrayList (org.oscim.map.Layers), where
+	 * every add/remove/contains call is O(current layer count) -- so touching only the layers
+	 * that are actually out of place (instead of all of them, every time) is what keeps a burst
+	 * of many reorderLayers calls -- e.g. while thousands of layers resolve their uuids during a
+	 * bulk mount -- from degrading into O(layerCount^2) work on every single call.
+	 */
+	private void reorderMinimalMoves( MapView mapView, List<Layer> orderedLayers ) {
+		int n = orderedLayers.size();
+		if ( n == 0 ) {
+			return;
+		}
+
+		// Snapshot which of the map's current layers are part of the target set, in their
+		// current relative order. orderedLayers and trackedCurrent are both permutations of the
+		// same n-element set.
+		Set<Layer> orderedSet = new HashSet<>( orderedLayers );
+		List<Layer> trackedCurrent = new ArrayList<>( n );
+		int currentSize = mapView.map().layers().size();
+		for ( int i = 0; i < currentSize; i++ ) {
+			Layer layer = mapView.map().layers().get( i );
+			if ( orderedSet.contains( layer ) ) {
+				trackedCurrent.add( layer );
+			}
+		}
+
+		Map<Layer, Integer> posInTrackedCurrent = new HashMap<>();
+		for ( int i = 0; i < trackedCurrent.size(); i++ ) {
+			posInTrackedCurrent.put( trackedCurrent.get( i ), i );
+		}
+
+		// values[i] = where orderedLayers.get(i) currently sits within trackedCurrent. Layers
+		// forming the longest increasing run in `values` are already in correct relative order
+		// and don't need to move at all; only layers outside that run do -- this is the standard
+		// "minimum single-element moves to sort a permutation" reduction to longest increasing
+		// subsequence.
+		int[] values = new int[ n ];
+		for ( int i = 0; i < n; i++ ) {
+			values[ i ] = posInTrackedCurrent.get( orderedLayers.get( i ) );
+		}
+
+		boolean[] keep = longestIncreasingSubsequenceMask( values );
+
+		// Walk orderedLayers in target order. Layers in the LIS are left untouched. Every other
+		// layer gets removed from wherever it currently sits and reinserted right after whichever
+		// layer immediately preceded it in target order -- recomputed fresh via indexOf on every
+		// move, since each remove/add shifts the indices of everything after it.
+		Layer afterLayer = null;
+		for ( int i = 0; i < n; i++ ) {
+			Layer layer = orderedLayers.get( i );
+			if ( keep[ i ] ) {
+				afterLayer = layer;
+				continue;
+			}
+			mapView.map().layers().remove( layer );
+			int index = null == afterLayer ? 0 : mapView.map().layers().indexOf( afterLayer ) + 1;
+			mapView.map().layers().add( index, layer );
+			afterLayer = layer;
+		}
+	}
+
+	/**
+	 * Standard O(n log n) patience-sorting longest increasing subsequence, returning which
+	 * indices of `values` belong to one such (strictly increasing) subsequence, rather than just
+	 * its length. `values` is always a permutation of 0..n-1 here, so ties never need handling.
+	 */
+	private boolean[] longestIncreasingSubsequenceMask( int[] values ) {
+		int n = values.length;
+		int[] tails = new int[ n ];
+		int[] predecessors = new int[ n ];
+		int len = 0;
+		for ( int i = 0; i < n; i++ ) {
+			int lo = 0, hi = len;
+			while ( lo < hi ) {
+				int mid = ( lo + hi ) / 2;
+				if ( values[ tails[ mid ] ] < values[ i ] ) {
+					lo = mid + 1;
+				} else {
+					hi = mid;
+				}
+			}
+			predecessors[ i ] = lo > 0 ? tails[ lo - 1 ] : -1;
+			tails[ lo ] = i;
+			if ( lo == len ) {
+				len++;
+			}
+		}
+		boolean[] keep = new boolean[ n ];
+		int k = len == 0 ? -1 : tails[ len - 1 ];
+		while ( k >= 0 ) {
+			keep[ k ] = true;
+			k = predecessors[ k ];
+		}
+		return keep;
 	}
 
 }
