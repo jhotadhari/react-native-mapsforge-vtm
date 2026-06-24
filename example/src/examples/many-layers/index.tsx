@@ -6,6 +6,7 @@ import {
 	LayerPath,
 	MapContainer,
 	Marker,
+	MarkerTypes,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -28,10 +29,10 @@ const responseInclude = {
 };
 
 const countOptions = [
+	100,
 	1000,
 	3000,
-	6000,
-	10000,
+	5000,
 ];
 
 type LayerPair = {
@@ -107,7 +108,7 @@ const ExampleComponent: FC<{
 }> = ({ height, width }) => {
 	const { handleMapUpdate, info } = useMapInfo();
 
-	const [count, setCount] = useState(3000);
+	const [count, setCount] = useState(100);
 	const [visible, setVisible] = useState(true);
 	const [version, setVersion] = useState(0);
 
@@ -117,7 +118,7 @@ const ExampleComponent: FC<{
 		[count, version]
 	);
 
-	const symbol = useMemo(() => ({ text: '•' }), []);
+	const symbol : MarkerTypes.SymbolParams = useMemo(() => ({ text: '•', fillColor: '#00ff00' }), []);
 
 	return (
 		<View
