@@ -30,12 +30,22 @@ to bisect, given how much native surface (NDK/vtm JNI) this touches.
 ### Step 2: other devDependencies in `package.json`
 
 - Go through every remaining devDependency in root `package.json` (eslint, `@eslint/*`,
-  `@react-native/eslint-config`, `@react-native-community/cli`, `typescript`, `jest`,
-  `@types/jest`, `prettier` + its plugins, `del-cli`, `turbo`) and bump to latest.
-  `@evilmartians/lefthook` and `keep-a-changelog` are this repo's own (not from the rewrite) — bump
-  those too while here.
+  `@react-native/eslint-config`, `@react-native-community/cli`, `typescript`, `prettier` + its
+  plugins, `del-cli`, `turbo`) and bump to latest. `@evilmartians/lefthook` and `keep-a-changelog`
+  are this repo's own (not from the rewrite) — bump those too while here.
 - Re-run `yarn typecheck && yarn lint` after each batch; fix anything the version bump surfaces
   before moving on (new ESLint rules turning on, stricter TS, etc.).
+- **`typescript` was bumped to `^6.0.3`** (2026-06-24) — TS 6 changed `types` to default to an empty
+  array instead of auto-including everything under `node_modules/@types`; added
+  `"types": ["jest"]` to `tsconfig.json` to keep `it`/`describe`/etc. resolving in
+  `src/__tests__/index.test.tsx`.
+- **`jest`/`@types/jest` are blocked, NOT bumped here.** Confirmed 2026-06-24: `react-native@0.78.2`
+  itself depends on `jest-environment-node: ^29.6.3` (used by its own jest-preset). Jest 30's
+  `jest-runtime` calls `jest-mock`'s `clearMocksOnScope`, which doesn't exist on the 29.x
+  `jest-mock` that comes bundled with that pinned `jest-environment-node` — so `yarn test` fails
+  immediately with `TypeError: this._moduleMocker.clearMocksOnScope is not a function` as soon as
+  jest itself is bumped to 30.x, regardless of `@types/jest`. Re-attempt alongside the RN version
+  bump (Step 1), once `react-native`'s own `jest-environment-node` pin has moved past 29.x.
 
 ### Step 3: vtm/mapsforge native dependencies in `android/build.gradle` (the big one)
 
