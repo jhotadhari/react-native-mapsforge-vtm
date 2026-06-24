@@ -12,8 +12,7 @@ The library was rewritten against the **React Native New Architecture** (Fabric 
 commit `c9a6ace`, replacing an older bridge/`NativeModules` design. `MIGRATION.md` documents exactly
 what changed and why (including features intentionally dropped, like `LayerPathSlopeGradient` and
 GPX-file loading) — read it before assuming old-architecture patterns from outside this repo apply
-here. `TODO.md` tracks open work, notably re-implementing `CanvasAdapterModule`
-(`setTextScale`/`setLineScale`/`setSymbolScale`) and a post-rewrite dependency upgrade plan.
+here. `TODO.md` tracks open work, notably a post-rewrite dependency upgrade plan.
 
 ## Common commands
 
@@ -70,6 +69,11 @@ that shared registry, then debounces a single native `reorderLayers` call whenev
 actually changes. This replaced the old `cloneElement`/static-`isMapLayer` walk entirely — there is no
 prop-injection wiring left in this repo. `LayerMarker` does its own one-level-down equivalent for
 `Marker` children.
+
+**Invariant: native layer rendering must strictly follow React component tree order.** A layer
+declared later in JSX (e.g. a `LayerMarker` mounted after a `LayerPath`) must always render on top of
+it, same as later siblings paint on top in the DOM. This currently does **not** hold under load — see
+TODO.md's "Layer render order doesn't strictly follow React tree hierarchy" entry.
 
 ### Update flow for layer props
 

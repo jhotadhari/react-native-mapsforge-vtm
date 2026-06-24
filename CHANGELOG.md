@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Re-add `CanvasAdapterModule` — a TurboModule with `setTextScale`/`setLineScale`/`setSymbolScale`
+  to control global vtm rendering scale, dropped during the New Architecture rewrite. Keeps its
+  pre-rewrite name (including the "Module" suffix), unlike other modules in this repo, since it's
+  the only one exported directly to consumers rather than backing a component. Same behavior as
+  before: call before mounting the `MapContainer`/`LayerMapsforge` whose theme you want scaled.
+
 ## [0.7.0] - 2025-04-05
 This release contains love for elevation data <3
 

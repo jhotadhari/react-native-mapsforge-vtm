@@ -57,14 +57,17 @@ what changed and how to update a consumer app.
 - The example app dropped the old `ExampleDem` and `ExampleLayerPathSlopeGradient` demos, and gained
   `mbtilesBitmap`, `hillshading`, `mapsforge`, and `manyLayers` (stress test) demos.
 
-## 3. Known gap to be re-implemented (TODO — not a permanent removal)
+## 3. `CanvasAdapterModule` is back, name unchanged
 
 - `CanvasAdapterModule` (`setTextScale` / `setLineScale` / `setSymbolScale` — global vtm
-  rendering-scale controls) currently has no JS-facing equivalent in the New Architecture rewrite.
-  Unlike the GPX-loading cut above, **this one is wanted back**: vtm's `CanvasAdapter` is still used
-  internally (`LayerMarker.java`, `LayerScalebar.java`), so the native hook point exists — what's
-  missing is a public TurboModule exposing it to JS again. Track this as an open TODO; don't remove
-  call sites in your app yet, just don't expect them to work until the replacement TurboModule lands.
+  rendering-scale controls), dropped during the New Architecture rewrite, is back with the same
+  name and call shape as before: `CanvasAdapterModule.setTextScale(2)`. Unlike every other
+  rewritten module (`LayerMarker`, not `LayerMarkerModule`), this one deliberately keeps the
+  "Module" suffix — it's the only module exported directly to consumers; every other module backs
+  a component and is never exported on its own. No call-site changes needed if your app was
+  already using the pre-rewrite name. Behavior is unchanged: the scale only affects layers/themes
+  parsed *after* the setters are called, so call them before mounting the
+  `MapContainer`/`LayerMapsforge` whose theme you want scaled.
 
 ## 4. Bug fixes carried forward (informational only, no action needed)
 
@@ -84,9 +87,8 @@ what changed and how to update a consumer app.
    `usePrevious`, `useMapLayersCreated`, `constants` / `BUILT_IN_THEMES` / `MarkerHotspotPlaces`,
    `LayerPathSlopeGradient`. None of these have a drop-in replacement — inline your own copy if still
    needed.
-3. `CanvasAdapterModule` calls (`setTextScale`/`setLineScale`/`setSymbolScale`) are a separate case —
-   see the TODO above. Leave call sites in place until the replacement TurboModule ships rather than
-   deleting them as if the feature were gone for good.
+3. No rename needed for `CanvasAdapterModule` — it kept its pre-rewrite name, including the
+   "Module" suffix, since it's exported directly rather than backing a component (see §3 above).
 4. If you use `LayerPath` with a `.gpx` `filePath`, pre-parse the GPX file to coordinates in JS before
    upgrading, or hold off on that usage.
 5. Replace any use of the old `useMapEvents()` hook with the new direct props on `MapContainer`

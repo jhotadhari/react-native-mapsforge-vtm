@@ -9,6 +9,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.module.model.ReactModuleInfo;
 import com.facebook.react.module.model.ReactModuleInfoProvider;
 import com.facebook.react.uimanager.ViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.CanvasAdapter;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerHillshading;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMapsforge;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
@@ -61,6 +62,9 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 		}
 		if ( LayerMapsforge.NAME.equals( s ) ) {
 			return new LayerMapsforge( reactApplicationContext );
+		}
+		if ( CanvasAdapter.NAME.equals( s ) ) {
+			return new CanvasAdapter( reactApplicationContext );
 		}
 		return null;
 	}
@@ -140,6 +144,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 				map.put( LayerMapsforge.NAME, new ReactModuleInfo(
 					LayerMapsforge.NAME,			// name
 					LayerMapsforge.NAME,			// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
+				map.put( CanvasAdapter.NAME, new ReactModuleInfo(
+					CanvasAdapter.NAME,				// name
+					CanvasAdapter.NAME,				// className
 					false,							// canOverrideExistingModule
 					false,							// needsEagerInit
 					false,							// isCxxModule

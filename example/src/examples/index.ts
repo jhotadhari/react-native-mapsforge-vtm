@@ -1,4 +1,5 @@
 import basic from './basic';
+import canvasAdapter from './canvas-adapter';
 import hillshading from './hillshading';
 import manyLayers from './many-layers';
 import mapsforge from './mapsforge';
@@ -8,6 +9,7 @@ import trigger from './trigger';
 
 export {
 	basic,
+	canvasAdapter,
 	hillshading,
 	manyLayers,
 	mapsforge,

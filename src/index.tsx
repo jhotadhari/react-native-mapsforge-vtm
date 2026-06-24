@@ -26,6 +26,8 @@ import LayerMapsforge from './components/LayerMapsforge';
 import * as LayerMapsforgeTypes from './NativeModules/NativeLayerMapsforge';
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
 
+import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
+
 // import LayerPathSlopeGradient from './components/LayerPathSlopeGradient';
 
 export {
@@ -47,6 +49,7 @@ export {
 	LayerMapsforge,
 	LayerMapsforgeTypes,
 	useRenderStyleOptions,
+	CanvasAdapterModule,
 
 	// LayerPathSlopeGradient,
 };
