@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
-import { View, Text, Button, Switch, StyleSheet } from 'react-native';
+import { View, Text, Button, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
 	MapContainer,
@@ -15,6 +15,12 @@ import {
 	sharedStyles,
 } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import {
+	ControlPanel,
+	ControlSection,
+	ControlRow,
+	StatusLine,
+} from '../../components/ControlPanel';
 
 const defaultCenter: Position = [-77, -9]; // [ lng, lat ]
 
@@ -52,19 +58,19 @@ const Controls: FC<{
 	};
 
 	return (
-		<View style={[styles.controls, { width: mapWidth }]}>
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+		<ControlPanel width={mapWidth}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>Animate</Text>
 					<Switch
 						value={animate}
 						onValueChange={setAnimate}
 					/>
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Button
 						title={'Rotate to 90°'}
 						onPress={run('Rotate to 90°', { bearing: 90 })}
@@ -73,8 +79,8 @@ const Controls: FC<{
 						title={'Rotate to 180°'}
 						onPress={run('Rotate to 180°', { bearing: 180 })}
 					/>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					<Button
 						title={'Reset north'}
 						onPress={run('Reset north', { bearing: 0 })}
@@ -86,8 +92,8 @@ const Controls: FC<{
 							tilt: 0,
 						})}
 					/>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					<Button
 						title={'Tilt to 45°'}
 						onPress={run('Tilt to 45°', { tilt: 45 })}
@@ -96,16 +102,16 @@ const Controls: FC<{
 						title={'Roll to 20°'}
 						onPress={run('Roll to 20°', { roll: 20 })}
 					/>
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
-					<Text style={sharedStyles.text}>Last action</Text>
-					<Text style={sharedStyles.text}>{lastAction}</Text>
-				</View>
-			</View>
-		</View>
+			<ControlSection>
+				<StatusLine
+					label="Last action"
+					value={lastAction}
+				/>
+			</ControlSection>
+		</ControlPanel>
 	);
 };
 
@@ -178,27 +184,9 @@ const ExampleComponent: FC<{
 	);
 };
 
-const styles = StyleSheet.create({
-	controls: {
-		position: 'absolute',
-		backgroundColor: '#000000',
-		zIndex: 9,
-		padding: 16,
-		gap: 16,
-	},
-	section: {
-		alignItems: 'center',
-		justifyContent: 'space-evenly',
-	},
-	flexRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-evenly',
-		gap: 16,
-	},
-});
-
 export default {
 	ExampleComponent,
 	key: 'viewportOrientation',
 	label: 'bearing / tilt / roll',
+	category: 'mapControls',
 } as Example;

@@ -1,5 +1,5 @@
 import { useCallback, useState, type FC } from 'react';
-import { Button, Text, View } from 'react-native';
+import { Button, View } from 'react-native';
 import {
 	LayerMapsforge,
 	LayerScalebar,
@@ -9,8 +9,14 @@ import {
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
+import {
+	ControlPanel,
+	ControlRow,
+	ControlSection,
+	StatusLine,
+} from '../../components/ControlPanel';
 import type { Example } from '../../types';
-import { handleMapEvent, sharedStyles } from '../../sharedDeps';
+import { handleMapEvent } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
 // Pushed onto the emulator/device via, e.g.:
@@ -107,48 +113,71 @@ const ExampleComponent: FC<{
 				width={width}
 			/>
 
-			<View style={[sharedStyles.info, { bottom: undefined, top: 0 }]}>
-				{!!bbox && (
-					<Text style={sharedStyles.text}>
-						bbox: [{bbox.map((n) => n.toFixed(4)).join(', ')}]
-					</Text>
-				)}
-				<Button
-					title={hasBuildings ? 'hide buildings' : 'show buildings'}
-					onPress={() => setHasBuildings((current) => !current)}
-				/>
-				<Button
-					title={hasLabels ? 'hide labels' : 'show labels'}
-					onPress={() => setHasLabels((current) => !current)}
-				/>
+			<ControlPanel width={width}>
+				<ControlSection>
+					<StatusLine
+						label={'bbox'}
+						value={
+							bbox
+								? bbox.map((n) => n.toFixed(4)).join(', ')
+								: '-'
+						}
+					/>
+				</ControlSection>
+
+				<ControlSection title={'Layers'}>
+					<ControlRow>
+						<Button
+							title={
+								hasBuildings
+									? 'hide buildings'
+									: 'show buildings'
+							}
+							onPress={() =>
+								setHasBuildings((current) => !current)
+							}
+						/>
+						<Button
+							title={hasLabels ? 'hide labels' : 'show labels'}
+							onPress={() => setHasLabels((current) => !current)}
+						/>
+					</ControlRow>
+				</ControlSection>
+
 				{!!renderStyleOptions.length && (
-					<Text style={sharedStyles.text}>Render style:</Text>
+					<ControlSection title={'Render style'}>
+						{renderStyleOptions.map((option) => (
+							<ControlRow key={option.value}>
+								<Button
+									title={
+										(option.value === selectedRenderStyle
+											? '> '
+											: '') + option.label
+									}
+									onPress={() => setRenderStyle(option.value)}
+								/>
+							</ControlRow>
+						))}
+					</ControlSection>
 				)}
-				{renderStyleOptions.map((option) => (
-					<Button
-						key={option.value}
-						title={
-							(option.value === selectedRenderStyle ? '> ' : '') +
-							option.label
-						}
-						onPress={() => setRenderStyle(option.value)}
-					/>
-				))}
+
 				{!!selectedOverlayOptions.length && (
-					<Text style={sharedStyles.text}>Render overlays:</Text>
+					<ControlSection title={'Render overlays'}>
+						{selectedOverlayOptions.map((overlay) => (
+							<ControlRow key={overlay.value}>
+								<Button
+									title={
+										(renderOverlays.includes(overlay.value)
+											? '[x] '
+											: '[ ] ') + overlay.label
+									}
+									onPress={() => toggleOverlay(overlay.value)}
+								/>
+							</ControlRow>
+						))}
+					</ControlSection>
 				)}
-				{selectedOverlayOptions.map((overlay) => (
-					<Button
-						key={overlay.value}
-						title={
-							(renderOverlays.includes(overlay.value)
-								? '[x] '
-								: '[ ] ') + overlay.label
-						}
-						onPress={() => toggleOverlay(overlay.value)}
-					/>
-				))}
-			</View>
+			</ControlPanel>
 
 			<MapInfo info={info} />
 		</View>
@@ -159,4 +188,5 @@ export default {
 	ExampleComponent,
 	key: 'mapsforge',
 	label: 'mapsforge',
+	category: 'layers',
 } as Example;

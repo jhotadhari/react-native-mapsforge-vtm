@@ -8,6 +8,11 @@ import {
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
+import {
+	ControlPanel,
+	ControlRow,
+	ControlSection,
+} from '../../components/ControlPanel';
 import type { Example } from '../../types';
 import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
@@ -101,15 +106,20 @@ const ExampleComponent: FC<{
 				width={width}
 			/>
 
-			<View style={[sharedStyles.info, { bottom: undefined, top: 0 }]}>
-				{scaleControl('textScale', textScale, setTextScale)}
-				{scaleControl('lineScale', lineScale, setLineScale)}
-				{scaleControl('symbolScale', symbolScale, setSymbolScale)}
-				<Button
-					title={started ? 'Restart map' : 'Start map'}
-					onPress={restart}
-				/>
-			</View>
+			<ControlPanel width={width}>
+				<ControlSection title={'Canvas scale'}>
+					{scaleControl('textScale', textScale, setTextScale)}
+					{scaleControl('lineScale', lineScale, setLineScale)}
+					{scaleControl('symbolScale', symbolScale, setSymbolScale)}
+				</ControlSection>
+
+				<ControlRow>
+					<Button
+						title={started ? 'Restart map' : 'Start map'}
+						onPress={restart}
+					/>
+				</ControlRow>
+			</ControlPanel>
 
 			{started && <MapInfo info={info} />}
 		</View>
@@ -120,4 +130,5 @@ export default {
 	ExampleComponent,
 	key: 'canvasAdapter',
 	label: 'canvasAdapter',
+	category: 'layers',
 } as Example;

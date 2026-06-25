@@ -18,6 +18,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
+import com.goebl.simplify.PointExtractor;
 import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerPathSpec;
@@ -81,9 +82,11 @@ public class LayerPath extends NativeLayerPathSpec {
 	}
 
 	protected Style.Builder getStyleBuilderFromMap( ReadableMap styleMap ) {
-		// Get params, assign defaults.
-		double strokeWidth = Utils.rMapHasKey( styleMap, "strokeWidth" ) ? styleMap.getDouble( "strokeWidth" ) : (double) getConstants().get( "strokeWidth" );
-		String strokeColor = Utils.rMapHasKey( styleMap, "strokeColor" ) ? styleMap.getString( "strokeColor" ) : (String) getConstants().get( "strokeColor" );
+		// Get params, assign defaults. "strokeWidth"/"strokeColor" live nested under the
+		// "style" constant (see getTypedExportedConstants below), not as top-level constants.
+		ReadableMap styleConstants = (ReadableMap) getConstants().get( "style" );
+		double strokeWidth = Utils.rMapHasKey( styleMap, "strokeWidth" ) ? styleMap.getDouble( "strokeWidth" ) : styleConstants.getDouble( "strokeWidth" );
+		String strokeColor = Utils.rMapHasKey( styleMap, "strokeColor" ) ? styleMap.getString( "strokeColor" ) : styleConstants.getString( "strokeColor" );
 
 		Style.Builder styleBuilder = Style.builder();
 		styleBuilder.strokeWidth( (float) strokeWidth );
@@ -163,7 +166,19 @@ public class LayerPath extends NativeLayerPathSpec {
 			}
 		}
 		if ( simplificationTolerance > 0 ) {
-			Simplify<Coordinate> simplify = new Simplify<Coordinate>( new Coordinate[0] );
+			// Simplify<T>'s no-extractor constructor blindly casts each element to
+			// com.goebl.simplify.Point, which org.locationtech.jts.geom.Coordinate doesn't
+			// implement -- supply an explicit PointExtractor instead of relying on that cast.
+			Simplify<Coordinate> simplify = new Simplify<Coordinate>( new Coordinate[0], new PointExtractor<Coordinate>() {
+				@Override
+				public double getX( Coordinate point ) {
+					return point.x;
+				}
+				@Override
+				public double getY( Coordinate point ) {
+					return point.y;
+				}
+			} );
 			jtsCoordinates = simplify.simplify( jtsCoordinates, simplificationTolerance, true );
 		}
 		return jtsCoordinates;

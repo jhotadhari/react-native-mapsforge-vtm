@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type FC } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerMarker,
@@ -14,6 +14,11 @@ import type { Example } from '../../types';
 import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import { randomNumber } from '../../utils';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import {
+	ControlPanel,
+	ControlRow,
+	ControlSection,
+} from '../../components/ControlPanel';
 
 const defaultCenter: Position = [-77, -9]; // [ lng, lat ]
 
@@ -63,19 +68,20 @@ const buildLayerPairs = (count: number): LayerPair[] =>
 	});
 
 const Controls: FC<{
+	width: number;
 	count: number;
 	visible: boolean;
 	setCount: (count: number) => void;
 	setVisible: (visible: boolean) => void;
 	onRandomize: () => void;
-}> = ({ count, visible, setCount, setVisible, onRandomize }) => {
+}> = ({ width, count, visible, setCount, setVisible, onRandomize }) => {
 	return (
-		<View style={styles.controls}>
-			<View style={styles.section}>
+		<ControlPanel width={width}>
+			<ControlSection>
 				<Text style={sharedStyles.text}>
 					{count} pairs = {2 * count} native layers
 				</Text>
-				<View style={styles.flexRow}>
+				<ControlRow>
 					{countOptions.map((option) => (
 						<Button
 							key={option}
@@ -83,11 +89,11 @@ const Controls: FC<{
 							onPress={() => setCount(option)}
 						/>
 					))}
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Button
 						title={visible ? 'hide all' : 'show all'}
 						onPress={() => setVisible(!visible)}
@@ -96,9 +102,9 @@ const Controls: FC<{
 						title={'randomize'}
 						onPress={onRandomize}
 					/>
-				</View>
-			</View>
-		</View>
+				</ControlRow>
+			</ControlSection>
+		</ControlPanel>
 	);
 };
 
@@ -118,7 +124,10 @@ const ExampleComponent: FC<{
 		[count, version]
 	);
 
-	const symbol : SymbolParams = useMemo(() => ({ text: '•', fillColor: '#00ff00' }), []);
+	const symbol: SymbolParams = useMemo(
+		() => ({ text: '•', fillColor: '#00ff00' }),
+		[]
+	);
 
 	return (
 		<View
@@ -129,6 +138,7 @@ const ExampleComponent: FC<{
 			}}
 		>
 			<Controls
+				width={width}
 				count={count}
 				visible={visible}
 				setCount={setCount}
@@ -179,27 +189,9 @@ const ExampleComponent: FC<{
 	);
 };
 
-const styles = StyleSheet.create({
-	controls: {
-		position: 'absolute',
-		backgroundColor: '#000000',
-		zIndex: 9,
-		padding: 16,
-		gap: 16,
-	},
-	section: {
-		alignItems: 'center',
-		justifyContent: 'space-evenly',
-	},
-	flexRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-evenly',
-		gap: 16,
-	},
-});
-
 export default {
 	ExampleComponent,
 	key: 'manyLayers',
 	label: 'manyLayers',
+	category: 'gestures',
 } as Example;

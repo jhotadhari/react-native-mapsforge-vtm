@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { View } from 'react-native';
 import {
 	LayerBitmapTile,
+	LayerScalebar,
 	MapContainer,
 	type Position,
 } from 'react-native-mapsforge-vtm';
@@ -48,6 +49,7 @@ const ExampleComponent: FC<{
 				onError={handleMapEvent.onError}
 			>
 				<LayerBitmapTile />
+				<LayerScalebar />
 			</MapContainer>
 
 			<Center
@@ -64,4 +66,5 @@ export default {
 	ExampleComponent,
 	key: 'basic',
 	label: 'basic',
+	category: 'layers',
 } as Example;

@@ -63,4 +63,5 @@ export default {
 	ExampleComponent,
 	key: 'hillshading',
 	label: 'hillshading',
+	category: 'layers',
 } as Example;

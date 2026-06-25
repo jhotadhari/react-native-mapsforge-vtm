@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
 	MapContainer,
@@ -15,6 +15,12 @@ import {
 	sharedStyles,
 } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import {
+	ControlPanel,
+	ControlSection,
+	ControlRow,
+	StatusLine,
+} from '../../components/ControlPanel';
 
 const defaultCenter: Position = [13.405, 52.52]; // Berlin [ lng, lat ]
 
@@ -75,14 +81,14 @@ const Controls: FC<{
 	onCompareEasing,
 }) => {
 	return (
-		<View style={[styles.controls, { width: mapWidth }]}>
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+		<ControlPanel width={mapWidth}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						flyTo (1200ms, expo_out)
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					{destinations.map((dest) => (
 						<Button
 							key={dest.key}
@@ -91,16 +97,16 @@ const Controls: FC<{
 							onPress={() => onFlyTo(dest.key)}
 						/>
 					))}
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						easeTo (300ms, sine_inout)
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					{destinations.map((dest) => (
 						<Button
 							key={dest.key}
@@ -109,16 +115,16 @@ const Controls: FC<{
 							onPress={() => onEaseTo(dest.key)}
 						/>
 					))}
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						Compare easing -- flyTo(Tokyo) with:
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					{easingsToCompare.map((easing) => (
 						<Button
 							key={easing}
@@ -127,18 +133,18 @@ const Controls: FC<{
 							onPress={() => onCompareEasing(easing)}
 						/>
 					))}
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
-					<Text style={sharedStyles.text}>Status</Text>
-					<Text style={sharedStyles.text}>
-						{isAnimating ? 'animating...' : status}
-					</Text>
-				</View>
-			</View>
-		</View>
+			<ControlSection>
+				<StatusLine
+					label="Status"
+					value={status}
+					busy={isAnimating}
+					busyValue="animating..."
+				/>
+			</ControlSection>
+		</ControlPanel>
 	);
 };
 
@@ -251,27 +257,9 @@ const ExampleComponent: FC<{
 	);
 };
 
-const styles = StyleSheet.create({
-	controls: {
-		position: 'absolute',
-		backgroundColor: '#000000',
-		zIndex: 9,
-		padding: 16,
-		gap: 16,
-	},
-	section: {
-		alignItems: 'center',
-		justifyContent: 'space-evenly',
-	},
-	flexRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-evenly',
-		gap: 16,
-	},
-});
-
 export default {
 	ExampleComponent,
 	key: 'flyEase',
 	label: 'flyTo / easeTo',
+	category: 'mapControls',
 } as Example;

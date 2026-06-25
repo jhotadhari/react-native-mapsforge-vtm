@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -16,6 +16,12 @@ import {
 	sharedStyles,
 } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import {
+	ControlPanel,
+	ControlSection,
+	ControlRow,
+	StatusLine,
+} from '../../components/ControlPanel';
 
 const defaultCenter: Position = [13.405, 52.52]; // Berlin [ lng, lat ]
 
@@ -91,14 +97,14 @@ const Controls: FC<{
 	onPanInsidePoint,
 }) => {
 	return (
-		<View style={[styles.controls, { width: mapWidth }]}>
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+		<ControlPanel width={mapWidth}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						fitBounds (instant) -- resets bearing/tilt/roll to 0
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					<Button
 						title={'Fit bounds A (block)'}
 						disabled={isBusy}
@@ -109,33 +115,33 @@ const Controls: FC<{
 						disabled={isBusy}
 						onPress={onFitBoundsB}
 					/>
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						flyToBounds (1200ms, expo_out) -- also resets
 						bearing/tilt/roll
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					<Button
 						title={'Fly to bounds A (block)'}
 						disabled={isBusy}
 						onPress={onFlyToBoundsA}
 					/>
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
+			<ControlSection>
+				<ControlRow>
 					<Text style={sharedStyles.text}>
 						panInsideBounds / panInside (approx. -- simple center
 						clamp, not a true minimal-pan-to-reveal)
 					</Text>
-				</View>
-				<View style={styles.flexRow}>
+				</ControlRow>
+				<ControlRow>
 					<Button
 						title={'1. Pan away from bounds A'}
 						disabled={isBusy}
@@ -151,18 +157,17 @@ const Controls: FC<{
 						disabled={isBusy}
 						onPress={onPanInsidePoint}
 					/>
-				</View>
-			</View>
+				</ControlRow>
+			</ControlSection>
 
-			<View style={styles.section}>
-				<View style={styles.flexRow}>
-					<Text style={sharedStyles.text}>Status</Text>
-					<Text style={sharedStyles.text}>
-						{isBusy ? 'working...' : status}
-					</Text>
-				</View>
-			</View>
-		</View>
+			<ControlSection>
+				<StatusLine
+					label="Status"
+					value={status}
+					busy={isBusy}
+				/>
+			</ControlSection>
+		</ControlPanel>
 	);
 };
 
@@ -289,27 +294,9 @@ const ExampleComponent: FC<{
 	);
 };
 
-const styles = StyleSheet.create({
-	controls: {
-		position: 'absolute',
-		backgroundColor: '#000000',
-		zIndex: 9,
-		padding: 16,
-		gap: 16,
-	},
-	section: {
-		alignItems: 'center',
-		justifyContent: 'space-evenly',
-	},
-	flexRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-evenly',
-		gap: 16,
-	},
-});
-
 export default {
 	ExampleComponent,
 	key: 'fitBounds',
 	label: 'fitBounds / panInsideBounds',
+	category: 'mapControls',
 } as Example;

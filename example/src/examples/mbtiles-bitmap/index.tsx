@@ -1,5 +1,5 @@
 import { useCallback, useState, type FC } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import {
 	LayerMBTilesBitmap,
 	LayerScalebar,
@@ -8,8 +8,13 @@ import {
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
+import {
+	ControlPanel,
+	ControlSection,
+	StatusLine,
+} from '../../components/ControlPanel';
 import type { Example } from '../../types';
-import { handleMapEvent, sharedStyles } from '../../sharedDeps';
+import { handleMapEvent } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
 // Pushed onto the emulator/device via:
@@ -86,21 +91,28 @@ const ExampleComponent: FC<{
 			/>
 
 			{!!(attribution || description || bbox) && (
-				<View
-					style={[sharedStyles.info, { bottom: undefined, top: 0 }]}
-				>
-					{!!description && (
-						<Text style={sharedStyles.text}>{description}</Text>
-					)}
-					{!!attribution && (
-						<Text style={sharedStyles.text}>{attribution}</Text>
-					)}
-					{!!bbox && (
-						<Text style={sharedStyles.text}>
-							bbox: [{bbox.map((n) => n.toFixed(4)).join(', ')}]
-						</Text>
-					)}
-				</View>
+				<ControlPanel width={width}>
+					<ControlSection>
+						{!!description && (
+							<StatusLine
+								label={'Description'}
+								value={description}
+							/>
+						)}
+						{!!attribution && (
+							<StatusLine
+								label={'Attribution'}
+								value={attribution}
+							/>
+						)}
+						{!!bbox && (
+							<StatusLine
+								label={'bbox'}
+								value={bbox.map((n) => n.toFixed(4)).join(', ')}
+							/>
+						)}
+					</ControlSection>
+				</ControlPanel>
 			)}
 
 			<MapInfo info={info} />
@@ -112,4 +124,5 @@ export default {
 	ExampleComponent,
 	key: 'mbtilesBitmap',
 	label: 'mbtilesBitmap',
+	category: 'layers',
 } as Example;
