@@ -4,7 +4,7 @@ const reportNativeError = (
 	err: ErrorBase,
 	onError?: null | ((err: ErrorBase) => void)
 ) => {
-	console.log('ERROR', err?.userInfo?.errorMsg);
+	console.error('ERROR', err?.userInfo?.errorMsg);
 	onError ? onError(err) : null;
 };
 

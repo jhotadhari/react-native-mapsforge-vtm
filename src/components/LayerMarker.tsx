@@ -43,14 +43,17 @@ const LayerMarker = ({
 	useEffect(() => {
 		errorSubscription.current = LayerMarkerModule.onError(
 			(error?: ErrorWithErrorMsg) => {
-				console.log('debug error', error); // debug ???
+				reportNativeError(
+					{ userInfo: { errorMsg: error?.errorMsg ?? '' } },
+					onError
+				);
 			}
 		);
 		return () => {
 			errorSubscription.current?.remove();
 			errorSubscription.current = null;
 		};
-	}, []);
+	}, [onError]);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,

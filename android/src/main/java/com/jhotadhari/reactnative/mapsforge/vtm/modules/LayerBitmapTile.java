@@ -145,7 +145,7 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 			// Find layer
 			BitmapTileLayer bitmapTileLayer = (BitmapTileLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "uuid" ) );
 			if ( null == bitmapTileLayer ) {
-				promise.reject( "Error", "Unable to find bitmapTileLayer" );  return;
+				Utils.promiseReject( promise, "Unable to find bitmapTileLayer" ); return;
 			}
 			// Set alpha
 			bitmapTileLayer.setBitmapAlpha( (float) alpha, true );

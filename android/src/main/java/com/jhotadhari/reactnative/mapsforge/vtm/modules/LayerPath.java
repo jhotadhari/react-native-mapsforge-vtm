@@ -213,7 +213,7 @@ public class LayerPath extends NativeLayerPathSpec {
 				jtsCoordinates = readableArrayToJtsCoordinates( coordinates, (float) simplificationTolerance );
 			}
 			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
-				promise.reject( "Error", "Unable to parse coordinates" ); return;
+				Utils.promiseReject( promise, "Unable to parse coordinates" ); return;
 			}
 
 			// Store coordinates
@@ -234,7 +234,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			promise.resolve( responseParams );
 		} catch( Exception e ) {
 			e.printStackTrace();
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 	}
 
@@ -337,7 +337,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			addStuffToResponse( uuid, responseInclude, 1, responseParams );
 		} catch( Exception e ) {
 			e.printStackTrace();
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 		promise.resolve( responseParams );
 	}
@@ -370,7 +370,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			vectorLayer.setSupportsGestures( supportsGestures );
 			addStuffToResponse( uuid, responseInclude, 1, responseParams );
 		} catch( Exception e ) {
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 		promise.resolve( responseParams );
 	}
@@ -404,7 +404,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			vectorLayer.setGestureScreenDistance( (float) gestureScreenDistance );
 			addStuffToResponse( uuid, responseInclude, 1, responseParams );
 		} catch( Exception e ) {
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 		promise.resolve( responseParams );
 	}

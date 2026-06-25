@@ -471,7 +471,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			promise.resolve( uuid );
 		} catch( Exception e ) {
 			e.printStackTrace();
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 	}
 
@@ -530,7 +530,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			promise.resolve( uuid );
 		} catch( Exception e ) {
 			e.printStackTrace();
-			promise.reject( "Error", e );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 	}
 

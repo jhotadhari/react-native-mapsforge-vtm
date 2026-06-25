@@ -7,6 +7,7 @@ import { createContext } from 'react';
  * Internal dependencies
  */
 import NativeMapContainer from '../NativeModules/NativeMapContainer';
+import reportNativeError from '../reportNativeError';
 
 export type LayerOrderRegistry = {
 	order: symbol[];
@@ -65,7 +66,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			nativeNodeHandle,
 			layerUuids: orderedUuids,
 		}).catch((err) => {
-			console.log('ERROR', err);
+			reportNativeError(err, null);
 		});
 	};
 
