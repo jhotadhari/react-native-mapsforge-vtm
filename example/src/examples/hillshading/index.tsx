@@ -15,7 +15,7 @@ import MapInfo, { useMapInfo } from '../../components/MapInfo';
 //   adb push /home/jhotadhari/Development/android/test-data/hgt/*.hgt /sdcard/Download/hgt/
 // Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example app's manifest --
 // the app's own sandboxed external files dir can't see files it didn't create itself.
-const hgtDirPath = '/sdcard/Download/hgt';
+const hgtDirPath = '/sdcard/Download/test-data/hgt';
 
 // Centered on Sajama volcano (~6500m), inside the downloaded SRTM3 tile coverage
 // (S17W067..S20W071, Bolivia/Peru border) -- there's no terrain data outside this area in the

@@ -23,8 +23,8 @@ import MapInfo, { useMapInfo } from '../../components/MapInfo';
 // since its <stylemenu> styles reference icon resources by path relative to the xml file.
 // Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example app's manifest -- the
 // app's own sandboxed external files dir can't see files it didn't create itself.
-const mapFile = '/sdcard/Download/Andorra_oam.osm.map';
-const renderTheme = '/sdcard/Download/Alti/Alti.xml';
+const mapFile = '/sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map';
+const renderTheme = '/sdcard/Download/test-data/mapstyles/Alti/Alti.xml';
 
 const defaultCenter: Position = [1.55, 42.55]; // Andorra
 
@@ -35,6 +35,7 @@ const ExampleComponent: FC<{
 	const { handleMapUpdate, info } = useMapInfo();
 
 	const [center, setCenter] = useState<Position>(defaultCenter);
+	const [bbox, setBbox] = useState<LayerMapsforgeResponse['bbox']>();
 	const [renderStyle, setRenderStyle] = useState<string | undefined>(
 		undefined
 	);
@@ -49,8 +50,9 @@ const ExampleComponent: FC<{
 	const handleLayerCreate = useCallback(
 		(response: LayerMapsforgeResponse) => {
 			if (response.center) {
-				setCenter([response.center.lng, response.center.lat]);
+				setCenter([...response.center]);
 			}
+			setBbox(response.bbox);
 		},
 		[]
 	);
@@ -106,6 +108,11 @@ const ExampleComponent: FC<{
 			/>
 
 			<View style={[sharedStyles.info, { bottom: undefined, top: 0 }]}>
+				{!!bbox && (
+					<Text style={sharedStyles.text}>
+						bbox: [{bbox.map((n) => n.toFixed(4)).join(', ')}]
+					</Text>
+				)}
 				<Button
 					title={hasBuildings ? 'hide buildings' : 'show buildings'}
 					onPress={() => setHasBuildings((current) => !current)}

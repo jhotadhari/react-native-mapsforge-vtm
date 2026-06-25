@@ -22,7 +22,7 @@ import type { LayerBitmapTileProps } from './NativeModules/NativeLayerBitmapTile
 
 import LayerPath from './components/LayerPath';
 import type {
-	Bounds,
+	Bbox,
 	GeometryStyle,
 	LayerPathGestureResponse,
 	LayerPathProps,
@@ -88,7 +88,7 @@ export {
 	type GeometryStyle,
 	type PathTriggerEvent,
 	type PathTriggerParams,
-	type Bounds,
+	type Bbox,
 	type LayerPathResponse,
 	type LayerPathGestureResponse,
 	type LayerPathProps,

@@ -13,10 +13,10 @@ import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
 // Pushed onto the emulator/device via:
-//   adb push OAM-World-1-8-J80.mbtiles /sdcard/Download/OAM-World-1-8-J80.mbtiles
+//   adb push OAM-World-1-8-J80.mbtiles /sdcard/Download/test-data/mbtiles/OAM-World-1-8-J80.mbtiles
 // Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example app's manifest --
 // the app's own sandboxed external files dir can't see files it didn't create itself.
-const mapFile = '/sdcard/Download/OAM-World-1-8-J80.mbtiles';
+const mapFile = '/sdcard/Download/test-data/mbtiles/OAM-World-1-8-J80.mbtiles';
 
 const defaultCenter: Position = [0, 0]; // [ lng, lat ]
 
@@ -38,14 +38,16 @@ const ExampleComponent: FC<{
 	const { handleMapUpdate, info } = useMapInfo();
 
 	const [center, setCenter] = useState<Position>(defaultCenter);
+	const [bbox, setBbox] = useState<LayerMBTilesBitmapResponse['bbox']>();
 	const [attribution, setAttribution] = useState('');
 	const [description, setDescription] = useState('');
 
 	const handleLayerCreate = useCallback(
 		(response: LayerMBTilesBitmapResponse) => {
 			if (response.center) {
-				setCenter([response.center.lng, response.center.lat]);
+				setCenter([...response.center]);
 			}
+			setBbox(response.bbox);
 			setAttribution(response.attribution || '');
 			setDescription(response.description || '');
 		},
@@ -82,7 +84,7 @@ const ExampleComponent: FC<{
 				width={width}
 			/>
 
-			{!!(attribution || description) && (
+			{!!(attribution || description || bbox) && (
 				<View
 					style={[sharedStyles.info, { bottom: undefined, top: 0 }]}
 				>
@@ -91,6 +93,11 @@ const ExampleComponent: FC<{
 					)}
 					{!!attribution && (
 						<Text style={sharedStyles.text}>{attribution}</Text>
+					)}
+					{!!bbox && (
+						<Text style={sharedStyles.text}>
+							bbox: [{bbox.map((n) => n.toFixed(4)).join(', ')}]
+						</Text>
 					)}
 				</View>
 			)}

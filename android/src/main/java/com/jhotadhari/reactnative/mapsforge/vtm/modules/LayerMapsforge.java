@@ -9,6 +9,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -299,16 +300,18 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 			return;
 		}
 		BoundingBox boundingBox = mapInfo.boundingBox;
-		WritableMap boundsParams = new WritableNativeMap();
-		boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
-		boundsParams.putDouble( "minLng", boundingBox.getMinLongitude() );
-		boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
-		boundsParams.putDouble( "maxLng", boundingBox.getMaxLongitude() );
-		responseParams.putMap( "bounds", boundsParams );
-		WritableMap centerParams = new WritableNativeMap();
-		centerParams.putDouble( "lng", mapInfo.mapCenter.getLongitude() );
-		centerParams.putDouble( "lat", mapInfo.mapCenter.getLatitude() );
-		responseParams.putMap( "center", centerParams );
+		// [ west, south, east, north ], mirroring geojson's `bbox` member.
+		WritableArray bboxParams = new WritableNativeArray();
+		bboxParams.pushDouble( boundingBox.getMinLongitude() );
+		bboxParams.pushDouble( boundingBox.getMinLatitude() );
+		bboxParams.pushDouble( boundingBox.getMaxLongitude() );
+		bboxParams.pushDouble( boundingBox.getMaxLatitude() );
+		responseParams.putArray( "bbox", bboxParams );
+		// [ lng, lat ], mirroring geojson's `Position`.
+		WritableArray centerParams = new WritableNativeArray();
+		centerParams.pushDouble( mapInfo.mapCenter.getLongitude() );
+		centerParams.pushDouble( mapInfo.mapCenter.getLatitude() );
+		responseParams.putArray( "center", centerParams );
 		responseParams.putString( "createdBy", mapInfo.createdBy );
 		responseParams.putString( "projectionName", mapInfo.projectionName );
 		responseParams.putString( "comment", mapInfo.comment );

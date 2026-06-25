@@ -143,12 +143,8 @@ interface TriggerParamsCG {
 	x?: Double;
 	y?: Double;
 }
-export type Bounds = {	// ??? this should be a ReadonlyArray<Double>; "west", "south", "east", and "north" according to https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
-	minLat: Double;
-	minLng: Double;
-	maxLat: Double;
-	maxLng: Double;
-};
+// Mirrors geojson's `bbox` member: `[ west, south, east, north ]`. https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
+export type Bbox = ReadonlyArray<Double>;
 
 interface ResponseBase {
 	uuid: string;
@@ -157,7 +153,7 @@ interface ResponseBase {
 
 export interface LayerPathResponse extends ResponseBase {
 	coordinates?: Position[];
-	bounds?: Bounds;
+	bbox?: Bbox;
 }
 
 export interface LayerPathGestureResponse extends ResponseBase {

@@ -452,12 +452,13 @@ public class LayerPath extends NativeLayerPathSpec {
 		if ( null != jtsCoordinates ) {
 			Geometry geometry = new LineString( new CoordinateArraySequence( jtsCoordinates ), new GeometryFactory() );
 			Envelope boundingBox = geometry.getEnvelopeInternal();
-			WritableMap boundsParams = new WritableNativeMap();
-			boundsParams.putDouble("minLat", boundingBox.getMinY());
-			boundsParams.putDouble("minLng", boundingBox.getMinX());
-			boundsParams.putDouble("maxLat", boundingBox.getMaxY());
-			boundsParams.putDouble("maxLng", boundingBox.getMaxX());
-			responseParams.putMap("bounds", boundsParams);
+			// [ west, south, east, north ], mirroring geojson's `bbox` member.
+			WritableArray bboxParams = new WritableNativeArray();
+			bboxParams.pushDouble(boundingBox.getMinX());
+			bboxParams.pushDouble(boundingBox.getMinY());
+			bboxParams.pushDouble(boundingBox.getMaxX());
+			bboxParams.pushDouble(boundingBox.getMaxY());
+			responseParams.putArray("bbox", bboxParams);
 		}
 	}
 

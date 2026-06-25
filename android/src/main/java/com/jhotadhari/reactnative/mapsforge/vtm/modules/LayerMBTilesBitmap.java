@@ -121,19 +121,21 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 		}
 		BoundingBox boundingBox = dataSource.getBounds();
 		if ( null != boundingBox ) {
-			WritableMap boundsParams = new WritableNativeMap();
-			boundsParams.putDouble( "minLat", boundingBox.getMinLatitude() );
-			boundsParams.putDouble( "minLng", boundingBox.getMinLongitude() );
-			boundsParams.putDouble( "maxLat", boundingBox.getMaxLatitude() );
-			boundsParams.putDouble( "maxLng", boundingBox.getMaxLongitude() );
-			responseParams.putMap( "bounds", boundsParams );
+			// [ west, south, east, north ], mirroring geojson's `bbox` member.
+			WritableArray bboxParams = new WritableNativeArray();
+			bboxParams.pushDouble( boundingBox.getMinLongitude() );
+			bboxParams.pushDouble( boundingBox.getMinLatitude() );
+			bboxParams.pushDouble( boundingBox.getMaxLongitude() );
+			bboxParams.pushDouble( boundingBox.getMaxLatitude() );
+			responseParams.putArray( "bbox", bboxParams );
 		}
 		MapPosition center = dataSource.getCenter();
 		if ( null != center ) {
-			WritableMap centerParams = new WritableNativeMap();
-			centerParams.putDouble( "lng", center.getLongitude() );
-			centerParams.putDouble( "lat", center.getLatitude() );
-			responseParams.putMap( "center", centerParams );
+			// [ lng, lat ], mirroring geojson's `Position`.
+			WritableArray centerParams = new WritableNativeArray();
+			centerParams.pushDouble( center.getLongitude() );
+			centerParams.pushDouble( center.getLatitude() );
+			responseParams.putArray( "center", centerParams );
 		}
 		List<String> supportedFormats = dataSource.getSupportedFormats();
 		WritableArray supportedFormatsArr = new WritableNativeArray();

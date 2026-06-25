@@ -35,21 +35,20 @@ interface SetAlphaParams {
 	alpha?: Double;
 }
 
-export type Bounds = {	// ??? this should be a ReadonlyArray<Double>; "west", "south", "east", and "north" according to https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
-	minLat: Double;
-	minLng: Double;
-	maxLat: Double;
-	maxLng: Double;
-};
+/*
+ * Type should be redeclared because of codegen ts parser doesn't allow imported type
+ * [comments](https://github.com/reactwg/react-native-new-architecture/discussions/91#discussioncomment-4282452)
+ *
+ * Mirrors geojson's `Position` ( `[ lng, lat, alt? ]` ), but using `Double` as required by codegen.
+ */
+type Position = ReadonlyArray<Double>;
 
-export type Location = {// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
-	lng: Double;
-	lat: Double;
-};
+// Mirrors geojson's `bbox` member: `[ west, south, east, north ]`. https://datatracker.ietf.org/doc/html/rfc7946#section-5.1
+export type Bbox = ReadonlyArray<Double>;
 
 export interface LayerMBTilesBitmapResponse extends ResponseBase {
-	bounds?: Bounds;
-	center?: Location;	// ??? this should be a Position, see src/NativeViews/MapsforgeVtmViewNativeComponent.ts
+	bbox?: Bbox;
+	center?: Position;
 	supportedFormats?: string[];
 	format?: string;
 	attribution?: string;
