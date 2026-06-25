@@ -28,7 +28,6 @@ import org.mapsforge.map.layer.hills.SimpleClasyHillShading;
 import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.mapsforge.map.layer.hills.StandardClasyHillShading;
 import org.oscim.android.MapView;
-import org.oscim.android.cache.TileCache;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
 import org.oscim.tiling.source.hills.HillshadingTileSource;
@@ -123,12 +122,12 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 				AndroidGraphicFactory.INSTANCE
 			);
 
-			if ( cacheSize > 0 ) {
-				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
-				String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : algorithmResult.dbname;
-				File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
-				ITileCache tileCache = new TileCache( getCurrentActivity(), cacheDirectory.toString(), algorithmResult.dbname );
-				tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+			ITileCache tileCache = Utils.buildTileCache(
+				getCurrentActivity(), getReactApplicationContext(),
+				cacheSize, cacheDirBase, cacheDirChild,
+				algorithmResult.dbname
+			);
+			if ( null != tileCache ) {
 				hillshadingTileSource.setCache( tileCache );
 			}
 

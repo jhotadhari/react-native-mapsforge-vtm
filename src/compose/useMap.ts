@@ -58,6 +58,28 @@ const requireHandle = (nativeNodeHandle: null | number): number => {
 	return nativeNodeHandle;
 };
 
+// Bbox is ReadonlyArray<Double> (not a fixed-length tuple -- see NativeLayerPath.ts's comment on
+// why codegen spec types can't be tuples here), so nothing at the type level stops a caller from
+// passing a malformed array. Validating length up front turns that into a clear, synchronous
+// error instead of a native index-out-of-bounds exception (fitBounds) or NaN coordinates silently
+// reaching panTo (panInsideBounds).
+const requireBbox = (
+	bounds: Bbox
+): { west: number; south: number; east: number; north: number } => {
+	if (bounds.length !== 4) {
+		throw new Error(
+			`useMap: bounds must be [ west, south, east, north ] (length 4), got length ${bounds.length}.`
+		);
+	}
+	const [
+		west,
+		south,
+		east,
+		north,
+	] = bounds;
+	return { west: west!, south: south!, east: east!, north: north! };
+};
+
 /**
  * Imperative map control -- panning, zooming, rotating/tilting, animated camera moves and
  * bounds-fitting -- all implemented as thin wrappers around two native primitives,
@@ -161,14 +183,16 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		const fitBounds = (
 			bounds: Bbox,
 			options?: FitBoundsOptions
-		): Promise<void> =>
-			NativeMapContainer.animateTo({
+		): Promise<void> => {
+			requireBbox(bounds);
+			return NativeMapContainer.animateTo({
 				nativeNodeHandle: requireHandle(nativeNodeHandle),
 				bounds,
 				boundsPaddingPx: options?.paddingPx ?? 0,
 				duration: options?.duration ?? 0,
 				easing: options?.easing ?? 'linear',
 			});
+		};
 
 		const flyToBounds = (
 			bounds: Bbox,
@@ -185,15 +209,10 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		// on-screen viewport's own geographic extent, which isn't exposed natively yet) -- it's a
 		// simpler "keep the camera over this area" behaviour.
 		const panInsideBounds = async (bounds: Bbox): Promise<void> => {
+			const { west, south, east, north } = requireBbox(bounds);
 			const [lng, lat] = await getPosition().then((p) => p.center);
-			const [
-				west,
-				south,
-				east,
-				north,
-			] = bounds;
-			const clampedLng = Math.min(Math.max(lng!, west!), east!);
-			const clampedLat = Math.min(Math.max(lat!, south!), north!);
+			const clampedLng = Math.min(Math.max(lng!, west), east);
+			const clampedLat = Math.min(Math.max(lat!, south), north);
 			if (clampedLng === lng && clampedLat === lat) {
 				return;
 			}

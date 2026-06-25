@@ -1,5 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.UriPermission;
 import android.content.res.Resources;
@@ -20,6 +21,8 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.oscim.android.MapView;
+import org.oscim.android.cache.TileCache;
+import org.oscim.tiling.ITileCache;
 
 import java.io.File;
 import java.lang.reflect.Array;
@@ -133,6 +136,45 @@ public class Utils {
 		return null == cacheDirParent
 			? context.getCacheDir()
 			: cacheDirParent;
+	}
+
+	/**
+	 * Shared by LayerHillshading and LayerMBTilesBitmap, the only two layers that support an
+	 * on-disk tile cache. vtm requires the cache to be set on a TileSource before that source is
+	 * attached to a TileLayer.
+	 *
+	 * @param activity      Current Activity, needed by vtm's TileCache constructor. Null is a real,
+	 *                      reachable case (e.g. an Activity recreation/destruction race) -- callers
+	 *                      already catch exceptions generically and reject the promise with the
+	 *                      message, so this throws rather than silently skipping the cache or NPEing
+	 *                      inside TileCache's own constructor.
+	 * @param cacheSize     Cache size in mb. 0 or less disables caching (returns null).
+	 * @param cacheDirBase  Empty string is handled by getCacheDirParent.
+	 * @param cacheDirChild Empty string falls back to dbname.
+	 * @param dbname        Unique name for this cache's contents (e.g. derived from the algorithm/
+	 *                      params for hillshading, or the source file for MBTiles).
+	 * @return ITileCache to pass to TileSource.setCache(), or null if cacheSize <= 0.
+	 */
+	public static ITileCache buildTileCache(
+		Activity activity,
+		ReactApplicationContext reactContext,
+		int cacheSize,
+		String cacheDirBase,
+		String cacheDirChild,
+		String dbname
+	) {
+		if ( cacheSize <= 0 ) {
+			return null;
+		}
+		if ( null == activity ) {
+			throw new IllegalStateException( "Unable to set up tile cache: no current Activity" );
+		}
+		File cacheDirParent = getCacheDirParent( cacheDirBase, reactContext );
+		String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
+		File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
+		ITileCache tileCache = new TileCache( activity, cacheDirectory.toString(), dbname );
+		tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+		return tileCache;
 	}
 
 	public static void promiseReject( Promise promise, String errorMsg ) {

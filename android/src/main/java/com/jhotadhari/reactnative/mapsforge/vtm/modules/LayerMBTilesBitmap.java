@@ -15,7 +15,6 @@ import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerMBTilesBitmapSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
-import org.oscim.android.cache.TileCache;
 import org.oscim.android.tiling.source.mbtiles.MBTilesBitmapTileSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileDataSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileSource;
@@ -101,15 +100,13 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 				null != transparentColor && transparentColor.startsWith( "#" ) ? Color.parseColor( transparentColor ) : null
 			);
 
-			// Cache MUST be set before the tile source is attached to a TileLayer (same
-			// constraint as LayerHillshading's identically-shaped cache setup below).
-			if ( cacheSize > 0 ) {
-				String dbname = "mbtiles_" + Utils.slugify( file.getName() );
-				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
-				String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
-				File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
-				ITileCache tileCache = new TileCache( getCurrentActivity(), cacheDirectory.toString(), dbname );
-				tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+			// Cache MUST be set before the tile source is attached to a TileLayer.
+			ITileCache tileCache = Utils.buildTileCache(
+				getCurrentActivity(), getReactApplicationContext(),
+				cacheSize, cacheDirBase, cacheDirChild,
+				"mbtiles_" + Utils.slugify( file.getName() )
+			);
+			if ( null != tileCache ) {
 				tileSource.setCache( tileCache );
 			}
 

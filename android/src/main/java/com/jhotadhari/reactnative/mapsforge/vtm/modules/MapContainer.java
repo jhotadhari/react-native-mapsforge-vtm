@@ -42,19 +42,22 @@ public class MapContainer extends NativeMapContainerSpec {
 	// tile layer on the same map.
 	private final Map<Integer, Set<Layer>> previouslyOrderedLayers = new HashMap<>();
 
-	// Tracks, per nativeNodeHandle, the not-yet-resolved animateTo call's listener+promise. vtm's
-	// org.oscim.map.Map.ANIM_END is a single event per map (not scoped to one animateTo call), so
-	// a new animateTo started before a previous one finishes would otherwise leave the earlier
-	// promise hanging until *this* animation happens to end too. Resolving it immediately instead
-	// treats "superseded by a newer call" the same as "done".
+	// Tracks, per nativeNodeHandle, the not-yet-resolved animateTo call(s)' listener+promises.
+	// vtm's org.oscim.map.Map.ANIM_END is a single event per map (not scoped to one animateTo
+	// call), so a new animateTo started before a previous one finishes would otherwise leave the
+	// earlier promise hanging until *this* animation happens to end too. Rather than resolving a
+	// superseded call's promise immediately (which would be a false "success" while the camera is
+	// actually still moving towards a *different*, newer target), it's carried over and resolved
+	// together with the call that superseded it -- so by the time any of them resolves, the camera
+	// genuinely reflects whichever target was requested last.
 	private final Map<Integer, PendingAnimateTo> pendingAnimateTo = new HashMap<>();
 
 	private static class PendingAnimateTo {
 		final org.oscim.map.Map.UpdateListener listener;
-		final Promise promise;
-		PendingAnimateTo( org.oscim.map.Map.UpdateListener listener, Promise promise ) {
+		final List<Promise> promises;
+		PendingAnimateTo( org.oscim.map.Map.UpdateListener listener, List<Promise> promises ) {
 			this.listener = listener;
-			this.promise = promise;
+			this.promises = promises;
 		}
 	}
 
@@ -189,11 +192,13 @@ public class MapContainer extends NativeMapContainerSpec {
 				Utils.promiseReject( promise, "Unable to find mapView" ); return;
 			}
 
+			List<Promise> pendingPromises = new ArrayList<>();
 			PendingAnimateTo previous = pendingAnimateTo.remove( nativeNodeHandle );
 			if ( null != previous ) {
 				mapView.map().events.unbind( previous.listener );
-				previous.promise.resolve( null );
+				pendingPromises.addAll( previous.promises );
 			}
+			pendingPromises.add( promise );
 
 			long duration = Utils.rMapHasKey( params, "duration" ) ? (long) params.getDouble( "duration" ) : 0;
 			Easing.Type easing = easingFromString( Utils.rMapHasKey( params, "easing" ) ? params.getString( "easing" ) : null );
@@ -205,11 +210,17 @@ public class MapContainer extends NativeMapContainerSpec {
 
 			if ( Utils.rMapHasKey( params, "bounds" ) ) {
 				ReadableArray bounds = params.getArray( "bounds" );
+				if ( bounds.size() != 4 ) {
+					Utils.promiseReject( promise, "bounds must be [ west, south, east, north ] (length 4), got length " + bounds.size() ); return;
+				}
 				// GeoJSON bbox order: [ west, south, east, north ].
 				BoundingBox bbox = new BoundingBox(
 					bounds.getDouble( 1 ), bounds.getDouble( 0 ),
 					bounds.getDouble( 3 ), bounds.getDouble( 2 )
 				);
+				if ( mapView.getWidth() <= 0 || mapView.getHeight() <= 0 ) {
+					Utils.promiseReject( promise, "Map view has not been laid out yet (width/height are 0) -- fitBounds/flyToBounds needs a real viewport size to compute a zoom level" ); return;
+				}
 				int paddingPx = Utils.rMapHasKey( params, "boundsPaddingPx" ) ? (int) params.getDouble( "boundsPaddingPx" ) : 0;
 				// vtm's animateTo(BoundingBox) overloads don't support padding, so fitting "with
 				// padding" means fitting into a viewport shrunk by that padding on each side.
@@ -247,7 +258,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			// an ANIM_END the animator is never even asked to fire.
 			if ( duration <= 0 ) {
 				mapView.map().setMapPosition( target );
-				promise.resolve( null );
+				resolveAll( pendingPromises );
 				return;
 			}
 
@@ -259,7 +270,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			// (and isAnimating-style UI state) pending forever. Resolve immediately instead of
 			// relying on that loop at all when there's nothing to animate.
 			if ( positionsEqual( current, target ) ) {
-				promise.resolve( null );
+				resolveAll( pendingPromises );
 				return;
 			}
 
@@ -270,11 +281,11 @@ public class MapContainer extends NativeMapContainerSpec {
 					if ( e == org.oscim.map.Map.ANIM_END ) {
 						mapView.map().events.unbind( listenerHolder[ 0 ] );
 						pendingAnimateTo.remove( nativeNodeHandle );
-						promise.resolve( null );
+						resolveAll( pendingPromises );
 					}
 				}
 			};
-			pendingAnimateTo.put( nativeNodeHandle, new PendingAnimateTo( listenerHolder[ 0 ], promise ) );
+			pendingAnimateTo.put( nativeNodeHandle, new PendingAnimateTo( listenerHolder[ 0 ], pendingPromises ) );
 			mapView.map().events.bind( listenerHolder[ 0 ] );
 
 			mapView.map().animator().animateTo( duration, target, easing );
@@ -284,15 +295,35 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
+	private static void resolveAll( List<Promise> promises ) {
+		for ( Promise p : promises ) {
+			p.resolve( null );
+		}
+	}
+
+	// Shortest signed difference between two degree values, e.g. angularDiff(0.005f, 359.995f) is
+	// ~0.01, not ~360 -- bearing/roll wrap around (MapPosition.setBearing/setRoll both normalize
+	// via FastMath.clampDegree), so a naive subtraction would treat two near-identical headings
+	// that straddle the 0/360 boundary as wildly different.
+	private static float angularDiff( float a, float b ) {
+		float diff = ( a - b ) % 360f;
+		if ( diff > 180f ) {
+			diff -= 360f;
+		} else if ( diff < -180f ) {
+			diff += 360f;
+		}
+		return diff;
+	}
+
 	private static boolean positionsEqual( MapPosition a, MapPosition b ) {
 		final double EPS = 1e-7;
 		final float EPS_DEGREES = 0.01f;
 		return Math.abs( a.x - b.x ) < EPS
 			&& Math.abs( a.y - b.y ) < EPS
 			&& Math.abs( a.scale - b.scale ) < EPS
-			&& Math.abs( a.bearing - b.bearing ) < EPS_DEGREES
+			&& Math.abs( angularDiff( a.bearing, b.bearing ) ) < EPS_DEGREES
 			&& Math.abs( a.tilt - b.tilt ) < EPS_DEGREES
-			&& Math.abs( a.roll - b.roll ) < EPS_DEGREES;
+			&& Math.abs( angularDiff( a.roll, b.roll ) ) < EPS_DEGREES;
 	}
 
 	private Easing.Type easingFromString( String easing ) {

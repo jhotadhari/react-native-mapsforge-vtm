@@ -69,3 +69,45 @@ com.google.protobuf:protobuf-java:3.24.4
 io.github.ci-cmg:mapbox-vector-tile:4.0.6
 ```
 
+## 2. Thread-safety: vtm `Map` access split across two threads
+
+Found 2026-06-25 during code review of the `useMap()`/`animateTo` feature (commit `084638d`).
+`MapContainer.animateTo`/`getPosition` now dispatch their bodies onto the UI thread via
+`UiThreadUtil.runOnUiThread` — required because vtm's `Animator`/`ViewController` call
+`org.oscim.utils.ThreadUtils.assertMainThread()` and throw otherwise. Meanwhile every layer
+module's `createLayer`/`removeLayer` (via the shared `LayerHelper.addLayer`/`removeLayer`,
+`android/.../LayerHelper.java:43,65`) and `MapContainer.reorderLayers` still run on RN's
+native-modules thread and mutate the same `mapView.map()` (`layers()`, `updateMap()`) with no
+synchronization against the new UI-thread callers. Not yet fixed — deliberately deferred (see
+below).
+
+Why not just wrap `LayerHelper.addLayer`/`removeLayer` in `UiThreadUtil.runOnUiThread` too:
+`addLayer` is currently **synchronous** — it returns the uuid immediately, and every layer's
+`createLayer` depends on that return value to build its own response right after.
+`UiThreadUtil.runOnUiThread` is fire-and-forget (posts and returns immediately); naively wrapping
+it would make `addLayer` return before the layer is actually added, breaking every layer's
+create/remove flow, not just closing the race. Making it safe needs either (a) blocking the
+calling thread with a `CountDownLatch` until the UI-thread work finishes — adds a cross-thread
+blocking round-trip to *every* layer create/remove call, directly working against making bulk
+layer creation faster — or (b) a real async rewrite of `LayerHelper`'s contract across every layer
+module.
+
+Decision: do this together with the "make creation/deletion of many layers super fast" work
+(see item 0 above and `project_many_layers_perf_fix_status` in memory) rather than bolting on a
+latch now that would likely need undoing once that redesign happens. The redesign should also
+keep CLAUDE.md's "layer render order must strictly follow React tree order" invariant in mind —
+item 0's root cause (concurrent JNI-thread-pool resolution order) and this thread-safety gap are
+related: a single, deliberately-threaded layer-mutation pipeline would help both at once.
+
+Related, same root cause (no per-`nativeNodeHandle` teardown hook exists at all): pre-existing
+`LayerHelper.layersByHandle` (`LayerHelper.java:27`) and `MapContainer.previouslyOrderedLayers`
+never get cleared when a map view/fragment is destroyed — they just accumulate stale entries
+keyed by a `nativeNodeHandle` that will never be reused. `MapContainer.pendingAnimateTo` (added in
+`084638d`) has the same gap, but with a heavier payload: each entry's `Map.UpdateListener` closure
+holds a strong reference to `mapView`, so an in-flight `animateTo` whose view gets destroyed
+mid-animation keeps the entire native `MapView`/`Map`/tile-cache object graph (plus the pending
+`Promise` and its JS-side `await` continuation) alive indefinitely instead of being released with
+the view. Worth fixing as part of the same redesign by adding a real
+`MapFragment.onDestroy`-driven cleanup hook for all three maps, rather than three separate
+narrow patches.
+
