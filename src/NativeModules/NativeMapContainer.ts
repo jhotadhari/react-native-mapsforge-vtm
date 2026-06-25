@@ -57,9 +57,42 @@ export interface ReorderLayersParams {
 	layerUuids: ReadonlyArray<string>;
 }
 
+export interface AnimateToParams {
+	nativeNodeHandle: Int32;
+	// Ignored when `bounds` is set.
+	center?: Position;
+	zoomLevel?: Double;
+	bearing?: Double;
+	tilt?: Double;
+	roll?: Double;
+	// GeoJSON bbox: [ west, south, east, north ]. Takes priority over center/zoomLevel/bearing/
+	// tilt/roll, and resets bearing/tilt/roll to 0 -- mirrors vtm's own MapPosition.setByBoundingBox.
+	bounds?: ReadonlyArray<Double>;
+	boundsPaddingPx?: Double;
+	// Milliseconds. 0 (the default) jumps instantly.
+	duration?: Double;
+	// One of vtm's org.oscim.utils.animation.Easing.Type names, case-insensitive
+	// (e.g. 'linear', 'sine_inout', 'expo_out'). Defaults to 'linear'.
+	easing?: string;
+}
+
+export interface GetPositionParams {
+	nativeNodeHandle: Int32;
+}
+
+export interface GetPositionResponse {
+	center: Position;
+	zoomLevel: Int32;
+	bearing: Double;
+	tilt: Double;
+	roll: Double;
+}
+
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	reorderLayers(params: ReorderLayersParams): Promise<void>;
+	animateTo(params: AnimateToParams): Promise<void>;
+	getPosition(params: GetPositionParams): Promise<GetPositionResponse>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('MapContainer');

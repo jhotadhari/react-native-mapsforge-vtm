@@ -15,6 +15,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerMBTilesBitmapSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
+import org.oscim.android.cache.TileCache;
 import org.oscim.android.tiling.source.mbtiles.MBTilesBitmapTileSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileDataSource;
 import org.oscim.android.tiling.source.mbtiles.MBTilesTileSource;
@@ -23,6 +24,7 @@ import org.oscim.core.BoundingBox;
 import org.oscim.core.MapPosition;
 import org.oscim.layers.Layer;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
+import org.oscim.tiling.ITileCache;
 
 import java.io.File;
 import java.util.HashMap;
@@ -55,6 +57,9 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 		constants.put( "alpha", 1 );
 		constants.put( "enabledZoomMin", 1 );
 		constants.put( "enabledZoomMax", 20 );
+		constants.put( "cacheSize", 0 );	// 0 disables caching -- this layer already reads straight from a local file, so caching is opt-in rather than on by default like LayerHillshading's.
+		constants.put( "cacheDirBase", "" );	// Empty string will be handled by Utils.getCacheDirParent.
+		constants.put( "cacheDirChild", "" );	// Empty string will be the generated cache db name.
 		return constants;
 	}
 
@@ -84,6 +89,9 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 			// Get params, assign defaults.
 			double alpha = Utils.rMapHasKey( params, "alpha" ) ? params.getDouble( "alpha" ) : (int) getConstants().get( "alpha" );
 			String transparentColor = Utils.rMapHasKey( params, "transparentColor" ) ? params.getString( "transparentColor" ) : (String) getConstants().get( "transparentColor" );
+			int cacheSize = Utils.rMapHasKey( params, "cacheSize" ) ? params.getInt( "cacheSize" ) : (int) getConstants().get( "cacheSize" );
+			String cacheDirBase = Utils.rMapHasKey( params, "cacheDirBase" ) ? params.getString( "cacheDirBase" ) : (String) getConstants().get( "cacheDirBase" );
+			String cacheDirChild = Utils.rMapHasKey( params, "cacheDirChild" ) ? params.getString( "cacheDirChild" ) : (String) getConstants().get( "cacheDirChild" );
 
 			// Define tile source. Alpha is handled live via BitmapTileLayer.setBitmapAlpha below,
 			// not baked into the tile source at decode time.
@@ -92,6 +100,18 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 				null,
 				null != transparentColor && transparentColor.startsWith( "#" ) ? Color.parseColor( transparentColor ) : null
 			);
+
+			// Cache MUST be set before the tile source is attached to a TileLayer (same
+			// constraint as LayerHillshading's identically-shaped cache setup below).
+			if ( cacheSize > 0 ) {
+				String dbname = "mbtiles_" + Utils.slugify( file.getName() );
+				File cacheDirParent = Utils.getCacheDirParent( cacheDirBase, getReactApplicationContext() );
+				String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
+				File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
+				ITileCache tileCache = new TileCache( getCurrentActivity(), cacheDirectory.toString(), dbname );
+				tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+				tileSource.setCache( tileCache );
+			}
 
 			// Create layer from tile source.
 			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource, (float) alpha );

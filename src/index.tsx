@@ -57,6 +57,14 @@ import type {
 } from './NativeModules/NativeLayerMapsforge';
 
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
+import useMap from './compose/useMap';
+import type {
+	EasingType,
+	MapPositionTarget,
+	AnimationOptions,
+	FitBoundsOptions,
+	GetPositionResponse,
+} from './compose/useMap';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 
@@ -114,6 +122,14 @@ export {
 	type RenderStyleOption,
 	type LayerMapsforgeResponse,
 	type LayerMapsforgeProps,
+
+	// useMap.
+	useMap,
+	type EasingType,
+	type MapPositionTarget,
+	type AnimationOptions,
+	type FitBoundsOptions,
+	type GetPositionResponse,
 
 	// Other
 	useRenderStyleOptions,

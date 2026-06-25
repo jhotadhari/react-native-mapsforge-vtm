@@ -11,6 +11,9 @@ export interface ModuleParams {
 	alpha?: Double; // float between 0 and 1.
 	enabledZoomMin?: Int32;
 	enabledZoomMax?: Int32;
+	cacheSize?: Int32; // mb
+	cacheDirBase?: string; // empty will be handled java side.
+	cacheDirChild?: string; // empty will be handled java side.
 }
 
 interface CreateLayerParams extends ModuleParams {
@@ -64,6 +67,9 @@ export type LayerMBTilesBitmapProps = {
 	alpha?: CreateLayerParams['alpha'];
 	enabledZoomMin?: CreateLayerParams['enabledZoomMin'];
 	enabledZoomMax?: CreateLayerParams['enabledZoomMax'];
+	cacheSize?: number;
+	cacheDirBase?: `/${string}`;
+	cacheDirChild?: string;
 	onCreate?: null | ((response: LayerMBTilesBitmapResponse) => void);
 	onRemove?: null | ((response: ResponseBase) => void);
 	onChange?: null | ((response: LayerMBTilesBitmapResponse) => void);

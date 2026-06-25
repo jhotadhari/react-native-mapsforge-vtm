@@ -22,6 +22,9 @@ const LayerMBTilesBitmap = ({
 	alpha,
 	enabledZoomMin,
 	enabledZoomMax,
+	cacheSize,
+	cacheDirBase,
+	cacheDirChild,
 	onCreate,
 	onRemove,
 	onChange,
@@ -50,6 +53,11 @@ const LayerMBTilesBitmap = ({
 				...(enabledZoomMax && {
 					enabledZoomMax: Math.round(enabledZoomMax),
 				}),
+				...(cacheSize !== undefined && {
+					cacheSize: Math.round(cacheSize),
+				}),
+				...(cacheDirBase && { cacheDirBase: cacheDirBase.trim() }),
+				...(cacheDirChild && { cacheDirChild: cacheDirChild.trim() }),
 			}).then((response: LayerMBTilesBitmapResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
 				triggerOnChange && onChange ? onChange(response) : null;
@@ -122,8 +130,9 @@ const LayerMBTilesBitmap = ({
 	]);
 
 	// There's no native "update in place" for these -- changing any of them requires tearing down
-	// and recreating the layer (mapFile/transparentColor are baked into the tile source at
-	// construction time). triggerRemove resets uuid to null on success, which is what lets the
+	// and recreating the layer (mapFile/transparentColor/cache* are all baked into the tile
+	// source at construction time -- vtm requires the cache to be set before the tile source is
+	// attached to a layer). triggerRemove resets uuid to null on success, which is what lets the
 	// hook's own mount logic re-trigger creation via triggerCreate below.
 	useEffect(() => {
 		triggerRemove({ triggerOnRemove: false }).then((success) => {
@@ -137,6 +146,9 @@ const LayerMBTilesBitmap = ({
 	}, [
 		mapFile,
 		transparentColor,
+		cacheSize,
+		cacheDirBase,
+		cacheDirChild,
 		triggerRemove,
 		triggerCreate,
 	]);

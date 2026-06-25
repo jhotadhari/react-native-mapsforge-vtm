@@ -6,6 +6,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -16,7 +17,11 @@ import com.jhotadhari.reactnative.mapsforge.vtm.NativeMapContainerSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
+import org.oscim.core.BoundingBox;
+import org.oscim.core.MapPosition;
+import org.oscim.event.Event;
 import org.oscim.layers.Layer;
+import org.oscim.utils.animation.Easing;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +41,22 @@ public class MapContainer extends NativeMapContainerSpec {
 	// broadcasting a map-wide clear that would also needlessly flash every other, already-loaded
 	// tile layer on the same map.
 	private final Map<Integer, Set<Layer>> previouslyOrderedLayers = new HashMap<>();
+
+	// Tracks, per nativeNodeHandle, the not-yet-resolved animateTo call's listener+promise. vtm's
+	// org.oscim.map.Map.ANIM_END is a single event per map (not scoped to one animateTo call), so
+	// a new animateTo started before a previous one finishes would otherwise leave the earlier
+	// promise hanging until *this* animation happens to end too. Resolving it immediately instead
+	// treats "superseded by a newer call" the same as "done".
+	private final Map<Integer, PendingAnimateTo> pendingAnimateTo = new HashMap<>();
+
+	private static class PendingAnimateTo {
+		final org.oscim.map.Map.UpdateListener listener;
+		final Promise promise;
+		PendingAnimateTo( org.oscim.map.Map.UpdateListener listener, Promise promise ) {
+			this.listener = listener;
+			this.promise = promise;
+		}
+	}
 
 	public MapContainer( ReactApplicationContext reactContext ) {
 		super( reactContext );
@@ -141,6 +162,177 @@ public class MapContainer extends NativeMapContainerSpec {
 			mapView.map().updateMap();
 
 			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void animateTo( ReadableMap params, Promise promise ) {
+		// vtm's Animator (and most of org.oscim.map.Viewport's mutators) call
+		// org.oscim.utils.ThreadUtils.assertMainThread() and throw if not -- but TurboModule
+		// methods run on RN's native modules thread, not the UI thread, so the whole body has to
+		// be dispatched onto the UI thread rather than called directly here.
+		UiThreadUtil.runOnUiThread( () -> animateToOnUiThread( params, promise ) );
+	}
+
+	private void animateToOnUiThread( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+			}
+
+			PendingAnimateTo previous = pendingAnimateTo.remove( nativeNodeHandle );
+			if ( null != previous ) {
+				mapView.map().events.unbind( previous.listener );
+				previous.promise.resolve( null );
+			}
+
+			long duration = Utils.rMapHasKey( params, "duration" ) ? (long) params.getDouble( "duration" ) : 0;
+			Easing.Type easing = easingFromString( Utils.rMapHasKey( params, "easing" ) ? params.getString( "easing" ) : null );
+
+			MapPosition current = new MapPosition();
+			mapView.map().getMapPosition( current );
+			MapPosition target = new MapPosition();
+			target.copy( current );
+
+			if ( Utils.rMapHasKey( params, "bounds" ) ) {
+				ReadableArray bounds = params.getArray( "bounds" );
+				// GeoJSON bbox order: [ west, south, east, north ].
+				BoundingBox bbox = new BoundingBox(
+					bounds.getDouble( 1 ), bounds.getDouble( 0 ),
+					bounds.getDouble( 3 ), bounds.getDouble( 2 )
+				);
+				int paddingPx = Utils.rMapHasKey( params, "boundsPaddingPx" ) ? (int) params.getDouble( "boundsPaddingPx" ) : 0;
+				// vtm's animateTo(BoundingBox) overloads don't support padding, so fitting "with
+				// padding" means fitting into a viewport shrunk by that padding on each side.
+				target.setByBoundingBox(
+					bbox,
+					Math.max( 1, mapView.getWidth() - 2 * paddingPx ),
+					Math.max( 1, mapView.getHeight() - 2 * paddingPx )
+				);
+			} else {
+				if ( Utils.rMapHasKey( params, "center" ) ) {
+					ReadableArray center = params.getArray( "center" );
+					target.setPosition( Utils.latFromPosition( center ), Utils.lngFromPosition( center ) );
+				}
+				if ( Utils.rMapHasKey( params, "zoomLevel" ) ) {
+					target.setZoom( params.getDouble( "zoomLevel" ) );
+				}
+				if ( Utils.rMapHasKey( params, "bearing" ) ) {
+					target.setBearing( (float) params.getDouble( "bearing" ) );
+				}
+				if ( Utils.rMapHasKey( params, "tilt" ) ) {
+					target.setTilt( (float) params.getDouble( "tilt" ) );
+				}
+				if ( Utils.rMapHasKey( params, "roll" ) ) {
+					target.setRoll( (float) params.getDouble( "roll" ) );
+				}
+			}
+
+			// vtm's Animator computes `1f - millisLeft / mDuration` every frame -- with mDuration
+			// stored as the float 0 (this method's default, used by every non-animated useMap()
+			// verb: panTo, panBy, setZoom, setBearing, etc.), that's a division by zero, producing
+			// NaN/Infinity that permanently corrupts the live MapPosition (blank/gray map, every
+			// position read coming back NaN -- which WritableMap.putDouble/JSON.stringify both
+			// surface as null) until the app restarts. Apply non-animated moves directly instead --
+			// it's also synchronous, so the promise can resolve immediately rather than waiting on
+			// an ANIM_END the animator is never even asked to fire.
+			if ( duration <= 0 ) {
+				mapView.map().setMapPosition( target );
+				promise.resolve( null );
+				return;
+			}
+
+			// vtm's Animator still fires Map.ANIM_START/ANIM_END around a no-op animation (target
+			// equals the current position, e.g. flyTo-ing to where the map already is), but its
+			// own update loop only keeps re-scheduling itself once per frame *as long as the
+			// position keeps actually changing* -- for a no-op move nothing ever changes, so that
+			// loop can stop short of the point where it would fire ANIM_END, leaving the promise
+			// (and isAnimating-style UI state) pending forever. Resolve immediately instead of
+			// relying on that loop at all when there's nothing to animate.
+			if ( positionsEqual( current, target ) ) {
+				promise.resolve( null );
+				return;
+			}
+
+			org.oscim.map.Map.UpdateListener[] listenerHolder = new org.oscim.map.Map.UpdateListener[ 1 ];
+			listenerHolder[ 0 ] = new org.oscim.map.Map.UpdateListener() {
+				@Override
+				public void onMapEvent( Event e, MapPosition mapPosition ) {
+					if ( e == org.oscim.map.Map.ANIM_END ) {
+						mapView.map().events.unbind( listenerHolder[ 0 ] );
+						pendingAnimateTo.remove( nativeNodeHandle );
+						promise.resolve( null );
+					}
+				}
+			};
+			pendingAnimateTo.put( nativeNodeHandle, new PendingAnimateTo( listenerHolder[ 0 ], promise ) );
+			mapView.map().events.bind( listenerHolder[ 0 ] );
+
+			mapView.map().animator().animateTo( duration, target, easing );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	private static boolean positionsEqual( MapPosition a, MapPosition b ) {
+		final double EPS = 1e-7;
+		final float EPS_DEGREES = 0.01f;
+		return Math.abs( a.x - b.x ) < EPS
+			&& Math.abs( a.y - b.y ) < EPS
+			&& Math.abs( a.scale - b.scale ) < EPS
+			&& Math.abs( a.bearing - b.bearing ) < EPS_DEGREES
+			&& Math.abs( a.tilt - b.tilt ) < EPS_DEGREES
+			&& Math.abs( a.roll - b.roll ) < EPS_DEGREES;
+	}
+
+	private Easing.Type easingFromString( String easing ) {
+		if ( null == easing ) {
+			return Easing.Type.LINEAR;
+		}
+		try {
+			return Easing.Type.valueOf( easing.toUpperCase().replace( '-', '_' ) );
+		} catch ( IllegalArgumentException e ) {
+			return Easing.Type.LINEAR;
+		}
+	}
+
+	@Override
+	public void getPosition( ReadableMap params, Promise promise ) {
+		// See animateTo's comment -- reading vtm's live MapPosition is kept on the UI thread for
+		// the same reason, even though plain reads aren't asserted by vtm itself.
+		UiThreadUtil.runOnUiThread( () -> getPositionOnUiThread( params, promise ) );
+	}
+
+	private void getPositionOnUiThread( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			if ( null == mapView ) {
+				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+			}
+
+			MapPosition mapPosition = mapView.map().getMapPosition();
+			WritableMap response = new WritableNativeMap();
+			response.putArray( "center", Utils.positionToWritableArray( mapPosition.getLongitude(), mapPosition.getLatitude(), null ) );
+			response.putInt( "zoomLevel", mapPosition.getZoomLevel() );
+			response.putDouble( "bearing", mapPosition.getBearing() );
+			response.putDouble( "tilt", mapPosition.getTilt() );
+			response.putDouble( "roll", mapPosition.getRoll() );
+
+			promise.resolve( response );
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

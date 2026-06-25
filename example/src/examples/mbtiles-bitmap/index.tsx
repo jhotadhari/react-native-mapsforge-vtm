@@ -74,6 +74,7 @@ const ExampleComponent: FC<{
 			>
 				<LayerMBTilesBitmap
 					mapFile={mapFile}
+					cacheSize={10}
 					onCreate={handleLayerCreate}
 				/>
 				<LayerScalebar />
