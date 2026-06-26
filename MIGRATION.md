@@ -39,6 +39,50 @@ what changed and how to update a consumer app.
 - Map lifecycle events (`onMapUpdate` / `onPause` / `onResume`) are now direct Fabric event props on
   `MapContainer` itself, not a separate `useMapEvents()` subscription hook. This is a deliberate
   Fabric-native pattern, not an oversight.
+
+  ⚠️ **Breaking subtlety:** `onMapUpdate` / `onPause` / `onResume` / `onError` on `MapContainer` are
+  Fabric native-view event props, so your handler receives `NativeSyntheticEvent<T>` — you must read
+  `event.nativeEvent`, not the event itself. This differs from every promise-based API in this library
+  (`useMap()`, `useRenderStyleOptions()`), which resolve plain objects. If you're migrating handlers
+  that used to receive a plain response object directly, add the `.nativeEvent` unwrap or they will
+  silently always see `undefined` fields. TypeScript will catch this mismatch unless you cast it away
+  — the example app's `sharedDeps.ts` and `MapInfo.tsx` show the correct unwrap pattern.
+
+- `useMap()` — imperative map control (replaces `MapContainerModule`):
+
+  `useMap()` replaces every old imperative `MapContainerModule` call (`zoomIn` / `zoomOut` /
+  `setCenter` / `setPropsInteractionsEnabled` / `setMapCenterAnimated` / etc.). It returns methods
+  (`getPosition()`, `panTo()`, `animateTo()`, …) that operate on the nearest ancestor
+  `<MapContainer>`.
+
+  - Call it from any component nested inside `<MapContainer>`; for components rendered outside the
+    map tree (e.g. a sibling toolbar), use the `nativeNodeHandleOverride` parameter — lift
+    `nativeNodeHandle` / `setNativeNodeHandle` up to a shared ancestor and pass it in.
+  - `requireHandle()` throws synchronously when no handle is available (the map hasn't mounted yet).
+    Guard call sites that fire from user interactions (e.g. a button `onPress`) until a handle
+    exists, to avoid an uncaught throw crashing the event handler.
+
+### `Location` → `Position` (GeoJSON tuple)
+
+The old `Location { lng, lat, alt? }` object type is gone everywhere. All positional data now uses
+GeoJSON `Position` tuples: `[lng, lat, alt?]`. This is one of the largest mechanical changes —
+expect to touch every file that constructs, destructures, or accesses `.lng` / `.lat` / `.alt` on
+positional data. Affected props and return values:
+
+- `MapContainer`'s `center` prop and `onMapUpdate` response field
+- `Marker`'s `position` prop
+- `LayerPath`'s `positions` prop — **also renamed to `coordinates`** (a prop rename, not just a
+  type change)
+- `useMap()` return values (`getPosition()`, `animateTo()` targets, etc.)
+
+### Layer composition through arbitrary nesting
+
+Layer components now wire themselves through React Context (`MapHandleContext` + `useLayerOrder`)
+instead of the old static `isMapLayer` prop-injection walk. This means layers can be nested at
+arbitrary depth inside wrapper components, conditional renders, `.map()`-rendered lists, etc. —
+they need no special handling. The old restriction that layers had to be direct children of
+`<MapContainer>` is gone.
+
 - The following old public exports from the library root have **no replacement** — if your app
   imports any of these directly, you'll need to inline your own copy:
   - `promiseQueue`
@@ -47,6 +91,8 @@ what changed and how to update a consumer app.
   - `usePrevious`
   - `useMapLayersCreated`
   - `constants` (`LINKING_ERROR`, `BUILT_IN_THEMES`, `MarkerHotspotPlaces`)
+  - `MapLayerMapsforgeModule` and its `getRenderThemeOptions` static method — switch to
+    `useRenderStyleOptions` (see above); the module itself is no longer exported.
 - `LayerPathSlopeGradient` remains permanently out of scope for this library (it may become its own
   separate, single-purpose package later). Its supporting native code (`Gradient.java`, the
   `Coordinate` datetime field, `MapLayerPathSlopeGradientModule`) is gone.
@@ -81,20 +127,28 @@ what changed and how to update a consumer app.
 
 ## 5. Migration checklist
 
-1. Bump `react`, `react-native`, Node, and Kotlin to the versions above; enable
-   `newArchEnabled=true` / `hermesEnabled=true` in your app (there is no old-arch fallback anymore).
+1. Bump `react-native` to ≥ 0.80.0 and `react` to ≥ 19.0.0; enable `newArchEnabled=true` /
+   `hermesEnabled=true` in your app (there is no old-arch fallback anymore).
 2. Search your app for imports of: `promiseQueue`, `usePromiseQueueState`, `useRefState`,
    `usePrevious`, `useMapLayersCreated`, `constants` / `BUILT_IN_THEMES` / `MarkerHotspotPlaces`,
-   `LayerPathSlopeGradient`. None of these have a drop-in replacement — inline your own copy if still
-   needed.
+   `MapLayerMapsforgeModule` / `getRenderThemeOptions`, `LayerPathSlopeGradient`. None of these have
+   a drop-in replacement — inline your own copy if still needed (or switch to `useRenderStyleOptions`
+   for `getRenderThemeOptions`).
 3. No rename needed for `CanvasAdapterModule` — it kept its pre-rewrite name, including the
    "Module" suffix, since it's exported directly rather than backing a component (see §3 above).
 4. If you use `LayerPath` with a `.gpx` `filePath`, pre-parse the GPX file to coordinates in JS before
    upgrading, or hold off on that usage.
 5. Replace any use of the old `useMapEvents()` hook with the new direct props on `MapContainer`
-   (`onMapUpdate` / `onPause` / `onResume`).
-6. If you use `LayerMBTilesBitmap`'s `alpha`, convert any `0–255`-scaled value to `0–1`.
-7. If you use `LayerMapsforge`'s render-theme/style options, switch to the new
+   (`onMapUpdate` / `onPause` / `onResume`). **Add `.nativeEvent` unwrap** to every handler — these
+   are Fabric event props, so your handler receives `NativeSyntheticEvent<T>`, not a plain object.
+   The example app's `sharedDeps.ts` and `MapInfo.tsx` show the correct pattern.
+6. Replace all `MapContainerModule` calls with `useMap()`. Guard any `requireHandle()` call-sites
+   that fire from user interactions (e.g. button `onPress`) until a handle exists — it throws
+   synchronously when the map hasn't mounted yet.
+7. Convert all `Location { lng, lat, alt? }` objects to GeoJSON `Position [lng, lat, alt?]` tuples
+   across your entire app. Rename `LayerPath.positions` to `LayerPath.coordinates`.
+8. If you use `LayerMBTilesBitmap`'s `alpha`, convert any `0–255`-scaled value to `0–1`.
+9. If you use `LayerMapsforge`'s render-theme/style options, switch to the new
    `useRenderStyleOptions` signature (theme path only, no map handle required).
-8. Re-run lint/format once across your app after upgrading — Prettier's rules changed (tabs vs
-   spaces, `printWidth`, plugin set), so expect a one-time reformat diff.
+10. Re-run lint/format once across your app after upgrading — Prettier's rules changed (tabs vs
+    spaces, `printWidth`, plugin set), so expect a one-time reformat diff.

@@ -111,3 +111,19 @@ the view. Worth fixing as part of the same redesign by adding a real
 `MapFragment.onDestroy`-driven cleanup hook for all three maps, rather than three separate
 narrow patches.
 
+## 3. Reimplement `MainBaseActivity` and hardware-key support
+
+Dropped during the New Architecture rewrite. Pre-rewrite, the library shipped
+`com.jhotadhari.reactnative.mapsforge.vtm.MainBaseActivity`, an abstract `ReactActivity` subclass
+that provided `dispatchKeyEvent`-based hardware-key handling (`addHardwareKeyListener` /
+`removeHardwareKeyListener`). The JS-side `MapContainer` had `emitsHardwareKeyUp` /
+`onHardwareKeyUp` props (volume-key → zoom binding). Both the native class and the JS props are
+gone post-rewrite.
+
+Needs reimplementation:
+- `MainBaseActivity` (or equivalent) as a native base class consumers can extend
+- `emitsHardwareKeyUp` / `onHardwareKeyUp` as Fabric view event props on `MapContainer`
+  (mirroring `onMapUpdate` / `onPause` / `onResume`'s `NativeSyntheticEvent` pattern)
+
+Tracked from MIGRATION_FEEDBACK_STRAYMAP.md points 5 and 7.
+
