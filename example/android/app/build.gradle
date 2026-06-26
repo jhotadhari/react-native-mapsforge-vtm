@@ -85,6 +85,11 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    externalNativeBuild {
+        cmake {
+            version "3.31.6"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -117,17 +122,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-// Run Codegen during development for the example app.
-tasks.register('invokeLibraryCodegen', Exec) {
-  workingDir "$rootDir/../../"
-  def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
-
-  if (isWindows) {
-    commandLine 'cmd', '/c', 'npx bob build --target codegen'
-  } else {
-    commandLine 'sh', '-c', 'npx bob build --target codegen'
-  }
-}
-
-preBuild.dependsOn invokeLibraryCodegen

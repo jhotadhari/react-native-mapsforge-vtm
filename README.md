@@ -28,6 +28,12 @@ yarn add react-native-mapsforge-vtm
 
 ```
 
+## Requirements
+
+- **React Native ≥ 0.80.0** with the **New Architecture** enabled. The library ships pre-generated native code that requires `target_compile_reactnative_options` (introduced in React Native 0.80.0). Older versions will hit `Unknown CMake command` errors at build time.
+- **Android only** — there is no iOS implementation.
+- `newArchEnabled=true` in your app's `gradle.properties`.
+
 ## Usage
 
 ```js
