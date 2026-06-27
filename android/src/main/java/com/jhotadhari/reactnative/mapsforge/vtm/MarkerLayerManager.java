@@ -88,6 +88,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		public final String groupUuid;
 		@NonNull
 		public final MarkerItem markerItem;
+		public int positionIndex;
 
 		public MarkerEntry(
 			@NonNull String entryUuid,
@@ -114,6 +115,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		public MarkerSymbol defaultSymbol;
 		@NonNull
 		public final Set<String> memberMarkerUuids = ConcurrentHashMap.newKeySet();
+		public int positionIndex;
 
 		public MarkerGroup(
 			@NonNull String groupUuid,
@@ -240,10 +242,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
 		if (layer != null) {
 			layer.removeItem(entry.markerItem);
-			allMarkers.remove(entry.markerUuid);
+			allMarkers.remove(entry.entryUuid);
 			MarkerGroup group = groups.get(entry.groupUuid);
 			if (group != null) {
-				group.memberMarkerUuids.remove(entry.markerUuid);
+				group.memberMarkerUuids.remove(entry.entryUuid);
 			}
 		}
 	}
@@ -300,8 +302,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		int eventX = (int) x - mapView.map().getWidth() / 2;
 		int eventY = (int) y - mapView.map().getHeight() / 2;
-		float dx = eventX - tmpPoint.x;
-		float dy = eventY - tmpPoint.y;
+		float dx = (float)(eventX - tmpPoint.x);
+		float dy = (float)(eventY - tmpPoint.y);
 
 		if (symbol.isInside(dx, dy)) {
 			WritableMap payload = Arguments.createMap();
@@ -347,15 +349,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return;
 		}
 		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
-		for (String entryUuid : group.memberMarkerUuids) {
-			MarkerEntry entry = allMarkers.remove(entryUuid);
+		for (String markerUuid : group.memberMarkerUuids) {
+			MarkerEntry entry = allMarkers.remove(markerUuid);
+			entries.remove(markerUuid);
 			if (entry != null && layer != null) {
 				layer.removeItem(entry.markerItem);
-			allMarkers.remove(entry.markerUuid);
-			MarkerGroup group = groups.get(entry.groupUuid);
-			if (group != null) {
-				group.memberMarkerUuids.remove(entry.markerUuid);
-			}
 			}
 		}
 		if (layer != null) {
@@ -465,8 +463,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 					i++;
 					continue;
 				}
-				float dx = eventX - tmpPoint.x;
-				float dy = eventY - tmpPoint.y;
+				float dx = (float)(eventX - tmpPoint.x);
+				float dy = (float)(eventY - tmpPoint.y);
 				if (it.isInside(dx, dy)) {
 					double d = dx * dx + dy * dy;
 					if (d <= dist) {
@@ -549,12 +547,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	private ItemizedLayer.OnItemGestureListener<MarkerInterface> createGestureListener() {
 		return new ItemizedLayer.OnItemGestureListener<MarkerInterface>() {
 			@Override
-			public boolean onItemSingleTapUp(int index, Object item) {
+			public boolean onItemSingleTapUp(int index, MarkerInterface item) {
 				return dispatchGesture((MarkerItem) item, index, "itemSingleTapUp");
 			}
 
 			@Override
-			public boolean onItemLongPress(int index, Object item) {
+			public boolean onItemLongPress(int index, MarkerInterface item) {
 				return dispatchGesture((MarkerItem) item, index, "itemLongPress");
 			}
 

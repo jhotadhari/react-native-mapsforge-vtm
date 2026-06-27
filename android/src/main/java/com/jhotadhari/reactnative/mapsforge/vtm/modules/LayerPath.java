@@ -48,6 +48,8 @@ import java.util.UUID;
 @ReactModule( name = LayerPath.NAME )
 public class LayerPath extends NativeLayerPathSpec {
 
+	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
+
 	public static final String NAME = "LayerPath";
 
 
