@@ -478,6 +478,20 @@ public class MapMutationQueue {
 	}
 
 	/**
+	 * Synchronously removes a layer from the map, bypassing the async queue.
+	 * Must only be called from the UI thread (e.g., during Fragment.onDestroy)
+	 * when the async flush may never run because the map is being torn down.
+	 * Updates knownLayers and positionByUuid to match.
+	 */
+	public void removeLayerSync(String uuid) {
+		Layer layer = knownLayers.remove(uuid);
+		if (layer != null && mapView.map() != null) {
+			mapView.map().layers().remove(layer);
+		}
+		positionByUuid.remove(uuid);
+	}
+
+	/**
 	 * Returns the map of all JS-managed layers currently on this map (uuid → Layer).
 	 * Used by {@code LayerHelper.getLayer} / {@code getLayers} for uuid-based lookups
 	 * and by {@code MapContainer.reorderLayers} for order resolution.

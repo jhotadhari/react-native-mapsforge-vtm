@@ -430,15 +430,16 @@ public abstract class LayerManager<TEntry> {
 		}
 		entries.clear();
 
-		// Remove the shared layer from the map.
-		if (sharedLayer != null && mapView != null && mapView.map() != null) {
+		// Remove the shared layer from the map. Use removeLayerSync so
+		// knownLayers/positionByUuid stay consistent — this runs on the UI
+		// thread during Fragment.onDestroy, so synchronous access is safe.
+		if (sharedLayer != null) {
 			try {
-				mapView.map().layers().remove(sharedLayer);
-				scheduleUpdate();
 				MapMutationQueue queue = MapMutationQueue.getInstance(nativeNodeHandle);
 				if (queue != null) {
-					queue.getKnownLayers().remove(sharedLayerUuid);
+					queue.removeLayerSync(sharedLayerUuid);
 				}
+				scheduleUpdate();
 			} catch (Exception ignored) {
 				// Map may already be torn down.
 			}
