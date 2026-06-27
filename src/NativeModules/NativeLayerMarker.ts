@@ -114,9 +114,24 @@ interface UpdateLayerParams extends ModuleLayerParams {
 	uuid?: string;
 }
 
-interface CreateMarkerParams extends ModuleParams {
+export interface CreateMarkerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
+}
+
+export interface CreateMarkersParams {
+	nativeNodeHandle: Int32;
+	markers: ReadonlyArray<CreateMarkerParams>;
+}
+
+export interface MarkerBatchResultItem {
+	uuid: string;
+	index: Int32;
+	error?: string;
+}
+
+export interface MarkerBatchResponse {
+	results: ReadonlyArray<MarkerBatchResultItem>;
 }
 
 interface RemoveMarkerParams {
@@ -204,6 +219,7 @@ export interface Spec extends TurboModule {
 	removeLayer(params: RemoveLayerParams): Promise<string>;
 	updateLayer(params: UpdateLayerParams): Promise<string>;
 	createMarker(params: CreateMarkerParams): Promise<MarkerResponse>;
+	createMarkers(params: CreateMarkersParams): Promise<MarkerBatchResponse>;
 	removeMarker(params: RemoveMarkerParams): Promise<string>;
 	updateMarker(params: UpdateMarkerParams): Promise<string>;
 	triggerEvent(params: TriggerParamsCG): void;

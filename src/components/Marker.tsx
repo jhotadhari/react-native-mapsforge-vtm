@@ -20,6 +20,7 @@ import {
 import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import { enqueueCreateMarker } from '../compose/MarkerBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
@@ -55,7 +56,7 @@ const Marker = ({
 					},
 				} as ErrorBase);
 			}
-			return LayerMarkerModule.createMarker({
+			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
 				...(title && { title }),

@@ -320,6 +320,195 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	// ── Group management (LayerMarker backward compat) ──────────────────
 
 	/**
+	 * Creates multiple markers in a single batch. Validates all params
+	 * upfront, resolves symbols, creates all MarkerItems, inserts them
+	 * sorted into the shared ItemizedLayer, and calls
+	 * {@code updateMap()} exactly once.
+	 *
+	 * @param markersArray      ReadableArray of per-marker ReadableMaps
+	 * @param mapFragment       Current map fragment (for ContentResolver)
+	 * @param contentResolver   Content resolver for bitmap loading
+	 * @param reactContext      React application context
+	 * @param resolvedSymbols   Map of index-in-markers-array -> pre-resolved
+	 *                          MarkerSymbol (may be null for markers using
+	 *                          group default; null keys = no per-marker symbol)
+	 * @return WritableMap with a "results" array
+	 */
+	@NonNull
+	public WritableMap createMarkers(
+		@NonNull ReadableArray markersArray,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver,
+		@NonNull ReactApplicationContext reactContext,
+		@Nullable Map<Integer, MarkerSymbol> resolvedSymbols
+	) throws Exception {
+		ensureSharedLayer();
+
+		int count = markersArray.size();
+		ItemizedLayer itemizedLayer = (ItemizedLayer) sharedLayer;
+
+		// Per-marker result tracking.
+		String[] entryUuids = new String[count];
+		int[] resultIndices = new int[count];
+		String[] errors = new String[count];
+
+		// Collect successfully-validated markers for sorted insertion.
+		List<MarkerItem> itemsToAdd = new ArrayList<>(count);
+		List<Integer> positionIndices = new ArrayList<>(count);
+		List<Integer> sourceIndices = new ArrayList<>(count); // index into markersArray
+
+		for (int i = 0; i < count; i++) {
+			ReadableMap markerParams = markersArray.getMap(i);
+			String entryUuid = UUID.randomUUID().toString();
+			entryUuids[i] = entryUuid;
+			resultIndices[i] = -1;
+
+			try {
+				// Resolve group.
+				String groupUuid = ROOT_GROUP_UUID;
+				if (Utils.rMapHasKey(markerParams, "markerLayerUuid")
+					&& !markerParams.isNull("markerLayerUuid")) {
+					groupUuid = markerParams.getString("markerLayerUuid");
+				}
+
+				// Ensure group exists (creates root group lazily if needed).
+				ensureGroup(groupUuid, null, resolvePositionIndex(markerParams));
+
+				// Validate position.
+				if (!Utils.rMapHasKey(markerParams, "position")) {
+					throw new IllegalArgumentException("Marker does not have a position");
+				}
+				ReadableArray position = markerParams.getArray("position");
+
+				String title = Utils.rMapHasKey(markerParams, "title")
+					? markerParams.getString("title") : "";
+				String description = Utils.rMapHasKey(markerParams, "description")
+					? markerParams.getString("description") : "";
+
+				int positionIndex = resolvePositionIndex(markerParams);
+
+				MarkerItem markerItem = new MarkerItem(
+					entryUuid,
+					title,
+					description,
+					new GeoPoint(
+						Utils.latFromPosition(position),
+						Utils.lngFromPosition(position)
+					)
+				);
+
+				// Set symbol: use pre-resolved if provided, else group default.
+				MarkerSymbol symbol = null;
+				if (resolvedSymbols != null && resolvedSymbols.containsKey(i)) {
+					symbol = resolvedSymbols.get(i);
+				}
+				if (symbol == null) {
+					MarkerGroup group = groups.get(groupUuid);
+					if (group != null && group.defaultSymbol != null) {
+						symbol = group.defaultSymbol;
+					}
+				}
+				if (symbol != null) {
+					markerItem.setMarker(symbol);
+				}
+
+				itemsToAdd.add(markerItem);
+				positionIndices.add(positionIndex);
+				sourceIndices.add(i);
+			} catch (Exception e) {
+				errors[i] = e.getMessage();
+			}
+		}
+
+		// Sort successfully-validated markers by positionIndex for correct
+		// z-order insertion.
+		List<Integer> sortedLocalIndices = new ArrayList<>(itemsToAdd.size());
+		for (int li = 0; li < itemsToAdd.size(); li++) {
+			sortedLocalIndices.add(li);
+		}
+		sortedLocalIndices.sort((a, b) -> {
+			int pa = positionIndices.get(a);
+			int pb = positionIndices.get(b);
+			if (pa != pb) return Integer.compare(pa, pb);
+			return Integer.compare(a, b); // stable: preserve source order for ties
+		});
+
+		// Insert sorted markers into the shared ItemizedLayer.
+		List<MarkerInterface> itemList = itemizedLayer.getItemList();
+		for (int si = 0; si < sortedLocalIndices.size(); si++) {
+			int li = sortedLocalIndices.get(si);
+			MarkerItem markerItem = itemsToAdd.get(li);
+			int positionIndex = positionIndices.get(li);
+
+			// Find the insertion point: first existing marker with
+			// positionIndex > ours.
+			int insertAt = itemList.size();
+			for (int j = 0; j < itemList.size(); j++) {
+				MarkerInterface existing = itemList.get(j);
+				MarkerEntry existingEntry = allMarkers.get(
+					((MarkerItem) existing).getUid().toString());
+				if (existingEntry != null
+					&& existingEntry.positionIndex > positionIndex) {
+					insertAt = j;
+					break;
+				}
+			}
+			itemList.add(insertAt, markerItem);
+		}
+		if (!sortedLocalIndices.isEmpty()) {
+			itemizedLayer.populate();
+		}
+
+		// Track all successfully created entries and assign result indices.
+		for (int si = 0; si < sortedLocalIndices.size(); si++) {
+			int li = sortedLocalIndices.get(si);
+			int i = sourceIndices.get(li);
+			String entryUuid = entryUuids[i];
+			MarkerItem markerItem = itemsToAdd.get(li);
+			int positionIndex = positionIndices.get(li);
+
+			// Resolve group uuid (re-read from source params).
+			ReadableMap markerParams = markersArray.getMap(i);
+			String groupUuid = ROOT_GROUP_UUID;
+			if (Utils.rMapHasKey(markerParams, "markerLayerUuid")
+				&& !markerParams.isNull("markerLayerUuid")) {
+				groupUuid = markerParams.getString("markerLayerUuid");
+			}
+
+			MarkerEntry entry = new MarkerEntry(
+				entryUuid, groupUuid, markerItem, positionIndex);
+			entries.put(entryUuid, entry);
+			allMarkers.put(entryUuid, entry);
+
+			MarkerGroup group = groups.get(groupUuid);
+			if (group != null) {
+				group.memberMarkerUuids.add(entryUuid);
+			}
+
+			resultIndices[i] = itemList.indexOf(markerItem);
+		}
+
+		// Single updateMap for the entire batch.
+		mapView.map().updateMap();
+
+		// Build result array.
+		WritableArray results = Arguments.createArray();
+		for (int i = 0; i < count; i++) {
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString("uuid", entryUuids[i]);
+			if (errors[i] != null) {
+				resultItem.putString("error", errors[i]);
+			}
+			resultItem.putInt("index", resultIndices[i]);
+			results.pushMap(resultItem);
+		}
+
+		WritableMap response = Arguments.createMap();
+		response.putArray("results", results);
+		return response;
+	}
+
+	/**
 	 * Creates a named group for a {@code LayerMarker} component.
 	 *
 	 * @param defaultSymbol the resolved default marker symbol (may be null)

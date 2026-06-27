@@ -31,4 +31,14 @@ public class ItemizedLayer extends org.oscim.layers.marker.ItemizedLayer {
 	public void setDefaultMarker( MarkerSymbol defaultMarker ) {
 		mDefaultMarker = defaultMarker;
 	}
+
+	/**
+	 * Adds multiple items at {@code location} with a single {@link #populate()}
+	 * call, avoiding the per-item populate overhead of repeated
+	 * {@link #addItem(int, MarkerInterface)} calls for batch creation.
+	 */
+	public synchronized void addItemsAt( int location, List<MarkerInterface> items ) {
+		mItemList.addAll( location, items );
+		populate();
+	}
 }

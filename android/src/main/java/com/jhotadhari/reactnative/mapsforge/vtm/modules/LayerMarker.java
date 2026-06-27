@@ -293,6 +293,68 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 	}
 
 	@Override
+	public void createMarkers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "markers" ) ) {
+				Utils.promiseReject( promise,"Undefined markers array" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView(
+				getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment(
+				getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView || null == mapFragment ) {
+				Utils.promiseReject( promise,
+					"Unable to find mapView or mapFragment" ); return;
+			}
+
+			MarkerLayerManager manager = MarkerLayerManager.get(
+				nativeNodeHandle, mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onMarkerEvent".equals( eventName ) ) {
+					emitOnMarkerEvent( payload );
+				}
+			});
+
+			// Resolve all per-marker symbols upfront so the bitmapCache
+			// deduplicates identical symbol definitions across the batch.
+			ReadableArray markersArray = params.getArray( "markers" );
+			int count = markersArray.size();
+			Map<Integer, MarkerSymbol> resolvedSymbols = new HashMap<>( count );
+
+			for ( int i = 0; i < count; i++ ) {
+				ReadableMap markerParams = markersArray.getMap( i );
+				if ( Utils.rMapHasKey( markerParams, "symbol" ) ) {
+					MarkerSymbol symbol = getMarkerSymbol(
+						markerParams.getMap( "symbol" ),
+						mapFragment.getActivity().getContentResolver()
+					);
+					resolvedSymbols.put( i, symbol );
+				}
+			}
+
+			// Delegate bulk creation to MarkerLayerManager.
+			WritableMap response = manager.createMarkers(
+				markersArray,
+				mapFragment,
+				mapFragment.getActivity().getContentResolver(),
+				getReactApplicationContext(),
+				resolvedSymbols
+			);
+
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			emitError( e.getMessage() );
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
 	public void removeMarker( ReadableMap params, Promise promise ) {
 		try {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
