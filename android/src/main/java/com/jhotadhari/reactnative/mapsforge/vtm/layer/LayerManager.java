@@ -406,7 +406,7 @@ public abstract class LayerManager<TEntry> {
 			new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
 				updatePending = false;
 				if (mapView.map() != null) {
-					scheduleUpdate();
+					mapView.map().updateMap();
 				}
 			});
 		}

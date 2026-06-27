@@ -402,6 +402,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		MarkerEntry entry = allMarkers.get(entryUuid);
 		if (entry != null) {
 			entry.markerItem.setMarker(symbol);
+			mapView.map().updateMap();
 		}
 	}
 
