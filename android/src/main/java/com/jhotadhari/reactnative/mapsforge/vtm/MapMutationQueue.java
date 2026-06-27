@@ -270,7 +270,7 @@ public class MapMutationQueue {
 					// positionByUuid may not yet have entries for layers added in
 					// the very first flush for this instance; treat missing as -1
 					// so the scan doesn't stop prematurely.
-					if (existingPos != null && existingPos >= add.positionIndex) {
+					if (existingPos != null && existingPos > add.positionIndex) {
 						insertAt = i;
 						break;
 					}
