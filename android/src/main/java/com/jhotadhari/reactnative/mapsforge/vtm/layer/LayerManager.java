@@ -141,7 +141,7 @@ public abstract class LayerManager<TEntry> {
 
 	/** The shared vtm Layer. Created lazily by {@link #ensureSharedLayer()}. */
 	@Nullable
-	protected Layer sharedLayer;
+	protected volatile Layer sharedLayer;
 
 	/** All entries currently managed, keyed by entry uuid. */
 	@NonNull
@@ -398,14 +398,17 @@ public abstract class LayerManager<TEntry> {
 	 * Tears down this manager: removes the shared layer from the map and clears
 	 * all entries. Called from {@link #remove(int, String)} or {@link #removeAll(int)}.
 	 */
-	private volatile boolean updatePending = false;
+	private final java.util.concurrent.atomic.AtomicBoolean updatePending =
+		new java.util.concurrent.atomic.AtomicBoolean(false);
 
 	private void scheduleUpdate() {
-		if (!updatePending) {
-			updatePending = true;
+		if (updatePending.compareAndSet(false, true)) {
 			new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-				updatePending = false;
-				if (mapView.map() != null) {
+				updatePending.set(false);
+				// Bail if the manager has been destroyed (sharedLayer
+				// is volatile so the null written by destroy() is visible
+				// even when this Runnable was posted before destroy() ran).
+				if (mapView.map() != null && sharedLayer != null) {
 					mapView.map().updateMap();
 				}
 			});
