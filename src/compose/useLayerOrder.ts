@@ -12,8 +12,10 @@ import MapHandleContext from '../context/MapHandleContext';
  * Registers a layer component into the shared, map-wide layer ordering registry, and keeps
  * the native layer stack's order in sync with where this component sits in the render tree --
  * across arbitrary nesting depth, and continuously across mount/unmount/reorder, not just at
- * creation time. Returns the current nativeNodeHandle, so callers don't need a separate
- * useContext call for it.
+ * creation time. Returns the current nativeNodeHandle and this layer's positionIndex among
+ * all JS-managed layers, so callers can pass it to the native createLayer call for
+ * position-aware insertion (the native side inserts at that position immediately, eliminating
+ * the need for a follow-up reorderLayers pass).
  */
 const useLayerOrder = (uuid: null | false | string) => {
 	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
@@ -51,6 +53,11 @@ const useLayerOrder = (uuid: null | false | string) => {
 		);
 	}
 
+	// Compute the current position index among JS-managed layers. This is called during
+	// render, so `order` already reflects the correct document-order position for this
+	// component, even if it was just registered above.
+	const positionIndex = registry.order.indexOf(id);
+
 	// Unregister exactly once, on actual unmount -- not on every uuid change.
 	useEffect(() => {
 		return () => {
@@ -79,7 +86,7 @@ const useLayerOrder = (uuid: null | false | string) => {
 		nativeNodeHandle,
 	]);
 
-	return nativeNodeHandle;
+	return { nativeNodeHandle, positionIndex };
 };
 
 export default useLayerOrder;

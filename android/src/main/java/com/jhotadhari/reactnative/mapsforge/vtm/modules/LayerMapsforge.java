@@ -127,21 +127,23 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 			}
 			tileLayer.setTheme( theme );
 
-			String uuid = layerHelper.addLayer( tileLayer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-			helpersByUuid.put( uuid, layerHelper );
-			// LayerHelper.addLayer only calls updateMap(), which doesn't make the TileManager
-			// (re-)schedule tile jobs for a layer added after the map's initial position was already
-			// set -- without a real subsequent pan/zoom event, tiles would otherwise never be
-			// requested at all (same fix as LayerHillshading).
-			mapView.map().clearMap();
-
-			WritableMap responseParams = new WritableNativeMap();
-			responseParams.putString( "uuid", uuid );
-			addTileSourceToResponse( responseParams, tileSource );
-			promise.resolve( responseParams );
+			layerHelper.addLayerAsync( tileLayer, params )
+				.thenAccept( uid -> {
+					helpersByUuid.put( uid, layerHelper );
+					// LayerHelper.addLayer only calls updateMap(), which doesn't make the TileManager
+					// (re-)schedule tile jobs for a layer added after the map's initial position was already
+					// set -- without a real subsequent pan/zoom event, tiles would otherwise never be
+					// requested at all (same fix as LayerHillshading).
+					mapView.map().clearMap();
+					WritableMap responseParams = new WritableNativeMap();
+					responseParams.putString( "uuid", uid );
+					addTileSourceToResponse( responseParams, tileSource );
+					promise.resolve( responseParams );
+				})
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
@@ -174,13 +176,16 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 			}
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			BuildingLayer buildingLayer = new BuildingLayer( mapView.map(), tileLayer );
-			String uuid = buildingLayerHelper.addLayer( buildingLayer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add buildingLayer" ); return;
-			}
-			helpersByUuid.put( uuid, buildingLayerHelper );
-			mapView.map().clearMap();
-			promise.resolve( uuid );
+			buildingLayerHelper.addLayerAsync( buildingLayer, params )
+				.thenAccept( uid -> {
+					helpersByUuid.put( uid, buildingLayerHelper );
+					mapView.map().clearMap();
+					promise.resolve( uid );
+				})
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add buildingLayer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
@@ -204,13 +209,16 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 			}
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			LabelLayer labelLayer = new LabelLayer( mapView.map(), tileLayer );
-			String uuid = labelLayerHelper.addLayer( labelLayer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add labelLayer" ); return;
-			}
-			helpersByUuid.put( uuid, labelLayerHelper );
-			mapView.map().clearMap();
-			promise.resolve( uuid );
+			labelLayerHelper.addLayerAsync( labelLayer, params )
+				.thenAccept( uid -> {
+					helpersByUuid.put( uid, labelLayerHelper );
+					mapView.map().clearMap();
+					promise.resolve( uid );
+				})
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add labelLayer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

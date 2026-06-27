@@ -114,17 +114,19 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource, (float) alpha );
 
 			// Store layer
-			String uuid = layerHelper.addLayer( bitmapLayer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-
-			// Resolve layer uuid plus the .mbtiles file's own metadata.
-			WritableMap responseParams = new WritableNativeMap();
-			responseParams.putString( "uuid", uuid );
-			responseParams.putInt( "nativeNodeHandle", nativeNodeHandle );
-			addTileSourceToResponse( responseParams, tileSource );
-			promise.resolve( responseParams );
+			layerHelper.addLayerAsync( bitmapLayer, params )
+				.thenAccept( uid -> {
+					// Resolve layer uuid plus the .mbtiles file's own metadata.
+					WritableMap responseParams = new WritableNativeMap();
+					responseParams.putString( "uuid", uid );
+					responseParams.putInt( "nativeNodeHandle", nativeNodeHandle );
+					addTileSourceToResponse( responseParams, tileSource );
+					promise.resolve( responseParams );
+				})
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

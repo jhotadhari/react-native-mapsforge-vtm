@@ -64,12 +64,14 @@ interface ModuleParams {
 
 interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle?: Int32;
+	positionIndex?: Int32;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
 	supportsGestures?: boolean;
 }
 
 interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
+	positionIndex?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
 	simplificationTolerance?: Double;
@@ -103,6 +105,7 @@ interface UpdateCoordinatesParams {
 
 interface UpdateGestureScreenDistanceParams {
 	nativeNodeHandle?: Int32;
+	positionIndex?: Int32;
 	uuid?: string;
 	gestureScreenDistance?: Double;
 
@@ -115,6 +118,7 @@ interface UpdateGestureScreenDistanceParams {
 
 interface UpdateSupportsGesturesParams {
 	nativeNodeHandle?: Int32;
+	positionIndex?: Int32;
 	uuid?: string;
 	supportsGestures?: boolean;
 
@@ -139,6 +143,7 @@ export interface PathTriggerParams {
 
 interface TriggerParamsCG {
 	nativeNodeHandle?: Int32;
+	positionIndex?: Int32;
 	uuid?: string;
 	x?: Double;
 	y?: Double;

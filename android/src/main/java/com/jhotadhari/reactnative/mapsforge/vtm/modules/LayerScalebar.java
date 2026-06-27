@@ -58,11 +58,12 @@ public class LayerScalebar extends NativeLayerScalebarSpec {
 			mapScaleBarLayer.getRenderer().setOffset( 5 * CanvasAdapter.getScale(), 0 );
 
 			// Store layer
-			String uuid = layerHelper.addLayer( mapScaleBarLayer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-			promise.resolve( uuid );
+			layerHelper.addLayerAsync( mapScaleBarLayer, params )
+				.thenAccept( uid -> promise.resolve( uid ) )
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

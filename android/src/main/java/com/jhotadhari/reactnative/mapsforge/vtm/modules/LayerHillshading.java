@@ -133,16 +133,19 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 
 			BitmapTileLayer layer = new BitmapTileLayer( mapView.map(), hillshadingTileSource );
 
-			String uuid = layerHelper.addLayer( layer, params );
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-			// LayerHelper.addLayer only calls updateMap(), which redraws the current frame but
-			// doesn't make the TileManager (re-)schedule tile jobs for a layer added after the
-			// map's initial position was already set -- without a real subsequent pan/zoom event,
-			// this layer's tiles are otherwise never requested at all.
-			mapView.map().clearMap();
-			promise.resolve( uuid );
+			layerHelper.addLayerAsync( layer, params )
+				.thenAccept( uid -> {
+					// LayerHelper.addLayer only calls updateMap(), which redraws the current frame but
+					// doesn't make the TileManager (re-)schedule tile jobs for a layer added after the
+					// map's initial position was already set -- without a real subsequent pan/zoom event,
+					// this layer's tiles are otherwise never requested at all.
+					mapView.map().clearMap();
+					promise.resolve( uid );
+				})
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

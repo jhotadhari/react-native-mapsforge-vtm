@@ -28,6 +28,7 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 			}
 			return LayerScalebarModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })
@@ -57,7 +58,7 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	return null;
 };

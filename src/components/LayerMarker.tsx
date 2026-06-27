@@ -65,6 +65,7 @@ const LayerMarker = ({
 			}
 			return LayerMarkerModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				...(symbol && { symbol }),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
@@ -98,7 +99,7 @@ const LayerMarker = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	useEffect(() => {
 		const remove = () => {

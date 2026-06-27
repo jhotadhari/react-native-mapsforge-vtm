@@ -40,6 +40,7 @@ const LayerMapsforgeSubLayer = ({
 	onError?: null | ((err: ErrorBase) => void);
 	createSubLayer: (params: {
 		nativeNodeHandle: number;
+		positionIndex: number;
 		parentUuid: string;
 		enabledZoomMin?: number;
 		enabledZoomMax?: number;
@@ -61,6 +62,7 @@ const LayerMapsforgeSubLayer = ({
 			}
 			return createSubLayer({
 				nativeNodeHandle,
+				positionIndex,
 				parentUuid,
 				...(enabledZoomMin !== undefined && {
 					enabledZoomMin: Math.round(enabledZoomMin),
@@ -84,7 +86,7 @@ const LayerMapsforgeSubLayer = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	useEffect(() => {
 		if (nativeNodeHandle && uuid) {
@@ -140,6 +142,7 @@ const LayerMapsforge = ({
 			}
 			return LayerMapsforgeModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				mapFile,
 				...(renderTheme && { renderTheme }),
 				...(renderStyle && { renderStyle }),
@@ -183,7 +186,7 @@ const LayerMapsforge = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin/enabledZoomMax changed -- update in place, same as every other layer type.
 	useEffect(() => {

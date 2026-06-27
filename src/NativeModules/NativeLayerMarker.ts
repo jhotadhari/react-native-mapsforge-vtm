@@ -100,6 +100,7 @@ export interface MarkerEvent extends ResponseBase {
 
 interface CreateLayerParams extends ModuleLayerParams {
 	nativeNodeHandle?: Int32;
+	positionIndex: Int32;
 }
 
 interface RemoveLayerParams {

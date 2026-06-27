@@ -219,10 +219,7 @@ public class LayerPath extends NativeLayerPathSpec {
 				(float) gestureScreenDistance
 			);
 
-			// Store layer.
-			layerHelper.addLayer( vectorLayer, params, uuid );
-
-			// Convert input params to jtsCoordinates
+			// Convert input params to jtsCoordinates (validate before async add)
 			Coordinate[] jtsCoordinates = new Coordinate[0];
 			if ( null != coordinates && coordinates.size() > 0 ) {
 				jtsCoordinates = readableArrayToJtsCoordinates( coordinates, (float) simplificationTolerance );
@@ -234,7 +231,8 @@ public class LayerPath extends NativeLayerPathSpec {
 			// Store coordinates
 			originalJtsCoordinatesMap.put( uuid, jtsCoordinates );
 
-			// Draw line.
+			// Draw line (geometry setup on the layer object — does not require the
+			// layer to be on the map yet; the upcoming batch flush picks it up).
 			drawLineForCoordinates(
 				jtsCoordinates,
 				getStyleBuilderFromMap( style ),
@@ -243,10 +241,15 @@ public class LayerPath extends NativeLayerPathSpec {
 			);
 
 			addStuffToResponse( uuid, responseInclude, 0, responseParams );
-
-			// Resolve layer hash
 			responseParams.putString( "uuid", uuid );
-			promise.resolve( responseParams );
+
+			// Async store – the MapMutationQueue batch flush includes updateMap()
+			layerHelper.addLayerAsync( vectorLayer, params, uuid )
+				.thenAccept( addedUuid -> promise.resolve( responseParams ) )
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

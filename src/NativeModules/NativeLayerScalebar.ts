@@ -5,6 +5,7 @@ import type { ErrorBase, ResponseBase } from '../types';
 
 interface CreateLayerParams {
 	nativeNodeHandle: Int32;
+	positionIndex: Int32;
 }
 
 interface RemoveLayerParams {

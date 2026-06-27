@@ -28,8 +28,12 @@ export type MapHandleContextValue = {
  * Creates the registry MapContainer hands down through context. It tracks, for every mounted
  * layer component, where it sits in the render tree (`order`, populated in document order
  * regardless of nesting depth) and its resolved native uuid (`uuids`, populated once that
- * component's own createLayer() call resolves). Whenever either changes, `scheduleSync` recomputes
- * the full native layer order and -- only if it actually changed -- pushes it to the native side.
+ * component's own createLayer() call resolves).
+ *
+ * With position-aware layer insertion, `scheduleSync` / `reorderLayers` serves only as a
+ * safety net for edge cases (e.g. layers whose relative order changes without re-creation).
+ * During normal mount/unmount, each layer's `positionIndex` in the createLayer params ensures
+ * it lands in the correct position from the start.
  */
 export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const order: symbol[] = [];

@@ -105,13 +105,12 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 			BitmapTileLayer bitmapLayer = new BitmapTileLayer( mapView.map(), tileSource, (float) alpha );
 
 			// Store layer
-			String uuid = layerHelper.addLayer( bitmapLayer, params );
-
-			// Resolve layer uuid
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-			promise.resolve( uuid );
+			layerHelper.addLayerAsync( bitmapLayer, params )
+				.thenAccept( uid -> promise.resolve( uid ) )
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

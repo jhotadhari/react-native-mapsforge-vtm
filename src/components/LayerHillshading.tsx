@@ -95,6 +95,7 @@ const LayerHillshading = ({
 			}
 			return LayerHillshadingModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				hgtDirPath,
 				...(zoomMin !== undefined && { zoomMin: Math.round(zoomMin) }),
 				...(zoomMax !== undefined && { zoomMax: Math.round(zoomMax) }),
@@ -151,7 +152,7 @@ const LayerHillshading = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

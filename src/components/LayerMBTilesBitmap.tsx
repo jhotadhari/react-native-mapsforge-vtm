@@ -44,6 +44,7 @@ const LayerMBTilesBitmap = ({
 			}
 			return LayerMBTilesBitmapModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				mapFile,
 				...(transparentColor && { transparentColor }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
@@ -86,7 +87,7 @@ const LayerMBTilesBitmap = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

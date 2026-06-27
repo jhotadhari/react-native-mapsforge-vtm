@@ -266,6 +266,15 @@ public class MapFragment extends Fragment {
 			mapView.onDestroy();
 			mapView = null;
 		}
+		// Tear down the MapMutationQueue so pending layer mutations don't hang
+		// and per-handle state (knownLayers, previouslyOrderedLayers, etc.) is
+		// released.
+		MapsforgeVtmView parent = getMapsforgeVtmView();
+		if ( parent != null ) {
+			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove(
+				parent.getId()
+			);
+		}
 		super.onDestroy();
 	}
 

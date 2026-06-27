@@ -319,13 +319,12 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			);
 
 			// Store layer
-			String uuid = layerHelper.addLayer( markerLayer, params );
-
-			// Resolve layer uuid
-			if ( null == uuid ) {
-				Utils.promiseReject( promise, "Unable to add layer" ); return;
-			}
-			promise.resolve( uuid );
+			layerHelper.addLayerAsync( markerLayer, params )
+				.thenAccept( uid -> promise.resolve( uid ) )
+				.exceptionally( throwable -> {
+					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
+					return null;
+				});
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			emitError( e.getMessage() );
@@ -411,7 +410,11 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		}
 		ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
 		if ( markerLayer == null ) {
-			Utils.promiseReject( promise, "Unable to find markerLayer" ); return;
+			// Parent layer already removed (e.g. LayerMarker unmount raced ahead of
+			// Marker unmount). The desired end state is already achieved — resolve
+			// successfully rather than logging a cosmetic error.
+			markers.remove( params.getString( "uuid" ) );
+			promise.resolve( params.getString( "uuid" ) ); return;
 		}
 		MarkerInterface marker = markers.get( params.getString( "uuid" ) );
 		if ( marker == null ) {
@@ -444,7 +447,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			String uuid = params.getString( "uuid" );
 			ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( uuid );
 			if ( markerLayer == null ) {
-				Utils.promiseReject( promise,"Unable to find markerLayer" ); return;
+				// Layer already removed — the desired end state is achieved.
+				promise.resolve( uuid ); return;
 			}
 
 			// Get params, assign defaults.
@@ -491,7 +495,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			}
 			ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
 			if ( markerLayer == null ) {
-				Utils.promiseReject( promise,"Unable to find markerLayer" ); return;
+				// Layer already removed — the desired end state is achieved.
+				promise.resolve( params.getString( "uuid" ) ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;

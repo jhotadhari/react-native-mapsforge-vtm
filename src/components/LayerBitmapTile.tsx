@@ -42,6 +42,7 @@ const LayerBitmapTile = ({
 			}
 			return LayerBitmapTileModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				...(url && { url }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
 				...(zoomMin && { zoomMin: Math.round(zoomMin) }),
@@ -89,7 +90,7 @@ const LayerBitmapTile = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

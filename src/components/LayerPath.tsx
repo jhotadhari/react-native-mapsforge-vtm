@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -53,6 +53,12 @@ const LayerPath = ({
 
 	const hasCoordinates = !!coordinates && coordinates.length > 0;
 
+	// positionIndex is computed by useLayerOrder during render (after the uuid
+	// declaration below) but must be available inside the create callback (which
+	// is defined here, before the declaration). A ref bridges the gap: it's set
+	// during render, then read when the async create callback fires.
+	const positionIndexRef = useRef<number>(-1);
+
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -65,6 +71,7 @@ const LayerPath = ({
 			}
 			return LayerPathModule.createLayer({
 				nativeNodeHandle,
+				positionIndex: positionIndexRef.current,
 				supportsGestures,
 				coordinates,
 				...(style && { style }),
@@ -99,7 +106,8 @@ const LayerPath = ({
 		onError,
 	});
 
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// Redraw the existing native layer in place when the line or its style
 	// changes, instead of tearing down and recreating the layer.
