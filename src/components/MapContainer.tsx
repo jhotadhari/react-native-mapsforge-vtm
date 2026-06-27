@@ -18,6 +18,7 @@ import MapHandleContext, {
 	type MapHandleContextValue,
 } from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
+import { drainQueue } from '../compose/MarkerBatchQueue';
 
 const moduleDefaults = NativeMapContainer.getConstants();
 
@@ -84,6 +85,19 @@ const MapContainer = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ref?.current, setNativeNodeHandle]);
+
+	// Drain the MarkerBatchQueue on unmount to reject all pending marker
+	// create/remove promises and release the per-handle queue. Without this,
+	// the queue Map leaks and pending Promises hang forever.
+	const nativeNodeHandleRef = useRef(nativeNodeHandle);
+	nativeNodeHandleRef.current = nativeNodeHandle;
+	useEffect(() => {
+		return () => {
+			if (nativeNodeHandleRef.current != null) {
+				drainQueue(nativeNodeHandleRef.current);
+			}
+		};
+	}, []);
 
 	const registryRef = useRef<undefined | LayerOrderRegistry>(undefined);
 	if (!registryRef.current) {
