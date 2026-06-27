@@ -667,6 +667,11 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 				} catch ( IOException e ) {
 					e.printStackTrace();
 					emitError( "Unable to read file: " + filePath );
+				} finally {
+					try {
+						fis.close();
+					} catch ( IOException ignored ) {
+					}
 				}
 			}
 		}
