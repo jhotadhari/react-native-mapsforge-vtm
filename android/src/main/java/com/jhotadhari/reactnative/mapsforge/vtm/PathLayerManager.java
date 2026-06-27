@@ -54,7 +54,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	public static final String NAME = "paths";
 	/** Position in map.layers(): at the bottom of JS-managed layers. */
-	public static final int BASE_POSITION = 0;
+	public static final int BASE_POSITION = 1000000;
 
 	// ── Factory ─────────────────────────────────────────────────────────
 
