@@ -293,8 +293,9 @@ public abstract class LayerManager<TEntry> {
 		CreateResult<TEntry> result = createEntry(entryUuid, params, mapFragment, contentResolver, reactContext);
 		entries.put(entryUuid, result.entry);
 
-		// Trigger a map update so the new geometry is picked up.
-		mapView.map().updateMap();
+		// Trigger a map update so the new geometry is picked up,
+		// coalesced onto the UI thread via scheduleUpdate().
+		scheduleUpdate();
 
 		return result;
 	}
@@ -327,7 +328,7 @@ public abstract class LayerManager<TEntry> {
 			return null;
 		}
 		UpdateResult result = updateEntry(entry, params, mapFragment, contentResolver);
-		mapView.map().updateMap();
+		scheduleUpdate();
 		return result.responseData;
 	}
 

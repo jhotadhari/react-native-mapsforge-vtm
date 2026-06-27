@@ -490,7 +490,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		}
 
 		// Single updateMap for the entire batch.
-		mapView.map().updateMap();
+		scheduleUpdate();
 
 		// Build result array.
 		WritableArray results = Arguments.createArray();
@@ -551,7 +551,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		if (layer != null && count > 0) {
 			layer.populate();
-			mapView.map().updateMap();
+			scheduleUpdate();
 		}
 
 		WritableMap response = Arguments.createMap();
@@ -599,7 +599,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 		if (layer != null) {
-			mapView.map().updateMap();
+			scheduleUpdate();
 		}
 	}
 
@@ -631,7 +631,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 		if (layer != null) {
-			mapView.map().updateMap();
+			scheduleUpdate();
 		}
 	}
 
@@ -643,7 +643,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		MarkerEntry entry = allMarkers.get(entryUuid);
 		if (entry != null) {
 			entry.markerItem.setMarker(symbol);
-			mapView.map().updateMap();
+			scheduleUpdate();
 		}
 	}
 
