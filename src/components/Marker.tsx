@@ -47,6 +47,8 @@ const Marker = ({
 
 	const indexRef = useRef<number>(-1);
 	const justCreatedRef = useRef(false);
+	const createdPositionRef = useRef(position);
+	const createdSymbolRef = useRef(symbol);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
@@ -59,6 +61,11 @@ const Marker = ({
 					},
 				} as ErrorBase);
 			}
+			// Snapshot the props used for creation so the update guard
+			// below can detect a change that landed between enqueue and
+			// uuid resolution.
+			createdPositionRef.current = position;
+			createdSymbolRef.current = symbol;
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -98,7 +105,15 @@ const Marker = ({
 	useEffect(() => {
 		if (justCreatedRef.current) {
 			justCreatedRef.current = false;
-			return;
+			if (
+				createdPositionRef.current === position &&
+				createdSymbolRef.current === symbol
+			) {
+				// Props unchanged since creation — nothing to update.
+				return;
+			}
+			// Props changed between the create enqueue and uuid
+			// resolution. Fall through to apply the update.
 		}
 		if (uuid && markerLayerUuid !== false && nativeNodeHandle) {
 			LayerMarkerModule.updateMarker({
