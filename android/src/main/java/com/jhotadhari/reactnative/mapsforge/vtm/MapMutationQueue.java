@@ -61,6 +61,11 @@ public class MapMutationQueue {
 	// so we can find where each new layer belongs relative to existing JS-managed layers.
 	private final Map<String, Integer> positionByUuid = new ConcurrentHashMap<>();
 
+	// Tracks which uuids were part of the last reorder, so a layer that's genuinely new
+	// to the tracked set can receive CLEAR_EVENT (to (re-)schedule its own tile jobs)
+	// without broadcasting a map-wide clear that would flash already-loaded tile layers.
+	private Set<String> previouslyReorderedUuids = new HashSet<>();
+
 	// Pending mutations, drained by flush() on the UI thread.
 	private final ConcurrentLinkedQueue<Mutation> pending = new ConcurrentLinkedQueue<>();
 	private volatile boolean flushScheduled = false;
@@ -99,6 +104,21 @@ public class MapMutationQueue {
 
 		RemoveLayer(String uuid, CompletableFuture<Void> future) {
 			this.uuid = uuid;
+			this.future = future;
+		}
+
+		@Override
+		public void afterFlush(MapView mapView) {
+			future.complete(null);
+		}
+	}
+
+	private static final class ReorderLayers implements Mutation {
+		final List<String> orderedLayerUuids;
+		final CompletableFuture<Void> future;
+
+		ReorderLayers(List<String> orderedLayerUuids, CompletableFuture<Void> future) {
+			this.orderedLayerUuids = orderedLayerUuids;
 			this.future = future;
 		}
 
@@ -156,6 +176,7 @@ public class MapMutationQueue {
 		pending.clear();
 		flushScheduled = false;
 		knownLayers.clear();
+		previouslyReorderedUuids.clear();
 	}
 
 	// ------------------------------------------------------------------
@@ -172,6 +193,13 @@ public class MapMutationQueue {
 	public CompletableFuture<Void> enqueueRemoveLayer(String uuid) {
 		CompletableFuture<Void> future = new CompletableFuture<>();
 		pending.add(new RemoveLayer(uuid, future));
+		scheduleFlush();
+		return future;
+	}
+
+	public CompletableFuture<Void> enqueueReorderLayers(List<String> orderedLayerUuids) {
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		pending.add(new ReorderLayers(orderedLayerUuids, future));
 		scheduleFlush();
 		return future;
 	}
@@ -284,6 +312,40 @@ public class MapMutationQueue {
 			scanFrom = insertAt; // next add goes at or after this point
 		}
 
+		// --- Step 3: reorder layers ---
+		// Run after adds/removals so the reorder sees the correct post-mutation state.
+		// Multiple ReorderLayers in a single batch are all applied; the last one wins,
+		// which matches JS-side semantics (debounced scheduleSync sends the latest order).
+		for (Mutation mut : batch) {
+			if (mut instanceof ReorderLayers) {
+				ReorderLayers reorder = (ReorderLayers) mut;
+				List<Layer> orderedLayers = new ArrayList<>();
+				for (String uuid : reorder.orderedLayerUuids) {
+					Layer layer = knownLayers.get(uuid);
+					if (layer != null && mapView.map().layers().contains(layer)) {
+						orderedLayers.add(layer);
+					}
+				}
+				if (!orderedLayers.isEmpty()) {
+					// Send CLEAR_EVENT to layers new to this ordered set.
+					for (Layer layer : orderedLayers) {
+						String layerUuid = getLayerUuidForLayer(layer);
+						if (layerUuid != null
+							&& !previouslyReorderedUuids.contains(layerUuid)
+							&& layer instanceof org.oscim.map.Map.UpdateListener) {
+							((org.oscim.map.Map.UpdateListener) layer)
+								.onMapEvent(org.oscim.map.Map.CLEAR_EVENT,
+									mapView.map().getMapPosition());
+						}
+					}
+					previouslyReorderedUuids.clear();
+					previouslyReorderedUuids.addAll(reorder.orderedLayerUuids);
+
+					reorderMinimalMoves(mapView, orderedLayers);
+				}
+			}
+		}
+
 		// Single updateMap for the entire batch.
 		mapView.map().updateMap();
 
@@ -307,6 +369,8 @@ public class MapMutationQueue {
 				((AddLayer) mut).future.completeExceptionally(e);
 			} else if (mut instanceof RemoveLayer) {
 				((RemoveLayer) mut).future.completeExceptionally(e);
+			} else if (mut instanceof ReorderLayers) {
+				((ReorderLayers) mut).future.completeExceptionally(e);
 			}
 		}
 	}
@@ -314,6 +378,104 @@ public class MapMutationQueue {
 	// ------------------------------------------------------------------
 	// Accessors for other native code
 	// ------------------------------------------------------------------
+
+	/**
+	 * Returns the uuid for a given Layer by reverse-searching {@link #knownLayers}.
+	 */
+	@Nullable
+	private String getLayerUuidForLayer(Layer layer) {
+		for (Map.Entry<String, Layer> entry : knownLayers.entrySet()) {
+			if (entry.getValue() == layer) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Reorders mapView's layers to match orderedLayers using the minimum number of
+	 * remove+add moves. mapView.map().layers() is backed by a CopyOnWriteArrayList
+	 * where every add/remove/contains is O(n) — touching only out-of-place layers
+	 * keeps this O(n) instead of O(n²) per reorder call.
+	 */
+	private static void reorderMinimalMoves(MapView mapView, List<Layer> orderedLayers) {
+		int n = orderedLayers.size();
+		if (n == 0) {
+			return;
+		}
+
+		// Snapshot which of the map's current layers are part of the target set.
+		Set<Layer> orderedSet = new HashSet<>(orderedLayers);
+		List<Layer> trackedCurrent = new ArrayList<>(n);
+		int currentSize = mapView.map().layers().size();
+		for (int i = 0; i < currentSize; i++) {
+			Layer layer = mapView.map().layers().get(i);
+			if (orderedSet.contains(layer)) {
+				trackedCurrent.add(layer);
+			}
+		}
+
+		Map<Layer, Integer> posInTrackedCurrent = new HashMap<>();
+		for (int i = 0; i < trackedCurrent.size(); i++) {
+			posInTrackedCurrent.put(trackedCurrent.get(i), i);
+		}
+
+		// values[i] = where orderedLayers.get(i) currently sits within trackedCurrent.
+		// Longest increasing run = layers that don't need to move.
+		int[] values = new int[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = posInTrackedCurrent.get(orderedLayers.get(i));
+		}
+
+		boolean[] keep = longestIncreasingSubsequenceMask(values);
+
+		Layer afterLayer = null;
+		for (int i = 0; i < n; i++) {
+			Layer layer = orderedLayers.get(i);
+			if (keep[i]) {
+				afterLayer = layer;
+				continue;
+			}
+			mapView.map().layers().remove(layer);
+			int index = null == afterLayer ? 0 : mapView.map().layers().indexOf(afterLayer) + 1;
+			mapView.map().layers().add(index, layer);
+			afterLayer = layer;
+		}
+	}
+
+	/**
+	 * Standard O(n log n) patience-sorting longest increasing subsequence, returning
+	 * which indices of {@code values} belong to one such strictly increasing subsequence.
+	 */
+	private static boolean[] longestIncreasingSubsequenceMask(int[] values) {
+		int n = values.length;
+		int[] tails = new int[n];
+		int[] predecessors = new int[n];
+		int len = 0;
+		for (int i = 0; i < n; i++) {
+			int lo = 0, hi = len;
+			while (lo < hi) {
+				int mid = (lo + hi) / 2;
+				if (values[tails[mid]] < values[i]) {
+					lo = mid + 1;
+				} else {
+					hi = mid;
+				}
+			}
+			predecessors[i] = lo > 0 ? tails[lo - 1] : -1;
+			tails[lo] = i;
+			if (lo == len) {
+				len++;
+			}
+		}
+		boolean[] keep = new boolean[n];
+		int k = len == 0 ? -1 : tails[len - 1];
+		while (k >= 0) {
+			keep[k] = true;
+			k = predecessors[k];
+		}
+		return keep;
+	}
 
 	/**
 	 * Returns the map of all JS-managed layers currently on this map (uuid → Layer).
