@@ -776,11 +776,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				break;
 			}
 		}
-		// ItemizedLayer doesn't expose positional add, so we add then sort via
-		// removeAll + re-add. For small batches this is fine; the shared layer
-		// typically receives markers in batches via MapMutationQueue.
+		// addItem(int, MarkerInterface) internally calls populate(), so no
+		// need for an explicit populate() here.
 		layer.addItem(insertAt, markerItem);
-		layer.populate();
 	}
 
 	/**
