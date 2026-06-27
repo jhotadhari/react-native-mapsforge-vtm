@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 
+import androidx.annotation.Nullable;
+
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
@@ -24,10 +26,25 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		void onGesture( String type, WritableMap params );
 	}
 
+	/**
+	 * Resolves which uuid a hit-tested {@link Drawable} belongs to.
+	 * When set, {@link #containsGetResponse} returns the resolved uuid
+	 * instead of the layer's own {@link #mUuid}. Used by
+	 * {@code PathLayerManager} so gesture events carry the correct
+	 * per-component entry uuid even though all path entries share a
+	 * single {@code VectorLayer}.
+	 */
+	@FunctionalInterface
+	public interface UuidResolver {
+		String resolveUuid(Drawable hitDrawable);
+	}
+
 	protected final String mUuid;
 	protected Boolean mSupportsGestures;
 	protected final GestureListener mGestureListener;
 	protected float mGestureScreenDistance = 30f;
+	@Nullable
+	protected UuidResolver mUuidResolver;
 
 	public VectorLayer( Map map, SpatialIndex<Drawable> index ) {
 		super( map, index );
@@ -69,6 +86,15 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 
 	public void setSupportsGestures( boolean supportsGestures ) {
 		mSupportsGestures = supportsGestures;
+	}
+
+	@Nullable
+	public UuidResolver getUuidResolver() {
+		return mUuidResolver;
+	}
+
+	public void setUuidResolver( @Nullable UuidResolver resolver ) {
+		mUuidResolver = resolver;
 	}
 
 	/**
@@ -126,7 +152,9 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		for ( Drawable drawable : tmpDrawables ) {
 			if ( drawable.getGeometry().buffer( distance ).contains( point ) ) {
 				WritableMap params = new WritableNativeMap();
-				params.putString( "uuid", mUuid );
+				params.putString( "uuid", mUuidResolver != null
+						? mUuidResolver.resolveUuid( drawable )
+						: mUuid );
 				// Distance
 				params.putDouble( "distance", drawable.getGeometry().distance( point ) );
 				// Nearest point

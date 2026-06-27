@@ -22,6 +22,7 @@ import com.goebl.simplify.PointExtractor;
 import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerPathSpec;
+import com.jhotadhari.reactnative.mapsforge.vtm.PathLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -197,59 +198,28 @@ public class LayerPath extends NativeLayerPathSpec {
 				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
 			}
 
-			// Get params, assign defaults.
-			boolean supportsGestures = Utils.rMapHasKey( params, "supportsGestures" ) && params.getBoolean( "supportsGestures" );
-			double gestureScreenDistance = Utils.rMapHasKey( params, "gestureScreenDistance" ) ? params.getDouble( "gestureScreenDistance" ) : (double) getConstants().get( "gestureScreenDistance" );
-			double simplificationTolerance = Utils.rMapHasKey( params, "simplificationTolerance" ) ? params.getDouble( "simplificationTolerance" ) : (double) getConstants().get( "simplificationTolerance" );
-			ReadableArray coordinates = Utils.rMapHasKey( params, "coordinates" ) ? params.getArray( "coordinates" ) : null;
-			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" ) ? params.getMap( "responseInclude" ) : (ReadableMap) getConstants().get( "responseInclude" );
-			ReadableMap style = Utils.rMapHasKey( params, "style" ) ? params.getMap( "style" ) : (ReadableMap) getConstants().get( "style" );
+			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" )
+				? params.getMap( "responseInclude" )
+				: (ReadableMap) getConstants().get( "responseInclude" );
 
 			String uuid = UUID.randomUUID().toString();
 
-			// The promise response
-			WritableMap responseParams = new WritableNativeMap();
+			// Delegate to PathLayerManager.
+			PathLayerManager manager = PathLayerManager.get( nativeNodeHandle, mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onPathEvent".equals( eventName ) ) {
+					emitOnPathEvent( payload );
+				}
+			});
 
-			// Init layer
-			VectorLayer vectorLayer = new VectorLayer(
-				mapView.map(),
-				uuid,
-				supportsGestures,
-				getGestureListener( nativeNodeHandle ),
-				(float) gestureScreenDistance
-			);
+			manager.create( uuid, params, mapFragment,
+				mapFragment.getActivity().getContentResolver(),
+				getReactApplicationContext() );
 
-			// Convert input params to jtsCoordinates (validate before async add)
-			Coordinate[] jtsCoordinates = new Coordinate[0];
-			if ( null != coordinates && coordinates.size() > 0 ) {
-				jtsCoordinates = readableArrayToJtsCoordinates( coordinates, (float) simplificationTolerance );
-			}
-			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
-				Utils.promiseReject( promise, "Unable to parse coordinates" ); return;
-			}
+			// Build response.
+			WritableMap responseParams = manager.buildCreateResponse( uuid, responseInclude );
 
-			// Store coordinates
-			originalJtsCoordinatesMap.put( uuid, jtsCoordinates );
-
-			// Draw line (geometry setup on the layer object — does not require the
-			// layer to be on the map yet; the upcoming batch flush picks it up).
-			drawLineForCoordinates(
-				jtsCoordinates,
-				getStyleBuilderFromMap( style ),
-				uuid,
-				vectorLayer
-			);
-
-			addStuffToResponse( uuid, responseInclude, 0, responseParams );
-			responseParams.putString( "uuid", uuid );
-
-			// Async store – the MapMutationQueue batch flush includes updateMap()
-			layerHelper.addLayerAsync( vectorLayer, params, uuid )
-				.thenAccept( addedUuid -> promise.resolve( responseParams ) )
-				.exceptionally( throwable -> {
-					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
-					return null;
-				});
+			promise.resolve( responseParams );
 		} catch( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
@@ -262,37 +232,33 @@ public class LayerPath extends NativeLayerPathSpec {
 			return;
 		}
 		int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
-		MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
-		if ( null == mapView ) {
+		if ( ! Utils.rMapHasKey( params, "uuid" ) || ! Utils.rMapHasKey( params, "x" ) || ! Utils.rMapHasKey( params, "y" ) ) {
 			return;
 		}
-		if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
-			return;
-		}
-		VectorLayer vectorLayer = (VectorLayer) layerHelper.getLayers( nativeNodeHandle ).get( params.getString( "uuid" ) );
-		if ( null == vectorLayer ) {
-			return;
-		}
-		if ( ! Utils.rMapHasKey( params, "x" ) || ! Utils.rMapHasKey( params, "y" ) ) {
-			return;
-		}
+		String uuid = params.getString( "uuid" );
 		float x = params.getInt( "x" );
 		float y = params.getInt( "y" );
-		WritableMap eventParams = vectorLayer.containsGetResponse( x, y );
+
+		PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+		if ( manager == null ) {
+			return;
+		}
+		WritableMap eventParams = manager.triggerEvent( uuid, x, y );
 		if ( null == eventParams ) {
 			return;
 		}
-		// Add nativeNodeHandle
+		// Add type and eventPosition (same pattern as the original triggerEvent).
 		eventParams.putInt( "nativeNodeHandle", nativeNodeHandle );
-		// Add type
 		eventParams.putString( "type", "trigger" );
-		// Add eventPosition
-		GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint( x, y );
-		eventParams.putArray( "eventPosition", Utils.positionToWritableArray(
-			eventPoint.getLongitude(),
-			eventPoint.getLatitude(),
-			null
-		) );
+		MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+		if ( mapView != null ) {
+			GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint( x, y );
+			eventParams.putArray( "eventPosition", Utils.positionToWritableArray(
+				eventPoint.getLongitude(),
+				eventPoint.getLatitude(),
+				null
+			) );
+		}
 		emitOnPathEvent( eventParams );
 	}
 
@@ -305,7 +271,6 @@ public class LayerPath extends NativeLayerPathSpec {
 
 	@ReactMethod
 	public void updateCoordinates( ReadableMap params, Promise promise ) {
-		WritableMap responseParams = new WritableNativeMap();
 		try {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
 				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
@@ -314,117 +279,76 @@ public class LayerPath extends NativeLayerPathSpec {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;
 			}
 			String uuid = params.getString( "uuid" );
-			responseParams.putString( "uuid", uuid );
-			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
 				Utils.promiseReject( promise,"Unable to find mapView" ); return;
 			}
-			VectorLayer vectorLayer = (VectorLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( uuid );
-			if ( null == vectorLayer ) {
-				Utils.promiseReject( promise,"Layer not found" ); return;
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				Utils.promiseReject( promise,"Unable to find mapFragment" ); return;
 			}
 
-			// Get params, assign defaults.
-			double simplificationTolerance = Utils.rMapHasKey( params, "simplificationTolerance" ) ? params.getDouble( "simplificationTolerance" ) : (double) getConstants().get( "simplificationTolerance" );
-			ReadableArray coordinates = Utils.rMapHasKey( params, "coordinates" ) ? params.getArray( "coordinates" ) : null;
-			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" ) ? params.getMap( "responseInclude" ) : (ReadableMap) getConstants().get( "responseInclude" );
-			ReadableMap style = Utils.rMapHasKey( params, "style" ) ? params.getMap( "style" ) : (ReadableMap) getConstants().get( "style" );
-
-			// Convert input params to jtsCoordinates
-			Coordinate[] jtsCoordinates = new Coordinate[0];
-			if ( null != coordinates && coordinates.size() > 0 ) {
-				jtsCoordinates = readableArrayToJtsCoordinates( coordinates, (float) simplificationTolerance );
-			}
-			if ( null == jtsCoordinates || jtsCoordinates.length == 0 ) {
-				Utils.promiseReject( promise,"Unable to parse coordinates" ); return;
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager == null ) {
+				Utils.promiseReject( promise,"PathLayerManager not found" ); return;
 			}
 
-			// Store coordinates
-			originalJtsCoordinatesMap.put( uuid, jtsCoordinates );
+			WritableMap responseParams = manager.update( uuid, params, mapFragment,
+				mapFragment.getActivity().getContentResolver() );
 
-			// Redraw the line on the existing layer in place, instead of replacing it on the map.
-			vectorLayer.clearDrawables();
-			drawLineForCoordinates(
-				jtsCoordinates,
-				getStyleBuilderFromMap( style ),
-				uuid,
-				vectorLayer
-			);
-			vectorLayer.update();
-
-			addStuffToResponse( uuid, responseInclude, 1, responseParams );
+			promise.resolve( responseParams != null ? responseParams : new WritableNativeMap() );
 		} catch( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
 		}
-		promise.resolve( responseParams );
 	}
 
 	@ReactMethod
 	public void updateSupportsGestures( ReadableMap params, Promise promise ) {
-		WritableMap responseParams = new WritableNativeMap();
 		try {
-			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
-			}
-			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
-				Utils.promiseReject( promise,"Undefined uuid" ); return;
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) ) {
+				Utils.promiseReject( promise,"Undefined nativeNodeHandle or uuid" ); return;
 			}
 			String uuid = params.getString( "uuid" );
-			responseParams.putString( "uuid", uuid );
-			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView" ); return;
-			}
-			VectorLayer vectorLayer = (VectorLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( uuid );
-			if ( null == vectorLayer ) {
-				Utils.promiseReject( promise,"Layer not found" ); return;
-			}
-
-			// Get params, assign defaults.
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			boolean supportsGestures = Utils.rMapHasKey( params, "supportsGestures" ) && params.getBoolean( "supportsGestures" );
-			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" ) ? params.getMap( "responseInclude" ) : (ReadableMap) getConstants().get( "responseInclude" );
 
-			vectorLayer.setSupportsGestures( supportsGestures );
-			addStuffToResponse( uuid, responseInclude, 1, responseParams );
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null ) {
+				manager.updateSupportsGestures( uuid, supportsGestures );
+			}
+
+			WritableMap responseParams = new WritableNativeMap();
+			responseParams.putString( "uuid", uuid );
+			promise.resolve( responseParams );
 		} catch( Exception e ) {
 			Utils.promiseReject( promise, e.getMessage() );
 		}
-		promise.resolve( responseParams );
 	}
 
 	@ReactMethod
 	public void updateGestureScreenDistance( ReadableMap params, Promise promise ) {
-		WritableMap responseParams = new WritableNativeMap();
 		try {
-
-			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
-			}
-			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
-				Utils.promiseReject( promise,"Undefined uuid" ); return;
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) ) {
+				Utils.promiseReject( promise,"Undefined nativeNodeHandle or uuid" ); return;
 			}
 			String uuid = params.getString( "uuid" );
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			double gestureScreenDistance = Utils.rMapHasKey( params, "gestureScreenDistance" ) ? params.getDouble( "gestureScreenDistance" ) : 30d;
+
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null ) {
+				manager.updateGestureScreenDistance( uuid, (float) gestureScreenDistance );
+			}
+
+			WritableMap responseParams = new WritableNativeMap();
 			responseParams.putString( "uuid", uuid );
-			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView" ); return;
-			}
-			VectorLayer vectorLayer = (VectorLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( uuid );
-			if ( null == vectorLayer ) {
-				Utils.promiseReject( promise,"Layer not found" ); return;
-			}
-
-			// Get params, assign defaults.
-			double gestureScreenDistance = Utils.rMapHasKey( params, "gestureScreenDistance" ) ? params.getDouble( "gestureScreenDistance" ) : (double) getConstants().get( "gestureScreenDistance" );
-			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" ) ? params.getMap( "responseInclude" ) : (ReadableMap) getConstants().get( "responseInclude" );
-
-			vectorLayer.setGestureScreenDistance( (float) gestureScreenDistance );
-			addStuffToResponse( uuid, responseInclude, 1, responseParams );
+			promise.resolve( responseParams );
 		} catch( Exception e ) {
 			Utils.promiseReject( promise, e.getMessage() );
 		}
-		promise.resolve( responseParams );
 	}
 
 	protected void drawLineForCoordinates(
@@ -500,11 +424,23 @@ public class LayerPath extends NativeLayerPathSpec {
 
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
-		if ( ! Utils.rMapHasKey( params, "uuid" ) || ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Utils.promiseReject( promise,"Undefined uuid or nativeNodeHandle" ); return;
+		try {
+			if ( ! Utils.rMapHasKey( params, "uuid" ) || ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise,"Undefined uuid or nativeNodeHandle" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String uuid = params.getString( "uuid" );
+			originalJtsCoordinatesMap.remove( uuid );
+
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null ) {
+				manager.remove( uuid );
+			}
+			promise.resolve( uuid );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
 		}
-		originalJtsCoordinatesMap.remove( params.getString( "uuid" ) );
-		layerHelper.removeLayer( params, promise );
 	}
 
 }

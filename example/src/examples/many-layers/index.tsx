@@ -2,7 +2,6 @@ import { Fragment, useMemo, useState, type FC } from 'react';
 import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
-	LayerMarker,
 	LayerPath,
 	MapContainer,
 	Marker,
@@ -46,10 +45,11 @@ type LayerPair = {
 	markerPosition: Position;
 };
 
-// Each pair is two real native layers (one LayerPath, one LayerMarker), each with its own
-// uuid resolving independently and asynchronously -- mounting many pairs at once is what
-// stresses the layer-order registry's reorderLayers batching, since every one of those
-// uuid resolutions used to fire its own native call.
+// Each pair is one path + one marker entry in the shared native layers.
+// With the virtual-layers architecture, all entries share a single native
+// VectorLayer (paths) and a single ItemizedLayer (markers), so memory is O(1)
+// instead of O(count). The many-pairs stress tests the batched entry creation
+// pipeline and the position-aware ordering within each shared layer.
 const buildLayerPairs = (count: number): LayerPair[] =>
 	Array.from({ length: count }, (_, id) => {
 		const lng = randomNumber(-78, -76);
@@ -169,12 +169,10 @@ const ExampleComponent: FC<{
 						layerPairs.map((pair) => (
 							<Fragment key={pair.id}>
 								<LayerPath coordinates={pair.pathCoordinates} />
-								<LayerMarker>
-									<Marker
-										position={pair.markerPosition}
-										symbol={symbol}
-									/>
-								</LayerMarker>
+								<Marker
+									position={pair.markerPosition}
+									symbol={symbol}
+								/>
 							</Fragment>
 						))}
 				</MapContainer>

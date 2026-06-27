@@ -17,6 +17,7 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.ItemizedLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
+import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerMarkerSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -52,8 +53,6 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 	public static final String NAME = "LayerMarker";
 
 	private final LayerHelper layerHelper;
-
-	protected Map<String, MarkerItem> markers = new HashMap<>();
 
 	protected final Point tmpPoint = new Point();
 
@@ -182,18 +181,11 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
 			return;
 		}
-		MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-		MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-		if ( null == mapView || null == mapFragment ) {
-			return;
-		}
+		int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 		if ( ! Utils.rMapHasKey( params, "markerLayerUuid" ) ) {
 			return;
 		}
-		ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
-		if ( markerLayer == null ) {
-			return;
-		}
+		String groupUuid = params.getString( "markerLayerUuid" );
 		if ( ! Utils.rMapHasKey( params, "x" ) || ! Utils.rMapHasKey( params, "y" ) ) {
 			return;
 		}
@@ -201,69 +193,12 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		int x = params.getInt( "x" );
 		int y = params.getInt( "y" );
 
-		int size = markerLayer.getItemList().size();
-		if ( size == 0 ) {
+		MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+		if ( manager == null ) {
 			return;
 		}
-		int eventX = x - mapView.map().getWidth() / 2;
-		int eventY = y - mapView.map().getHeight() / 2;
-
-		Viewport mapPosition = mapView.map().viewport();
-
-		Box box = mapPosition.getBBox(null, Tile.SIZE / 2 );
-		box.map2mercator();
-		box.scale( 1E6 );
-
-		int inside = -1;
-
-		// squared dist: 50x50 px ~ 2mm on 400dpi
-		// 20x20 px on baseline mdpi (160dpi)
-		double dist = ( 20 * CanvasAdapter.getScale() ) * ( 20 * CanvasAdapter.getScale() );
-		double distNearest = dist;
-		MarkerInterface itemNearest = null;
-		int i = 0;
-		int iNearest = 0;
-		while ( i < size && (
-			! Objects.equals( strategy, "first" )
-			|| ( Objects.equals( strategy, "first" ) && inside == -1 )
-		) ) {
-			MarkerInterface item = markerLayer.getItemList().get(i);
-			if ( box.contains( item.getPoint().longitudeE6, item.getPoint().latitudeE6 ) ) {
-				mapPosition.toScreenPoint( item.getPoint(), tmpPoint );
-				MarkerSymbol it = item.getMarker();
-				it = null != it ? it : markerLayer.getDefaultMarker();
-				float dx = (float) ( eventX - tmpPoint.x );
-				float dy = (float) ( eventY - tmpPoint.y );
-				if ( it.isInside( dx, dy ) ) {
-					double d = dx * dx + dy * dy;
-					if ( d <= dist ) {
-						inside = i;
-						if ( d <= distNearest ) {
-							iNearest = i;
-							itemNearest = item;
-							distNearest = d;
-						}
-						if ( Objects.equals( strategy, "all" ) || Objects.equals( strategy, "first" ) ) {
-							MarkerItem markerItem = (MarkerItem) item;
-							WritableMap payload = Arguments.createMap();
-							payload.putInt( "index", i );
-							payload.putString( "uuid", markerItem.getUid().toString() );
-							payload.putString( "event", "itemTrigger" );
-							payload.putDouble( "distance", d );
-							emitOnMarkerEvent( payload );
-						}
-					}
-				}
-			}
-			i++;
-		}
-		if ( Objects.equals( strategy, "nearest" ) && null != itemNearest ) {
-			MarkerItem markerItem = (MarkerItem) itemNearest;
-			WritableMap payload = Arguments.createMap();
-			payload.putInt( "index", iNearest );
-			payload.putString( "uuid", markerItem.getUid().toString() );
-			payload.putString( "event", "itemTrigger" );
-			payload.putDouble( "distance", distNearest );
+		WritableMap payload = manager.triggerGroupEvent( groupUuid, x, y, strategy );
+		if ( payload != null ) {
 			emitOnMarkerEvent( payload );
 		}
 	}
@@ -280,51 +215,22 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
 			}
 
-			// Get params, assign defaults.
-			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : (ReadableMap) getConstants().get( "symbol" );
+			// Resolve the default marker symbol for this group (may be null).
+			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : null;
+			MarkerSymbol defaultSymbol = symbolMap != null
+				? getMarkerSymbol( symbolMap, mapFragment.getActivity().getContentResolver() )
+				: null;
 
-			org.oscim.layers.marker.ItemizedLayer.OnItemGestureListener<MarkerInterface> listener = new org.oscim.layers.marker.ItemizedLayer.OnItemGestureListener() {
-				@Override
-				public boolean onItemSingleTapUp( int i, Object o ) {
-					MarkerItem markerItem = (MarkerItem) o;
-					WritableMap payload = Arguments.createMap();
-					payload.putInt( "index", i );
-					payload.putString( "uuid", markerItem.getUid().toString() );
-					payload.putString( "event", "itemSingleTapUp" );
+			// Delegate group creation to MarkerLayerManager.
+			MarkerLayerManager manager = MarkerLayerManager.get( params.getInt( "nativeNodeHandle" ), mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onMarkerEvent".equals( eventName ) ) {
 					emitOnMarkerEvent( payload );
-					return false;
 				}
-				@Override
-				public boolean onItemLongPress( int i, Object o ) {
-					MarkerItem markerItem = (MarkerItem) o;
-					WritableMap payload = Arguments.createMap();
-					payload.putInt( "index", i );
-					payload.putString( "uuid", markerItem.getUid().toString() );
-					payload.putString( "event", "itemLongPress" );
-					emitOnMarkerEvent( payload );
-					return false;
-				}
-			};
+			});
 
-			MarkerSymbol symbol = getMarkerSymbol(
-				symbolMap,
-				mapFragment.getActivity().getContentResolver()
-			);
-
-			ItemizedLayer markerLayer = new ItemizedLayer(
-				mapView.map(),
-				new ArrayList<MarkerInterface>(),
-				symbol,
-				listener
-			);
-
-			// Store layer
-			layerHelper.addLayerAsync( markerLayer, params )
-				.thenAccept( uid -> promise.resolve( uid ) )
-				.exceptionally( throwable -> {
-					Utils.promiseReject( promise, "Unable to add layer: " + throwable.getMessage() );
-					return null;
-				});
+			String groupUuid = manager.createGroup( defaultSymbol, params );
+			promise.resolve( groupUuid );
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			emitError( e.getMessage() );
@@ -334,100 +240,83 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 	@Override
 	public void createMarker( ReadableMap params, Promise promise ) {
-		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView || null == mapFragment ) {
+				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "position" ) ) {
+				Utils.promiseReject( promise,"Marker does not have a position" ); return;
+			}
+
+			MarkerLayerManager manager = MarkerLayerManager.get( nativeNodeHandle, mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onMarkerEvent".equals( eventName ) ) {
+					emitOnMarkerEvent( payload );
+				}
+			});
+
+			// Resolve the marker's symbol.
+			MarkerSymbol symbol = Utils.rMapHasKey( params, "symbol" )
+				? getMarkerSymbol( params.getMap( "symbol" ), mapFragment.getActivity().getContentResolver() )
+				: null;
+
+			// Create the marker entry via the manager.
+			String markerUuid = java.util.UUID.randomUUID().toString();
+			LayerManager.CreateResult<MarkerLayerManager.MarkerEntry> result = manager.create(
+				markerUuid,
+				params,
+				mapFragment,
+				mapFragment.getActivity().getContentResolver(),
+				getReactApplicationContext()
+			);
+
+			// Set the resolved symbol on the marker item.
+			if ( symbol != null ) {
+				manager.setMarkerSymbol( markerUuid, symbol );
+			}
+
+			// The manager's response data already has uuid and index.
+			WritableMap responseParams = result.responseData != null
+				? result.responseData
+				: new WritableNativeMap();
+			if ( !responseParams.hasKey( "uuid" ) ) {
+				responseParams.putString( "uuid", markerUuid );
+			}
+			promise.resolve( responseParams );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			emitError( e.getMessage() );
+			Utils.promiseReject( promise, e.getMessage() );
 		}
-		MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-		MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-		if ( null == mapView || null == mapFragment ) {
-			Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
-		}
-		if ( ! Utils.rMapHasKey( params, "markerLayerUuid" ) ) {
-			Utils.promiseReject( promise,"Undefined markerLayerUuid" ); return;
-		}
-		ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
-		if ( markerLayer == null ) {
-			Utils.promiseReject( promise,"Unable to find markerLayer" ); return;
-		}
-		// The promise response
-		WritableMap responseParams = new WritableNativeMap();
-		// Get params, assign defaults.
-		String title = Utils.rMapHasKey( params, "title" ) ? params.getString( "title" ) : (String) getConstants().get( "title" );
-		String description = Utils.rMapHasKey( params, "description" ) ? params.getString( "description" ) : (String) getConstants().get( "description" );
-		if ( ! Utils.rMapHasKey( params, "position" ) ) {
-			Utils.promiseReject( promise,"Marker does not have a position" ); return;
-		}
-		ReadableArray position = params.getArray( "position" );
-		// Create Marker.
-		String uuid = UUID.randomUUID().toString();
-		MarkerItem markerItem = new MarkerItem(
-			uuid,
-			title,
-			description,
-			new GeoPoint(
-				Utils.latFromPosition( position ),
-				Utils.lngFromPosition( position )
-			)
-		);
-		// Resolve symbol. Markers without their own explicit symbol get the
-		// layer's current default assigned explicitly (rather than left null
-		// to fall back on the renderer's default), so a later layer-wide
-		// symbol change (see updateLayer) can find and update them in place.
-		MarkerSymbol symbol = Utils.rMapHasKey( params, "symbol" )
-			? getMarkerSymbol(
-				params.getMap( "symbol" ),
-				mapFragment.getActivity().getContentResolver()
-			)
-			: markerLayer.getDefaultMarker();
-		markerItem.setMarker( symbol );
-		// Add index to response.
-		responseParams.putInt( "index", markerLayer.getItemList().size() );
-		// Add marker to markerLayer.
-		markerLayer.addItem( markerItem );
-		// Store marker
-		markers.put( uuid, markerItem );
-		// Update map.
-		mapView.map().updateMap();
-		// Resolve uuid
-		responseParams.putString( "uuid", uuid );
-		promise.resolve( responseParams );
 	}
 
 	@Override
 	public void removeMarker( ReadableMap params, Promise promise ) {
-		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
+				Utils.promiseReject( promise,"Undefined uuid" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+
+			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null ) {
+				manager.remove( params.getString( "uuid" ) );
+			}
+			// Resolve successfully even if the manager is gone (map already destroyed).
+			promise.resolve( params.getString( "uuid" ) );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
 		}
-		if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
-			Utils.promiseReject( promise,"Undefined uuid" ); return;
-		}
-		if ( ! Utils.rMapHasKey( params, "markerLayerUuid" ) ) {
-			Utils.promiseReject( promise, "Undefined markerLayerUuid" ); return;
-		}
-		MapView mapView = (MapView) Utils.getMapView( this.getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-		if ( null == mapView ) {
-			Utils.promiseReject( promise, "Unable to find mapView" ); return;
-		}
-		ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
-		if ( markerLayer == null ) {
-			// Parent layer already removed (e.g. LayerMarker unmount raced ahead of
-			// Marker unmount). The desired end state is already achieved — resolve
-			// successfully rather than logging a cosmetic error.
-			markers.remove( params.getString( "uuid" ) );
-			promise.resolve( params.getString( "uuid" ) ); return;
-		}
-		MarkerInterface marker = markers.get( params.getString( "uuid" ) );
-		if ( marker == null ) {
-			Utils.promiseReject( promise, "Unable to find marker" ); return;
-		}
-		// Remove marker from markerLayer.
-		markerLayer.removeItem( marker );
-		// Remove marker from markers.
-		markers.remove( params.getString( "uuid" ) );
-		// Update map.
-		mapView.map().updateMap();
-		// Resolve uuid
-		promise.resolve( params.getString( "uuid" ) );
 	}
 
 	@Override
@@ -436,43 +325,26 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
 				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
 			}
-			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
 				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;
 			}
-			String uuid = params.getString( "uuid" );
-			ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( uuid );
-			if ( markerLayer == null ) {
-				// Layer already removed — the desired end state is achieved.
-				promise.resolve( uuid ); return;
-			}
+			String groupUuid = params.getString( "uuid" );
 
-			// Get params, assign defaults.
-			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : (ReadableMap) getConstants().get( "symbol" );
+			// Resolve the new default symbol.
+			MarkerSymbol newDefault = Utils.rMapHasKey( params, "symbol" )
+				? getMarkerSymbol( params.getMap( "symbol" ), mapFragment.getActivity().getContentResolver() )
+				: null;
 
-			// Resolve the new default symbol and push it onto every existing
-			// marker that's still using the old default (matched by object
-			// identity, see createMarker), without touching markers that have
-			// their own explicit symbol. No need to recreate the layer itself.
-			MarkerSymbol oldDefault = markerLayer.getDefaultMarker();
-			MarkerSymbol newDefault = getMarkerSymbol(
-				symbolMap,
-				mapFragment.getActivity().getContentResolver()
-			);
-			markerLayer.setDefaultMarker( newDefault );
-			for ( MarkerInterface item : markerLayer.getItemList() ) {
-				MarkerItem markerItem = (MarkerItem) item;
-				if ( markerItem.getMarker() == oldDefault ) {
-					markerItem.setMarker( newDefault );
-				}
-			}
+			MarkerLayerManager manager = MarkerLayerManager.get( nativeNodeHandle, mapView );
+			manager.updateGroup( groupUuid, newDefault );
 
-			mapView.map().updateMap();
-			promise.resolve( uuid );
+			promise.resolve( groupUuid );
 		} catch( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
@@ -485,52 +357,32 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
 				Utils.promiseReject( promise,"Undefined nativeNodeHandle" ); return;
 			}
-			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
-			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
 				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
-			}
-			if ( ! Utils.rMapHasKey( params, "markerLayerUuid" ) ) {
-				Utils.promiseReject( promise,"Undefined markerLayerUuid" ); return;
-			}
-			ItemizedLayer markerLayer = (ItemizedLayer) layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "markerLayerUuid" ) );
-			if ( markerLayer == null ) {
-				// Layer already removed — the desired end state is achieved.
-				promise.resolve( params.getString( "uuid" ) ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;
 			}
 			String uuid = params.getString( "uuid" );
-			MarkerItem markerItem = markers.get( uuid );
-			if ( markerItem == null ) {
-				Utils.promiseReject( promise,"Unable to find marker" ); return;
-			}
 
-			boolean positionChanged = false;
-			if ( Utils.rMapHasKey( params, "position" ) ) {
-				ReadableArray position = params.getArray( "position" );
-				markerItem.geoPoint = new GeoPoint(
-					Utils.latFromPosition( position ),
-					Utils.lngFromPosition( position )
-				);
-				positionChanged = true;
-			}
+			MarkerLayerManager manager = MarkerLayerManager.get( nativeNodeHandle, mapView );
+
+			// If symbol changed, resolve and set it.
 			if ( Utils.rMapHasKey( params, "symbol" ) ) {
 				MarkerSymbol symbol = getMarkerSymbol(
 					params.getMap( "symbol" ),
 					mapFragment.getActivity().getContentResolver()
 				);
-				markerItem.setMarker( symbol );
+				manager.setMarkerSymbol( uuid, symbol );
 			}
 
-			// Position is cached at populate() time as pre-projected map
-			// coordinates, so it needs an explicit re-populate. Symbol is read
-			// fresh from the item every frame, so a plain map update covers it.
-			if ( positionChanged ) {
-				markerLayer.populate();
+			// If position changed, update it via the manager.
+			if ( Utils.rMapHasKey( params, "position" ) ) {
+				manager.update( uuid, params, mapFragment, mapFragment.getActivity().getContentResolver() );
 			}
-			mapView.map().updateMap();
 
 			promise.resolve( uuid );
 		} catch( Exception e ) {
@@ -783,7 +635,22 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
-		layerHelper.removeLayer( params, promise );
+		try {
+			if ( ! Utils.rMapHasKey( params, "uuid" ) || ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise,"Undefined uuid or nativeNodeHandle" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String groupUuid = params.getString( "uuid" );
+
+			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null ) {
+				manager.removeGroup( groupUuid );
+			}
+			promise.resolve( groupUuid );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
 	}
 
 	protected void emitError( String errorMsg ) {

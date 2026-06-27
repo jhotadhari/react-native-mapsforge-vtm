@@ -96,6 +96,7 @@ export interface MarkerEvent extends ResponseBase {
 	event: string;
 	index: Int32;
 	distance?: Double;
+	markerLayerUuid?: string; // Group uuid for per-layer filtering in shared ItemizedLayer
 }
 
 interface CreateLayerParams extends ModuleLayerParams {
@@ -115,18 +116,18 @@ interface UpdateLayerParams extends ModuleLayerParams {
 
 interface CreateMarkerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
-	markerLayerUuid: string;
+	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
 }
 
 interface RemoveMarkerParams {
 	nativeNodeHandle: Int32;
-	markerLayerUuid: string;
+	markerLayerUuid: string | null;
 	uuid: string;
 }
 
 interface UpdateMarkerParams extends ModuleLayerParams {
 	nativeNodeHandle?: Int32;
-	markerLayerUuid?: string;
+	markerLayerUuid?: string | null;
 	uuid?: string;
 	position?: null | Position;
 }

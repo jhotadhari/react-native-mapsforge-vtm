@@ -129,6 +129,7 @@ const LayerMarker = ({
 	]);
 
 	useMarkerEventSubscription({
+		layerUuid: uuid,
 		onEvent: onMarkerEvent,
 		onPress: onMarkerPress,
 		onLongPress: onMarkerLongPress,

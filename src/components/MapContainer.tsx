@@ -17,6 +17,7 @@ import MapHandleContext, {
 	type LayerOrderRegistry,
 	type MapHandleContextValue,
 } from '../context/MapHandleContext';
+import MarkerLayerContext from '../context/MarkerLayerContext';
 
 const moduleDefaults = NativeMapContainer.getConstants();
 
@@ -158,9 +159,11 @@ const MapContainer = ({
 				onError={onError ? onError : null}
 			/>
 			{mapCreated && (
-				<MapHandleContext.Provider value={mapHandleContextValue}>
-					{children}
-				</MapHandleContext.Provider>
+				<MarkerLayerContext.Provider value={{ markerLayerUuid: null }}>
+					<MapHandleContext.Provider value={mapHandleContextValue}>
+						{children}
+					</MapHandleContext.Provider>
+				</MarkerLayerContext.Provider>
 			)}
 		</View>
 	);

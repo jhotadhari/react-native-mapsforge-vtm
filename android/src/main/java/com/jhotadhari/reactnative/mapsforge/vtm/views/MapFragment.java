@@ -271,9 +271,9 @@ public class MapFragment extends Fragment {
 		// released.
 		MapsforgeVtmView parent = getMapsforgeVtmView();
 		if ( parent != null ) {
-			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove(
-				parent.getId()
-			);
+			int handle = parent.getId();
+			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
+			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
 		}
 		super.onDestroy();
 	}

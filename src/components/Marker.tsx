@@ -44,9 +44,9 @@ const Marker = ({
 	const indexRef = useRef<number>(-1);
 
 	const { uuid } = useNativeLayerLifecycle({
-		enabled: !!nativeNodeHandle && !!markerLayerUuid && !!position,
+		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
-			if (!nativeNodeHandle || !markerLayerUuid || !position) {
+			if (!nativeNodeHandle || markerLayerUuid === false || !position) {
 				return Promise.reject<string>({
 					userInfo: {
 						errorMsg:
@@ -69,7 +69,7 @@ const Marker = ({
 			});
 		},
 		remove: (currentUuid, { triggerOnRemove }) => {
-			if (!nativeNodeHandle || !markerLayerUuid) {
+			if (!nativeNodeHandle || markerLayerUuid === false) {
 				return Promise.resolve(false);
 			}
 			return LayerMarkerModule.removeMarker({
@@ -94,7 +94,7 @@ const Marker = ({
 	// Update the existing native marker in place when its position or symbol
 	// changes, instead of tearing down and recreating it.
 	useEffect(() => {
-		if (uuid && markerLayerUuid && nativeNodeHandle) {
+		if (uuid && markerLayerUuid !== false && nativeNodeHandle) {
 			LayerMarkerModule.updateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
