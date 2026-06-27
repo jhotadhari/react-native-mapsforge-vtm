@@ -660,18 +660,13 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		if ( null != filePath && ! filePath.isEmpty() ) {
 			FileInputStream fis = getFileInputStream( filePath, contentResolver );
 			if ( fis != null ) {
-				try {
+				try ( fis ) {
 					bitmap = filePath.endsWith( ".svg" )
 						? CanvasAdapter.decodeSvgBitmap( fis, width, height, 100 )
 						: CanvasAdapter.decodeBitmap( fis );
 				} catch ( IOException e ) {
 					e.printStackTrace();
 					emitError( "Unable to read file: " + filePath );
-				} finally {
-					try {
-						fis.close();
-					} catch ( IOException ignored ) {
-					}
 				}
 			}
 		}

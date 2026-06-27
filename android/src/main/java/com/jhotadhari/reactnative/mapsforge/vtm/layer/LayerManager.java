@@ -1,6 +1,8 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 
 import android.content.ContentResolver;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,6 +21,7 @@ import org.oscim.layers.Layer;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Abstract base for managers that collapse many JS layer components into a single
@@ -398,12 +401,12 @@ public abstract class LayerManager<TEntry> {
 	 * Tears down this manager: removes the shared layer from the map and clears
 	 * all entries. Called from {@link #remove(int, String)} or {@link #removeAll(int)}.
 	 */
-	private final java.util.concurrent.atomic.AtomicBoolean updatePending =
-		new java.util.concurrent.atomic.AtomicBoolean(false);
+	private final AtomicBoolean updatePending = new AtomicBoolean(false);
+	private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
 	private void scheduleUpdate() {
 		if (updatePending.compareAndSet(false, true)) {
-			new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+			uiHandler.post(() -> {
 				updatePending.set(false);
 				// Bail if the manager has been destroyed (sharedLayer
 				// is volatile so the null written by destroy() is visible
