@@ -295,10 +295,7 @@ public class MapMutationQueue {
 		// If more mutations arrived while we were flushing, schedule another
 		// flush to process them.  Using post() (not postDelayed) ensures
 		// the UI thread gets a chance to breathe between batches.
-		// Explicit GC hint helps ART keep up with the CopyOnWriteArrayList
-		// array churn from the incremental insertions.
 		if (!pending.isEmpty()) {
-			System.gc();
 			flushScheduled = true;
 			uiHandler.post(this::flush);
 		}
