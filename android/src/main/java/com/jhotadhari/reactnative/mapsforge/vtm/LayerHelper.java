@@ -187,7 +187,9 @@ public class LayerHelper {
 	}
 
 	/**
-	 * @deprecated Use {@link #removeLayerAsync} instead.
+	 * @deprecated Use {@link #removeLayerAsync} instead. This method now delegates
+	 *             to {@link #removeLayerAsync} so that all layer removals go through
+	 *             {@link MapMutationQueue} and are serialized on the UI thread.
 	 */
 	@Deprecated
 	public void removeLayer(ReadableMap params, Promise promise) {
@@ -195,30 +197,14 @@ public class LayerHelper {
 			if (!Utils.rMapHasKey(params, "uuid") || !Utils.rMapHasKey(params, "nativeNodeHandle")) {
 				Utils.promiseReject(promise, "Undefined uuid or nativeNodeHandle"); return;
 			}
-
-			int nativeNodeHandle = params.getInt("nativeNodeHandle");
 			String uuid = params.getString("uuid");
 
-			MapView mapView = Utils.getMapView(reactContext, nativeNodeHandle);
-			if (null == mapView) {
-				Utils.promiseReject(promise, "Unable to find mapView"); return;
-			}
-
-			MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
-
-			// Remove layer from map.
-			int layerIndex = getLayerIndexInMapLayers(nativeNodeHandle, uuid);
-			if (layerIndex != -1) {
-				mapView.map().layers().remove(layerIndex);
-			}
-
-			// Remove from known layers.
-			queue.getKnownLayers().remove(uuid);
-
-			// Trigger map update.
-			mapView.map().updateMap();
-
-			promise.resolve(uuid);
+			removeLayerAsync(params)
+				.thenRun(() -> promise.resolve(uuid))
+				.exceptionally(t -> {
+					Utils.promiseReject(promise, t.getMessage());
+					return null;
+				});
 		} catch (Exception e) {
 			e.printStackTrace();
 			Utils.promiseReject(promise, e.getMessage());
