@@ -262,18 +262,19 @@ public class MapFragment extends Fragment {
 	@Override
 	public void onDestroy() {
 		unbindUpdateListener();
-		if ( mapView != null ) {
-			mapView.onDestroy();
-			mapView = null;
-		}
-		// Tear down the MapMutationQueue so pending layer mutations don't hang
-		// and per-handle state (knownLayers, previouslyOrderedLayers, etc.) is
-		// released.
+		// Tear down LayerManagers FIRST — they need a live mapView to remove
+		// their shared layers from mapView.map().layers(). Then tear down the
+		// MapMutationQueue so pending layer mutations don't hang. Only then
+		// destroy the mapView itself.
 		MapsforgeVtmView parent = getMapsforgeVtmView();
 		if ( parent != null ) {
 			int handle = parent.getId();
-			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
+			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
+		}
+		if ( mapView != null ) {
+			mapView.onDestroy();
+			mapView = null;
 		}
 		super.onDestroy();
 	}
