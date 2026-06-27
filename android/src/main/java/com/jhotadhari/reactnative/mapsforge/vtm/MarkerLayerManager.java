@@ -172,9 +172,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@NonNull ReactApplicationContext reactContext
 	) throws Exception {
 		// Bare Marker: resolve group (root or explicit), create MarkerItem, add to shared layer.
-		String groupUuid = Utils.rMapHasKey(params, "markerLayerUuid")
-			? params.getString("markerLayerUuid")
-			: ROOT_GROUP_UUID;
+			String groupUuid = ROOT_GROUP_UUID;
+			if (Utils.rMapHasKey(params, "markerLayerUuid") && !params.isNull("markerLayerUuid")) {
+				groupUuid = params.getString("markerLayerUuid");
+			}
 
 		// Ensure the group exists (creates root group lazily if needed).
 		ensureGroup(groupUuid, null, resolvePositionIndex(params));
