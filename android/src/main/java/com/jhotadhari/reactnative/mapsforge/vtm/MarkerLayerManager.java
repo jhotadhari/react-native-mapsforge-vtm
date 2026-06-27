@@ -56,7 +56,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 	public static final String NAME = "markers";
 	/** Position in map.layers(): above paths (0), below any future layers. */
-	public static final int BASE_POSITION = 2000000;
+	public static final int BASE_POSITION = Integer.MAX_VALUE;
 
 	/** Default group for bare {@code <Marker>} components (no LayerMarker wrapper). */
 	public static final String ROOT_GROUP_UUID = "__root__";
