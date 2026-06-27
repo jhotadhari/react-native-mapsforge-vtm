@@ -277,7 +277,7 @@ public abstract class LayerManager<TEntry> {
 	 * @return the entry uuid on success
 	 */
 	@NonNull
-	public String create(
+	public CreateResult<TEntry> create(
 		@NonNull String entryUuid,
 		@NonNull ReadableMap params,
 		@NonNull MapFragment mapFragment,
@@ -293,7 +293,7 @@ public abstract class LayerManager<TEntry> {
 		// Trigger a map update so the new geometry is picked up.
 		mapView.map().updateMap();
 
-		return entryUuid;
+		return result;
 	}
 
 	/**
@@ -303,7 +303,7 @@ public abstract class LayerManager<TEntry> {
 		TEntry entry = entries.remove(entryUuid);
 		if (entry != null) {
 			removeEntryFromLayer(entry);
-			mapView.map().updateMap();
+			scheduleUpdate();
 		}
 	}
 
@@ -354,7 +354,7 @@ public abstract class LayerManager<TEntry> {
 	 * Ensures the shared vtm Layer exists and is registered in the map's layer
 	 * list via {@link MapMutationQueue}. Idempotent.
 	 */
-	protected void ensureSharedLayer() throws Exception {
+	protected synchronized void ensureSharedLayer() throws Exception {
 		if (sharedLayer != null) {
 			return;
 		}
@@ -398,6 +398,20 @@ public abstract class LayerManager<TEntry> {
 	 * Tears down this manager: removes the shared layer from the map and clears
 	 * all entries. Called from {@link #remove(int, String)} or {@link #removeAll(int)}.
 	 */
+	private volatile boolean updatePending = false;
+
+	private void scheduleUpdate() {
+		if (!updatePending) {
+			updatePending = true;
+			new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+				updatePending = false;
+				if (mapView.map() != null) {
+					scheduleUpdate();
+				}
+			});
+		}
+	}
+
 	protected void destroy() {
 		// Remove all entries' geometry from the shared layer.
 		for (TEntry entry : entries.values()) {
@@ -413,7 +427,7 @@ public abstract class LayerManager<TEntry> {
 		if (sharedLayer != null && mapView != null && mapView.map() != null) {
 			try {
 				mapView.map().layers().remove(sharedLayer);
-				mapView.map().updateMap();
+				scheduleUpdate();
 				MapMutationQueue queue = MapMutationQueue.getInstance(nativeNodeHandle);
 				if (queue != null) {
 					queue.getKnownLayers().remove(sharedLayerUuid);

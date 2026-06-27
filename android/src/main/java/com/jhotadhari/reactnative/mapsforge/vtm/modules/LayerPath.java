@@ -50,14 +50,11 @@ public class LayerPath extends NativeLayerPathSpec {
 
 	public static final String NAME = "LayerPath";
 
-	private final LayerHelper layerHelper;
 
-	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
 
 
 	public LayerPath( ReactApplicationContext reactContext) {
 		super(reactContext);
-		layerHelper = new LayerHelper( this, this.getReactApplicationContext() );
 	}
 
 	@NonNull

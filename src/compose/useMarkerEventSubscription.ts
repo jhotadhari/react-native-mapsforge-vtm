@@ -31,7 +31,8 @@ const useMarkerEventSubscription = ({
 				(response?: MarkerEvent) => {
 					if (
 						response &&
-						(!uuid || response?.uuid === uuid) &&
+						uuid &&
+						response?.uuid === uuid &&
 						(!layerUuid || response?.markerLayerUuid === layerUuid)
 					) {
 						onEvent && onEvent(response);

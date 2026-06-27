@@ -9,6 +9,8 @@ import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import org.locationtech.jts.operation.distance.DistanceOp;
 import org.oscim.core.GeoPoint;
 import org.oscim.event.Gesture;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.oscim.event.MotionEvent;
 import org.oscim.layers.vector.geometries.Drawable;
 import org.oscim.map.Map;
@@ -45,6 +47,8 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 	protected float mGestureScreenDistance = 30f;
 	@Nullable
 	protected UuidResolver mUuidResolver;
+	@NonNull
+	private final ReadWriteLock mDrawablesLock = new ReentrantReadWriteLock();
 
 	public VectorLayer( Map map, SpatialIndex<Drawable> index ) {
 		super( map, index );

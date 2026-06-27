@@ -42,6 +42,7 @@ const Marker = ({
 	const { markerLayerUuid } = useContext(MarkerLayerContext);
 
 	const indexRef = useRef<number>(-1);
+	const justCreatedRef = useRef(false);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
@@ -63,6 +64,7 @@ const Marker = ({
 				...(symbol && { symbol }),
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
+				justCreatedRef.current = true;
 				triggerOnCreate && onCreate ? onCreate(response) : null;
 				triggerOnChange && onChange ? onChange(response) : null;
 				return response.uuid;
@@ -94,6 +96,10 @@ const Marker = ({
 	// Update the existing native marker in place when its position or symbol
 	// changes, instead of tearing down and recreating it.
 	useEffect(() => {
+		if (justCreatedRef.current) {
+			justCreatedRef.current = false;
+			return;
+		}
 		if (uuid && markerLayerUuid !== false && nativeNodeHandle) {
 			LayerMarkerModule.updateMarker({
 				nativeNodeHandle,

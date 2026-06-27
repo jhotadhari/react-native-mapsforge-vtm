@@ -52,9 +52,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 	public static final String NAME = "LayerMarker";
 
-	private final LayerHelper layerHelper;
 
-	protected final Point tmpPoint = new Point();
 
 	// Rendering a marker symbol's Bitmap (canvas allocation, text measurement/drawing, image
 	// decode) is the expensive part of creating a marker -- and many markers/layers very often
@@ -137,7 +135,6 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 	public LayerMarker( ReactApplicationContext reactContext) {
 		super(reactContext);
-		layerHelper = new LayerHelper( this, this.getReactApplicationContext() );
 	}
 
 	@NonNull
@@ -216,10 +213,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			}
 
 			// Resolve the default marker symbol for this group (may be null).
-			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : null;
-			MarkerSymbol defaultSymbol = symbolMap != null
-				? getMarkerSymbol( symbolMap, mapFragment.getActivity().getContentResolver() )
-				: null;
+			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : (ReadableMap) getConstants().get( "symbol" );
+			MarkerSymbol defaultSymbol = getMarkerSymbol( symbolMap, mapFragment.getActivity().getContentResolver() );
 
 			// Delegate group creation to MarkerLayerManager.
 			MarkerLayerManager manager = MarkerLayerManager.get( params.getInt( "nativeNodeHandle" ), mapView );
