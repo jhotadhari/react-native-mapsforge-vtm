@@ -28,11 +28,6 @@ import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
@@ -47,8 +42,6 @@ import java.util.UUID;
 
 @ReactModule( name = LayerPath.NAME )
 public class LayerPath extends NativeLayerPathSpec {
-
-	protected Map<String, Coordinate[]> originalJtsCoordinatesMap = new HashMap<>();
 
 	public static final String NAME = "LayerPath";
 
@@ -261,13 +254,6 @@ public class LayerPath extends NativeLayerPathSpec {
 		emitOnPathEvent( eventParams );
 	}
 
-	protected VectorLayer.GestureListener getGestureListener( int nativeNodeHandle ) {
-		return ( type, eventParams ) -> {
-			eventParams.putInt( "nativeNodeHandle", nativeNodeHandle );
-			emitOnPathEvent( eventParams );
-		};
-	}
-
 	@ReactMethod
 	public void updateCoordinates( ReadableMap params, Promise promise ) {
 		try {
@@ -375,52 +361,6 @@ public class LayerPath extends NativeLayerPathSpec {
 		}
 	}
 
-	protected void addStuffToResponse( String uuid, ReadableMap responseInclude, int includeLevel, WritableMap responseParams ) {
-		// Maybe add coordinates to promise response.
-		if ( responseInclude.getInt( "coordinates" ) > includeLevel ) {
-			addCoordinatesToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
-		}
-		// Maybe add bounds to response.
-		if ( responseInclude.getInt( "bounds" ) > includeLevel ) {
-			addBoundsToResponse( originalJtsCoordinatesMap.get( uuid ), responseParams );
-		}
-	}
-
-	protected void addBoundsToResponse(
-		@Nullable Coordinate[] jtsCoordinates,
-		WritableMap responseParams
-	) {
-		if ( null != jtsCoordinates ) {
-			Geometry geometry = new LineString( new CoordinateArraySequence( jtsCoordinates ), new GeometryFactory() );
-			Envelope boundingBox = geometry.getEnvelopeInternal();
-			// [ west, south, east, north ], mirroring geojson's `bbox` member.
-			WritableArray bboxParams = new WritableNativeArray();
-			bboxParams.pushDouble(boundingBox.getMinX());
-			bboxParams.pushDouble(boundingBox.getMinY());
-			bboxParams.pushDouble(boundingBox.getMaxX());
-			bboxParams.pushDouble(boundingBox.getMaxY());
-			responseParams.putArray("bbox", bboxParams);
-		}
-	}
-
-	protected void addCoordinatesToResponse(
-		@Nullable Coordinate[] jtsCoordinates,
-		WritableMap responseParams
-	) {
-		if ( null != jtsCoordinates && jtsCoordinates.length > 0 && ! responseParams.hasKey( "coordinates" ) ) {
-			WritableArray coordinatesResponseArray = new WritableNativeArray();
-			for (int i = 0; i < jtsCoordinates.length; i++) {
-				coordinatesResponseArray.pushArray(  Utils.positionToWritableArray(
-					jtsCoordinates[i].x,
-					jtsCoordinates[i].y,
-					jtsCoordinates[i].z
-				) );
-			}
-			// Add to responseParams.
-			responseParams.putArray( "coordinates", coordinatesResponseArray );
-		}
-	}
-
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
 		try {
@@ -429,7 +369,6 @@ public class LayerPath extends NativeLayerPathSpec {
 			}
 			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			String uuid = params.getString( "uuid" );
-			originalJtsCoordinatesMap.remove( uuid );
 
 			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
 			if ( manager != null ) {
