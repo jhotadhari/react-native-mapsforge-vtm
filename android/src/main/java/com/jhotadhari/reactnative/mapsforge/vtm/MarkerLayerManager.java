@@ -510,6 +510,57 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	}
 
 	/**
+	 * Removes multiple markers in a single batch. Removes all items from
+	 * the shared ItemizedLayer, clears tracking, and calls
+	 * {@code updateMap()} exactly once.
+	 *
+	 * @param markerUuids   Array of marker uuids to remove
+	 * @return WritableMap with a "results" array
+	 */
+	@NonNull
+	public WritableMap removeMarkers(
+		@NonNull ReadableArray markerUuids
+	) {
+		int count = markerUuids.size();
+		WritableArray results = Arguments.createArray();
+		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+
+		for (int i = 0; i < count; i++) {
+			String markerUuid = markerUuids.getString(i);
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString("uuid", markerUuid);
+
+			try {
+				MarkerEntry entry = allMarkers.remove(markerUuid);
+				entries.remove(markerUuid);
+				if (entry != null) {
+					if (layer != null) {
+						layer.removeItem(entry.markerItem);
+					}
+					MarkerGroup group = groups.get(entry.groupUuid);
+					if (group != null) {
+						group.memberMarkerUuids.remove(markerUuid);
+					}
+				}
+			} catch (Exception e) {
+				resultItem.putString("error", e.getMessage());
+			}
+
+			results.pushMap(resultItem);
+		}
+
+		if (layer != null && count > 0) {
+			layer.populate();
+			mapView.map().updateMap();
+		}
+
+		WritableMap response = Arguments.createMap();
+		response.putArray("results", results);
+		return response;
+	}
+
+
+	/**
 	 * Creates a named group for a {@code LayerMarker} component.
 	 *
 	 * @param defaultSymbol the resolved default marker symbol (may be null)

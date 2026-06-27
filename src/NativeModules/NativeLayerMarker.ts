@@ -134,6 +134,20 @@ export interface MarkerBatchResponse {
 	results: ReadonlyArray<MarkerBatchResultItem>;
 }
 
+export interface RemoveMarkersParams {
+	nativeNodeHandle: Int32;
+	markerUuids: ReadonlyArray<string>;
+}
+
+export interface RemoveMarkerResultItem {
+	uuid: string;
+	error?: string;
+}
+
+export interface RemoveMarkersResponse {
+	results: ReadonlyArray<RemoveMarkerResultItem>;
+}
+
 interface RemoveMarkerParams {
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null;
@@ -221,6 +235,7 @@ export interface Spec extends TurboModule {
 	createMarker(params: CreateMarkerParams): Promise<MarkerResponse>;
 	createMarkers(params: CreateMarkersParams): Promise<MarkerBatchResponse>;
 	removeMarker(params: RemoveMarkerParams): Promise<string>;
+	removeMarkers(params: RemoveMarkersParams): Promise<RemoveMarkersResponse>;
 	updateMarker(params: UpdateMarkerParams): Promise<string>;
 	triggerEvent(params: TriggerParamsCG): void;
 	onError: EventEmitter<ErrorWithErrorMsg>;

@@ -20,7 +20,10 @@ import {
 import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
-import { enqueueCreateMarker } from '../compose/MarkerBatchQueue';
+import {
+	enqueueCreateMarker,
+	enqueueRemoveMarker,
+} from '../compose/MarkerBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
@@ -75,11 +78,7 @@ const Marker = ({
 			if (!nativeNodeHandle || markerLayerUuid === false) {
 				return Promise.resolve(false);
 			}
-			return LayerMarkerModule.removeMarker({
-				nativeNodeHandle,
-				markerLayerUuid,
-				uuid: currentUuid,
-			})
+			return enqueueRemoveMarker(nativeNodeHandle, currentUuid)
 				.then((removedUuid) => {
 					triggerOnRemove && onRemove
 						? onRemove({ uuid: removedUuid, nativeNodeHandle })
