@@ -75,6 +75,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	public static class PathEntry {
 		@NonNull
 		public final String pathUuid;
+		@NonNull
+		public final String fragmentUuid;
 		public int positionIndex;
 		@NonNull
 		public final List<LineDrawable> drawables = new ArrayList<>();
@@ -85,12 +87,14 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 		public PathEntry(
 			@NonNull String pathUuid,
+			@NonNull String fragmentUuid,
 			int positionIndex,
 			@NonNull Coordinate[] jtsCoordinates,
 			boolean supportsGestures,
 			float gestureScreenDistance
 		) {
 			this.pathUuid = pathUuid;
+			this.fragmentUuid = fragmentUuid;
 			this.positionIndex = positionIndex;
 			this.jtsCoordinates = jtsCoordinates;
 			this.supportsGestures = supportsGestures;
@@ -156,6 +160,11 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getDouble("gestureScreenDistance")
 			: 30d;
 
+		// Resolve fragment uuid for this entry.
+		String fragmentUuid = Utils.rMapHasKey(params, "fragmentUuid")
+			? params.getString("fragmentUuid")
+			: sharedLayerUuid;
+
 		// Parse coordinates.
 		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(
 			coordinates,
@@ -175,14 +184,15 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 		PathEntry entry = new PathEntry(
 			entryUuid,
+			fragmentUuid,
 			positionIndex,
 			jtsCoordinates,
 			supportsGestures,
 			(float) gestureScreenDistance
 		);
 
-		// Draw LineDrawable segments onto the shared VectorLayer.
-		VectorLayer vectorLayer = (VectorLayer) sharedLayer;
+		// Draw LineDrawable segments onto the fragment's VectorLayer.
+		VectorLayer vectorLayer = (VectorLayer) getSharedLayer(fragmentUuid);
 		drawSegments(jtsCoordinates, styleBuilder, entryUuid, vectorLayer, entry);
 
 		return new CreateResult<>(entry, null);
@@ -190,7 +200,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	@Override
 	protected void removeEntryFromLayer(@NonNull PathEntry entry) {
-		VectorLayer layer = (VectorLayer) sharedLayer;
+		VectorLayer layer = (VectorLayer) getSharedLayer(entry.fragmentUuid);
 		if (layer == null) {
 			return;
 		}
@@ -210,7 +220,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		@NonNull MapFragment mapFragment,
 		@NonNull ContentResolver contentResolver
 	) throws Exception {
-		VectorLayer layer = (VectorLayer) sharedLayer;
+		VectorLayer layer = (VectorLayer) getSharedLayer(entry.fragmentUuid);
 		if (layer == null) {
 			return new UpdateResult(null);
 		}

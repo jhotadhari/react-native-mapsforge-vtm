@@ -196,6 +196,11 @@ public class LayerPath extends NativeLayerPathSpec {
 
 			String uuid = UUID.randomUUID().toString();
 
+			// Resolve fragment uuid (from JS params).
+			String fragmentUuid = Utils.rMapHasKey( params, "fragmentUuid" )
+				? params.getString( "fragmentUuid" )
+				: "__vtm_shared_paths__0";
+
 			// Delegate to PathLayerManager.
 			PathLayerManager manager = PathLayerManager.get( nativeNodeHandle, mapView );
 			manager.setEventCallback(( eventName, payload ) -> {
@@ -204,7 +209,7 @@ public class LayerPath extends NativeLayerPathSpec {
 				}
 			});
 
-			manager.create( uuid, params, mapFragment,
+			manager.create( uuid, fragmentUuid, params, mapFragment,
 				mapFragment.getActivity().getContentResolver(),
 				getReactApplicationContext() );
 

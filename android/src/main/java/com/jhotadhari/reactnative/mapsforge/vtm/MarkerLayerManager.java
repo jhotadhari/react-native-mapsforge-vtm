@@ -110,6 +110,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	public static class MarkerGroup {
 		@NonNull
 		public final String groupUuid;
+		@NonNull
+		public final String fragmentUuid;
 		@Nullable
 		public MarkerSymbol defaultSymbol;
 		@NonNull
@@ -118,10 +120,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		public MarkerGroup(
 			@NonNull String groupUuid,
+			@NonNull String fragmentUuid,
 			@Nullable MarkerSymbol defaultSymbol,
 			int positionIndex
 		) {
 			this.groupUuid = groupUuid;
+			this.fragmentUuid = fragmentUuid;
 			this.defaultSymbol = defaultSymbol;
 			this.positionIndex = positionIndex;
 		}
@@ -176,8 +180,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				groupUuid = params.getString("markerLayerUuid");
 			}
 
+		// Resolve fragment uuid for this marker.
+		String fragmentUuid = Utils.rMapHasKey(params, "fragmentUuid")
+			? params.getString("fragmentUuid")
+			: sharedLayerUuid;
+
 		// Ensure the group exists (creates root group lazily if needed).
-		ensureGroup(groupUuid, null, resolvePositionIndex(params));
+		ensureGroup(groupUuid, fragmentUuid, null, resolvePositionIndex(params));
 
 		// Resolve marker position.
 		if (!Utils.rMapHasKey(params, "position")) {
@@ -219,8 +228,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		int positionIndex = resolvePositionIndex(params);
 
-		// Add marker to shared ItemizedLayer at the correct sorted position.
-		ItemizedLayer itemizedLayer = (ItemizedLayer) sharedLayer;
+		// Add marker to the correct fragment's ItemizedLayer at the sorted position.
+		ItemizedLayer itemizedLayer = (ItemizedLayer) getSharedLayer(fragmentUuid);
 		insertMarkerSorted(markerItem, positionIndex, itemizedLayer);
 
 		// Track.
@@ -239,15 +248,16 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 	@Override
 	protected void removeEntryFromLayer(@NonNull MarkerEntry entry) {
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		MarkerGroup group = groups.get(entry.groupUuid);
+		if (group == null) {
+			return;
+		}
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
 		if (layer != null) {
 			layer.removeItem(entry.markerItem);
-			allMarkers.remove(entry.entryUuid);
-			MarkerGroup group = groups.get(entry.groupUuid);
-			if (group != null) {
-				group.memberMarkerUuids.remove(entry.entryUuid);
-			}
 		}
+		allMarkers.remove(entry.entryUuid);
+		group.memberMarkerUuids.remove(entry.entryUuid);
 	}
 
 	@NonNull
@@ -258,7 +268,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@NonNull MapFragment mapFragment,
 		@NonNull ContentResolver contentResolver
 	) throws Exception {
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		MarkerGroup group = groups.get(entry.groupUuid);
+		ItemizedLayer layer = group != null
+			? (ItemizedLayer) getSharedLayer(group.fragmentUuid)
+			: null;
 		boolean positionChanged = false;
 
 		if (Utils.rMapHasKey(params, "position")) {
@@ -292,7 +305,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		viewport.toScreenPoint(entry.markerItem.getPoint(), tmpPoint);
 
 		MarkerSymbol symbol = entry.markerItem.getMarker();
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		MarkerGroup groupForHit = groups.get(entry.groupUuid);
+		ItemizedLayer layer = groupForHit != null
+			? (ItemizedLayer) getSharedLayer(groupForHit.fragmentUuid)
+			: null;
 		if (symbol == null && layer != null) {
 			symbol = layer.getDefaultMarker();
 		}
@@ -339,20 +355,31 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@NonNull ReactApplicationContext reactContext,
 		@Nullable Map<Integer, MarkerSymbol> resolvedSymbols
 	) throws Exception {
-		ensureSharedLayer();
-
 		int count = markersArray.size();
-		ItemizedLayer itemizedLayer = (ItemizedLayer) sharedLayer;
 
 		// Per-marker result tracking.
 		String[] entryUuids = new String[count];
 		int[] resultIndices = new int[count];
 		String[] errors = new String[count];
+		String[] fragmentUuids = new String[count];
 
 		// Collect successfully-validated markers for sorted insertion.
 		List<MarkerItem> itemsToAdd = new ArrayList<>(count);
 		List<Integer> positionIndices = new ArrayList<>(count);
 		List<Integer> sourceIndices = new ArrayList<>(count); // index into markersArray
+
+		// Ensure all required fragment layers exist upfront.
+		Set<String> seenFragments = new HashSet<>();
+		for (int i = 0; i < count; i++) {
+			ReadableMap markerParams = markersArray.getMap(i);
+			String fragmentUuid = Utils.rMapHasKey(markerParams, "fragmentUuid")
+				? markerParams.getString("fragmentUuid")
+				: sharedLayerUuid;
+			fragmentUuids[i] = fragmentUuid;
+			if (seenFragments.add(fragmentUuid)) {
+				ensureSharedLayer(fragmentUuid);
+			}
+		}
 
 		for (int i = 0; i < count; i++) {
 			ReadableMap markerParams = markersArray.getMap(i);
@@ -369,7 +396,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				}
 
 				// Ensure group exists (creates root group lazily if needed).
-				ensureGroup(groupUuid, null, resolvePositionIndex(markerParams));
+				ensureGroup(groupUuid, fragmentUuids[i], null, resolvePositionIndex(markerParams));
 
 				// Validate position.
 				if (!Utils.rMapHasKey(markerParams, "position")) {
@@ -430,12 +457,16 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return Integer.compare(a, b); // stable: preserve source order for ties
 		});
 
-		// Insert sorted markers into the shared ItemizedLayer.
-		List<MarkerInterface> itemList = itemizedLayer.getItemList();
+		// Insert sorted markers into their fragment's ItemizedLayer.
 		for (int si = 0; si < sortedLocalIndices.size(); si++) {
 			int li = sortedLocalIndices.get(si);
+			int i = sourceIndices.get(li);
 			MarkerItem markerItem = itemsToAdd.get(li);
 			int positionIndex = positionIndices.get(li);
+			String fragmentUuid = fragmentUuids[i];
+
+			ItemizedLayer fragmentLayer = (ItemizedLayer) getSharedLayer(fragmentUuid);
+			List<MarkerInterface> itemList = fragmentLayer.getItemList();
 
 			// Find the insertion point: first existing marker with
 			// positionIndex > ours.
@@ -453,7 +484,19 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			itemList.add(insertAt, markerItem);
 		}
 		if (!sortedLocalIndices.isEmpty()) {
-			itemizedLayer.populate();
+			// Populate each affected fragment layer.
+			Set<String> populatedFragments = new HashSet<>();
+			for (int si = 0; si < sortedLocalIndices.size(); si++) {
+				int li = sortedLocalIndices.get(si);
+				int i = sourceIndices.get(li);
+				String fragmentUuid = fragmentUuids[i];
+				if (populatedFragments.add(fragmentUuid)) {
+					ItemizedLayer fl = (ItemizedLayer) getSharedLayer(fragmentUuid);
+					if (fl != null) {
+						fl.populate();
+					}
+				}
+			}
 		}
 
 		// Track all successfully created entries and assign result indices.
@@ -482,7 +525,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				group.memberMarkerUuids.add(entryUuid);
 			}
 
-			resultIndices[i] = itemList.indexOf(markerItem);
+			// Look up index within the marker's fragment layer.
+			ItemizedLayer fl = (ItemizedLayer) getSharedLayer(fragmentUuids[i]);
+			resultIndices[i] = fl != null
+				? fl.getItemList().indexOf(markerItem)
+				: -1;
 		}
 
 		// Single updateMap for the entire batch.
@@ -519,7 +566,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	) {
 		int count = markerUuids.size();
 		WritableArray results = Arguments.createArray();
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		Set<String> affectedFragments = new HashSet<>();
 
 		for (int i = 0; i < count; i++) {
 			String markerUuid = markerUuids.getString(i);
@@ -530,11 +577,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				MarkerEntry entry = allMarkers.remove(markerUuid);
 				entries.remove(markerUuid);
 				if (entry != null) {
-					if (layer != null) {
-						layer.removeItem(entry.markerItem);
-					}
 					MarkerGroup group = groups.get(entry.groupUuid);
 					if (group != null) {
+						ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
+						if (layer != null) {
+							layer.removeItem(entry.markerItem);
+							affectedFragments.add(group.fragmentUuid);
+						}
 						group.memberMarkerUuids.remove(markerUuid);
 					}
 				}
@@ -545,8 +594,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			results.pushMap(resultItem);
 		}
 
-		if (layer != null && count > 0) {
-			layer.populate();
+		if (!affectedFragments.isEmpty()) {
+			for (String fragmentUuid : affectedFragments) {
+				ItemizedLayer fl = (ItemizedLayer) getSharedLayer(fragmentUuid);
+				if (fl != null) {
+					fl.populate();
+				}
+			}
 			scheduleUpdate();
 		}
 
@@ -567,12 +621,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@Nullable MarkerSymbol defaultSymbol,
 		@NonNull ReadableMap params
 	) throws Exception {
-		ensureSharedLayer();
+		// Resolve fragment uuid for this group.
+		String fragmentUuid = Utils.rMapHasKey(params, "fragmentUuid")
+			? params.getString("fragmentUuid")
+			: sharedLayerUuid;
+
+		// Ensure the fragment's shared layer exists.
+		ensureSharedLayer(fragmentUuid);
 
 		String groupUuid = UUID.randomUUID().toString();
 		int positionIndex = resolvePositionIndex(params);
 
-		MarkerGroup group = new MarkerGroup(groupUuid, defaultSymbol, positionIndex);
+		MarkerGroup group = new MarkerGroup(groupUuid, fragmentUuid, defaultSymbol, positionIndex);
 		groups.put(groupUuid, group);
 
 		return groupUuid;
@@ -586,7 +646,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		if (group == null) {
 			return;
 		}
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
 		for (String markerUuid : group.memberMarkerUuids) {
 			MarkerEntry entry = allMarkers.remove(markerUuid);
 			entries.remove(markerUuid);
@@ -614,7 +674,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		MarkerSymbol oldDefault = group.defaultSymbol;
 		group.defaultSymbol = newDefault;
 
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
 		if (layer != null) {
 			layer.setDefaultMarker(newDefault);
 		}
@@ -639,6 +699,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		MarkerEntry entry = allMarkers.get(entryUuid);
 		if (entry != null) {
 			entry.markerItem.setMarker(symbol);
+			// scheduleUpdate still works fine — updateMap refreshes all layers.
 			scheduleUpdate();
 		}
 	}
@@ -658,7 +719,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return null;
 		}
 
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
 		if (layer == null) {
 			return null;
 		}
@@ -743,12 +804,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		float y,
 		@NonNull String strategy
 	) {
-		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
-		if (layer == null) {
-			return;
-		}
-		int size = layer.getItemList().size();
-		if (size == 0) {
+		if (sharedLayerFragments.isEmpty()) {
 			return;
 		}
 
@@ -773,41 +829,45 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		MarkerInterface itemNearest = null;
 		int iNearest = 0;
 
-		for (int i = 0; i < size; i++) {
-			MarkerInterface item = layer.getItemList().get(i);
-			MarkerEntry entry = allMarkers.get(((MarkerItem) item).getUid().toString());
-			if (entry == null) {
+		// Iterate all markers across all fragment layers.
+		for (Layer fragmentLayer : sharedLayerFragments.values()) {
+			ItemizedLayer layer = (ItemizedLayer) fragmentLayer;
+			int size = layer.getItemList().size();
+			if (size == 0) {
 				continue;
 			}
-
-			GeoPoint markerGeo = item.getPoint();
-
-
-			double dLon = eventGeoPoint.getLongitude() - markerGeo.getLongitude();
-			double dLat = eventGeoPoint.getLatitude() - markerGeo.getLatitude();
-			double geoDist = Math.sqrt(dLon * dLon + dLat * dLat);
-
-			if (geoDist <= geoThreshold) {
-			} else {
-			}
-			if (geoDist <= geoThreshold) {
-				if ("all".equals(strategy) || "first".equals(strategy)) {
-					MarkerItem mi = (MarkerItem) item;
-					WritableMap payload = Arguments.createMap();
-					payload.putInt("index", i);
-					payload.putString("uuid", mi.getUid().toString());
-					payload.putString("markerLayerUuid", entry.groupUuid);
-					payload.putString("event", "itemTrigger");
-					payload.putDouble("distance", geoDist);
-					emit("onMarkerEvent", payload);
-					if ("first".equals(strategy)) {
-						return;
-					}
+			for (int i = 0; i < size; i++) {
+				MarkerInterface item = layer.getItemList().get(i);
+				MarkerEntry entry = allMarkers.get(((MarkerItem) item).getUid().toString());
+				if (entry == null) {
+					continue;
 				}
-				if (geoDist < distNearest) {
-					distNearest = geoDist;
-					itemNearest = item;
-					iNearest = i;
+
+				GeoPoint markerGeo = item.getPoint();
+
+				double dLon = eventGeoPoint.getLongitude() - markerGeo.getLongitude();
+				double dLat = eventGeoPoint.getLatitude() - markerGeo.getLatitude();
+				double geoDist = Math.sqrt(dLon * dLon + dLat * dLat);
+
+				if (geoDist <= geoThreshold) {
+					if ("all".equals(strategy) || "first".equals(strategy)) {
+						MarkerItem mi = (MarkerItem) item;
+						WritableMap payload = Arguments.createMap();
+						payload.putInt("index", i);
+						payload.putString("uuid", mi.getUid().toString());
+						payload.putString("markerLayerUuid", entry.groupUuid);
+						payload.putString("event", "itemTrigger");
+						payload.putDouble("distance", geoDist);
+						emit("onMarkerEvent", payload);
+						if ("first".equals(strategy)) {
+							return;
+						}
+					}
+					if (geoDist < distNearest) {
+						distNearest = geoDist;
+						itemNearest = item;
+						iNearest = i;
+					}
 				}
 			}
 		}
@@ -830,9 +890,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	/**
 	 * Ensures a group exists, creating the root group lazily if needed.
 	 */
-	private void ensureGroup(@NonNull String groupUuid, @Nullable MarkerSymbol defaultSymbol, int positionIndex) {
+	private void ensureGroup(@NonNull String groupUuid, @NonNull String fragmentUuid, @Nullable MarkerSymbol defaultSymbol, int positionIndex) {
 		if (!groups.containsKey(groupUuid)) {
-			groups.put(groupUuid, new MarkerGroup(groupUuid, defaultSymbol, positionIndex));
+			groups.put(groupUuid, new MarkerGroup(groupUuid, fragmentUuid, defaultSymbol, positionIndex));
 		}
 	}
 
