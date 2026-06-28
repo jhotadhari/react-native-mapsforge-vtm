@@ -2,11 +2,9 @@ import { useMemo, useRef, useState, type FC } from 'react';
 import { View, PixelRatio, Button } from 'react-native';
 import {
 	LayerBitmapTile,
-	LayerMarker,
 	LayerPath,
 	MapContainer,
 	Marker,
-	type LayerMarkerTriggerEvent,
 	type LayerPathGestureResponse,
 	type MarkerEvent,
 	type PathTriggerEvent,
@@ -56,7 +54,10 @@ const ExampleComponent: FC<{
 	const [lastMarkerEvent, setLastMarkerEvent] = useState('-');
 	const [lastPathEvent, setLastPathEvent] = useState('-');
 
-	const triggerMarkerEvent = useRef<LayerMarkerTriggerEvent>(null);
+	// triggerEvent on MapContainer triggers ALL markers (no LayerMarker needed).
+	const triggerMarkerEvent = useRef<
+		null | ((params: { x: number; y: number; strategy?: string }) => void)
+	>(null);
 	const triggerPathEvent = useRef<PathTriggerEvent>(null);
 
 	const centerX = PixelRatio.getPixelSizeForLayoutSize(width) / 2;
@@ -64,15 +65,13 @@ const ExampleComponent: FC<{
 
 	const handleMarkerEvent = useMemo(() => {
 		return {
-			onMarkerLayerEvent: (response?: MarkerEvent) => {
-				console.log('debug onMarkerLayerEvent', response); // debug
+			// Per-marker event handler (bare Marker, no LayerMarker wrapper).
+			onEvent: (response?: MarkerEvent) => {
+				console.log('debug onEvent', response);
 				response &&
 					setLastMarkerEvent(
 						`${response.event} marker #${response.index}`
 					);
-			},
-			onEvent: (response?: MarkerEvent) => {
-				console.log('debug onEvent', response); // debug
 			},
 		};
 	}, []);
@@ -80,23 +79,23 @@ const ExampleComponent: FC<{
 	const handlePathEvent = useMemo(() => {
 		return {
 			onPress: (response: LayerPathGestureResponse) => {
-				console.log('debug onPress', response); // debug
+				console.log('debug onPress', response);
 				setLastPathEvent(`press dist=${response.distance.toFixed(4)}`);
 			},
 			onLongPress: (response: LayerPathGestureResponse) => {
-				console.log('debug onLongPress', response); // debug
+				console.log('debug onLongPress', response);
 				setLastPathEvent(
 					`longPress dist=${response.distance.toFixed(4)}`
 				);
 			},
 			onDoubleTap: (response: LayerPathGestureResponse) => {
-				console.log('debug onDoubleTap', response); // debug
+				console.log('debug onDoubleTap', response);
 				setLastPathEvent(
 					`doubleTap dist=${response.distance.toFixed(4)}`
 				);
 			},
 			onTrigger: (response: LayerPathGestureResponse) => {
-				console.log('debug onTrigger', response); // debug
+				console.log('debug onTrigger', response);
 				setLastPathEvent(
 					`trigger dist=${response.distance.toFixed(4)}`
 				);
@@ -193,6 +192,7 @@ const ExampleComponent: FC<{
 					center={defaultCenter}
 					responseInclude={responseInclude}
 					zoomLevel={8}
+					triggerEvent={triggerMarkerEvent}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}
 					onResume={handleMapEvent.onResume}
@@ -209,19 +209,14 @@ const ExampleComponent: FC<{
 						triggerEvent={triggerPathEvent}
 					/>
 
-					<LayerMarker
-						triggerEvent={triggerMarkerEvent}
-						onMarkerEvent={handleMarkerEvent.onMarkerLayerEvent}
-					>
-						{markerPositions.map((position, idx) => (
-							<Marker
-								key={idx}
-								position={position}
-								onEvent={handleMarkerEvent.onEvent}
-								symbol={symbol}
-							/>
-						))}
-					</LayerMarker>
+					{markerPositions.map((position, idx) => (
+						<Marker
+							key={idx}
+							position={position}
+							onEvent={handleMarkerEvent.onEvent}
+							symbol={symbol}
+						/>
+					))}
 				</MapContainer>
 
 				<Center

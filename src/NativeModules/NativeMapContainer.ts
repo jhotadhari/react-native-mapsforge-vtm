@@ -88,11 +88,19 @@ export interface GetPositionResponse {
 	roll: Double;
 }
 
+export interface TriggerParams {
+	nativeNodeHandle: Int32;
+	x: Double;
+	y: Double;
+	strategy?: string;
+}
+
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	reorderLayers(params: ReorderLayersParams): Promise<void>;
 	animateTo(params: AnimateToParams): Promise<void>;
 	getPosition(params: GetPositionParams): Promise<GetPositionResponse>;
+	triggerEvent(params: TriggerParams): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('MapContainer');

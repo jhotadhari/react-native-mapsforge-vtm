@@ -1,14 +1,23 @@
 /**
  * External dependencies
  */
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import {
+	useEffect,
+	useRef,
+	useState,
+	useMemo,
+	useCallback,
+	type MutableRefObject,
+} from 'react';
 import { findNodeHandle, useWindowDimensions, View } from 'react-native';
 import { isBoolean } from 'lodash-es';
 
 /**
  * Internal dependencies
  */
-import NativeMapContainer from '../NativeModules/NativeMapContainer';
+import NativeMapContainer, {
+	type TriggerParams,
+} from '../NativeModules/NativeMapContainer';
 import MapsforgeVtmView, {
 	type MapContainerProps,
 } from '../NativeViews/MapsforgeVtmViewNativeComponent';
@@ -31,6 +40,7 @@ const MapContainer = ({
 	children,
 	nativeNodeHandle = null, // It's not possible to control the nativeNodeHandle. It's a prop just to lift the state up.
 	setNativeNodeHandle = null,
+	triggerEvent,
 	width = moduleDefaults.width,
 	height = moduleDefaults.height,
 	center = moduleDefaults.center,
@@ -61,7 +71,9 @@ const MapContainer = ({
 	onPause,
 	onResume,
 	onError,
-}: MapContainerProps) => {
+}: MapContainerProps & {
+	triggerEvent?: MutableRefObject<null | ((params: TriggerParams) => void)>;
+}) => {
 	const ref = useRef(null);
 
 	const [nativeNodeHandle_, setNativeNodeHandle_] = useState<number | null>(
@@ -121,6 +133,27 @@ const MapContainer = ({
 	const handleMapCreated = useCallback(() => {
 		setMapCreated(true);
 	}, []);
+
+	// Wire triggerEvent ref to native MapContainer.triggerEvent()
+	useEffect(() => {
+		if (triggerEvent && nativeNodeHandle) {
+			triggerEvent.current = (params: TriggerParams) => {
+				NativeMapContainer.triggerEvent({
+					nativeNodeHandle,
+					x: params.x,
+					y: params.y,
+					strategy: params.strategy,
+				});
+			};
+		} else if (triggerEvent) {
+			triggerEvent.current = null;
+		}
+		return () => {
+			if (triggerEvent) {
+				triggerEvent.current = null;
+			}
+		};
+	}, [triggerEvent, nativeNodeHandle]);
 
 	const responseInclude = useMemo(
 		() => ({

@@ -14,6 +14,7 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeMapContainerSpec;
+import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
@@ -341,4 +342,21 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
+
+	@Override
+	public void triggerEvent( ReadableMap params ) {
+		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "x" ) || ! Utils.rMapHasKey( params, "y" ) ) {
+			return;
+		}
+		int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+		float x = (float) params.getDouble( "x" );
+		float y = (float) params.getDouble( "y" );
+		String strategy = Utils.rMapHasKey( params, "strategy" ) ? params.getString( "strategy" ) : "nearest";
+
+		MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+		if ( manager == null ) {
+			return;
+		}
+		manager.triggerAllMarkers( x, y, strategy );
+	}
 }

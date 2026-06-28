@@ -733,6 +733,90 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		return null;
 	}
 
+	/**
+	 * Hit-tests ALL markers (across all groups) using geo-space distance from
+	 * the event point, mirroring the path trigger's approach.  Emits events
+	 * for matching markers via the event callback.
+	 */
+	public void triggerAllMarkers(
+		float x,
+		float y,
+		@NonNull String strategy
+	) {
+		ItemizedLayer layer = (ItemizedLayer) sharedLayer;
+		if (layer == null) {
+			return;
+		}
+		int size = layer.getItemList().size();
+		if (size == 0) {
+			return;
+		}
+
+		Viewport viewport = mapView.map().viewport();
+
+		// Convert JS screen coordinates to a GeoPoint (same approach the
+		// working path trigger uses — fromScreenPoint first, then hit-test
+		// in absolute geo space).
+		GeoPoint eventGeoPoint = viewport.fromScreenPoint(x, y);
+
+		// Compute a geo-distance threshold from the marker symbol's screen
+		// radius (30 px for a 30×30 symbol, matching path trigger default).
+		double geoThreshold = Math.abs(
+			viewport.fromScreenPoint(x, y).getLongitude()
+			- viewport.fromScreenPoint(x + 30f, y).getLongitude()
+		);
+
+		double distNearest = Double.MAX_VALUE;
+		MarkerInterface itemNearest = null;
+		int iNearest = 0;
+
+		for (int i = 0; i < size; i++) {
+			MarkerInterface item = layer.getItemList().get(i);
+			MarkerEntry entry = allMarkers.get(((MarkerItem) item).getUid().toString());
+			if (entry == null) {
+				continue;
+			}
+
+			GeoPoint markerGeo = item.getPoint();
+			double dLon = eventGeoPoint.getLongitude() - markerGeo.getLongitude();
+			double dLat = eventGeoPoint.getLatitude() - markerGeo.getLatitude();
+			double geoDist = Math.sqrt(dLon * dLon + dLat * dLat);
+
+			if (geoDist <= geoThreshold) {
+				if ("all".equals(strategy) || "first".equals(strategy)) {
+					MarkerItem mi = (MarkerItem) item;
+					WritableMap payload = Arguments.createMap();
+					payload.putInt("index", i);
+					payload.putString("uuid", mi.getUid().toString());
+					payload.putString("markerLayerUuid", entry.groupUuid);
+					payload.putString("event", "itemTrigger");
+					payload.putDouble("distance", geoDist);
+					emit("onMarkerEvent", payload);
+					if ("first".equals(strategy)) {
+						return;
+					}
+				}
+				if (geoDist < distNearest) {
+					distNearest = geoDist;
+					itemNearest = item;
+					iNearest = i;
+				}
+			}
+		}
+
+		if ("nearest".equals(strategy) && itemNearest != null) {
+			MarkerItem mi = (MarkerItem) itemNearest;
+			MarkerEntry entry = allMarkers.get(mi.getUid().toString());
+			WritableMap payload = Arguments.createMap();
+			payload.putInt("index", iNearest);
+			payload.putString("uuid", mi.getUid().toString());
+			payload.putString("markerLayerUuid", entry != null ? entry.groupUuid : ROOT_GROUP_UUID);
+			payload.putString("event", "itemTrigger");
+			payload.putDouble("distance", distNearest);
+			emit("onMarkerEvent", payload);
+		}
+	}
+
 	// ── Internal ────────────────────────────────────────────────────────
 
 	/**
