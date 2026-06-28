@@ -3,27 +3,93 @@
 ## 0. Bug: layer render order doesn't strictly follow React tree hierarchy
 
 Found 2026-06-24 via the `many-layers` example (screenshot at high `count`, e.g. 3000 pairs): red
-`LayerPath` lines visibly render on top of green `LayerMarker` markers in places, even though every
-pair's JSX always puts `LayerPath` before `LayerMarker` (`example/src/examples/many-layers/index.tsx`
-lines 161-162). This violates the invariant documented in CLAUDE.md's "Wiring layers together"
+`LayerPath` lines visibly render on top of green `Marker` symbols in places, even though every
+pair's JSX always puts `LayerPath` before `Marker` (`example/src/examples/many-layers/index.tsx`
+lines 171-175). This violates the invariant documented in CLAUDE.md's "Wiring layers together"
 section — later-in-JSX layers must always paint on top of earlier ones.
 
-Root cause (confirmed by reading `LayerOrderRegistry`/`reorderLayers`, not yet fixed): a layer's
-native creation (`LayerHelper.addLayer` → `mapView.map().layers().add(layer)`, an unconditional
-append) happens at whatever moment its own async `createLayer()` TurboModule call resolves — not in
-React-tree order, since promises for thousands of sibling layers resolve in JNI/thread-pool order.
-Correct ordering is only restored afterward by `MapContainer.reorderLayers`
-(`android/.../modules/MapContainer.java:96`), which `MapHandleContext.ts`'s `scheduleSync` calls on a
-16ms-debounce/250ms-max-wait. `reorderMinimalMoves` (`MapContainer.java:159`) only repositions layers
-whose uuid has already resolved on the JS side (`orderedLayers`) — any layer still mid-creation is
-left exactly where it landed, interleaved among already-ordered layers, until it too resolves and
-joins a later reorder pass.
+**Investigated 2026-06-28. Root cause confirmed, not yet fixed.** The earlier analysis (async
+creation append + reorderLayers catching up) was correct for the old `LayerHelper.addLayer` path,
+but the actual problem is deeper and specific to the shared-layer architecture used by `LayerPath`
+and `LayerMarker`/`Marker`.
 
-Needs investigation: whether the final, fully-resolved state actually self-heals (every layer
-eventually becomes "tracked" and gets a correct final `reorderLayers` call) or whether something
-about thousands of layers mounting at once leaves a subset permanently out of order. Repro: open
-`manyLayers` example, set count to 3000+, leave it idle a few seconds, inspect whether mis-ordering
-persists or only appears mid-mount.
+### Architecture context
+
+`LayerPath` and `Marker`/`LayerMarker` collapse many JS components into one shared native `Layer`
+per type per map view: one shared `VectorLayer` for all paths (`__vtm_shared_paths__`), one shared
+`ItemizedLayer` for all markers (`__vtm_shared_markers__`). The shared layer is created lazily by
+`LayerManager.ensureSharedLayer()` and registered in `MapMutationQueue.knownLayers` via
+`enqueueAddLayer(sharedLayer, sharedLayerUuid, basePositionIndex)`. Individual paths/markers are
+entries *within* the shared layer, added via `createEntry()`.
+
+Layers that DON'T use this shared pattern (e.g. `LayerBitmapTile`, `LayerMapsforge`, etc.) go
+through `LayerHelper.addLayerAsync()` which registers each component's uuid directly in
+`knownLayers`. For these, position-aware insertion (`MapMutationQueue` step 2) and `reorderLayers`
+(step 3) both work correctly because the per-component uuid IS the layer's uuid in `knownLayers`.
+
+### Three distinct root causes
+
+1.  **Between-shared-layer ordering is non-deterministic and unfixable by `reorderLayers`**
+    (critical).
+
+    Both `PathLayerManager` and `MarkerLayerManager` use `BASE_POSITION = Integer.MAX_VALUE`
+    (append). Whichever shared layer's `ensureSharedLayer()` call completes first lands first in
+    `map.layers()`. This is async TurboModule resolution order, not React tree order.
+
+    `reorderLayers` can NEVER fix this because JS sends per-component uuids (individual path entry
+    uuids like `"a1b2c3..."`, individual marker group uuids like `"d4e5f6..."`). The native
+    `ReorderLayers` handler looks up each uuid in `knownLayers` — but `knownLayers` only contains
+    the shared-layer uuids (`__vtm_shared_paths__`, `__vtm_shared_markers__`), not per-entry uuids.
+    ALL per-component uuids from `LayerPath`/`Marker` components resolve to `null` in
+    `knownLayers.get()`, so `orderedLayers` is always empty and `reorderMinimalMoves` is a no-op
+    for these types.
+
+2.  **Within-PathLayer drawable ordering ignores `positionIndex`**.
+
+    `PathLayerManager.createEntry()` calls `drawSegments()` which appends `LineDrawable`s to the
+    shared `VectorLayer`. There is no positionIndex-based insertion — drawables are ordered by
+    creation-completion time, not by React tree position. Contrast with
+    `MarkerLayerManager.insertMarkerSorted()` which does insert by positionIndex.
+
+3.  **`Marker` component never sends `positionIndex`** (within-ItemizedLayer ordering).
+
+    `Marker.tsx` does NOT use `useLayerOrder` and does NOT include `positionIndex` in its
+    `enqueueCreateMarker()` params. `CreateMarkerParams` doesn't even have a `positionIndex` field.
+    So `resolvePositionIndex(params)` in `MarkerLayerManager` always returns `Integer.MAX_VALUE`,
+    and all markers within a group are ordered by async creation order, not React tree position.
+    (`LayerMarker` DOES pass `positionIndex` for group creation, but the per-marker ordering within
+    that group is still unpositioned.)
+
+### Self-healing question: NO
+
+The final settled state does NOT self-heal. Since `reorderLayers` is structurally a no-op for
+path/marker shared layers (their uuids are never in `knownLayers`), and there is no other mechanism
+that fixes their relative order, any misordering during creation is permanent. Even if every
+component's uuid eventually resolves, the `orderedUuids` list from JS never contains the shared
+layer uuids (`__vtm_shared_paths__`, `__vtm_shared_markers__`), so `reorderMinimalMoves` never
+touches them.
+
+### Fix approach
+
+The shared-layer uuids must be communicated to JS and included in the `orderedUuids` list at the
+correct positions. Specifically:
+
+- Each layer type's first `createLayer` response (or a constant) should include the
+  `sharedLayerUuid`.
+- JS must track which render-tree positions belong to which shared layer type.
+- When computing `orderedUuids` (in `MapHandleContext.ts:flush()`), insert synthetic entries
+  for each shared layer at the position corresponding to its earliest component in render order.
+- This way `reorderMinimalMoves` can reposition the shared layers correctly relative to each
+  other and to non-shared layers.
+
+Additionally:
+- `PathLayerManager.createEntry()` needs positionIndex-based drawable insertion (like
+  `MarkerLayerManager.insertMarkerSorted()`).
+- `Marker` needs to use `useLayerOrder` and pass `positionIndex` through `CreateMarkerParams`
+  into native `createMarkers`/`createMarker`.
+- The `BASE_POSITION` constants should differ between path and marker shared layers so that
+  position-aware insertion in `MapMutationQueue.flush()` step 2 gets them in the right order
+  even before `reorderLayers` runs (defense in depth).
 
 ## 1. Dependency upgrade plan (post-rewrite version bump)
 
