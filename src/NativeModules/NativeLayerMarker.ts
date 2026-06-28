@@ -117,6 +117,7 @@ interface UpdateLayerParams extends ModuleLayerParams {
 export interface CreateMarkerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
+	positionIndex?: Int32;
 }
 
 export interface CreateMarkersParams {

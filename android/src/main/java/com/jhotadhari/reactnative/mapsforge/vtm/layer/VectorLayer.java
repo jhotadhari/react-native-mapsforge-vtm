@@ -3,6 +3,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.Comparator;
+
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
@@ -105,6 +107,17 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 	 */
 	public synchronized void clearDrawables() {
 		mDrawables.clear();
+	}
+
+	/**
+	 * Reorders mDrawables according to the provided comparator.
+	 * Java's List.sort() is stable (TimSort), so drawables that compare
+	 * equal keep their relative insertion order.
+	 *
+	 * @param comparator  the comparator to determine drawable order
+	 */
+	public synchronized void sortDrawables(@NonNull Comparator<Drawable> comparator) {
+		mDrawables.sort(comparator);
 	}
 
 	@Override

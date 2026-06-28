@@ -483,6 +483,18 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 				entry.drawables.add(drawable);
 			}
 		}
+
+		// Sort all drawables by positionIndex so JSX tree order determines paint order.
+		// Java's List.sort is stable, so drawables within the same entry keep their
+		// segment order, and drawables from entries with the same positionIndex keep
+		// their creation order.
+		vectorLayer.sortDrawables((a, b) -> {
+			PathEntry entryA = entries.get(drawableToEntry.get(a));
+			PathEntry entryB = entries.get(drawableToEntry.get(b));
+			int posA = entryA != null ? entryA.positionIndex : Integer.MAX_VALUE;
+			int posB = entryB != null ? entryB.positionIndex : Integer.MAX_VALUE;
+			return Integer.compare(posA, posB);
+		});
 	}
 
 	private void addResponseData(

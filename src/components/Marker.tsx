@@ -19,6 +19,7 @@ import {
 } from '../NativeModules/NativeLayerMarker';
 import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
+import useLayerOrder from '../compose/useLayerOrder';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
 	enqueueCreateMarker,
@@ -49,6 +50,7 @@ const Marker = ({
 	const justCreatedRef = useRef(false);
 	const createdPositionRef = useRef(position);
 	const createdSymbolRef = useRef(symbol);
+	const positionIndexRef = useRef<number>(-1);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
@@ -73,6 +75,7 @@ const Marker = ({
 				...(description && { description }),
 				...(position && { position }),
 				...(symbol && { symbol }),
+				positionIndex: positionIndexRef.current,
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
 				justCreatedRef.current = true;
@@ -99,6 +102,9 @@ const Marker = ({
 		},
 		onError,
 	});
+
+	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// Update the existing native marker in place when its position or symbol
 	// changes, instead of tearing down and recreating it.
