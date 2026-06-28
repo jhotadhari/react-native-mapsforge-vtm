@@ -117,18 +117,34 @@ Tracked from MIGRATION_FEEDBACK_STRAYMAP.md points 5 and 7.
 
 Found 2026-06-28 during device testing of the thread-safety fix. Fixed same day.
 
-Root cause: `MarkerLayerManager.triggerGroupEvent()` and `hitTestEntry()` incorrectly subtracted
-the map view's center offset from the screen coordinates passed from JS. The JS side already
-passes absolute screen pixel coordinates, and vtm's `Viewport.toScreenPoint()` also returns
-absolute coordinates — so the center-offset subtraction produced a nonsense `dx`/`dy`, causing
-`MarkerSymbol.isInside()` to always return false for center-targeted triggers.
+**Three root causes** (not just one):
 
-Fix: removed the center-offset subtraction in both `triggerGroupEvent` (two sites: the variable
-declarations and the loop-body usage) and `hitTestEntry`. The JS coordinates and vtm's
-`toScreenPoint()` both use the same absolute coordinate system (relative to the map view's
-top-left corner), so no transformation is needed.
+1. **Center-offset subtraction** (already noted): `triggerGroupEvent()` and `hitTestEntry()`
+   subtracted `mapView.map().getWidth()/getHeight() / 2` from the JS-provided screen
+   coordinates. The JS and vtm both use absolute coordinates (relative to top-left corner),
+   so this made `dx`/`dy` wrong for center-targeted triggers. → **Fixed** by removing the
+   subtraction in both methods.
+
+2. **Window-absolute vs MapView-relative coordinate origins**: JS sends coordinates
+   relative to the window/content-area top-left (via `PixelRatio.getPixelSizeForLayoutSize
+   (contentHeight) / 2`), but vtm's `Viewport.toScreenPoint()` / `fromScreenPoint()` operate
+   relative to the MapView's own top-left corner. When the MapView is offset within the
+   window (e.g. by an app header or ControlPanel above it), the two origins differ by
+   that offset. The path trigger masked this (its geo-space hit-test uses a generous buffer
+   distance), but the marker trigger's `MarkerSymbol.isInside()` has strict ±15 px tolerance.
+   → **Fixed** in `LayerMarker.triggerEvent()` and `LayerPath.triggerEvent()` by subtracting
+   `mapView.getLocationOnScreen()` from the JS coordinates.
+
+3. **Broken `box.contains()` guard in `triggerGroupEvent()`**: the viewport bounding box
+   was converted to mercator space (`box.map2mercator(); box.scale(1E6)`) but compared
+   against marker coordinates in degree-scaled microdegrees (`longitudeE6`/`latitudeE6`) —
+   the coordinate spaces don't match, so the check always returned false and no marker was
+   ever hit-tested. → **Fixed** by removing the guard; `toScreenPoint()` + `isInside()`
+   alone is sufficient for the typical number of markers.
 
 The path trigger (`LayerPath.triggerEvent` → `PathLayerManager` → `LayerManager.triggerEvent`)
-did NOT have this bug — it passed coordinates through without transformation.
+did NOT have bugs #1 or #3 — it passes coordinates through without transformation and uses
+geo-space hit-testing — but did share bug #2 (window-absolute vs MapView-relative origins,
+masked by generous buffer distance). Fixed in `LayerPath.triggerEvent()` for correctness.
 
 

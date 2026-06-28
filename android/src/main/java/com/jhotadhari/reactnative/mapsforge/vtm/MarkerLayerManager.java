@@ -18,10 +18,8 @@ import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.oscim.android.MapView;
 import org.oscim.backend.CanvasAdapter;
-import org.oscim.core.Box;
 import org.oscim.core.GeoPoint;
 import org.oscim.core.Point;
-import org.oscim.core.Tile;
 import org.oscim.layers.Layer;
 import org.oscim.layers.marker.MarkerInterface;
 import org.oscim.layers.marker.MarkerItem;
@@ -671,9 +669,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		}
 
 		Viewport viewport = mapView.map().viewport();
-		Box box = viewport.getBBox(null, Tile.SIZE / 2);
-		box.map2mercator();
-		box.scale(1E6);
 
 		double dist = (20 * CanvasAdapter.getScale()) * (20 * CanvasAdapter.getScale());
 		double distNearest = dist;
@@ -693,35 +688,33 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				i++;
 				continue;
 			}
-			if (box.contains(item.getPoint().longitudeE6, item.getPoint().latitudeE6)) {
-				viewport.toScreenPoint(item.getPoint(), tmpPoint);
-				MarkerSymbol it = item.getMarker();
-				it = it != null ? it : layer.getDefaultMarker();
-				if (it == null) {
-					i++;
-					continue;
-				}
-				float dx = (float)(x - tmpPoint.x);
-				float dy = (float)(y - tmpPoint.y);
-				if (it.isInside(dx, dy)) {
-					double d = dx * dx + dy * dy;
-					if (d <= dist) {
-						inside = i;
-						if (d <= distNearest) {
-							iNearest = i;
-							itemNearest = item;
-							distNearest = d;
-						}
-						if ("all".equals(strategy) || "first".equals(strategy)) {
-							MarkerItem mi = (MarkerItem) item;
-							WritableMap payload = Arguments.createMap();
-							payload.putInt("index", i);
-							payload.putString("uuid", mi.getUid().toString());
-							payload.putString("markerLayerUuid", groupUuid);
-							payload.putString("event", "itemTrigger");
-							payload.putDouble("distance", d);
-							emit("onMarkerEvent", payload);
-						}
+			viewport.toScreenPoint(item.getPoint(), tmpPoint);
+			MarkerSymbol it = item.getMarker();
+			it = it != null ? it : layer.getDefaultMarker();
+			if (it == null) {
+				i++;
+				continue;
+			}
+			float dx = (float)(x - tmpPoint.x);
+			float dy = (float)(y - tmpPoint.y);
+			if (it.isInside(dx, dy)) {
+				double d = dx * dx + dy * dy;
+				if (d <= dist) {
+					inside = i;
+					if (d <= distNearest) {
+						iNearest = i;
+						itemNearest = item;
+						distNearest = d;
+					}
+					if ("all".equals(strategy) || "first".equals(strategy)) {
+						MarkerItem mi = (MarkerItem) item;
+						WritableMap payload = Arguments.createMap();
+						payload.putInt("index", i);
+						payload.putString("uuid", mi.getUid().toString());
+						payload.putString("markerLayerUuid", groupUuid);
+						payload.putString("event", "itemTrigger");
+						payload.putDouble("distance", d);
+						emit("onMarkerEvent", payload);
 					}
 				}
 			}

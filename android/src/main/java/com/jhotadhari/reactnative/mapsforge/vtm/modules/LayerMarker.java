@@ -189,8 +189,22 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			return;
 		}
 		String strategy = Utils.rMapHasKey( params, "strategy" ) ? params.getString( "strategy" ) : (String) getConstants().get( "strategy" );
-		int x = params.getInt( "x" );
-		int y = params.getInt( "y" );
+		float x = (float) params.getDouble( "x" );
+		float y = (float) params.getDouble( "y" );
+
+		// JS sends coordinates relative to the window / content area, but
+		// vtm's Viewport.toScreenPoint() returns coordinates relative to the
+		// MapView's own top-left corner.  When the MapView is offset within
+		// the window (e.g. by a ControlPanel above it), the two origins
+		// differ.  Convert here so the downstream hit-test (dx/dy against
+		// MarkerSymbol.isInside()) uses the correct reference frame.
+		MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+		if ( mapView != null ) {
+			int[] loc = new int[2];
+			mapView.getLocationOnScreen( loc );
+			x -= loc[0];
+			y -= loc[1];
+		}
 
 		MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
 		if ( manager == null ) {
