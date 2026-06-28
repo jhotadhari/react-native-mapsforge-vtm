@@ -3,6 +3,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.Nullable;
+
 import org.oscim.android.MapView;
 import org.oscim.layers.Layer;
 

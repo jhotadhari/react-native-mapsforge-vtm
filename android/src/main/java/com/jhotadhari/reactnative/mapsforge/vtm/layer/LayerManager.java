@@ -405,7 +405,7 @@ public abstract class LayerManager<TEntry> {
 	private final AtomicBoolean updatePending = new AtomicBoolean(false);
 	private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
-	private void scheduleUpdate() {
+	protected void scheduleUpdate() {
 		if (updatePending.compareAndSet(false, true)) {
 			uiHandler.post(() -> {
 				updatePending.set(false);
