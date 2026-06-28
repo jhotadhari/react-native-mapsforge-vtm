@@ -253,7 +253,6 @@ public class LayerPath extends NativeLayerPathSpec {
 		// Add type and eventPosition (same pattern as the original triggerEvent).
 		eventParams.putInt( "nativeNodeHandle", nativeNodeHandle );
 		eventParams.putString( "type", "trigger" );
-		MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 		if ( mapView != null ) {
 			GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint( x, y );
 			eventParams.putArray( "eventPosition", Utils.positionToWritableArray(
