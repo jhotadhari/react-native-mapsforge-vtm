@@ -15,6 +15,8 @@ import com.facebook.react.module.annotations.ReactModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeMapContainerSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
+import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.EventEmitterCallback;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.oscim.android.MapView;
@@ -357,6 +359,22 @@ public class MapContainer extends NativeMapContainerSpec {
 		if ( manager == null ) {
 			return;
 		}
+
+		// Ensure the MarkerLayerManager's event callback is wired to the
+		// LayerMarker TurboModule's emitOnMarkerEvent.  Without this, the
+		// manager's internal emit() calls are silently dropped.
+		manager.setEventCallback( new EventEmitterCallback() {
+			@Override
+			public void emit( @NonNull String eventName, @NonNull WritableMap payload ) {
+				if ( "onMarkerEvent".equals( eventName ) ) {
+					LayerMarker layerMarker = getReactApplicationContext().getNativeModule( LayerMarker.class );
+					if ( layerMarker != null ) {
+						layerMarker.emitOnMarkerEvent( payload );
+					}
+				}
+			}
+		} );
+
 		manager.triggerAllMarkers( x, y, strategy );
 	}
 }
