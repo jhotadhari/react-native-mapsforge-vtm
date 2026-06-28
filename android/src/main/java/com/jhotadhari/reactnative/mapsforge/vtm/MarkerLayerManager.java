@@ -302,10 +302,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return null;
 		}
 
-		int eventX = (int) x - mapView.map().getWidth() / 2;
-		int eventY = (int) y - mapView.map().getHeight() / 2;
-		float dx = (float)(eventX - tmpPoint.x);
-		float dy = (float)(eventY - tmpPoint.y);
+		float dx = (float)(x - tmpPoint.x);
+		float dy = (float)(y - tmpPoint.y);
 
 		if (symbol.isInside(dx, dy)) {
 			WritableMap payload = Arguments.createMap();
@@ -672,9 +670,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return null;
 		}
 
-		int eventX = (int) x - mapView.map().getWidth() / 2;
-		int eventY = (int) y - mapView.map().getHeight() / 2;
-
 		Viewport viewport = mapView.map().viewport();
 		Box box = viewport.getBBox(null, Tile.SIZE / 2);
 		box.map2mercator();
@@ -706,8 +701,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 					i++;
 					continue;
 				}
-				float dx = (float)(eventX - tmpPoint.x);
-				float dy = (float)(eventY - tmpPoint.y);
+				float dx = (float)(x - tmpPoint.x);
+				float dy = (float)(y - tmpPoint.y);
 				if (it.isInside(dx, dy)) {
 					double d = dx * dx + dy * dy;
 					if (d <= dist) {

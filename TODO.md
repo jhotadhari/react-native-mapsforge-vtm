@@ -113,32 +113,22 @@ Needs reimplementation:
 
 Tracked from MIGRATION_FEEDBACK_STRAYMAP.md points 5 and 7.
 
-## 4. Bug: marker `triggerEvent` doesn't work — coordinate transformation error
+## 4. Bug: marker `triggerEvent` doesn't work — coordinate transformation error ~~FIXED~~
 
-Found 2026-06-28 during device testing of the thread-safety fix. The trigger example
-(`example/src/examples/trigger/index.tsx`) has buttons that call `triggerEvent` on markers
-and paths. The path trigger works, but the marker trigger is broken.
+Found 2026-06-28 during device testing of the thread-safety fix. Fixed same day.
 
-Root cause: `MarkerLayerManager.triggerGroupEvent()` (line 675-676) and `hitTestEntry()`
-(lines 305-306) incorrectly subtract the map view's center offset from the screen coordinates
-passed from JS:
+Root cause: `MarkerLayerManager.triggerGroupEvent()` and `hitTestEntry()` incorrectly subtracted
+the map view's center offset from the screen coordinates passed from JS. The JS side already
+passes absolute screen pixel coordinates, and vtm's `Viewport.toScreenPoint()` also returns
+absolute coordinates — so the center-offset subtraction produced a nonsense `dx`/`dy`, causing
+`MarkerSymbol.isInside()` to always return false for center-targeted triggers.
 
-```java
-int eventX = (int) x - mapView.map().getWidth() / 2;
-int eventY = (int) y - mapView.map().getHeight() / 2;
-```
-
-The JS side already passes absolute screen pixel coordinates (e.g. `width/2, height/2` for the
-map center). Subtracting the center offset again makes `eventX`/`eventY` near zero for
-center-targeted triggers, while `tmpPoint` from vtm's `Viewport.toScreenPoint()` is in absolute
-screen coordinates — the `dx`/`dy` calculation then produces a huge negative offset, so
-`MarkerSymbol.isInside()` always returns false.
-
-Fix: remove the center-offset subtraction in both `triggerGroupEvent` and `hitTestEntry`.
-The JS coordinates and vtm's `toScreenPoint()` both use the same absolute coordinate system
-(relative to the map view's top-left corner), so no transformation is needed.
+Fix: removed the center-offset subtraction in both `triggerGroupEvent` (two sites: the variable
+declarations and the loop-body usage) and `hitTestEntry`. The JS coordinates and vtm's
+`toScreenPoint()` both use the same absolute coordinate system (relative to the map view's
+top-left corner), so no transformation is needed.
 
 The path trigger (`LayerPath.triggerEvent` → `PathLayerManager` → `LayerManager.triggerEvent`)
-does NOT have this bug — it passes coordinates through without transformation.
+did NOT have this bug — it passed coordinates through without transformation.
 
 
