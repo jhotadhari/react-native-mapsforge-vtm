@@ -7,6 +7,7 @@ import { useContext, useEffect, useRef } from 'react';
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
 
 /**
  * Registers a layer component into the shared, map-wide layer ordering registry, and keeps
@@ -17,8 +18,9 @@ import MapHandleContext from '../context/MapHandleContext';
  * position-aware insertion (the native side inserts at that position immediately, eliminating
  * the need for a follow-up reorderLayers pass).
  */
-const useLayerOrder = (uuid: null | false | string) => {
+const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
+	const { isGrouped } = useContext(SharedLayerContext);
 
 	const idRef = useRef<undefined | symbol>(undefined);
 	if (!idRef.current) {
@@ -53,6 +55,27 @@ const useLayerOrder = (uuid: null | false | string) => {
 		);
 	}
 
+	// Store layer type for type-run boundary detection in flush(). Also
+	// compute a provisional fragment uuid eagerly during render so callers
+	// can use it immediately. The authoritative computation happens in
+	// flush(), which corrects any stale eager assignments.
+	if (layerType) {
+		registry.layerTypes.set(id, layerType);
+		const cursorType = registry.cursorLayerType;
+		if (cursorType !== layerType) {
+			// Type changed — advance fragment index for this type.
+			const currentIdx = registry.fragmentIndices.get(layerType) ?? 0;
+			// When isGrouped (inside <SharedLayer>), force all children
+			// of the same type into a single fragment (index 0).
+			const newIdx = isGrouped ? 0 : currentIdx + 1;
+			registry.fragmentIndices.set(layerType, newIdx);
+		}
+		const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
+		const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
+		registry.fragmentUuids.set(id, fragmentUuid);
+		registry.cursorLayerType = layerType;
+	}
+
 	// Compute the current position index among JS-managed layers. This is called during
 	// render, so `order` already reflects the correct document-order position for this
 	// component, even if it was just registered above.
@@ -66,6 +89,8 @@ const useLayerOrder = (uuid: null | false | string) => {
 				registry.order.splice(index, 1);
 			}
 			registry.uuids.delete(id);
+			registry.layerTypes.delete(id);
+			registry.fragmentUuids.delete(id);
 			registry.scheduleSync(nativeNodeHandleRef.current);
 		};
 	}, [id, registry]);
@@ -86,7 +111,9 @@ const useLayerOrder = (uuid: null | false | string) => {
 		nativeNodeHandle,
 	]);
 
-	return { nativeNodeHandle, positionIndex };
+	const fragmentUuid = layerType ? registry.fragmentUuids.get(id) : undefined;
+
+	return { nativeNodeHandle, positionIndex, fragmentUuid };
 };
 
 export default useLayerOrder;

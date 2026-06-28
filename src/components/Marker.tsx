@@ -51,6 +51,7 @@ const Marker = ({
 	const createdPositionRef = useRef(position);
 	const createdSymbolRef = useRef(symbol);
 	const positionIndexRef = useRef<number>(-1);
+	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
@@ -76,6 +77,9 @@ const Marker = ({
 				...(position && { position }),
 				...(symbol && { symbol }),
 				positionIndex: positionIndexRef.current,
+				...(fragmentUuidRef.current && {
+					fragmentUuid: fragmentUuidRef.current,
+				}),
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
 				justCreatedRef.current = true;
@@ -103,8 +107,9 @@ const Marker = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'marker');
 	positionIndexRef.current = positionIndex;
+	fragmentUuidRef.current = fragmentUuid;
 
 	// Update the existing native marker in place when its position or symbol
 	// changes, instead of tearing down and recreating it.

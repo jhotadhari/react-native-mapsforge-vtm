@@ -87,7 +87,7 @@ const LayerMBTilesBitmap = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid, 'mbtiles-bitmap');
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

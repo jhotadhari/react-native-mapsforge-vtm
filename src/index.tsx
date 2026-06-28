@@ -67,6 +67,7 @@ import type {
 } from './compose/useMap';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
+import SharedLayer from './components/SharedLayer';
 
 export {
 	// MapContainer and MapsforgeVtmViewNativeComponent.
@@ -134,6 +135,7 @@ export {
 	// Other
 	useRenderStyleOptions,
 	CanvasAdapterModule,
+	SharedLayer,
 	type ErrorWithErrorMsg,
 };
 

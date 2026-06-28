@@ -86,7 +86,7 @@ const LayerMapsforgeSubLayer = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid, 'mapsforge');
 
 	useEffect(() => {
 		if (nativeNodeHandle && uuid) {
@@ -186,7 +186,7 @@ const LayerMapsforge = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid, 'mapsforge');
 
 	// enabledZoomMin/enabledZoomMax changed -- update in place, same as every other layer type.
 	useEffect(() => {

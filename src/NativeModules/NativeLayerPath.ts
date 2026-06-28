@@ -65,6 +65,7 @@ interface ModuleParams {
 interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle?: Int32;
 	positionIndex?: Int32;
+	fragmentUuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
 	supportsGestures?: boolean;
 }

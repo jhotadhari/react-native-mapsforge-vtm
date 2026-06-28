@@ -102,6 +102,7 @@ export interface MarkerEvent extends ResponseBase {
 interface CreateLayerParams extends ModuleLayerParams {
 	nativeNodeHandle?: Int32;
 	positionIndex: Int32;
+	fragmentUuid?: string;
 }
 
 interface RemoveLayerParams {
@@ -118,6 +119,7 @@ export interface CreateMarkerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
 	positionIndex?: Int32;
+	fragmentUuid?: string;
 }
 
 export interface CreateMarkersParams {

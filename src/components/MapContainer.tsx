@@ -121,6 +121,8 @@ const MapContainer = ({
 	// that mounts/remounts there (e.g. a toggled-on <LayerPath/>) can insert itself in the
 	// right relative position instead of always landing at the end.
 	registry.cursor = undefined;
+	registry.cursorLayerType = undefined;
+	registry.fragmentIndices.clear();
 
 	const mapHandleContextValue = useMemo<MapHandleContextValue>(
 		() => ({

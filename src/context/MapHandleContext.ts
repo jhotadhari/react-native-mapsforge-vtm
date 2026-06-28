@@ -16,6 +16,19 @@ export type LayerOrderRegistry = {
 	// render pass. MapContainer resets this to undefined at the start of every one of its own
 	// renders; see useLayerOrder for how it's used to anchor newly mounted layers.
 	cursor: undefined | symbol;
+	// Type of the layer at `cursor`, used for type-run boundary detection so that
+	// interleaved shared-layer types (e.g. Path, Marker, Path) each get their own
+	// fragment. Reset by MapContainer alongside `cursor`.
+	cursorLayerType: undefined | string;
+	// Per-type fragment counter (e.g. path→2, marker→1). Used both by the eager
+	// render-time assignment in useLayerOrder and by flush()'s authoritative pass.
+	fragmentIndices: Map<string, number>;
+	// Per-component fragment uuid (keyed by the component's stable Symbol id).
+	// Set during render and recomputed authoritatively in flush().
+	fragmentUuids: Map<symbol, string>;
+	// Per-component layer type string (e.g. 'path', 'marker', 'mapsforge', etc.).
+	// Populated by useLayerOrder during render.
+	layerTypes: Map<symbol, string>;
 	scheduleSync: (nativeNodeHandle: null | number) => void;
 };
 
@@ -38,6 +51,9 @@ export type MapHandleContextValue = {
 export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const order: symbol[] = [];
 	const uuids = new Map<symbol, string>();
+	const fragmentIndices = new Map<string, number>();
+	const fragmentUuids = new Map<symbol, string>();
+	const layerTypes = new Map<symbol, string>();
 	let lastAppliedUuids: string[] = [];
 
 	// Many sibling layers can each resolve their own uuid within milliseconds of one
@@ -56,9 +72,42 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		if (!nativeNodeHandle) {
 			return;
 		}
-		const orderedUuids = order
-			.map((id) => uuids.get(id))
-			.filter((uuid): uuid is string => !!uuid);
+		// Recompute fragment uuids from the final order (corrects any stale
+		// eager assignments from the last render pass). For shared-layer types
+		// ('path', 'marker'), consecutive same-type components collapse into a
+		// single fragment uuid; a type alteration creates a new fragment.
+		// Dedicated-layer types (everything else) use their per-component uuid
+		// directly.
+		let currentRunType: string | null = null;
+		let runIndex = 0;
+		const seenFragmentUuids = new Set<string>();
+		const orderedUuids: string[] = [];
+
+		for (const id of order) {
+			const layerType = layerTypes.get(id);
+			const perComponentUuid = uuids.get(id);
+
+			if (layerType && (layerType === 'path' || layerType === 'marker')) {
+				// Shared-layer type: use fragment uuid.
+				if (layerType !== currentRunType) {
+					currentRunType = layerType;
+					// Advance fragment index for this type.
+					const idx = (fragmentIndices.get(layerType) ?? 0) + 1;
+					fragmentIndices.set(layerType, idx);
+					runIndex = idx;
+				}
+				const fragmentUuid = `__vtm_shared_${layerType}__${runIndex}`;
+				fragmentUuids.set(id, fragmentUuid);
+
+				if (!seenFragmentUuids.has(fragmentUuid)) {
+					seenFragmentUuids.add(fragmentUuid);
+					orderedUuids.push(fragmentUuid);
+				}
+			} else if (perComponentUuid) {
+				// Dedicated-layer type: use per-component uuid directly.
+				orderedUuids.push(perComponentUuid);
+			}
+		}
 		const unchanged =
 			orderedUuids.length === lastAppliedUuids.length &&
 			orderedUuids.every((uuid, i) => uuid === lastAppliedUuids[i]);
@@ -90,6 +139,10 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		order,
 		uuids,
 		cursor: undefined,
+		cursorLayerType: undefined,
+		fragmentIndices,
+		fragmentUuids,
+		layerTypes,
 		scheduleSync: (nativeNodeHandle) => {
 			pendingNativeNodeHandle = nativeNodeHandle;
 			// Trailing debounce: every call pushes the flush out, so a continuous burst only
@@ -112,6 +165,10 @@ const noopRegistry: LayerOrderRegistry = {
 	order: [],
 	uuids: new Map(),
 	cursor: undefined,
+	cursorLayerType: undefined,
+	fragmentIndices: new Map(),
+	fragmentUuids: new Map(),
+	layerTypes: new Map(),
 	scheduleSync: () => {},
 };
 

@@ -58,6 +58,7 @@ const LayerPath = ({
 	// is defined here, before the declaration). A ref bridges the gap: it's set
 	// during render, then read when the async create callback fires.
 	const positionIndexRef = useRef<number>(-1);
+	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
@@ -72,6 +73,7 @@ const LayerPath = ({
 			return LayerPathModule.createLayer({
 				nativeNodeHandle,
 				positionIndex: positionIndexRef.current,
+				fragmentUuid: fragmentUuidRef.current,
 				supportsGestures,
 				coordinates,
 				...(style && { style }),
@@ -106,8 +108,9 @@ const LayerPath = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'path');
 	positionIndexRef.current = positionIndex;
+	fragmentUuidRef.current = fragmentUuid;
 
 	// Redraw the existing native layer in place when the line or its style
 	// changes, instead of tearing down and recreating the layer.
