@@ -230,17 +230,9 @@ public class LayerPath extends NativeLayerPathSpec {
 		String uuid = params.getString( "uuid" );
 		float x = (float) params.getDouble( "x" );
 		float y = (float) params.getDouble( "y" );
-
-		// Convert from window-absolute to MapView-relative coordinates, since
-		// vtm's Viewport.fromScreenPoint() operates in the MapView's own
-		// coordinate frame (its top-left is (0,0), not the window's top-left).
+		// The mapView is needed below for fromScreenPoint to build the eventPosition response.
 		MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
-		if ( mapView != null ) {
-			int[] loc = new int[2];
-			mapView.getLocationOnScreen( loc );
-			x -= loc[0];
-			y -= loc[1];
-		}
+
 
 		PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
 		if ( manager == null ) {
