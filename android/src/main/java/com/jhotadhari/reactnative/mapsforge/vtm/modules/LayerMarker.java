@@ -197,9 +197,9 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			return;
 		}
 		WritableMap payload = manager.triggerGroupEvent( groupUuid, x, y, strategy );
-		if ( payload != null ) {
-			emitOnMarkerEvent( payload );
-		}
+		// TEST: Always emit to verify emitOnMarkerEvent path works
+		{ WritableMap t = Arguments.createMap(); t.putString("uuid", "test-uuid"); t.putInt("index", -1); t.putString("markerLayerUuid", groupUuid); t.putString("event", "itemTrigger"); t.putInt("nativeNodeHandle", nativeNodeHandle); emitOnMarkerEvent(t); }
+		if ( payload != null ) { emitOnMarkerEvent( payload ); }
 	}
 
 	@Override
