@@ -36,6 +36,30 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * {@code reorderLayers} pass after creation. When multiple layers are added in a
  * single batch, they are sorted by positionIndex before insertion so earlier
  * indices don't shift later ones.
+ *
+ * <h3>Threading model</h3>
+ * <pre>
+ *  Native Modules Thread (TurboModule)          UI Thread (Main Looper)
+ *  ================================             =======================
+ *
+ *  createLayer (async)  ──enqueue──>  ┌─────────────────────────────┐
+ *  removeLayer (async)  ──enqueue──>  │  MapMutationQueue.flush()    │
+ *  reorderLayers        ──enqueue──>  │  ─────────────────────────  │
+ *                                     │  1. Remove stale layers      │
+ *  animateTo()          ──dispatch──> │  2. Add new layers           │
+ *  getPosition()        ──dispatch──> │  3. Reorder (LIS algorithm)  │
+ *                                     │  4. updateMap() once         │
+ *  scheduleUpdate()     ──post─────>  │  updateMap() coalesced       │
+ *  (LayerManager +       (CAS+Handler)│  (per-entry geometry changes)│
+ *   MarkerLayerManager)               └─────────────────────────────┘
+ * </pre>
+ *
+ * <p>This class is the <b>only</b> place that may call
+ * {@code mapView.map().layers().add/remove} and the batch-level
+ * {@code updateMap()}. Every other class must route through
+ * {@link #enqueueAddLayer}, {@link #enqueueRemoveLayer},
+ * {@link #enqueueReorderLayers}, or (during teardown only)
+ * {@link #removeLayerSync}.
  */
 public class MapMutationQueue {
 

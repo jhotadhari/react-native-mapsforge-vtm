@@ -109,3 +109,42 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   `LayerZoomBoundsHelper` (zoom-based layer visibility), `RenderThemeMenuLoader` (parses
   `<stylemenu>` from render-theme XML for `useRenderStyleOptions`), `FixedWindowRateLimiter` (throttles
   native map-event emission, used by `MapFragment`).
+
+### Threading model
+
+All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow through
+`MapMutationQueue.flush()` on the **UI thread** (Main Looper). Nothing else may call
+`mapView.map().layers().add/remove` or `mapView.map().updateMap()` directly.
+
+```
+ Native Modules Thread (TurboModule)          UI Thread (Main Looper)
+ ================================             =======================
+
+ createLayer (async)  ──enqueue──>  ┌─────────────────────────────┐
+ removeLayer (async)  ──enqueue──>  │  MapMutationQueue.flush()    │
+ reorderLayers        ──enqueue──>  │  ─────────────────────────  │
+                                    │  1. Remove stale layers      │
+ animateTo()          ──dispatch──> │  2. Add new layers           │
+ getPosition()        ──dispatch──> │  3. Reorder (LIS algorithm)  │
+                                    │  4. updateMap() once         │
+ scheduleUpdate()     ──post─────>  │  updateMap() coalesced       │
+ (LayerManager +       (AtomicBool  │  (per-entry geometry changes)│
+  MarkerLayerManager)   + Handler)  └─────────────────────────────┘
+
+ LayerManager.ensureSharedLayer() blocks with future.get()
+ until the shared layer is placed on the UI thread — this is
+ the ONLY cross-thread blocking wait. Everything else is
+ fire-and-forget from the JS side.
+```
+
+**Key rules:**
+- `MapMutationQueue.flush()` is the **only** place that calls `layers().add/remove` and the batch-level `updateMap()`. It runs on the UI thread, serialized with vtm's own rendering.
+- `scheduleUpdate()` (in `LayerManager`) coalesces per-entry `updateMap()` calls onto the UI thread via `AtomicBoolean` CAS + `Handler.post`. Use it instead of calling `mapView.map().updateMap()` directly.
+- `MapContainer.animateTo()` / `getPosition()` dispatch to the UI thread via `UiThreadUtil.runOnUiThread` (vtm's `Animator` asserts the UI thread).
+- `MapFragment.onDestroy()` must tear down `LayerManager`s **before** `mapView.onDestroy()`, or shared layers silently leak.
+- `LayerHelper.addLayerAsync` / `removeLayerAsync` are the preferred API — they enqueue into `MapMutationQueue`. The deprecated `addLayer`/`removeLayer` sync methods now delegate to the async path internally.
+
+**What still runs on the native-modules thread (read-only / non-layers-mutating):**
+- `LayerHelper.getLayer()` / `getLayers()` — reads from `MapMutationQueue.getKnownLayers()` (ConcurrentHashMap, safe from any thread)
+- `LayerZoomBoundsHelper.removeUpdateListener()` — calls `mapView.map().events.unbind()` (event listener management, not layer mutation)
+- Marker/Path entry creation — operates on already-registered shared `Layer` objects (adds drawables/markers to `VectorLayer`/`ItemizedLayer`), not on `map.layers()`
