@@ -75,6 +75,34 @@ positional data. Affected props and return values:
   type change)
 - `useMap()` return values (`getPosition()`, `animateTo()` targets, etc.)
 
+### `triggerEvent` moved from `LayerMarker` to `MapContainer`
+
+- `LayerMarker`'s `triggerEvent` prop is gone. Use `MapContainer`'s new `triggerEvent` prop instead.
+  It fires on **all** markers on the map (not scoped to a group), with the same `x`/`y` screen
+  coordinates and `strategy` (`'all'` / `'first'` / `'nearest'`, default `'nearest'`).
+
+  ```tsx
+  // Before
+  const ref = useRef<LayerMarkerTriggerEvent>(null);
+  <LayerMarker triggerEvent={ref}>…</LayerMarker>
+
+  // After
+  const ref = useRef<null | ((params: {
+    x: number; y: number; strategy?: 'first' | 'nearest' | 'all';
+  }) => void)>(null);
+  <MapContainer triggerEvent={ref}>…</MapContainer>
+  ```
+
+- The old screen-space hit-test (with a broken mercator `box.contains()` guard and incorrect
+  center-offset subtraction) was replaced by geo-space hit testing via `fromScreenPoint()`,
+  matching the approach the working path trigger already used. This eliminates all coordinate‑space
+  fragility.
+
+- `LayerMarker` is no longer required for markers — bare `<Marker>` components work directly inside
+  `<MapContainer>` without a `<LayerMarker>` wrapper. `LayerMarker` still provides per-group default
+  symbol inheritance and layer‑scoped event subscriptions, but neither is needed for basic marker
+  rendering or `triggerEvent`.
+
 ### Layer composition through arbitrary nesting
 
 Layer components now wire themselves through React Context (`MapHandleContext` + `useLayerOrder`)
@@ -150,5 +178,9 @@ they need no special handling. The old restriction that layers had to be direct 
 8. If you use `LayerMBTilesBitmap`'s `alpha`, convert any `0–255`-scaled value to `0–1`.
 9. If you use `LayerMapsforge`'s render-theme/style options, switch to the new
    `useRenderStyleOptions` signature (theme path only, no map handle required).
-10. Re-run lint/format once across your app after upgrading — Prettier's rules changed (tabs vs
+10. If you use `LayerMarker.triggerEvent`, move it to `MapContainer.triggerEvent`. Bare `<Marker>`
+    components no longer need a `<LayerMarker>` wrapper — they work directly inside
+    `<MapContainer>`. See §2 above for the new API shape.
+
+11. Re-run lint/format once across your app after upgrading — Prettier's rules changed (tabs vs
     spaces, `printWidth`, plugin set), so expect a one-time reformat diff.

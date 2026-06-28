@@ -350,7 +350,6 @@ public class MapContainer extends NativeMapContainerSpec {
 		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "x" ) || ! Utils.rMapHasKey( params, "y" ) ) {
 			return;
 		}
-		android.util.Log.d("RCT_TRIGGER", "NATIVE triggerEvent entered handle=" + params.getInt("nativeNodeHandle"));
 		int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 		float x = (float) params.getDouble( "x" );
 		float y = (float) params.getDouble( "y" );

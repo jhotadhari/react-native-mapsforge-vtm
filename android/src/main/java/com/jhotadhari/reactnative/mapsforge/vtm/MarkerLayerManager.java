@@ -18,7 +18,6 @@ import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.oscim.android.MapView;
 import org.oscim.backend.CanvasAdapter;
-import org.oscim.core.Box;
 import org.oscim.core.GeoPoint;
 import org.oscim.core.Point;
 import org.oscim.layers.Layer;
@@ -767,19 +766,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			- viewport.fromScreenPoint(x + 30f, y).getLongitude()
 		);
 
-		// Pre-filter: skip markers outside the current viewport bbox
-		// (expanded by geoThreshold).  This avoids distance computation for
-		// markers that can't possibly be hit, making high-count scenarios
-		// (10 000+ markers) fast.  Everything stays in degree space — no
-		// mercator conversion (unlike the old broken triggerGroupEvent).
-		Box viewBox = viewport.getBBox(null, 0);
-		Box candidateBox = new Box(
-			viewBox.xmin - geoThreshold,
-			viewBox.ymin - geoThreshold,
-			viewBox.xmax + geoThreshold,
-			viewBox.ymax + geoThreshold
-		);
-
+		// No bbox pre-filter — getBBox() returns mercator coordinates,
+		// but markers are in degree coordinates. The geo-distance check
+		// below is correct in degree space and filters sufficiently.
 		double distNearest = Double.MAX_VALUE;
 		MarkerInterface itemNearest = null;
 		int iNearest = 0;
@@ -793,15 +782,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 			GeoPoint markerGeo = item.getPoint();
 
-			// Skip markers outside the expanded viewport bbox (quick pre-filter).
-			if (!candidateBox.contains(markerGeo.getLongitude(), markerGeo.getLatitude())) {
-				continue;
-			}
 
 			double dLon = eventGeoPoint.getLongitude() - markerGeo.getLongitude();
 			double dLat = eventGeoPoint.getLatitude() - markerGeo.getLatitude();
 			double geoDist = Math.sqrt(dLon * dLon + dLat * dLat);
 
+			if (geoDist <= geoThreshold) {
+			} else {
+			}
 			if (geoDist <= geoThreshold) {
 				if ("all".equals(strategy) || "first".equals(strategy)) {
 					MarkerItem mi = (MarkerItem) item;

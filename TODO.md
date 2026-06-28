@@ -149,4 +149,11 @@ Found 2026-06-28 during device testing of the thread-safety fix. Fixed same day.
    EVERY marker event was silently dropped on the JS side, regardless of whether the
    native hit-test succeeded. → **Fixed** by changing `uuid &&` to `(!uuid || ...)`.
 
+**Final resolution (2026-06-28)**: `triggerEvent` was moved from `LayerMarker` to `MapContainer`
+as a new `triggerAllMarkers()` method using geo-space hit testing (`fromScreenPoint` →
+GeoPoint → distance), mirroring the working path trigger approach.  An initial bbox
+pre-filter was removed because `getBBox()` returns mercator coordinates (0–1 range) while
+marker `GeoPoint`s use degree coordinates — the `contains()` check always rejected every
+marker.  The geo-distance check alone is sufficient and correct.
+
 

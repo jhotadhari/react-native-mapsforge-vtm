@@ -126,6 +126,7 @@ const ExampleComponent: FC<{
 					<ControlRow>
 						<Button
 							onPress={() => {
+								console.log(!!triggerMarkerEvent?.current);
 								triggerMarkerEvent?.current &&
 									triggerMarkerEvent?.current({
 										x: centerX,
@@ -137,6 +138,7 @@ const ExampleComponent: FC<{
 						/>
 						<Button
 							onPress={() => {
+								console.log(!!triggerMarkerEvent?.current);
 								triggerMarkerEvent?.current &&
 									triggerMarkerEvent?.current({
 										x: centerX,
@@ -148,6 +150,7 @@ const ExampleComponent: FC<{
 						/>
 						<Button
 							onPress={() => {
+								console.log(!!triggerMarkerEvent?.current);
 								triggerMarkerEvent?.current &&
 									triggerMarkerEvent?.current({
 										x: centerX,
