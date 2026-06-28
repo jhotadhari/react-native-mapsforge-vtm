@@ -370,7 +370,7 @@ public class MapContainer extends NativeMapContainerSpec {
 				if ( "onMarkerEvent".equals( eventName ) ) {
 					LayerMarker layerMarker = getReactApplicationContext().getNativeModule( LayerMarker.class );
 					if ( layerMarker != null ) {
-						layerMarker.emitOnMarkerEvent( payload );
+						layerMarker.emitMarkerEvent( payload );
 					}
 				}
 			}

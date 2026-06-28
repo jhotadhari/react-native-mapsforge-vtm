@@ -177,10 +177,20 @@ public class Utils {
 		return tileCache;
 	}
 
+	/**
+	 * Rejects the given promise with an error. If WritableNativeMap (JNI-backed)
+	 * is unavailable (e.g., in test environments), falls back to a simpler reject.
+	 */
 	public static void promiseReject( Promise promise, String errorMsg ) {
-		WritableMap error = new WritableNativeMap();
-		error.putString( "errorMsg", errorMsg );
-		promise.reject( "error", error );
+		try {
+			WritableMap error = new WritableNativeMap();
+			error.putString( "errorMsg", errorMsg );
+			promise.reject( "error", error );
+		} catch ( Throwable t ) {
+			// Graceful fallback when WritableNativeMap is unavailable
+			// (e.g., in Robolectric tests without native library support).
+			promise.reject( "error", errorMsg );
+		}
 	}
 
 	/**

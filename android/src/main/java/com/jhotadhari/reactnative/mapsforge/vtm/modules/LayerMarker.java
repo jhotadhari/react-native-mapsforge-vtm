@@ -748,6 +748,10 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		}
 	}
 
+	public void emitMarkerEvent( ReadableMap payload ) {
+		emitOnMarkerEvent( payload );
+	}
+
 	protected void emitError( String errorMsg ) {
 		WritableMap payload = Arguments.createMap();
 		payload.putString( "errorMsg", errorMsg );
