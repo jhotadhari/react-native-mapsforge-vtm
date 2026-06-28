@@ -5,6 +5,7 @@ import {
 	LayerPath,
 	MapContainer,
 	Marker,
+	SharedLayer,
 	type Position,
 	type SymbolParams,
 } from 'react-native-mapsforge-vtm';
@@ -45,11 +46,13 @@ type LayerPair = {
 	markerPosition: Position;
 };
 
-// Each pair is one path + one marker entry in the shared native layers.
-// With the virtual-layers architecture, all entries share a single native
-// VectorLayer (paths) and a single ItemizedLayer (markers), so memory is O(1)
-// instead of O(count). The many-pairs stress tests the batched entry creation
-// pipeline and the position-aware ordering within each shared layer.
+// Each pair is one path + one marker entry sharing native layers per type.
+// The <SharedLayer> wrapper enables type-grouped rendering: all paths and
+// markers inside share single VectorLayer / ItemizedLayer fragments,
+// so memory is O(1) instead of O(count). The many-pairs stress tests the
+// batched entry creation pipeline and position-aware ordering within each
+// fragment. Without <SharedLayer>, each type alternation creates a new
+// fragment for strict React-tree z-order.
 const buildLayerPairs = (count: number): LayerPair[] =>
 	Array.from({ length: count }, (_, id) => {
 		const lng = randomNumber(-78, -76);
@@ -165,16 +168,21 @@ const ExampleComponent: FC<{
 				>
 					<LayerBitmapTile />
 
-					{visible &&
-						layerPairs.map((pair) => (
-							<Fragment key={pair.id}>
-								<LayerPath coordinates={pair.pathCoordinates} />
-								<Marker
-									position={pair.markerPosition}
-									symbol={symbol}
-								/>
-							</Fragment>
-						))}
+					{visible && (
+						<SharedLayer>
+							{layerPairs.map((pair) => (
+								<Fragment key={pair.id}>
+									<LayerPath
+										coordinates={pair.pathCoordinates}
+									/>
+									<Marker
+										position={pair.markerPosition}
+										symbol={symbol}
+									/>
+								</Fragment>
+							))}
+						</SharedLayer>
+					)}
 				</MapContainer>
 
 				<Center
