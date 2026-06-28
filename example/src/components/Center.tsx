@@ -6,6 +6,7 @@ const Center: FC<{ width: number; height: number }> = ({ width, height }) => {
 
 	return (
 		<View
+			pointerEvents="none"
 			style={{
 				position: 'absolute',
 				top: 0,
