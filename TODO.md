@@ -117,7 +117,7 @@ Tracked from MIGRATION_FEEDBACK_STRAYMAP.md points 5 and 7.
 
 Found 2026-06-28 during device testing of the thread-safety fix. Fixed same day.
 
-**Three root causes** (not just one):
+**Three root causes on the native side** (plus one JS-side bug):
 
 1. **Center-offset subtraction** (already noted): `triggerGroupEvent()` and `hitTestEntry()`
    subtracted `mapView.map().getWidth()/getHeight() / 2` from the JS-provided screen
@@ -142,9 +142,11 @@ Found 2026-06-28 during device testing of the thread-safety fix. Fixed same day.
    ever hit-tested. → **Fixed** by removing the guard; `toScreenPoint()` + `isInside()`
    alone is sufficient for the typical number of markers.
 
-The path trigger (`LayerPath.triggerEvent` → `PathLayerManager` → `LayerManager.triggerEvent`)
-did NOT have bugs #1 or #3 — it passes coordinates through without transformation and uses
-geo-space hit-testing — but did share bug #2 (window-absolute vs MapView-relative origins,
-masked by generous buffer distance). Fixed in `LayerPath.triggerEvent()` for correctness.
+4. **JS event filter dropped layer-level events** (`useMarkerEventSubscription.ts`):
+   the filter `uuid && response?.uuid === uuid` required `uuid` to be truthy, but
+   `LayerMarker` sets `layerUuid` (not `uuid`) when subscribing to layer-scoped events.
+   Since `uuid` is `undefined`, the entire condition short-circuited to false —
+   EVERY marker event was silently dropped on the JS side, regardless of whether the
+   native hit-test succeeded. → **Fixed** by changing `uuid &&` to `(!uuid || ...)`.
 
 
