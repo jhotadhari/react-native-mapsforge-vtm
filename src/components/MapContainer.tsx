@@ -138,6 +138,12 @@ const MapContainer = ({
 	useEffect(() => {
 		if (triggerEvent && nativeNodeHandle) {
 			triggerEvent.current = (params: TriggerParams) => {
+				console.log('RCT_TRIGGER JS call', {
+					nativeNodeHandle,
+					x: params.x,
+					y: params.y,
+					strategy: params.strategy,
+				});
 				NativeMapContainer.triggerEvent({
 					nativeNodeHandle,
 					x: params.x,
