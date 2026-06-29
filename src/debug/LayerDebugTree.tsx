@@ -105,6 +105,16 @@ const styles = StyleSheet.create({
 		fontSize: 10,
 		marginRight: 6,
 	},
+	costShared: {
+		color: '#4ec94e',
+		fontSize: 9,
+		marginRight: 6,
+	},
+	costDedicated: {
+		color: '#e09040',
+		fontSize: 9,
+		marginRight: 6,
+	},
 	more: {
 		color: '#888888',
 		fontSize: 10,
@@ -147,10 +157,11 @@ const EntryRow: FC<{ entry: LayerDebugEntry; indent: boolean }> = ({
 		<Text style={entry.isResolved ? styles.text : styles.dim}>
 			{truncateUuid(entry.uuid)}
 		</Text>
+		<Text style={entry.isShared ? styles.costShared : styles.costDedicated}>
+			{entry.isShared ? `1/${entry.fragmentMemberCount}` : 'own'}
+		</Text>
 		<Text style={styles.dim}>
-			{entry.isShared
-				? `frag:${truncateUuid(entry.fragmentUuid)}`
-				: 'dedicated'}
+			{entry.isShared ? truncateUuid(entry.fragmentUuid) : ''}
 		</Text>
 	</View>
 );

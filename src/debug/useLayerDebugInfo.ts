@@ -36,6 +36,11 @@ export interface LayerDebugEntry {
 	isShared: boolean;
 	/** True when the native createLayer call has resolved with a real uuid. */
 	isResolved: boolean;
+	/**
+	 * How many JS components share this entry's native fragment. For shared
+	 * entries this is ≥ 2; for dedicated entries this is 1.
+	 */
+	fragmentMemberCount: number;
 }
 
 /**
@@ -48,6 +53,13 @@ export interface LayerDebugInfo {
 	layerCount: number;
 	/** Number of unique native shared-layer fragments across all types. */
 	sharedFragmentCount: number;
+	/** Number of components that own a dedicated native layer. */
+	dedicatedLayerCount: number;
+	/**
+	 * Estimated total native vtm Layer objects: shared fragments + dedicated
+	 * layers. This is the number of GPU draw calls for layer rendering.
+	 */
+	estimatedNativeLayerCount: number;
 	/** Current SharedLayer nesting depth (0 = no grouping active). */
 	groupingDepth: number;
 }
@@ -62,6 +74,23 @@ const buildSnapshot = (
 	registry: import('../context/MapHandleContext').LayerOrderRegistry
 ): LayerDebugInfo => {
 	const layers: LayerDebugEntry[] = [];
+	const fragmentMemberCounts = new Map<string, number>();
+	let dedicatedCount = 0;
+
+	// First pass: count members per fragment and dedicated layers.
+	for (const id of registry.order) {
+		const fragmentUuid = registry.fragmentUuids.get(id);
+		if (fragmentUuid) {
+			fragmentMemberCounts.set(
+				fragmentUuid,
+				(fragmentMemberCounts.get(fragmentUuid) ?? 0) + 1
+			);
+		} else {
+			dedicatedCount++;
+		}
+	}
+
+	// Second pass: build entries with fragment member counts attached.
 	const seenFragmentUuids = new Set<string>();
 
 	for (const id of registry.order) {
@@ -77,6 +106,9 @@ const buildSnapshot = (
 			fragmentUuid: fragmentUuid ?? null,
 			isShared: !!fragmentUuid,
 			isResolved: typeof uuidValue === 'string',
+			fragmentMemberCount: fragmentUuid
+				? (fragmentMemberCounts.get(fragmentUuid) ?? 0)
+				: 1,
 		};
 		layers.push(entry);
 
@@ -89,6 +121,8 @@ const buildSnapshot = (
 		layers,
 		layerCount: layers.length,
 		sharedFragmentCount: seenFragmentUuids.size,
+		dedicatedLayerCount: dedicatedCount,
+		estimatedNativeLayerCount: seenFragmentUuids.size + dedicatedCount,
 		groupingDepth: registry.groupingDepth,
 	};
 };

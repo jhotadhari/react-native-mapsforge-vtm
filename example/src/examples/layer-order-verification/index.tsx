@@ -262,11 +262,12 @@ const LayerDebugOverlay: FC = () => {
 					marginBottom: 2,
 				}}
 			>
+				<Text style={sharedStyles.text}>JS: {info.layerCount}</Text>
 				<Text style={sharedStyles.text}>
-					JS layers: {info.layerCount}
+					Native: {info.estimatedNativeLayerCount}
 				</Text>
 				<Text style={sharedStyles.text}>
-					Fragments: {info.sharedFragmentCount}
+					Draw calls: {info.estimatedNativeLayerCount}
 				</Text>
 				<Text style={sharedStyles.text}>
 					Grouped: {info.groupingDepth > 0 ? 'yes' : 'no'}
