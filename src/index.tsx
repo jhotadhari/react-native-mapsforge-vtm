@@ -34,6 +34,17 @@ import type {
 	PathTriggerParams,
 } from './NativeModules/NativeLayerPath';
 
+import LayerPathJts from './components/LayerPathJts';
+import type {
+	GeometryStyleJts,
+	LayerPathJtsGestureResponse,
+	LayerPathJtsProps,
+	LayerPathJtsResponse,
+	PathJtsResponseInclude,
+	PathJtsTriggerEvent,
+	PathJtsTriggerParams,
+} from './NativeModules/NativeLayerPathJts';
+
 import LayerScalebar from './components/LayerScalebar';
 import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
 
@@ -105,6 +116,16 @@ export {
 	type LayerPathResponse,
 	type LayerPathGestureResponse,
 	type LayerPathProps,
+
+	// LayerPathJts and NativeLayerPathJts.
+	LayerPathJts,
+	type PathJtsResponseInclude,
+	type GeometryStyleJts,
+	type PathJtsTriggerEvent,
+	type PathJtsTriggerParams,
+	type LayerPathJtsResponse,
+	type LayerPathJtsGestureResponse,
+	type LayerPathJtsProps,
 
 	// LayerScalebar and NativeLayerScalebar.
 	LayerScalebar,
