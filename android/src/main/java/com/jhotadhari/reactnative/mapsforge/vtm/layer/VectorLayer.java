@@ -3,8 +3,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.util.Comparator;
-
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
@@ -109,52 +107,42 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		mDrawables.clear();
 	}
 
-	/**
-	 * Reorders mDrawables according to the provided comparator.
-	 * Java's List.sort() is stable (TimSort), so drawables that compare
-	 * equal keep their relative insertion order.
-	 *
-	 * @param comparator  the comparator to determine drawable order
-	 */
-	public synchronized void sortDrawables(@NonNull Comparator<Drawable> comparator) {
-		mDrawables.sort(comparator);
-	}
-
 	@Override
 	public boolean onGesture( Gesture g, MotionEvent e ) {
 		if ( mGestureListener == null || ! mSupportsGestures ) {
 			return false;
 		}
+		// Determine gesture type BEFORE the expensive hit-test so Move/Press
+		// events (which fire continuously during panning) return immediately.
+		// Gesture.Press fires on every raw touch-down (before it's known to be a
+		// tap vs. the start of a pan/drag) — consuming it here would swallow the
+		// down event before it reaches MapEventLayer and break map panning.
+		// Gesture.Tap only fires once a single tap is confirmed, mirroring how
+		// ItemizedLayer (markers) detects taps.
+		String type = null;
+		if ( g instanceof Gesture.DoubleTap ) {
+			type = "doubleTap";
+		} else if ( g instanceof Gesture.LongPress ) {
+			type = "longPress";
+		} else if ( g instanceof Gesture.Tap ) {
+			type = "press";
+		}
+		if ( null == type ) {
+			return false; // Move, Press, or unrecognized — skip the hit-test
+		}
 		WritableMap params = containsGetResponse( e.getX(), e.getY() );
 		if (  null != params ) {
-			// Gesture.Press fires on every raw touch-down (before it's known to be a
-			// tap vs. the start of a pan/drag) - consuming it here would swallow the
-			// down event before it reaches MapEventLayer and break map panning.
-			// Gesture.Tap only fires once a single tap is confirmed, mirroring how
-			// ItemizedLayer (markers) detects taps.
-			String type = null;
-			if ( g instanceof Gesture.DoubleTap ) {
-				type = "doubleTap";
-			} else if ( g instanceof Gesture.LongPress ) {
-				type = "longPress";
-			} else if ( g instanceof Gesture.Tap ) {
-				type = "press";
-			}
-			if ( null == type ) {
-				return false;
-			} else {
-				// Add type
-				params.putString( "type", type );
-				// Add eventPosition
-				GeoPoint eventPoint = mMap.viewport().fromScreenPoint( e.getX(), e.getY() );
-				params.putArray( "eventPosition", Utils.positionToWritableArray(
-					eventPoint.getLongitude(),
-					eventPoint.getLatitude(),
-					null
-				) );
-				mGestureListener.onGesture( type, params );
-				return true;
-			}
+			// Add type
+			params.putString( "type", type );
+			// Add eventPosition
+			GeoPoint eventPoint = mMap.viewport().fromScreenPoint( e.getX(), e.getY() );
+			params.putArray( "eventPosition", Utils.positionToWritableArray(
+				eventPoint.getLongitude(),
+				eventPoint.getLatitude(),
+				null
+			) );
+			mGestureListener.onGesture( type, params );
+			return true;
 		}
 		return false;
 	}
@@ -164,7 +152,13 @@ public class VectorLayer extends org.oscim.layers.vector.VectorLayer {
 		org.locationtech.jts.geom.Point point = new GeomBuilder().point( geoPoint.getLongitude(), geoPoint.getLatitude() ).toPoint();
 		float distance = getCoordinateDistanceFromScreenDistance( x, y, mGestureScreenDistance );
 		for ( Drawable drawable : tmpDrawables ) {
-			if ( drawable.getGeometry().buffer( distance ).contains( point ) ) {
+			// Use distance() instead of buffer(d).contains() — mathematically
+			// equivalent for a point-vs-segment hit-test (both answer "is the
+			// point within distance d of the line?"), but distance() computes
+			// inline without allocating a JTS buffered polygon per drawable.
+			// For a simple LineDrawable (2-point segment), this is O(1) with
+			// zero allocation.
+			if ( drawable.getGeometry().distance( point ) <= distance ) {
 				WritableMap params = new WritableNativeMap();
 				params.putString( "uuid", mUuidResolver != null
 						? mUuidResolver.resolveUuid( drawable )

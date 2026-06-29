@@ -160,10 +160,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getDouble("gestureScreenDistance")
 			: 30d;
 
-		// Resolve fragment uuid for this entry.
+		// Resolve fragment uuid for this entry. Default must match
+		// LayerPath.java's default ("__vtm_shared_path__0") so that
+		// ensureSharedLayer (called with the same value from create())
+		// and getSharedLayer use the same key.
 		String fragmentUuid = Utils.rMapHasKey(params, "fragmentUuid")
 			? params.getString("fragmentUuid")
-			: sharedLayerUuid;
+			: "__vtm_shared_path__0";
 
 		// Parse coordinates.
 		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(
@@ -193,6 +196,11 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 		// Draw LineDrawable segments onto the fragment's VectorLayer.
 		VectorLayer vectorLayer = (VectorLayer) getSharedLayer(fragmentUuid);
+		if (vectorLayer == null) {
+			throw new IllegalStateException(
+				"No shared VectorLayer found for fragmentUuid '" + fragmentUuid
+					+ "'. Known fragments: " + sharedLayerFragments.keySet());
+		}
 		drawSegments(jtsCoordinates, styleBuilder, entryUuid, vectorLayer, entry);
 
 		return new CreateResult<>(entry, null);
@@ -291,7 +299,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		float distance = getCoordinateDistanceFromScreenDistance(x, y, gestureScreenDistance);
 
 		for (LineDrawable drawable : entry.drawables) {
-			if (drawable.getGeometry().buffer(distance).contains(point)) {
+			// Use distance() instead of buffer(d).contains() — see
+			// VectorLayer.containsGetResponse for rationale.
+			if (drawable.getGeometry().distance(point) <= distance) {
 				WritableMap params = new WritableNativeMap();
 				params.putString("uuid", entry.pathUuid);
 				params.putDouble("distance", drawable.getGeometry().distance(point));
@@ -308,12 +318,62 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		return null;
 	}
 
+	// ── Override create/remove to sync gesture support ────────────────
+
+	@NonNull
+	@Override
+	public CreateResult<PathEntry> create(
+		@NonNull String entryUuid,
+		@NonNull String fragmentUuid,
+		@NonNull ReadableMap params,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver,
+		@NonNull ReactApplicationContext reactContext
+	) throws Exception {
+		CreateResult<PathEntry> result = super.create(entryUuid, fragmentUuid, params,
+			mapFragment, contentResolver, reactContext);
+		syncGestureSupport();
+		return result;
+	}
+
+	@Override
+	public void remove(@NonNull String entryUuid) {
+		super.remove(entryUuid);
+		syncGestureSupport();
+	}
+
 	// ── Path-specific public API ────────────────────────────────────────
 
 	public void updateSupportsGestures(@NonNull String entryUuid, boolean supportsGestures) {
 		PathEntry entry = entries.get(entryUuid);
 		if (entry != null) {
 			entry.supportsGestures = supportsGestures;
+			syncGestureSupport();
+		}
+	}
+
+	/**
+	 * Syncs the shared VectorLayer's {@code mSupportsGestures} flag to whether
+	 * any PathEntry has gesture handlers. When no entries want gestures, the
+	 * shared layer's {@code onGesture()} short-circuits at the first guard —
+	 * no hit-test loop at all.
+	 *
+	 * <p>Called from the overridden {@link #create}, {@link #remove}, and
+	 * {@link #updateSupportsGestures} so the flag stays consistent across
+	 * the entry lifecycle.
+	 */
+	private void syncGestureSupport() {
+		boolean hasAny = false;
+		for (PathEntry entry : entries.values()) {
+			if (entry.supportsGestures) {
+				hasAny = true;
+				break;
+			}
+		}
+		for (Layer layer : sharedLayerFragments.values()) {
+			if (layer instanceof VectorLayer) {
+				((VectorLayer) layer).setSupportsGestures(hasAny);
+			}
 		}
 	}
 
@@ -490,23 +550,18 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 				LineDrawable drawable = new LineDrawable(segment, style);
 				vectorLayer.add(drawable);
 				drawableToEntry.put(drawable, entryUuid);
+				// Set priority so the upstream VectorLayer's built-in
+				// Comparator (which sorts by getPriority() every frame)
+				// renders drawables in JSX tree order.
+				drawable.setPriority(entry.positionIndex);
 				entry.drawables.add(drawable);
 			}
 		}
 
-		// Sort all drawables by positionIndex so JSX tree order determines paint order.
-		// Java's List.sort is stable, so drawables within the same entry keep their
-		// segment order, and drawables from entries with the same positionIndex keep
-		// their creation order.
-		vectorLayer.sortDrawables((a, b) -> {
-			final String uuidA = drawableToEntry.get(a);
-			final String uuidB = drawableToEntry.get(b);
-			PathEntry entryA = entryUuid.equals(uuidA) ? entry : entries.get(uuidA);
-			PathEntry entryB = entryUuid.equals(uuidB) ? entry : entries.get(uuidB);
-			int posA = entryA != null ? entryA.positionIndex : Integer.MAX_VALUE;
-			int posB = entryB != null ? entryB.positionIndex : Integer.MAX_VALUE;
-			return Integer.compare(posA, posB);
-		});
+		// Drawable ordering: each LineDrawable's priority was set to the entry's
+		// positionIndex above. The upstream VectorLayer sorts tmpDrawables by
+		// getPriority() on every frame before rendering, so JSX tree order
+		// determines paint order automatically.
 	}
 
 	private void addResponseData(
