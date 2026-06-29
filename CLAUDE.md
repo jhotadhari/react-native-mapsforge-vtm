@@ -50,14 +50,14 @@ under the `react-native-mapsforge-vtm` module (this repo is symlinked in via `ex
 `src/NativeViews/MapsforgeVtmViewNativeComponent.ts`, backed by `MapsforgeVtmViewManager.java` /
 `MapFragment.java` (the actual vtm `MapView` host) under
 `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/views/`. Everything nested inside it —
-`LayerMapsforge`, `LayerBitmapTile`, `LayerHillshading`, `LayerMBTilesBitmap`, `LayerPath`, `LayerMarker`,
-`LayerScalebar` — is a plain React component (renders `null`) that talks to its own TurboModule spec in
-`src/NativeModules/NativeXxx.ts` via `createLayer`/`removeLayer` calls keyed by `nativeNodeHandle` (the
-map view's handle, obtained via `findNodeHandle` since Fabric views still don't expose a handle any
-other way) and a `uuid` returned from `createLayer` (used later for `removeLayer`/update calls). Each
-spec generates `android/generated/java/.../NativeXxxSpec.java`; the hand-written implementation lives
-one level up as `android/.../modules/Xxx.java extends NativeXxxSpec` (e.g. `LayerMarker.java extends
-NativeLayerMarkerSpec`).
+`LayerMapsforge`, `LayerBitmapTile`, `LayerHillshading`, `LayerMBTilesBitmap`, `LayerPath`, `LayerPathJts`,
+`LayerShape`, `LayerMarker`, `LayerScalebar` — is a plain React component (renders `null`) that talks to
+its own TurboModule spec in `src/NativeModules/NativeXxx.ts` via `createLayer`/`removeLayer` calls keyed
+by `nativeNodeHandle` (the map view's handle, obtained via `findNodeHandle` since Fabric views still don't
+expose a handle any other way) and a `uuid` returned from `createLayer` (used later for
+`removeLayer`/update calls). Each spec generates `android/generated/java/.../NativeXxxSpec.java`; the
+hand-written implementation lives one level up as `android/.../modules/Xxx.java extends NativeXxxSpec`
+(e.g. `LayerMarker.java extends NativeLayerMarkerSpec`).
 
 ### Wiring layers together: `MapHandleContext`, not prop injection
 
@@ -74,6 +74,37 @@ prop-injection wiring left in this repo. `LayerMarker` does its own one-level-do
 declared later in JSX (e.g. a `LayerMarker` mounted after a `LayerPath`) must always render on top of
 it, same as later siblings paint on top in the DOM. This currently does **not** hold under load — see
 TODO.md's "Layer render order doesn't strictly follow React tree hierarchy" entry.
+
+### Path layers: `LayerPath` vs `LayerPathJts`
+
+The library provides two path components backed by different vtm-jts implementations:
+
+| Aspect | `LayerPath` | `LayerPathJts` |
+|---|---|---|
+| Native backend | `PathLayerManager` + shared `VectorLayer` | Dedicated `org.oscim.layers.vector.PathLayer` per component |
+| Architecture | **Shared-layer**: many JS components collapse into one native layer | **Dedicated-layer**: one native layer per JS component |
+| Render ordering | Known bug (TODO.md #0) — shared-layer uuids not in `knownLayers` | Correct — per-component uuid IS the layer uuid |
+| Performance at scale | Excellent (1 GPU draw call for all paths) | Worse (1 native layer per path) |
+| Great-circle arcs | Not supported | `addGreatCircle` method |
+| Douglas-Peucker generalization | External `simplify` library | Built-in via `Style.generalization` |
+| JTS `LineString` input | Not supported | `setLineString(double[])` |
+| Gesture hit-testing | Shared `VectorLayer` with per-drawable uuid resolution | Per-layer `contains()` + `onGesture()` |
+| Best for | 50–1000+ paths, route networks, trajectory data | 1–30 paths, great circles, guaranteed z-order |
+
+Both share the same `GeometryStyle` interface (stroke, fill, stipple, etc.) and the same gesture
+callback pattern (`onPress`/`onLongPress`/`onDoubleTap`). Choose `LayerPathJts` when you need
+correct render order or JTS-specific features; choose `LayerPath` when you have many paths and
+the shared-layer performance matters.
+
+### `LayerShape` — geometric shape overlays
+
+Draws JTS geometric shapes (polygons, circles, rectangles, hexagons, points) on the map using
+vtm-jts drawables. Each shape is a dedicated native `VectorLayer` with a single drawable added.
+Supports full `GeometryStyleJts` styling (fill color, stroke, transparency, stipple, etc.) and
+gesture callbacks.
+
+Shape types: `polygon` (with optional holes), `circle` (center + radius in km), `rectangle`
+(two corners), `hexagon` (center + radius), `point` (single position).
 
 ### Update flow for layer props
 

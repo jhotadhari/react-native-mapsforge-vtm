@@ -218,3 +218,31 @@ receive their own per-layer `onPress` / `onLongPress` handlers as before).
 
 11. Re-run lint/format once across your app after upgrading — Prettier's rules changed (tabs vs
     spaces, `printWidth`, plugin set), so expect a one-time reformat diff.
+
+## 7. New components added post-rewrite (2026-06-29)
+
+### `LayerPathJts` — dedicated JTS PathLayer
+
+An alternative path component backed by vtm-jts's `org.oscim.layers.vector.PathLayer`. Unlike
+`LayerPath` (which collapses many paths into a shared `VectorLayer` for performance), each
+`LayerPathJts` instance owns its own native layer — giving you correct render ordering and
+access to JTS-specific features:
+
+- `addGreatCircle(from, to, numPoints)` — great-circle arcs between two points
+- Built-in Douglas-Peucker generalization via `Style.generalization` (no external library)
+- Direct `LineString` input via `setLineString(double[])`
+
+Prefers `LayerPathJts` for 1–30 paths needing correct z-order or JTS features; prefer
+`LayerPath` for bulk paths (50–1000+) where the shared-layer architecture's performance
+advantage matters. Both share the same `GeometryStyle` interface and gesture callbacks.
+
+### `LayerShape` — geometric shape overlays
+
+Draws geometric shapes on the map using vtm-jts drawables (`PolygonDrawable`,
+`CircleDrawable`, `RectangleDrawable`, `HexagonDrawable`, `PointDrawable`).
+Each shape gets its own dedicated native `VectorLayer` with full styling
+(fill color, stroke, transparency, stipple) and gesture callbacks.
+
+Props: `shape` (shape definition with `type` discriminant), `style` (`GeometryStyleJts`),
+`gestureScreenDistance`, lifecycle callbacks (`onCreate`/`onRemove`/`onChange`/`onError`),
+gesture callbacks (`onPress`/`onLongPress`/`onDoubleTap`/`onTrigger`), `triggerEvent` ref.
