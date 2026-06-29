@@ -13,8 +13,10 @@ const SharedLayer = ({ children }: { children?: ReactNode }) => {
 
 	useEffect(() => {
 		registry.groupingDepth++;
+		registry.notify();
 		return () => {
 			registry.groupingDepth--;
+			registry.notify();
 		};
 	}, [registry]);
 

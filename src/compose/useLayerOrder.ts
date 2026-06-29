@@ -95,6 +95,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.layerTypes.delete(id);
 			registry.fragmentUuids.delete(id);
 			registry.scheduleSync(nativeNodeHandleRef.current);
+			registry.notify();
 		};
 	}, [id, registry]);
 
@@ -107,6 +108,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.uuids.delete(id);
 		}
 		registry.scheduleSync(nativeNodeHandle);
+		registry.notify();
 	}, [
 		id,
 		registry,

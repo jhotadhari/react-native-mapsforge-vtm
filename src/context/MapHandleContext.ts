@@ -33,6 +33,11 @@ export type LayerOrderRegistry = {
 	// the innermost SharedLayer collapse into a single shared fragment.
 	groupingDepth: number;
 	scheduleSync: (nativeNodeHandle: null | number) => void;
+	// Debug/devtools subscription — called whenever the registry mutates so the debug
+	// hook (useLayerDebugInfo) can re-read state via useSyncExternalStore.
+	listeners: Set<() => void>;
+	subscribe: (callback: () => void) => () => void;
+	notify: () => void;
 };
 
 export type MapHandleContextValue = {
@@ -132,6 +137,8 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		flush();
 	};
 
+	const listeners = new Set<() => void>();
+
 	return {
 		order,
 		uuids,
@@ -141,6 +148,16 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		fragmentUuids,
 		layerTypes,
 		groupingDepth: 0,
+		listeners,
+		subscribe: (callback: () => void) => {
+			listeners.add(callback);
+			return () => {
+				listeners.delete(callback);
+			};
+		},
+		notify: () => {
+			listeners.forEach((cb) => cb());
+		},
 		scheduleSync: (nativeNodeHandle) => {
 			pendingNativeNodeHandle = nativeNodeHandle;
 			// Trailing debounce: every call pushes the flush out, so a continuous burst only
@@ -168,6 +185,9 @@ const noopRegistry: LayerOrderRegistry = {
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
 	groupingDepth: 0,
+	listeners: new Set(),
+	subscribe: () => () => {},
+	notify: () => {},
 	scheduleSync: () => {},
 };
 

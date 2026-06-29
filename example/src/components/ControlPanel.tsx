@@ -15,7 +15,9 @@ const DRAWER_MAX_WIDTH = 300;
 export const ControlPanel: FC<{
 	width: number;
 	children: ReactNode;
-}> = ({ width, children }) => {
+	/** Constrain the drawer height (points) so it doesn't overlap bottom overlays. */
+	maxHeight?: number;
+}> = ({ width, children, maxHeight }) => {
 	const [open, setOpen] = useState(false);
 
 	if (!open) {
@@ -32,7 +34,13 @@ export const ControlPanel: FC<{
 	const drawerWidth = Math.min(width * DRAWER_WIDTH_RATIO, DRAWER_MAX_WIDTH);
 
 	return (
-		<View style={[styles.drawer, { width: drawerWidth }]}>
+		<View
+			style={[
+				maxHeight != null ? styles.drawerCapped : styles.drawer,
+				{ width: drawerWidth },
+				maxHeight != null ? { maxHeight } : null,
+			]}
+		>
 			<View style={styles.drawerHeader}>
 				<Text style={styles.toggleText}>{'Controls'}</Text>
 				<Pressable onPress={() => setOpen(false)}>
@@ -107,6 +115,16 @@ const styles = StyleSheet.create({
 		top: 0,
 		left: 0,
 		bottom: 0,
+		zIndex: 9,
+		backgroundColor: '#000000',
+	},
+	// When maxHeight is passed, skip `bottom: 0` so the drawer height is
+	// determined by the content capped at maxHeight — it won't stretch
+	// over bottom-positioned overlays like the debug tree.
+	drawerCapped: {
+		position: 'absolute',
+		top: 0,
+		left: 0,
 		zIndex: 9,
 		backgroundColor: '#000000',
 	},

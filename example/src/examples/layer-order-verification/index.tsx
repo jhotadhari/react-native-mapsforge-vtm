@@ -5,11 +5,13 @@ import { useMemo, useState, type FC } from 'react';
 import { View, Text, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
+	LayerDebugTree,
 	LayerPath,
 	LayerShape,
 	MapContainer,
 	Marker,
 	SharedLayer,
+	useLayerDebugInfo,
 	type GeometryStyle,
 	type Position,
 	type ShapeDefinition,
@@ -167,16 +169,29 @@ const items = [
 
 const Controls: FC<{
 	width: number;
+	containerHeight: number;
 	useSharedLayer: boolean;
 	reorderCount: number;
 	onToggleSharedLayer: () => void;
-}> = ({ width, useSharedLayer, reorderCount, onToggleSharedLayer }) => {
+}> = ({
+	width,
+	containerHeight,
+	useSharedLayer,
+	reorderCount,
+	onToggleSharedLayer,
+}) => {
 	const nativeLayerCount = useSharedLayer
 		? '3 fragments (1 Shape + 1 Path + 1 Marker)'
 		: '3 fragments (interleaved, 2 Shape + 2 Path + 2 Marker)';
 
+	// Leave room for the debug overlay so the drawer doesn't cover it.
+	const drawerMaxHeight = containerHeight - LAYER_DEBUG_OVERLAY_HEIGHT - 12;
+
 	return (
-		<ControlPanel width={width}>
+		<ControlPanel
+			width={width}
+			maxHeight={drawerMaxHeight}
+		>
 			<ControlSection title="SharedLayer">
 				<ControlRow>
 					<Text style={sharedStyles.text}>SharedLayer</Text>
@@ -214,6 +229,54 @@ const Controls: FC<{
 	);
 };
 
+// ── Debug overlay (tree-shaken in production via __DEV__ guard) ──────────
+// Rendered INSIDE MapContainer so it can access MapHandleContext.
+// Positioned absolutely over the map, outside the SharedLayer wrapper.
+
+const LAYER_DEBUG_OVERLAY_HEIGHT = 160;
+
+const LayerDebugOverlay: FC = () => {
+	const info = useLayerDebugInfo();
+
+	return (
+		<View
+			pointerEvents="box-none"
+			style={{
+				position: 'absolute',
+				bottom: 0,
+				left: 0,
+				right: 0,
+				zIndex: 10,
+				height: LAYER_DEBUG_OVERLAY_HEIGHT,
+				backgroundColor: 'rgba(0,0,0,0.85)',
+				paddingHorizontal: 8,
+				paddingVertical: 4,
+				borderTopWidth: 1,
+				borderTopColor: '#333333',
+			}}
+		>
+			<View
+				style={{
+					flexDirection: 'row',
+					gap: 16,
+					marginBottom: 2,
+				}}
+			>
+				<Text style={sharedStyles.text}>
+					JS layers: {info.layerCount}
+				</Text>
+				<Text style={sharedStyles.text}>
+					Fragments: {info.sharedFragmentCount}
+				</Text>
+				<Text style={sharedStyles.text}>
+					Grouped: {info.groupingDepth > 0 ? 'yes' : 'no'}
+				</Text>
+			</View>
+			<LayerDebugTree maxHeight={120} />
+		</View>
+	);
+};
+
 // ── Example component ───────────────────────────────────────────────────
 
 const ExampleComponent: FC<{
@@ -223,7 +286,10 @@ const ExampleComponent: FC<{
 	const { handleMapUpdate, info } = useMapInfo();
 
 	const [useSharedLayer, setUseSharedLayer] = useState(true);
-	const reorderCount = 0; // Tracked by map-level event in production use
+	// TODO: track reorderCount via a map-level event or the debug hook.
+	// Currently hardcoded — the native reorderLayers call is fire-and-forget
+	// from JS, so there is no built-in acknowledgment to count.
+	const reorderCount = 0;
 
 	const renderItems = useMemo(() => {
 		return items.map((item) => {
@@ -268,6 +334,7 @@ const ExampleComponent: FC<{
 		<View style={{ width, height, gap: 16 }}>
 			<Controls
 				width={width}
+				containerHeight={height}
 				useSharedLayer={useSharedLayer}
 				reorderCount={reorderCount}
 				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
@@ -286,6 +353,7 @@ const ExampleComponent: FC<{
 					onError={handleMapEvent.onError}
 				>
 					<LayerBitmapTile />
+					{__DEV__ && <LayerDebugOverlay />}
 					{children}
 				</MapContainer>
 

@@ -92,6 +92,13 @@ import type {
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
+import { useLayerDebugInfo } from './debug/useLayerDebugInfo';
+import type {
+	LayerDebugEntry,
+	LayerDebugInfo,
+} from './debug/useLayerDebugInfo';
+import LayerDebugTree from './debug/LayerDebugTree';
+import type { LayerDebugTreeProps } from './debug/LayerDebugTree';
 
 export {
 	// MapContainer and MapsforgeVtmViewNativeComponent.
@@ -183,6 +190,13 @@ export {
 	CanvasAdapterModule,
 	SharedLayer,
 	type ErrorWithErrorMsg,
+
+	// Debug tools
+	useLayerDebugInfo,
+	LayerDebugTree,
+	type LayerDebugEntry,
+	type LayerDebugInfo,
+	type LayerDebugTreeProps,
 };
 
 export type * from './types';
