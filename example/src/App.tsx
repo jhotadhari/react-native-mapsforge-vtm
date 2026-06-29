@@ -30,7 +30,11 @@ export default function App() {
 		undefined
 	);
 
-	const { width } = useWindowDimensions();
+	const { width, height: windowHeight } = useWindowDimensions();
+	const topBarHeight = 75;
+	// Explicit height for the content area — avoids flex layout ambiguities
+	// that prevent ScrollView from recognizing overflow.
+	const contentViewHeight = windowHeight - topBarHeight;
 
 	const selectedExample = useMemo(
 		() => allExamples.find((example) => example.key === selectedExampleKey),
@@ -76,7 +80,7 @@ export default function App() {
 			</View>
 
 			<View
-				style={styles.content}
+				style={[styles.content, { height: contentViewHeight }]}
 				onLayout={handleContentLayout}
 			>
 				{undefined === selectedExample && (
@@ -131,8 +135,6 @@ export default function App() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		alignItems: 'center',
-		justifyContent: 'space-between',
 	},
 	topBar: {
 		alignItems: 'center',
@@ -149,11 +151,8 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 	},
 	content: {
-		alignItems: 'center',
-		justifyContent: 'space-around',
-		gap: 16,
 		width: '100%',
-		flexGrow: 1,
+		flex: 1,
 	},
 	examplesScroll: {
 		width: '100%',

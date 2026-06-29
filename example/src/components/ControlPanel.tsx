@@ -10,7 +10,7 @@ import { sharedStyles } from '../sharedDeps';
 // map underneath is unobstructed until the user actually wants the controls.
 
 const DRAWER_WIDTH_RATIO = 0.85;
-const DRAWER_MAX_WIDTH = 320;
+const DRAWER_MAX_WIDTH = 300;
 
 export const ControlPanel: FC<{
 	width: number;
@@ -36,7 +36,7 @@ export const ControlPanel: FC<{
 			<View style={styles.drawerHeader}>
 				<Text style={styles.toggleText}>{'Controls'}</Text>
 				<Pressable onPress={() => setOpen(false)}>
-					<Text style={styles.toggleText}>{'✕'}</Text>
+					<Text style={styles.toggleIcon}>{'✕'}</Text>
 				</Pressable>
 			</View>
 			<ScrollView contentContainerStyle={styles.drawerContent}>
@@ -92,6 +92,15 @@ const styles = StyleSheet.create({
 	toggleText: {
 		color: '#fff',
 		fontWeight: 'bold',
+	},
+	toggleIcon: {
+		color: '#fff',
+		fontWeight: 'bold',
+		fontSize: 20,
+		paddingVertical: 4,
+		paddingHorizontal: 10,
+		borderWidth: 1,
+		borderColor: '#fff',
 	},
 	drawer: {
 		position: 'absolute',
