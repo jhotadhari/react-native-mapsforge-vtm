@@ -260,8 +260,17 @@ public class LayerShape extends NativeLayerShapeSpec {
 				}
 				GeoPoint center = readableArrayToGeoPoint(shapeMap.getArray("center"));
 				double radiusKm = shapeMap.getDouble("radiusKm");
-				// HexagonDrawable(GeoPoint, double radiusKm, double orientation, Style)
-				return new HexagonDrawable(center, radiusKm, 0.0, style);
+				// Use the 2-arg constructor, not the 4-arg one.
+				// The 4-arg HexagonDrawable(GeoPoint, double, double, Style)
+				// constructor projects vertices into Mercator x/y coordinates,
+				// while every other Drawable (Rectangle, Circle, Polygon, and
+				// the 2-arg HexagonDrawable) stores raw lat/lng coordinates.
+				// When VectorLayer later renders the geometry, it expects
+				// lat/lng — feeding it Mercator coordinates makes the hexagon
+				// land at a wrong screen position (invisible).
+				HexagonDrawable hex = new HexagonDrawable(center, radiusKm);
+				hex.setStyle(style);
+				return hex;
 			}
 			case "point": {
 				if (!Utils.rMapHasKey(shapeMap, "position")) {
