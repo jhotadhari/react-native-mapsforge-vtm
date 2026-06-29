@@ -4,6 +4,7 @@ import coastlines from './coastlines';
 import fitBounds from './fit-bounds';
 import flyEase from './fly-ease';
 import hillshading from './hillshading';
+import layerShapes from './layer-shapes';
 import manyLayers from './many-layers';
 import mapsforge from './mapsforge';
 import markers from './markers';
@@ -21,6 +22,7 @@ export {
 	fitBounds,
 	flyEase,
 	hillshading,
+	layerShapes,
 	manyLayers,
 	mapsforge,
 	markers,
