@@ -12,6 +12,7 @@ export const sharedStyles = StyleSheet.create({
 		backgroundColor: '#000000',
 		bottom: 0,
 		right: 0,
+		zIndex: 11,
 	},
 	text: {
 		color: '#fff',

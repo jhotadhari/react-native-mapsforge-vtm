@@ -19,7 +19,7 @@ const MapInfo: FC<{
 	if (!open) {
 		return (
 			<Pressable
-				style={styles.toggle}
+				style={[styles.toggle, { zIndex: 11 }]}
 				onPress={() => setOpen(true)}
 			>
 				<Text style={styles.toggleText}>{'ℹ️ Info'}</Text>
@@ -28,7 +28,7 @@ const MapInfo: FC<{
 	}
 
 	return (
-		<View style={sharedStyles.info}>
+		<View style={[sharedStyles.info, { zIndex: 11 }]}>
 			<View style={styles.header}>
 				<Text style={styles.toggleText}>{'Info'}</Text>
 				<Pressable onPress={() => setOpen(false)}>
