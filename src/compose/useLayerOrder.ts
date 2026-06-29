@@ -37,13 +37,14 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// registry.cursor to undefined at the start of every one of its own renders, so within any
 	// single coherent render pass (adding/removing/toggling a layer always re-renders its
 	// siblings too, since none of them are memoized), each not-yet-registered instance can
-	// insert itself right after whichever sibling rendered immediately before it -- giving it
+	// insert itself right after whichever sibling rendered immediately before it — giving it
 	// the correct position even when it's a fresh remount, not just on first-ever mount.
 	// Already-registered instances are never moved here, so a later solo re-render (e.g. this
 	// component's own uuid resolving asynchronously) can never disturb the order.
 	const previousId = registry.cursor;
 	registry.cursor = id;
-	if (!registry.order.includes(id)) {
+	const isNew = !registry.order.includes(id);
+	if (isNew) {
 		const previousIndex = previousId
 			? registry.order.indexOf(previousId)
 			: -1;
@@ -59,7 +60,6 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// re-renders, just advance the cursor so subsequent siblings see the correct
 	// previous type.
 	if (layerType) {
-		const isNew = !registry.order.includes(id);
 		if (isNew) {
 			registry.layerTypes.set(id, layerType);
 			const cursorType = registry.cursorLayerType;

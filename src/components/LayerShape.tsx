@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -28,12 +28,10 @@ import MapHandleContext from '../context/MapHandleContext';
  * - **Hexagon** — filled hexagon defined by center + radius in km
  * - **Point** — circular point marker
  *
- * Each component instance gets its own dedicated native layer (a vtm-jts
- * {@code VectorLayer} with the appropriate {@code Drawable} added).
- *
- * Shapes support the full {@code GeometryStyleJts} styling (fill color,
- * stroke, transparency, stipple, etc.) plus gesture callbacks for
- * tap/long-press/double-tap on the shape.
+ * Multiple {@code LayerShape} components that are consecutive siblings of the same
+ * type share a single native {@code VectorLayer} (via {@code ShapeLayerManager}),
+ * collapsed by fragment — improving performance and guaranteeing correct render
+ * order via the shared fragment infrastructure.
  */
 const LayerShape = ({
 	shape,
@@ -56,6 +54,14 @@ const LayerShape = ({
 	const supportsGestures = !!onPress || !!onLongPress || !!onDoubleTap;
 
 	const hasShape = !!shape;
+
+	// positionIndex and fragmentUuid are computed by useLayerOrder during render
+	// (after the uuid declaration below) but must be available inside the create
+	// callback (which is defined here, before the declaration). A ref bridges
+	// the gap: it's set during render, then read when the async create callback
+	// fires.
+	const positionIndexRef = useRef<number>(-1);
+	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasShape,
@@ -98,7 +104,8 @@ const LayerShape = ({
 
 			return LayerShapeModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
+				fragmentUuid: fragmentUuidRef.current,
 				shape: shapeParams as {
 					type: string;
 					rings?: ReadonlyArray<ReadonlyArray<number>>;
@@ -141,8 +148,9 @@ const LayerShape = ({
 		onError,
 	});
 
-	// Dedicated-layer ordering.
-	const { positionIndex } = useLayerOrder(uuid);
+	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'shape');
+	positionIndexRef.current = positionIndex;
+	fragmentUuidRef.current = fragmentUuid;
 
 	// Update shape in place when props change.
 	useEffect(() => {

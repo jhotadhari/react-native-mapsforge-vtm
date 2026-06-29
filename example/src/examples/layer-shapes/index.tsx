@@ -2,16 +2,20 @@
  * External dependencies
  */
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { View, Button, Text } from 'react-native';
+import { View, Button, Text, Switch } from 'react-native';
 import { sharedStyles } from '../../sharedDeps';
 import {
 	LayerBitmapTile,
+	LayerPath,
 	LayerShape,
 	MapContainer,
+	Marker,
+	type GeometryStyle,
 	type LayerShapeGestureResponse,
 	type Position,
 	type ShapeDefinition,
 	type ShapeStyle,
+	type SymbolParams,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import type { Example } from '../../types';
@@ -120,22 +124,48 @@ const allShapes: Record<
 	Point: { definition: pointShape, style: pointStyle },
 };
 
+// ── Interleaved overlay geometry ──────────────────────────────────────────
+
+// A LayerPath + Marker pair that overlaps the shape cluster, demonstrating
+// that shapes, paths, and markers interleave correctly in z-order.
+
+const interleavedPathCoords: Position[] = [
+	[9.5, 39],
+	[10.5, 33],
+];
+
+const interleavedPathStyle: GeometryStyle = {
+	strokeWidth: 6,
+	strokeColor: '#ffffff',
+};
+
+const interleavedMarkerPos: Position = [10, 36];
+const interleavedMarkerSymbol: SymbolParams = {
+	text: '✚',
+	textSize: 22,
+	fillColor: '#ffffff',
+};
+
 // ── Controls ──────────────────────────────────────────────────────────────
 
 const Controls: FC<{
 	width: number;
 	lastGestureInfo: string;
 	visibleShapes: Record<string, boolean>;
+	showInterleaved: boolean;
 	onToggleShape: (name: string) => void;
 	onShowAll: () => void;
 	onHideAll: () => void;
+	onToggleInterleaved: () => void;
 }> = ({
 	width,
 	lastGestureInfo,
 	visibleShapes,
+	showInterleaved,
 	onToggleShape,
 	onShowAll,
 	onHideAll,
+	onToggleInterleaved,
 }) => {
 	return (
 		<ControlPanel width={width}>
@@ -161,6 +191,27 @@ const Controls: FC<{
 					/>
 				</ControlRow>
 			</ControlSection>
+
+			<ControlSection title="Interleaved overlay">
+				<ControlRow>
+					<Text style={sharedStyles.text}>
+						Show Path + Marker overlay
+					</Text>
+					<Switch
+						value={showInterleaved}
+						onValueChange={onToggleInterleaved}
+					/>
+				</ControlRow>
+				<StatusLine
+					label="Declared after shapes"
+					value={
+						showInterleaved
+							? 'Path + Marker should render on top'
+							: '-'
+					}
+				/>
+			</ControlSection>
+
 			<ControlSection title="Last gesture">
 				<StatusLine
 					label="Shape event"
@@ -175,6 +226,9 @@ const Controls: FC<{
 					'trigger'{'\n'}• eventPosition — [lng, lat] of the tap on
 					the map{'\n'}• distance — coordinate distance from tap to
 					the shape edge{'\n'}• uuid — identifies which shape was hit
+					{'\n\n'}Gestures are routed through the shared VectorLayer's
+					UuidResolver — verifying that per-shape hit-testing works
+					correctly in shared-layer mode.
 				</Text>
 			</ControlSection>
 		</ControlPanel>
@@ -199,6 +253,7 @@ const ExampleComponent: FC<{
 		}
 	);
 
+	const [showInterleaved, setShowInterleaved] = useState(false);
 	const [lastGestureInfo, setLastGestureInfo] = useState('-');
 
 	const handleToggleShape = useCallback((name: string) => {
@@ -267,9 +322,11 @@ const ExampleComponent: FC<{
 				width={width}
 				lastGestureInfo={lastGestureInfo}
 				visibleShapes={visibleShapes}
+				showInterleaved={showInterleaved}
 				onToggleShape={handleToggleShape}
 				onShowAll={handleShowAll}
 				onHideAll={handleHideAll}
+				onToggleInterleaved={() => setShowInterleaved((v) => !v)}
 			/>
 
 			<View
@@ -305,6 +362,23 @@ const ExampleComponent: FC<{
 									}
 								/>
 							) : null
+					)}
+
+					{/* Interleaved overlay: LayerPath + Marker declared
+					     AFTER all shapes — they must render on top. */}
+					{showInterleaved && (
+						<LayerPath
+							key="interleaved-path"
+							coordinates={interleavedPathCoords}
+							style={interleavedPathStyle}
+						/>
+					)}
+					{showInterleaved && (
+						<Marker
+							key="interleaved-marker"
+							position={interleavedMarkerPos}
+							symbol={interleavedMarkerSymbol}
+						/>
 					)}
 				</MapContainer>
 

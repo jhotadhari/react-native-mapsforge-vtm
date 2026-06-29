@@ -4,8 +4,10 @@ import coastlines from './coastlines';
 import fitBounds from './fit-bounds';
 import flyEase from './fly-ease';
 import hillshading from './hillshading';
+import layerOrderVerification from './layer-order-verification';
 import layerShapes from './layer-shapes';
 import manyLayers from './many-layers';
+import manyShapes from './many-shapes';
 import mapsforge from './mapsforge';
 import markers from './markers';
 import mbtilesBitmap from './mbtiles-bitmap';
@@ -22,8 +24,10 @@ export {
 	fitBounds,
 	flyEase,
 	hillshading,
+	layerOrderVerification,
 	layerShapes,
 	manyLayers,
+	manyShapes,
 	mapsforge,
 	markers,
 	mbtilesBitmap,

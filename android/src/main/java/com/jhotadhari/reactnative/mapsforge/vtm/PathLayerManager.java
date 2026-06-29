@@ -53,8 +53,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	public static final String NAME = "paths";
-	/** Position in map.layers(): at the bottom of JS-managed layers. */
-	public static final int BASE_POSITION = Integer.MAX_VALUE;
+	/** Position in map.layers(): below markers/shapes so paths render underneath overlays. */
+	public static final int BASE_POSITION = Integer.MAX_VALUE - 1;
 
 	// ── Factory ─────────────────────────────────────────────────────────
 
@@ -202,6 +202,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 					+ "'. Known fragments: " + sharedLayerFragments.keySet());
 		}
 		drawSegments(jtsCoordinates, styleBuilder, entryUuid, vectorLayer, entry);
+			vectorLayer.update();
 
 		return new CreateResult<>(entry, null);
 	}
@@ -218,6 +219,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			layer.remove(d);
 		}
 		entry.drawables.clear();
+		layer.update();
 	}
 
 	@NonNull
@@ -296,12 +298,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		org.locationtech.jts.geom.Point point = new GeomBuilder()
 			.point(eventPoint.getLongitude(), eventPoint.getLatitude())
 			.toPoint();
-		float distance = getCoordinateDistanceFromScreenDistance(x, y, gestureScreenDistance);
+		float threshold = getCoordinateDistanceFromScreenDistance(
+				x, y, entry.gestureScreenDistance);
 
 		for (LineDrawable drawable : entry.drawables) {
 			// Use distance() instead of buffer(d).contains() — see
 			// VectorLayer.containsGetResponse for rationale.
-			if (drawable.getGeometry().distance(point) <= distance) {
+			if (drawable.getGeometry().distance(point) <= threshold) {
 				WritableMap params = new WritableNativeMap();
 				params.putString("uuid", entry.pathUuid);
 				params.putDouble("distance", drawable.getGeometry().distance(point));

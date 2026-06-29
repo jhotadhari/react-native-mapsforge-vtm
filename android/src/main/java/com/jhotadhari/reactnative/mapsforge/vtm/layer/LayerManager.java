@@ -152,7 +152,7 @@ public abstract class LayerManager<TEntry> {
 	 * z-position ordering works correctly across interleaved types.
 	 */
 	@NonNull
-	protected final Map<String, Layer> sharedLayerFragments = new HashMap<>();
+	protected final Map<String, Layer> sharedLayerFragments = new ConcurrentHashMap<>();
 
 	/** All entries currently managed, keyed by entry uuid. */
 	@NonNull
@@ -160,7 +160,7 @@ public abstract class LayerManager<TEntry> {
 
 	/** Set by the owning TurboModule via {@link #setEventCallback}. */
 	@Nullable
-	protected EventEmitterCallback eventCallback;
+	protected volatile EventEmitterCallback eventCallback;
 
 	// ── Constructor ─────────────────────────────────────────────────────
 
@@ -358,7 +358,8 @@ public abstract class LayerManager<TEntry> {
 			return null;
 		}
 		GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint(x, y);
-		// Default gestureScreenDistance — subclasses can override if they track this per-entry.
+		// Default gestureScreenDistance — subclasses that track per-entry
+		// sensitivity should use the entry's own value, not this parameter.
 		return hitTestEntry(entry, x, y, eventPoint, 30f);
 	}
 
@@ -379,13 +380,13 @@ public abstract class LayerManager<TEntry> {
 		Layer layer = createSharedLayer();
 		sharedLayerFragments.put(fragmentUuid, layer);
 
-		// Register the fragment's shared layer via MapMutationQueue at position 0 —
-		// actual position is determined by reorderLayers.
+		// Register the fragment's shared layer via MapMutationQueue at
+		// basePositionIndex — actual position is determined by reorderLayers.
 		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
 		CompletableFuture<String> future = queue.enqueueAddLayer(
 			layer,
 			fragmentUuid,
-			0
+			basePositionIndex
 		);
 
 		// Block the caller until the shared layer is placed. Since the flush runs

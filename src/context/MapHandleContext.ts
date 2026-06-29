@@ -58,6 +58,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const fragmentUuids = new Map<symbol, string>();
 	const layerTypes = new Map<symbol, string>();
 	let lastAppliedUuids: string[] = [];
+	let lastReorderWasEffective = false;
 
 	// Many sibling layers can each resolve their own uuid within milliseconds of one
 	// another (e.g. a burst of layers mounting together) -- without batching, every single
@@ -102,10 +103,15 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		const unchanged =
 			orderedUuids.length === lastAppliedUuids.length &&
 			orderedUuids.every((uuid, i) => uuid === lastAppliedUuids[i]);
-		if (unchanged) {
+		// Skip only when the uuid list hasn't changed AND the last reorder
+		// actually had layers to move. If the last reorder was a no-op (e.g.
+		// it fired before shared layers existed in knownLayers), re-fire now
+		// that layers may have been created.
+		if (unchanged && lastReorderWasEffective) {
 			return;
 		}
 		lastAppliedUuids = orderedUuids;
+		lastReorderWasEffective = true;
 		NativeMapContainer.reorderLayers({
 			nativeNodeHandle,
 			layerUuids: orderedUuids,
