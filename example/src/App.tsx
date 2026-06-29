@@ -65,19 +65,15 @@ export default function App() {
 
 	return (
 		<View style={styles.container}>
-			<View style={styles.topBar}>
-				{!!selectedExample && (
-					<>
-						<Button
-							title={'Back'}
-							onPress={() => setSelectedExampleKey(undefined)}
-						/>
-						<Text style={styles.title}>
-							{selectedExample.label}
-						</Text>
-					</>
-				)}
-			</View>
+			{!!selectedExample && (
+				<View style={styles.topBar}>
+					<Button
+						title={'Back'}
+						onPress={() => setSelectedExampleKey(undefined)}
+					/>
+					<Text style={styles.title}>{selectedExample.label}</Text>
+				</View>
+			)}
 
 			<View
 				style={[styles.content, { height: contentViewHeight }]}

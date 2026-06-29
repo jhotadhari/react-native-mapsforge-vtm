@@ -32,7 +32,7 @@ const MapInfo: FC<{
 			<View style={styles.header}>
 				<Text style={styles.toggleText}>{'Info'}</Text>
 				<Pressable onPress={() => setOpen(false)}>
-					<Text style={styles.toggleText}>{'✕'}</Text>
+					<Text style={styles.toggleIcon}>{'✕'}</Text>
 				</Pressable>
 			</View>
 			<Text style={sharedStyles.text}>
@@ -72,6 +72,15 @@ const styles = StyleSheet.create({
 	toggleText: {
 		color: '#fff',
 		fontWeight: 'bold',
+	},
+	toggleIcon: {
+		color: '#fff',
+		fontWeight: 'bold',
+		fontSize: 20,
+		paddingVertical: 4,
+		paddingHorizontal: 10,
+		borderWidth: 1,
+		borderColor: '#fff',
 	},
 	header: {
 		flexDirection: 'row',
