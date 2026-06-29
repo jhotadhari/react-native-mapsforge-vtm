@@ -9,6 +9,8 @@ import mapsforge from './mapsforge';
 import markers from './markers';
 import mbtilesBitmap from './mbtiles-bitmap';
 import panZoom from './pan-zoom';
+import sharedLayerGrouping from './shared-layer-grouping';
+import tapEvents from './tap-events';
 import trigger from './trigger';
 import viewportOrientation from './viewport-orientation';
 
@@ -24,6 +26,8 @@ export {
 	markers,
 	mbtilesBitmap,
 	panZoom,
+	sharedLayerGrouping,
+	tapEvents,
 	trigger,
 	viewportOrientation,
 };

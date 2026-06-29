@@ -14,6 +14,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.layer.GestureLayer;
 
 import org.oscim.android.MapView;
 import org.oscim.core.MapPosition;
@@ -28,6 +29,8 @@ public class MapFragment extends Fragment {
 	private MapView mapView;
 
 	private Map.UpdateListener updateListener;
+
+	private GestureLayer gestureLayer;
 
 	protected FixedWindowRateLimiter rateLimiter;
 
@@ -66,6 +69,7 @@ public class MapFragment extends Fragment {
 			updateViewportValue( "roll" );
 			updateInteractionEnabled();
 			updateUpdateListener();
+			bindGestureLayer();
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			emitError( e.getMessage() );
@@ -92,6 +96,36 @@ public class MapFragment extends Fragment {
 			mapView.map().events.unbind( updateListener );
 			updateListener = null;
 		}
+	}
+
+	protected void bindGestureLayer() {
+		if ( null == mapView || null == getMapsforgeVtmView() ) {
+			return;
+		}
+		// Remove any stale instance first (e.g. after fragment recreation).
+		if ( gestureLayer != null && mapView.map() != null ) {
+			mapView.map().layers().remove( gestureLayer );
+			gestureLayer = null;
+		}
+		gestureLayer = new GestureLayer(
+			mapView.map(),
+			( eventName, x, y ) -> {
+				MapsforgeVtmView parent = getMapsforgeVtmView();
+				if ( parent == null || mapView == null || mapView.map() == null ) {
+					return;
+				}
+				org.oscim.core.GeoPoint geo = mapView.map().viewport().fromScreenPoint( x, y );
+				WritableMap payload = Arguments.createMap();
+				payload.putDouble( "lng", geo.getLongitude() );
+				payload.putDouble( "lat", geo.getLatitude() );
+				payload.putDouble( "x", x );
+				payload.putDouble( "y", y );
+				parent.emitMapEvent( eventName, payload );
+			}
+		);
+		// Add at the highest index so it only receives gestures that marker/path
+		// layers returned false for (i.e. the tap missed their geometry).
+		mapView.map().layers().add( gestureLayer );
 	}
 
 	protected void bindUpdateListener() {
@@ -273,6 +307,10 @@ public class MapFragment extends Fragment {
 			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
 		}
 		if ( mapView != null ) {
+			if ( gestureLayer != null && mapView.map() != null ) {
+				mapView.map().layers().remove( gestureLayer );
+				gestureLayer = null;
+			}
 			mapView.onDestroy();
 			mapView = null;
 		}

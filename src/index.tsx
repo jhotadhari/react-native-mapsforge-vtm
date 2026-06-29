@@ -3,6 +3,8 @@ import type {
 	MapEventResponse,
 	ResponseInclude,
 	MapContainerProps,
+	TapEventResponse,
+	LongPressEventResponse,
 } from './NativeViews/MapsforgeVtmViewNativeComponent';
 
 import LayerMarker from './components/LayerMarker';
@@ -75,6 +77,8 @@ export {
 	type MapEventResponse,
 	type ResponseInclude,
 	type MapContainerProps,
+	type TapEventResponse,
+	type LongPressEventResponse,
 
 	// LayerMarker, Marker and NativeLayerMarker.
 	LayerMarker,

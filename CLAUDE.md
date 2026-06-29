@@ -83,8 +83,9 @@ mount/whenever re-enabled, remove on unmount, with native error reporting centra
 `reportNativeError`. Most layers recreate (remove then create) on any prop that's baked into native
 construction (e.g. `mapFile`/`renderTheme` for `LayerMapsforge`) and update in place for props that
 aren't (e.g. `enabledZoomMin`/`enabledZoomMax`). Native async events (map move, lifecycle, marker
-press, per-layer create/remove/change) arrive as direct Fabric event props (`onMapUpdate`, `onPause`,
-`onResume`, etc. on `MapContainer` itself) rather than a global `NativeEventEmitter` — this is a
+press, per-layer create/remove/change, map-level tap/longPress) arrive as direct Fabric event props
+(`onMapUpdate`, `onPause`, `onResume`, `onTap`, `onLongPress`, etc. on `MapContainer` itself) rather
+than a global `NativeEventEmitter` — this is a
 deliberate Fabric-native pattern, not a missing migration.
 
 ### Where types come from
@@ -103,8 +104,8 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   etc.), each extending its codegen-generated `NativeXxxSpec` base class.
 - `views/` — `MapFragment` (the vtm `MapView` host), `MapsforgeVtmView`, `MapsforgeVtmViewManager`
   (implements the codegen-generated Fabric manager interface).
-- `layer/` — custom vtm layer subclasses (`PathLayer`, `VectorLayer`, `ItemizedLayer`) used by the
-  path/marker layers.
+- `layer/` — custom vtm layer subclasses (`PathLayer`, `VectorLayer`, `ItemizedLayer`,
+  `GestureLayer`) used by the path/marker layers and map-level gesture detection.
 - Top-level helpers: `HgtReader`/`Utils` (elevation lookups from `.hgt` DEM files), `LayerHelper`/
   `LayerZoomBoundsHelper` (zoom-based layer visibility), `RenderThemeMenuLoader` (parses
   `<stylemenu>` from render-theme XML for `useRenderStyleOptions`), `FixedWindowRateLimiter` (throttles

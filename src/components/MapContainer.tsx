@@ -71,6 +71,8 @@ const MapContainer = ({
 	onPause,
 	onResume,
 	onError,
+	onTap,
+	onLongPress,
 }: MapContainerProps & {
 	triggerEvent?: MutableRefObject<null | ((params: TriggerParams) => void)>;
 }) => {
@@ -206,6 +208,8 @@ const MapContainer = ({
 				onPause={onPause ? onPause : null}
 				onResume={onResume ? onResume : null}
 				onError={onError ? onError : null}
+				onTap={onTap ? onTap : null}
+				onLongPress={onLongPress ? onLongPress : null}
 			/>
 			{mapCreated && (
 				<MarkerLayerContext.Provider value={{ markerLayerUuid: null }}>

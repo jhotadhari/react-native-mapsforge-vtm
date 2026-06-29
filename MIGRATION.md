@@ -129,9 +129,43 @@ they need no special handling. The old restriction that layers had to be direct 
   native-side implementation anymore. If your app loads paths from `.gpx` files, pre-parse them to
   coordinates in JS before passing `positions` to `LayerPath`.
 - The example app dropped the old `ExampleDem` and `ExampleLayerPathSlopeGradient` demos, and gained
-  `mbtilesBitmap`, `hillshading`, `mapsforge`, and `manyLayers` (stress test) demos.
+  `mbtilesBitmap`, `hillshading`, `mapsforge`, and `manyLayers` (stress test), `tapEvents` (map-level tap/longPress),
+and `sharedLayerGrouping` (SharedLayer z-order) demos.
 
-## 3. `CanvasAdapterModule` is back, name unchanged
+## 3. Map-level tap and long-press (`onTap` / `onLongPress`)
+
+`MapContainer` now accepts two new Fabric event props that fire when the user taps or long-presses
+**empty map area** — i.e. a tap that wasn't consumed by a marker or path layer (those continue to
+receive their own per-layer `onPress` / `onLongPress` handlers as before).
+
+```tsx
+<MapContainer
+  onTap={(event) => {
+    const { lng, lat, x, y } = event.nativeEvent;
+    console.log(`tap at ${lng.toFixed(5)}, ${lat.toFixed(5)}`);
+  }}
+  onLongPress={(event) => {
+    const { lng, lat, x, y } = event.nativeEvent;
+    console.log(`long-press at ${lng.toFixed(5)}, ${lat.toFixed(5)}`);
+  }}
+>
+  {/* ... */}
+</MapContainer>
+```
+
+- **Event payload:** `{ lng: number, lat: number, x: number, y: number }` — geo coordinates from the
+  viewport plus screen-pixel coordinates relative to the map view.
+- **`.nativeEvent` unwrap is required** — same as every other Fabric event prop on `MapContainer`
+  (`onMapUpdate`, `onPause`, `onResume`, `onError`). TypeScript enforces this (`NativeSyntheticEvent<T>`
+  vs the payload type directly).
+- **Fires on empty map area only.** A tap on a marker still triggers the marker's `onPress`; a tap on
+  a path still triggers the path's `onPress`. The map-level handler only fires when nothing else
+  consumed the gesture.
+- The native side uses a lightweight `GestureLayer` (a transparent vtm `Layer` added at the end of the
+  layer stack), so it does not interfere with pan/zoom/tilt/rotate or with the existing
+  `triggerEvent` mechanism.
+
+## 4. `CanvasAdapterModule` is back, name unchanged
 
 - `CanvasAdapterModule` (`setTextScale` / `setLineScale` / `setSymbolScale` — global vtm
   rendering-scale controls), dropped during the New Architecture rewrite, is back with the same
@@ -143,7 +177,7 @@ they need no special handling. The old restriction that layers had to be direct 
   parsed *after* the setters are called, so call them before mounting the
   `MapContainer`/`LayerMapsforge` whose theme you want scaled.
 
-## 4. Bug fixes carried forward (informational only, no action needed)
+## 5. Bug fixes carried forward (informational only, no action needed)
 
 - Layer reordering no longer causes map-wide tile flicker (previously a global `clearMap()` on every
   reorder; now scoped to a per-layer `onMapEvent(CLEAR_EVENT)` only for layers new to the tracked
@@ -153,7 +187,7 @@ they need no special handling. The old restriction that layers had to be direct 
 - Mounting many sibling layers at once now batches into a single native `reorderLayers` call instead
   of firing one per layer.
 
-## 5. Migration checklist
+## 6. Migration checklist
 
 1. Bump `react-native` to ≥ 0.80.0 and `react` to ≥ 19.0.0; enable `newArchEnabled=true` /
    `hermesEnabled=true` in your app (there is no old-arch fallback anymore).

@@ -45,6 +45,22 @@ interface ErrorWithErrorMsg {
 	errorMsg: string;
 }
 
+export interface TapEventResponse {
+	lng: Double;
+	lat: Double;
+	x: Double;
+	y: Double;
+}
+
+// Reuse the same shape for longPress (codegen can't follow type aliases across
+// interfaces, so we declare a separate interface with the same fields).
+export interface LongPressEventResponse {
+	lng: Double;
+	lat: Double;
+	x: Double;
+	y: Double;
+}
+
 interface MapViewProps extends ViewProps {
 	width?: Double;
 	height?: Double;
@@ -77,6 +93,8 @@ interface MapViewProps extends ViewProps {
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onResume?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onError?: DirectEventHandler<Readonly<ErrorWithErrorMsg>> | null;
+	onTap?: DirectEventHandler<Readonly<TapEventResponse>> | null;
+	onLongPress?: DirectEventHandler<Readonly<LongPressEventResponse>> | null;
 }
 
 export type MapContainerProps = {
@@ -113,6 +131,8 @@ export type MapContainerProps = {
 	onPause?: MapViewProps['onPause'];
 	onResume?: MapViewProps['onResume'];
 	onError?: MapViewProps['onError'];
+	onTap?: MapViewProps['onTap'];
+	onLongPress?: MapViewProps['onLongPress'];
 };
 
 export default codegenNativeComponent<MapViewProps>('MapsforgeVtmView');
