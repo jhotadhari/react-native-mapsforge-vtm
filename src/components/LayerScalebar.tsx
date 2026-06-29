@@ -58,7 +58,7 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid, 'scalebar');
+	const { positionIndex } = useLayerOrder(uuid);
 
 	return null;
 };

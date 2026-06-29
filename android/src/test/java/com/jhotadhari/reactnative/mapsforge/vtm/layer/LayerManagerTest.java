@@ -281,6 +281,6 @@ public class LayerManagerTest {
 
         // sharedLayer is null until ensureSharedLayer() is called (via create(), etc.)
         assertNull("getSharedLayer must be null before ensureSharedLayer",
-                mgr.getSharedLayer());
+                mgr.getSharedLayer(mgr.getSharedLayerUuid()));
     }
 }

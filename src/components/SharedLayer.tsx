@@ -1,19 +1,24 @@
 /**
  * External dependencies
  */
-import { type ReactNode } from 'react';
+import { useContext, useEffect, type ReactNode } from 'react';
 
 /**
  * Internal dependencies
  */
-import SharedLayerContext from '../context/SharedLayerContext';
+import MapHandleContext from '../context/MapHandleContext';
 
 const SharedLayer = ({ children }: { children?: ReactNode }) => {
-	return (
-		<SharedLayerContext.Provider value={{ isGrouped: true }}>
-			{children}
-		</SharedLayerContext.Provider>
-	);
+	const { registry } = useContext(MapHandleContext);
+
+	useEffect(() => {
+		registry.groupingDepth++;
+		return () => {
+			registry.groupingDepth--;
+		};
+	}, [registry]);
+
+	return <>{children}</>;
 };
 
 export default SharedLayer;

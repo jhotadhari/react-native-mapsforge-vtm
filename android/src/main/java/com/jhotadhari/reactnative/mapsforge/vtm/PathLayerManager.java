@@ -499,8 +499,10 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		// segment order, and drawables from entries with the same positionIndex keep
 		// their creation order.
 		vectorLayer.sortDrawables((a, b) -> {
-			PathEntry entryA = entries.get(drawableToEntry.get(a));
-			PathEntry entryB = entries.get(drawableToEntry.get(b));
+			final String uuidA = drawableToEntry.get(a);
+			final String uuidB = drawableToEntry.get(b);
+			PathEntry entryA = entryUuid.equals(uuidA) ? entry : entries.get(uuidA);
+			PathEntry entryB = entryUuid.equals(uuidB) ? entry : entries.get(uuidB);
 			int posA = entryA != null ? entryA.positionIndex : Integer.MAX_VALUE;
 			int posB = entryB != null ? entryB.positionIndex : Integer.MAX_VALUE;
 			return Integer.compare(posA, posB);

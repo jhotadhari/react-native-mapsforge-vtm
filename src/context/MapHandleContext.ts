@@ -20,15 +20,18 @@ export type LayerOrderRegistry = {
 	// interleaved shared-layer types (e.g. Path, Marker, Path) each get their own
 	// fragment. Reset by MapContainer alongside `cursor`.
 	cursorLayerType: undefined | string;
-	// Per-type fragment counter (e.g. path→2, marker→1). Used both by the eager
-	// render-time assignment in useLayerOrder and by flush()'s authoritative pass.
+	// Per-type fragment counter (e.g. path→2, marker→1). Used by the eager
+	// render-time assignment in useLayerOrder.
 	fragmentIndices: Map<string, number>;
 	// Per-component fragment uuid (keyed by the component's stable Symbol id).
-	// Set during render and recomputed authoritatively in flush().
+	// Computed eagerly during render by useLayerOrder and consumed directly by flush().
 	fragmentUuids: Map<symbol, string>;
 	// Per-component layer type string (e.g. 'path', 'marker', 'mapsforge', etc.).
 	// Populated by useLayerOrder during render.
 	layerTypes: Map<symbol, string>;
+	// Depth of nested <SharedLayer> wrappers. When > 0, all same-type children within
+	// the innermost SharedLayer collapse into a single shared fragment.
+	groupingDepth: number;
 	scheduleSync: (nativeNodeHandle: null | number) => void;
 };
 
@@ -72,40 +75,28 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		if (!nativeNodeHandle) {
 			return;
 		}
-		// Recompute fragment uuids from the final order (corrects any stale
-		// eager assignments from the last render pass). For shared-layer types
-		// ('path', 'marker'), consecutive same-type components collapse into a
-		// single fragment uuid; a type alteration creates a new fragment.
-		// Dedicated-layer types (everything else) use their per-component uuid
-		// directly.
-		let currentRunType: string | null = null;
-		let runIndex = 0;
-		const seenFragmentUuids = new Set<string>();
+		// Build orderedUuids from fragment uuids (computed eagerly during render
+		// by useLayerOrder for shared-layer types) and per-component uuids (for
+		// dedicated-layer types). Fragment uuids start with __vtm_shared_ so we
+		// can distinguish them from per-component uuids without a hardcoded list.
 		const orderedUuids: string[] = [];
+		const seenUuids = new Set<string>();
 
 		for (const id of order) {
-			const layerType = layerTypes.get(id);
-			const perComponentUuid = uuids.get(id);
-
-			if (layerType && (layerType === 'path' || layerType === 'marker')) {
-				// Shared-layer type: use fragment uuid.
-				if (layerType !== currentRunType) {
-					currentRunType = layerType;
-					// Advance fragment index for this type.
-					const idx = (fragmentIndices.get(layerType) ?? 0) + 1;
-					fragmentIndices.set(layerType, idx);
-					runIndex = idx;
-				}
-				const fragmentUuid = `__vtm_shared_${layerType}__${runIndex}`;
-				fragmentUuids.set(id, fragmentUuid);
-
-				if (!seenFragmentUuids.has(fragmentUuid)) {
-					seenFragmentUuids.add(fragmentUuid);
+			const fragmentUuid = fragmentUuids.get(id);
+			if (fragmentUuid) {
+				// Shared-layer type: use the fragment uuid
+				if (!seenUuids.has(fragmentUuid)) {
+					seenUuids.add(fragmentUuid);
 					orderedUuids.push(fragmentUuid);
 				}
-			} else if (perComponentUuid) {
-				// Dedicated-layer type: use per-component uuid directly.
-				orderedUuids.push(perComponentUuid);
+			} else {
+				// Dedicated-layer type or still-resolving: use per-component uuid
+				const uuid = uuids.get(id);
+				if (uuid && !seenUuids.has(uuid)) {
+					seenUuids.add(uuid);
+					orderedUuids.push(uuid);
+				}
 			}
 		}
 		const unchanged =
@@ -143,6 +134,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		fragmentIndices,
 		fragmentUuids,
 		layerTypes,
+		groupingDepth: 0,
 		scheduleSync: (nativeNodeHandle) => {
 			pendingNativeNodeHandle = nativeNodeHandle;
 			// Trailing debounce: every call pushes the flush out, so a continuous burst only
@@ -169,6 +161,7 @@ const noopRegistry: LayerOrderRegistry = {
 	fragmentIndices: new Map(),
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
+	groupingDepth: 0,
 	scheduleSync: () => {},
 };
 

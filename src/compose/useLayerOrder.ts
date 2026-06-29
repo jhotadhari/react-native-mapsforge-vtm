@@ -7,7 +7,6 @@ import { useContext, useEffect, useRef } from 'react';
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
-import SharedLayerContext from '../context/SharedLayerContext';
 
 /**
  * Registers a layer component into the shared, map-wide layer ordering registry, and keeps
@@ -20,7 +19,7 @@ import SharedLayerContext from '../context/SharedLayerContext';
  */
 const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
-	const { isGrouped } = useContext(SharedLayerContext);
+	const isGrouped = registry.groupingDepth > 0;
 
 	const idRef = useRef<undefined | symbol>(undefined);
 	if (!idRef.current) {
@@ -55,24 +54,28 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 		);
 	}
 
-	// Store layer type for type-run boundary detection in flush(). Also
-	// compute a provisional fragment uuid eagerly during render so callers
-	// can use it immediately. The authoritative computation happens in
-	// flush(), which corrects any stale eager assignments.
+	// Store layer type for type-run boundary detection. For first-time renders,
+	// compute a fragment uuid eagerly so callers can use it immediately. On
+	// re-renders, just advance the cursor so subsequent siblings see the correct
+	// previous type.
 	if (layerType) {
-		registry.layerTypes.set(id, layerType);
-		const cursorType = registry.cursorLayerType;
-		if (cursorType !== layerType) {
-			// Type changed — advance fragment index for this type.
-			const currentIdx = registry.fragmentIndices.get(layerType) ?? 0;
-			// When isGrouped (inside <SharedLayer>), force all children
-			// of the same type into a single fragment (index 0).
-			const newIdx = isGrouped ? 0 : currentIdx + 1;
-			registry.fragmentIndices.set(layerType, newIdx);
+		const isNew = !registry.order.includes(id);
+		if (isNew) {
+			registry.layerTypes.set(id, layerType);
+			const cursorType = registry.cursorLayerType;
+			if (cursorType !== layerType) {
+				// Type changed — advance fragment index for this type.
+				const currentIdx = registry.fragmentIndices.get(layerType) ?? 0;
+				// When isGrouped (inside <SharedLayer>), force all children
+				// of the same type into a single fragment (index 0).
+				const newIdx = isGrouped ? 0 : currentIdx + 1;
+				registry.fragmentIndices.set(layerType, newIdx);
+			}
+			const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
+			const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
+			registry.fragmentUuids.set(id, fragmentUuid);
 		}
-		const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
-		const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
-		registry.fragmentUuids.set(id, fragmentUuid);
+		// Always advance the cursor so subsequent siblings see the correct previous type
 		registry.cursorLayerType = layerType;
 	}
 

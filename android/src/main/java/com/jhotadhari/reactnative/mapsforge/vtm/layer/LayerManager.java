@@ -18,6 +18,7 @@ import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
 import org.oscim.layers.Layer;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -151,7 +152,7 @@ public abstract class LayerManager<TEntry> {
 	 * z-position ordering works correctly across interleaved types.
 	 */
 	@NonNull
-	protected final Map<String, Layer> sharedLayerFragments = new ConcurrentHashMap<>();
+	protected final Map<String, Layer> sharedLayerFragments = new HashMap<>();
 
 	/** All entries currently managed, keyed by entry uuid. */
 	@NonNull
@@ -200,7 +201,7 @@ public abstract class LayerManager<TEntry> {
 
 	/**
 	 * Creates the shared vtm {@link Layer} this manager owns.
-	 * Called once, lazily, from {@link #ensureSharedLayer()}.
+	 * Called once, lazily, from {@link #ensureSharedLayer(String)}.
 	 */
 	@NonNull
 	protected abstract Layer createSharedLayer();
@@ -399,19 +400,6 @@ public abstract class LayerManager<TEntry> {
 	}
 
 	/**
-	 * Ensures the shared vtm Layer exists and is registered in the map's layer
-	 * list via {@link MapMutationQueue}. Idempotent.
-	 *
-	 * @deprecated Use {@link #ensureSharedLayer(String)} with a specific fragment uuid instead.
-	 *             This method delegates to the new method using {@link #sharedLayerUuid} as
-	 *             the default fragment uuid for backward compatibility.
-	 */
-	@Deprecated
-	protected synchronized void ensureSharedLayer() throws Exception {
-		ensureSharedLayer(sharedLayerUuid);
-	}
-
-	/**
 	 * Resolves the positionIndex from TurboModule params.
 	 * Defaults to {@link Integer#MAX_VALUE} (append) when absent.
 	 */
@@ -454,23 +442,24 @@ public abstract class LayerManager<TEntry> {
 		}
 		entries.clear();
 
-		// Remove all fragment layers from the map. Use removeLayerSync so
-		// knownLayers/positionByUuid stay consistent — this runs on the UI
-		// thread during Fragment.onDestroy, so synchronous access is safe.
-		if (!sharedLayerFragments.isEmpty()) {
-			try {
-				MapMutationQueue queue = MapMutationQueue.getInstance(nativeNodeHandle);
-				if (queue != null) {
-					for (String fragmentUuid : sharedLayerFragments.keySet()) {
-						queue.removeLayerSync(fragmentUuid);
+		// Remove all fragment layers from the map. Synchronized to prevent
+		// ensureSharedLayer from racing with this teardown.
+		synchronized (this) {
+			if (!sharedLayerFragments.isEmpty()) {
+				try {
+					MapMutationQueue queue = MapMutationQueue.getInstance(nativeNodeHandle);
+					if (queue != null) {
+						for (String fragmentUuid : sharedLayerFragments.keySet()) {
+							queue.removeLayerSync(fragmentUuid);
+						}
 					}
+					scheduleUpdate();
+				} catch (Exception ignored) {
+					// Map may already be torn down.
 				}
-				scheduleUpdate();
-			} catch (Exception ignored) {
-				// Map may already be torn down.
 			}
+			sharedLayerFragments.clear();
 		}
-		sharedLayerFragments.clear();
 		eventCallback = null;
 	}
 
@@ -485,17 +474,6 @@ public abstract class LayerManager<TEntry> {
 	@Nullable
 	protected Layer getSharedLayer(@NonNull String fragmentUuid) {
 		return sharedLayerFragments.get(fragmentUuid);
-	}
-
-	/**
-	 * Returns the default shared vtm Layer.
-	 *
-	 * @deprecated Use {@link #getSharedLayer(String)} with a specific fragment uuid instead.
-	 */
-	@Deprecated
-	@Nullable
-	public Layer getSharedLayer() {
-		return sharedLayerFragments.get(sharedLayerUuid);
 	}
 
 	@NonNull

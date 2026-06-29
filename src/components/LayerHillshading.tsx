@@ -152,7 +152,7 @@ const LayerHillshading = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid, 'hillshading');
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

@@ -90,7 +90,7 @@ const LayerBitmapTile = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid, 'bitmap-tile');
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {
