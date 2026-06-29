@@ -2,7 +2,8 @@
  * External dependencies
  */
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { View, Button } from 'react-native';
+import { View, Button, Text } from 'react-native';
+import { sharedStyles } from '../../sharedDeps';
 import {
 	LayerBitmapTile,
 	LayerShape,
@@ -63,14 +64,14 @@ const hexagonStyle: ShapeStyle = {
 	strokeWidth: 2,
 	strokeColor: '#ffaa00',
 	fillColor: '#ffaa00',
-	fillAlpha: 0.3,
+	fillAlpha: 0.45,
 };
 
 const pointStyle: ShapeStyle = {
-	strokeWidth: 4,
+	strokeWidth: 5,
 	strokeColor: '#cc44cc',
 	fillColor: '#cc44cc',
-	fillAlpha: 0.8,
+	fillAlpha: 0.9,
 };
 
 // ── Shape definitions (static, centered on Mediterranean) ─────────────────
@@ -98,13 +99,13 @@ const rectangleShape: ShapeDefinition = {
 
 const hexagonShape: ShapeDefinition = {
 	type: 'hexagon',
-	center: [3, 33],
-	radiusKm: 180,
+	center: [8, 40],
+	radiusKm: 150,
 };
 
 const pointShape: ShapeDefinition = {
 	type: 'point',
-	position: [10, 28],
+	position: [10, 35],
 };
 
 // All shapes keyed by display name for the toggle UI.
@@ -165,6 +166,16 @@ const Controls: FC<{
 					label="Shape event"
 					value={lastGestureInfo}
 				/>
+			</ControlSection>
+			<ControlSection title="Gesture event data">
+				<Text style={sharedStyles.text}>
+					Each onPress/onLongPress callback receives a
+					LayerShapeGestureResponse:{'\n'}
+					{'\n'}• type — 'press', 'longPress', 'doubleTap', or
+					'trigger'{'\n'}• eventPosition — [lng, lat] of the tap on
+					the map{'\n'}• distance — coordinate distance from tap to
+					the shape edge{'\n'}• uuid — identifies which shape was hit
+				</Text>
 			</ControlSection>
 		</ControlPanel>
 	);
