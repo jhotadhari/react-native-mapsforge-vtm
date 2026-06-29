@@ -79,7 +79,9 @@ const LayerPath = ({
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance && { gestureScreenDistance }),
-				...(simplificationTolerance && { simplificationTolerance }),
+				...(simplificationTolerance != null && {
+					simplificationTolerance,
+				}),
 			}).then((response: LayerPathResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
 				triggerOnChange && onChange ? onChange(response) : null;
@@ -122,7 +124,9 @@ const LayerPath = ({
 				coordinates,
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
-				...(simplificationTolerance && { simplificationTolerance }),
+				...(simplificationTolerance != null && {
+					simplificationTolerance,
+				}),
 			})
 				.then((response: LayerPathResponse) => {
 					onChange ? onChange(response) : null;

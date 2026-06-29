@@ -2,13 +2,15 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.content.ContentResolver;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
@@ -33,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TurboModule for the {@code LayerPathJts} component.
@@ -47,6 +50,27 @@ import java.util.UUID;
 public class LayerPathJts extends NativeLayerPathJtsSpec {
 
 	public static final String NAME = "LayerPathJts";
+
+	// ── Coalesced map updates ───────────────────────────────────────────
+	// Dispatches updateMap() to the UI thread via Handler.post, matching the
+	// pattern used by LayerManager.scheduleUpdate(). The native-module thread
+	// must never call updateMap() directly — vtm's Map is not thread-safe.
+
+	private final java.util.Map<Integer, AtomicBoolean> updatePendingMap = new HashMap<>();
+	private final Handler uiHandler = new Handler(Looper.getMainLooper());
+
+	private void scheduleUpdate(@NonNull MapView mapView) {
+		int handle = mapView.hashCode();
+		AtomicBoolean pending = updatePendingMap.computeIfAbsent(handle, k -> new AtomicBoolean(false));
+		if (pending.compareAndSet(false, true)) {
+			uiHandler.post(() -> {
+				pending.set(false);
+				if (mapView.map() != null) {
+					mapView.map().updateMap();
+				}
+			});
+		}
+	}
 
 	public LayerPathJts(ReactApplicationContext reactContext) {
 		super(reactContext);
@@ -69,7 +93,6 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 		responseInclude.putInt("coordinates", 0);
 		responseInclude.putInt("bounds", 0);
 		constants.put("gestureScreenDistance", 20d);
-		constants.put("simplificationTolerance", 0d);
 		constants.put("responseInclude", responseInclude);
 		return constants;
 	}
@@ -79,10 +102,10 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 	@NonNull
 	private Style.Builder getStyleBuilderFromMap(@Nullable ReadableMap styleMap) {
 		ReadableMap styleConstants = (ReadableMap) getConstants().get("style");
-		double strokeWidth = Utils.rMapHasKey(styleMap, "strokeWidth")
+		double strokeWidth = (styleMap != null && Utils.rMapHasKey(styleMap, "strokeWidth"))
 			? styleMap.getDouble("strokeWidth")
 			: styleConstants.getDouble("strokeWidth");
-		String strokeColor = Utils.rMapHasKey(styleMap, "strokeColor")
+		String strokeColor = (styleMap != null && Utils.rMapHasKey(styleMap, "strokeColor"))
 			? styleMap.getString("strokeColor")
 			: styleConstants.getString("strokeColor");
 
@@ -185,7 +208,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 		if (responseInclude == null) {
 			return;
 		}
-		if (responseInclude.hasKey("coordinates") && responseInclude.getInt("coordinates") > -1) {
+		if (responseInclude.hasKey("coordinates") && responseInclude.getInt("coordinates") > 0) {
 			com.facebook.react.bridge.WritableArray arr = Arguments.createArray();
 			for (GeoPoint gp : points) {
 				arr.pushArray(Utils.positionToWritableArray(
@@ -193,7 +216,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 			}
 			responseParams.putArray("coordinates", arr);
 		}
-		if (responseInclude.hasKey("bounds") && responseInclude.getInt("bounds") > -1) {
+		if (responseInclude.hasKey("bounds") && responseInclude.getInt("bounds") > 0) {
 			double minLng = Double.MAX_VALUE, minLat = Double.MAX_VALUE;
 			double maxLng = Double.MIN_VALUE, maxLat = Double.MIN_VALUE;
 			for (GeoPoint gp : points) {
@@ -372,24 +395,19 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 				pathLayer.setStyle(style);
 			}
 
-			// Update coordinates if provided.
+			// Update coordinates if provided (minimum 2 points for a valid path).
 			List<GeoPoint> points = null;
 			if (coordinates != null && coordinates.size() >= 2) {
 				pathLayer.clearPath();
 				points = readableArrayToGeoPoints(coordinates);
-				pathLayer.setPoints(points);
-			} else if (coordinates != null && coordinates.size() > 0) {
-				// Partial update: replace all points.
-				points = readableArrayToGeoPoints(coordinates);
-				pathLayer.clearPath();
 				pathLayer.setPoints(points);
 			} else {
 				// No coordinate update — read current points for response.
 				points = pathLayer.getPoints();
 			}
 
-			// Update the map.
-			mapView.map().updateMap();
+			// Schedule a coalesced map update on the UI thread.
+			scheduleUpdate(mapView);
 
 			// Build response.
 			ReadableMap responseInclude = Utils.rMapHasKey(params, "responseInclude")
@@ -456,7 +474,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 			);
 
 			pathLayer.addGreatCircle(from, to, numPoints);
-			mapView.map().updateMap();
+			scheduleUpdate(mapView);
 
 			// Build response with updated coordinates.
 			List<GeoPoint> points = pathLayer.getPoints();

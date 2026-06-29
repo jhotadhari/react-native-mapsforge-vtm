@@ -98,6 +98,7 @@ const LayerShape = ({
 
 			return LayerShapeModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				shape: shapeParams as {
 					type: string;
 					rings?: ReadonlyArray<ReadonlyArray<number>>;
@@ -141,7 +142,7 @@ const LayerShape = ({
 	});
 
 	// Dedicated-layer ordering.
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// Update shape in place when props change.
 	useEffect(() => {

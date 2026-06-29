@@ -90,11 +90,40 @@ public class PathLayerJtsWrapper extends org.oscim.layers.vector.PathLayer {
 			return false;
 		}
 
-		// Hit-test against the path geometry at the screen coordinates.
+		// Hit-test against the path geometry using gestureScreenDistance.
 		float x = e.getX();
 		float y = e.getY();
 
-		if (!contains(x, y)) {
+		if (mMap == null) {
+			return false;
+		}
+
+		java.util.List<GeoPoint> points = getPoints();
+		if (points == null || points.size() < 2) {
+			return false;
+		}
+
+		// Convert screen-distance threshold to coordinate distance.
+		double coordDistance = Math.abs(
+			mMap.viewport().fromScreenPoint(x, y).getLongitude()
+				- mMap.viewport().fromScreenPoint(x + gestureScreenDistance, y).getLongitude()
+		);
+
+		// Build JTS LineString and test point for distance-based hit-test.
+		GeoPoint eventPoint = mMap.viewport().fromScreenPoint(x, y);
+		Point point = new GeometryFactory().createPoint(
+			new Coordinate(eventPoint.getLongitude(), eventPoint.getLatitude())
+		);
+
+		Coordinate[] coords = new Coordinate[points.size()];
+		for (int i = 0; i < points.size(); i++) {
+			GeoPoint gp = points.get(i);
+			coords[i] = new Coordinate(gp.getLongitude(), gp.getLatitude());
+		}
+		LineString lineString = new GeometryFactory().createLineString(coords);
+		double distance = lineString.distance(point);
+
+		if (distance > coordDistance) {
 			return false;
 		}
 
@@ -105,41 +134,20 @@ public class PathLayerJtsWrapper extends org.oscim.layers.vector.PathLayer {
 		payload.putDouble("y", y);
 		payload.putString("type", type);
 
-		// Compute event position in geo coordinates.
-		if (mMap != null) {
-			GeoPoint eventPoint = mMap.viewport().fromScreenPoint(x, y);
-			payload.putArray("eventPosition", Utils.positionToWritableArray(
-				eventPoint.getLongitude(),
-				eventPoint.getLatitude(),
+		payload.putArray("eventPosition", Utils.positionToWritableArray(
+			eventPoint.getLongitude(),
+			eventPoint.getLatitude(),
+			null
+		));
+		payload.putDouble("distance", distance);
+
+		Coordinate[] nearestPoints = DistanceOp.nearestPoints(lineString, point);
+		if (nearestPoints.length >= 1) {
+			payload.putArray("nearestPoint", Utils.positionToWritableArray(
+				nearestPoints[0].x,
+				nearestPoints[0].y,
 				null
 			));
-
-			// Compute nearest point on the path and distance.
-			Point point = new GeometryFactory().createPoint(
-				new Coordinate(eventPoint.getLongitude(), eventPoint.getLatitude())
-			);
-
-			// Build a LineString from the current points for distance calculation.
-			java.util.List<GeoPoint> points = getPoints();
-			if (points != null && points.size() >= 2) {
-				Coordinate[] coords = new Coordinate[points.size()];
-				for (int i = 0; i < points.size(); i++) {
-					GeoPoint gp = points.get(i);
-					coords[i] = new Coordinate(gp.getLongitude(), gp.getLatitude());
-				}
-				LineString lineString = new GeometryFactory().createLineString(coords);
-				double distance = lineString.distance(point);
-				payload.putDouble("distance", distance);
-
-				Coordinate[] nearestPoints = DistanceOp.nearestPoints(lineString, point);
-				if (nearestPoints.length >= 1) {
-					payload.putArray("nearestPoint", Utils.positionToWritableArray(
-						nearestPoints[0].x,
-						nearestPoints[0].y,
-						null
-					));
-				}
-			}
 		}
 
 		gestureCallback.onGesture(type, payload);

@@ -1,12 +1,13 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TurboModule for the {@code LayerShape} component.
@@ -50,6 +52,24 @@ import java.util.UUID;
 public class LayerShape extends NativeLayerShapeSpec {
 
 	public static final String NAME = "LayerShape";
+
+	// ── Coalesced map updates ───────────────────────────────────────────
+
+	private final java.util.Map<Integer, AtomicBoolean> updatePendingMap = new HashMap<>();
+	private final Handler uiHandler = new Handler(Looper.getMainLooper());
+
+	private void scheduleUpdate(@NonNull MapView mapView) {
+		int handle = mapView.hashCode();
+		AtomicBoolean pending = updatePendingMap.computeIfAbsent(handle, k -> new AtomicBoolean(false));
+		if (pending.compareAndSet(false, true)) {
+			uiHandler.post(() -> {
+				pending.set(false);
+				if (mapView.map() != null) {
+					mapView.map().updateMap();
+				}
+			});
+		}
+	}
 
 	public LayerShape(ReactApplicationContext reactContext) {
 		super(reactContext);
@@ -77,10 +97,10 @@ public class LayerShape extends NativeLayerShapeSpec {
 	@NonNull
 	private Style.Builder getStyleBuilderFromMap(@Nullable ReadableMap styleMap) {
 		ReadableMap styleConstants = (ReadableMap) getConstants().get("style");
-		double strokeWidth = Utils.rMapHasKey(styleMap, "strokeWidth")
+		double strokeWidth = (styleMap != null && Utils.rMapHasKey(styleMap, "strokeWidth"))
 			? styleMap.getDouble("strokeWidth")
 			: styleConstants.getDouble("strokeWidth");
-		String strokeColor = Utils.rMapHasKey(styleMap, "strokeColor")
+		String strokeColor = (styleMap != null && Utils.rMapHasKey(styleMap, "strokeColor"))
 			? styleMap.getString("strokeColor")
 			: styleConstants.getString("strokeColor");
 
@@ -190,13 +210,24 @@ public class LayerShape extends NativeLayerShapeSpec {
 				}
 				ReadableArray ringsArr = shapeMap.getArray("rings");
 				List<GeoPoint> outerRing = readableArrayToRing(ringsArr);
+				if (outerRing.size() < 3) {
+					throw new IllegalArgumentException("Polygon outer ring requires at least 3 points");
+				}
 
 				// PolygonDrawable supports a single hole (inner ring) as List<GeoPoint>.
+				// If multiple holes are provided, throw — don't silently discard data.
 				List<GeoPoint> holes = null;
 				if (Utils.rMapHasKey(shapeMap, "holes")) {
 					ReadableArray holesArr = shapeMap.getArray("holes");
+					if (holesArr.size() > 1) {
+						throw new IllegalArgumentException(
+							"PolygonDrawable supports only a single hole; got " + holesArr.size());
+					}
 					if (holesArr.size() > 0) {
 						holes = readableArrayToRing(holesArr.getArray(0));
+						if (holes.size() < 3) {
+							throw new IllegalArgumentException("Polygon hole requires at least 3 points");
+						}
 					}
 				}
 				if (holes != null) {
@@ -379,15 +410,14 @@ public class LayerShape extends NativeLayerShapeSpec {
 			}
 			VectorLayer vectorLayer = (VectorLayer) layer;
 
-			// Parse new style if provided.
-			ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-				? params.getMap("style")
-				: null;
-			Style style = getStyleBuilderFromMap(styleMap).build();
-
 			// If a new shape is provided, clear and redraw.
 			if (Utils.rMapHasKey(params, "shape")) {
 				ReadableMap shapeMap = params.getMap("shape");
+				// Style defaults are applied inside getStyleBuilderFromMap when styleMap is null.
+				ReadableMap styleMap = Utils.rMapHasKey(params, "style")
+					? params.getMap("style")
+					: null;
+				Style style = getStyleBuilderFromMap(styleMap).build();
 				Drawable drawable = createDrawable(shapeMap, style);
 
 				// Clear existing drawables and add the new one.
@@ -396,7 +426,7 @@ public class LayerShape extends NativeLayerShapeSpec {
 				vectorLayer.update();
 			}
 
-			mapView.map().updateMap();
+			scheduleUpdate(mapView);
 
 			WritableMap responseParams = new WritableNativeMap();
 			responseParams.putString("uuid", uuid);

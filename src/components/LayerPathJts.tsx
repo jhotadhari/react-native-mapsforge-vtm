@@ -43,7 +43,6 @@ const LayerPathJts = ({
 	responseInclude: responseIncludeParams,
 	gestureScreenDistance,
 	style,
-	simplificationTolerance,
 
 	onCreate,
 	onRemove,
@@ -68,7 +67,10 @@ const LayerPathJts = ({
 
 	const supportsGestures = !!onPress || !!onLongPress || !!onDoubleTap;
 
-	const hasCoordinates = !!coordinates && coordinates.length > 0;
+	// Require at least 2 points — native createLayer rejects fewer.
+	// Using >= 2 prevents the stuck-state where a single coordinate
+	// resolves to a layer creation failure with no recovery path.
+	const hasCoordinates = !!coordinates && coordinates.length >= 2;
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
@@ -82,14 +84,12 @@ const LayerPathJts = ({
 			}
 			return LayerPathJtsModule.createLayer({
 				nativeNodeHandle,
+				positionIndex,
 				coordinates,
 				supportsGestures,
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance != null && { gestureScreenDistance }),
-				...(simplificationTolerance != null && {
-					simplificationTolerance,
-				}),
 			}).then((response: LayerPathJtsResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
 				triggerOnChange && onChange ? onChange(response) : null;
@@ -122,7 +122,7 @@ const LayerPathJts = ({
 	// order registry so reorderLayers can position it correctly relative to
 	// other layers. No layerType means no fragment uuid — each component's own
 	// uuid is used directly in orderedUuids.
-	useLayerOrder(uuid);
+	const { positionIndex } = useLayerOrder(uuid);
 
 	// Redraw the existing native layer in place when the line or its style
 	// changes, instead of tearing down and recreating the layer.
@@ -134,9 +134,6 @@ const LayerPathJts = ({
 				coordinates,
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
-				...(simplificationTolerance != null && {
-					simplificationTolerance,
-				}),
 			})
 				.then((response: LayerPathJtsResponse) => {
 					onChange ? onChange(response) : null;
@@ -149,7 +146,7 @@ const LayerPathJts = ({
 		uuid,
 		nativeNodeHandle,
 		coordinates,
-		simplificationTolerance,
+
 		style,
 		responseInclude,
 		onChange,
