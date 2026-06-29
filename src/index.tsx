@@ -48,6 +48,17 @@ import type {
 import LayerScalebar from './components/LayerScalebar';
 import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
 
+import LayerShape from './components/LayerShape';
+import type {
+	LayerShapeGestureResponse,
+	LayerShapeProps,
+	LayerShapeResponse,
+	ShapeDefinition,
+	ShapeStyle,
+	ShapeTriggerEvent,
+	ShapeTriggerParams,
+} from './NativeModules/NativeLayerShape';
+
 import LayerMBTilesBitmap from './components/LayerMBTilesBitmap';
 import type {
 	LayerMBTilesBitmapResponse,
@@ -130,6 +141,16 @@ export {
 	// LayerScalebar and NativeLayerScalebar.
 	LayerScalebar,
 	type LayerScalebarProps,
+
+	// LayerShape and NativeLayerShape.
+	LayerShape,
+	type ShapeStyle,
+	type ShapeDefinition,
+	type ShapeTriggerEvent,
+	type ShapeTriggerParams,
+	type LayerShapeResponse,
+	type LayerShapeGestureResponse,
+	type LayerShapeProps,
 
 	// LayerMBTilesBitmap and NativeLayerMBTilesBitmap.
 	LayerMBTilesBitmap,
