@@ -83,6 +83,12 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 				0,
 				id
 			);
+			// The uuid-mapping useEffect won't re-fire on generation
+			// change (its deps don't include generation), so the native
+			// reorder would never be triggered. Schedule it here directly
+			// whenever a layer actually moved. The debounce coalesces
+			// multiple calls from sibling layers into one native call.
+			registry.scheduleSync(nativeNodeHandle);
 		}
 	}
 
