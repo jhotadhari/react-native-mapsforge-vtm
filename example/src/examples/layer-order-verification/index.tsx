@@ -5,13 +5,11 @@ import { useMemo, useState, type FC } from 'react';
 import { View, Text, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
-	LayerDebugTree,
 	LayerPath,
 	LayerShape,
 	MapContainer,
 	Marker,
 	SharedLayer,
-	useLayerDebugInfo,
 	type GeometryStyle,
 	type Position,
 	type ShapeDefinition,
@@ -22,6 +20,9 @@ import {
 import type { Example } from '../../types';
 import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import LayerDebugOverlay, {
+	LAYER_DEBUG_OVERLAY_HEIGHT,
+} from '../../components/LayerDebugOverlay';
 import {
 	ControlPanel,
 	ControlRow,
@@ -229,55 +230,6 @@ const Controls: FC<{
 	);
 };
 
-// ── Debug overlay (tree-shaken in production via __DEV__ guard) ──────────
-// Rendered INSIDE MapContainer so it can access MapHandleContext.
-// Positioned absolutely over the map, outside the SharedLayer wrapper.
-
-const LAYER_DEBUG_OVERLAY_HEIGHT = 160;
-
-const LayerDebugOverlay: FC = () => {
-	const info = useLayerDebugInfo();
-
-	return (
-		<View
-			pointerEvents="box-none"
-			style={{
-				position: 'absolute',
-				bottom: 0,
-				left: 0,
-				right: 0,
-				zIndex: 10,
-				height: LAYER_DEBUG_OVERLAY_HEIGHT,
-				backgroundColor: 'rgba(0,0,0,0.85)',
-				paddingHorizontal: 8,
-				paddingVertical: 4,
-				borderTopWidth: 1,
-				borderTopColor: '#333333',
-			}}
-		>
-			<View
-				style={{
-					flexDirection: 'row',
-					gap: 16,
-					marginBottom: 2,
-				}}
-			>
-				<Text style={sharedStyles.text}>JS: {info.layerCount}</Text>
-				<Text style={sharedStyles.text}>
-					Native: {info.estimatedNativeLayerCount}
-				</Text>
-				<Text style={sharedStyles.text}>
-					Draw calls: {info.estimatedNativeLayerCount}
-				</Text>
-				<Text style={sharedStyles.text}>
-					Grouped: {info.groupingDepth > 0 ? 'yes' : 'no'}
-				</Text>
-			</View>
-			<LayerDebugTree maxHeight={120} />
-		</View>
-	);
-};
-
 // ── Example component ───────────────────────────────────────────────────
 
 const ExampleComponent: FC<{
@@ -354,8 +306,8 @@ const ExampleComponent: FC<{
 					onError={handleMapEvent.onError}
 				>
 					<LayerBitmapTile />
-					{__DEV__ && <LayerDebugOverlay />}
 					{children}
+					{__DEV__ && <LayerDebugOverlay />}
 				</MapContainer>
 
 				<MapInfo info={info} />

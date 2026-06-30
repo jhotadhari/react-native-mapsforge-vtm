@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type FC } from 'react';
-import { View, Text, Button } from 'react-native';
+import { View, Text, Button, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -14,6 +14,9 @@ import type { Example } from '../../types';
 import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import { randomNumber } from '../../utils';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
+import LayerDebugOverlay, {
+	LAYER_DEBUG_OVERLAY_HEIGHT,
+} from '../../components/LayerDebugOverlay';
 import {
 	ControlPanel,
 	ControlRow,
@@ -34,7 +37,10 @@ const responseInclude = {
 };
 
 const countOptions = [
+	50,
 	100,
+	250,
+	500,
 	1000,
 	3000,
 	5000,
@@ -72,17 +78,50 @@ const buildLayerPairs = (count: number): LayerPair[] =>
 
 const Controls: FC<{
 	width: number;
+	containerHeight: number;
 	count: number;
 	visible: boolean;
+	useSharedLayer: boolean;
 	setCount: (count: number) => void;
 	setVisible: (visible: boolean) => void;
+	onToggleSharedLayer: () => void;
 	onRandomize: () => void;
-}> = ({ width, count, visible, setCount, setVisible, onRandomize }) => {
+}> = ({
+	width,
+	containerHeight,
+	count,
+	visible,
+	useSharedLayer,
+	setCount,
+	setVisible,
+	onToggleSharedLayer,
+	onRandomize,
+}) => {
+	// Leave room for the debug overlay so the drawer doesn't cover it.
+	const drawerMaxHeight = containerHeight - LAYER_DEBUG_OVERLAY_HEIGHT - 12;
+
+	const nativeLayerInfo = useSharedLayer
+		? `2 fragments (1 Path + 1 Marker), ${2 * count} drawables`
+		: `${2 * count} dedicated layers (no grouping)`;
+
 	return (
-		<ControlPanel width={width}>
+		<ControlPanel
+			width={width}
+			maxHeight={drawerMaxHeight}
+		>
+			<ControlSection title="SharedLayer">
+				<ControlRow>
+					<Text style={sharedStyles.text}>SharedLayer</Text>
+					<Switch
+						value={useSharedLayer}
+						onValueChange={onToggleSharedLayer}
+					/>
+				</ControlRow>
+			</ControlSection>
+
 			<ControlSection>
 				<Text style={sharedStyles.text}>
-					{count} pairs = {2 * count} native layers
+					{count} pairs → {nativeLayerInfo}
 				</Text>
 				<ControlRow>
 					{countOptions.map((option) => (
@@ -117,8 +156,9 @@ const ExampleComponent: FC<{
 }> = ({ height, width }) => {
 	const { handleMapUpdate, info } = useMapInfo();
 
-	const [count, setCount] = useState(100);
+	const [count, setCount] = useState(50);
 	const [visible, setVisible] = useState(true);
+	const [useSharedLayer, setUseSharedLayer] = useState(true);
 	const [version, setVersion] = useState(0);
 
 	const layerPairs = useMemo(
@@ -142,10 +182,13 @@ const ExampleComponent: FC<{
 		>
 			<Controls
 				width={width}
+				containerHeight={height}
 				count={count}
 				visible={visible}
+				useSharedLayer={useSharedLayer}
 				setCount={setCount}
 				setVisible={setVisible}
+				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
 				onRandomize={() => setVersion((v) => v + 1)}
 			/>
 
@@ -168,7 +211,7 @@ const ExampleComponent: FC<{
 				>
 					<LayerBitmapTile />
 
-					{visible && (
+					{visible && useSharedLayer && (
 						<SharedLayer>
 							{layerPairs.map((pair) => (
 								<Fragment key={pair.id}>
@@ -183,6 +226,18 @@ const ExampleComponent: FC<{
 							))}
 						</SharedLayer>
 					)}
+					{visible &&
+						!useSharedLayer &&
+						layerPairs.map((pair) => (
+							<Fragment key={pair.id}>
+								<LayerPath coordinates={pair.pathCoordinates} />
+								<Marker
+									position={pair.markerPosition}
+									symbol={symbol}
+								/>
+							</Fragment>
+						))}
+					{__DEV__ && <LayerDebugOverlay />}
 				</MapContainer>
 
 				<Center

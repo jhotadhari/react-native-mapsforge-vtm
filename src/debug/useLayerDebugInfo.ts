@@ -66,11 +66,13 @@ export interface LayerDebugInfo {
 
 /**
  * Builds a snapshot of the registry's current state. Extracted as a standalone
- * function (rather than a closure over registry) so it can be called both
- * during the initial useState seed and from the subscription effect without
- * capturing a stale registry reference.
+ * function (rather than a closure over registry) so the hook below can call it
+ * during render without worrying about stale captures.
+ *
+ * @param registry - The mutable registry to snapshot.
+ * @returns A snapshot of the registry's current state.
  */
-const buildSnapshot = (
+export const buildSnapshot = (
 	registry: import('../context/MapHandleContext').LayerOrderRegistry
 ): LayerDebugInfo => {
 	const layers: LayerDebugEntry[] = [];
@@ -132,9 +134,12 @@ const buildSnapshot = (
  * every mounted layer component — its type, render order, native uuid, and
  * shared-layer fragment assignment.
  *
- * Uses {@code useState} + {@code useEffect} subscription so it stays in sync
- * whenever the registry mutates (layer mount / uuid resolve / unmount /
- * SharedLayer grouping change).
+ * Instead of storing snapshots in React state (which can lag behind the source
+ * of truth), the snapshot is **derived during render** from the mutable
+ * registry. A lightweight subscription tick counter ensures the component
+ * re-renders whenever the registry mutates (layer mount / uuid resolve /
+ * unmount / SharedLayer grouping change), so {@code buildSnapshot} always
+ * reads the latest data.
  *
  * When called outside a {@link MapHandleContext} provider, returns an empty
  * snapshot (layerCount = 0).
@@ -142,21 +147,25 @@ const buildSnapshot = (
 export const useLayerDebugInfo = (): LayerDebugInfo => {
 	const { registry } = useContext(MapHandleContext);
 
-	// Seed state synchronously from the registry at its current state.
-	const [info, setInfo] = useState<LayerDebugInfo>(() =>
-		buildSnapshot(registry)
-	);
+	// Tick counter: incremented on every registry notification to force a
+	// re-render. The actual snapshot is computed during render below — never
+	// stored, so it can never be stale.
+	const [tick, setTick] = useState(0);
 
-	// Re-snapshot whenever the registry notifies us of a change.
 	useEffect(() => {
-		// Catch up in case a mutation landed between the initial useState
-		// seed and this effect.
-		setInfo(buildSnapshot(registry));
+		// Catch up in case a mutation landed between mount and this effect.
+		setTick((t) => t + 1);
 
 		return registry.subscribe(() => {
-			setInfo(buildSnapshot(registry));
+			setTick((t) => t + 1);
 		});
 	}, [registry]);
 
-	return info;
+	// Derive fresh during every render. Computing every render is cheap
+	// (the registry always has at most a few hundred entries) and guarantees
+	// the debug overlay can never display stale data. The `tick` reference
+	// forces re-computation when the subscription fires; `buildSnapshot` also
+	// runs on unrelated re-renders, which is harmless.
+	tick;
+	return buildSnapshot(registry);
 };

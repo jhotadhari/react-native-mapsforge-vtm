@@ -125,6 +125,7 @@ const MapContainer = ({
 	registry.cursor = undefined;
 	registry.cursorLayerType = undefined;
 	registry.fragmentIndices.clear();
+	registry.groupingDepth = 0;
 
 	const mapHandleContextValue = useMemo<MapHandleContextValue>(
 		() => ({

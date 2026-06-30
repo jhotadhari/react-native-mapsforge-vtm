@@ -45,7 +45,7 @@ const truncateUuid = (uuid: string | null): string => {
 	if (!uuid) {
 		return '---';
 	}
-	return uuid.length <= 8 ? uuid : uuid.slice(0, 8) + '…';
+	return uuid.length <= 30 ? uuid : uuid.slice(0, 30) + '…';
 };
 
 // ── Styles ──────────────────────────────────────────────────────────────
@@ -67,6 +67,13 @@ const styles = StyleSheet.create({
 	},
 	rowIndented: {
 		paddingLeft: 16,
+	},
+	uuid: {
+		flexShrink: 1,
+	},
+	fragUuid: {
+		flexShrink: 1,
+		minWidth: 60,
 	},
 	fragmentHeader: {
 		flexDirection: 'row',
@@ -154,13 +161,22 @@ const EntryRow: FC<{ entry: LayerDebugEntry; indent: boolean }> = ({
 	<View style={[styles.row, indent && styles.rowIndented]}>
 		<TypeBadge layerType={entry.layerType} />
 		<Text style={styles.dim}>#{entry.positionIndex}</Text>
-		<Text style={entry.isResolved ? styles.text : styles.dim}>
+		<Text
+			style={[
+				entry.isResolved ? styles.text : styles.dim,
+				styles.uuid,
+			]}
+			numberOfLines={1}
+		>
 			{truncateUuid(entry.uuid)}
 		</Text>
 		<Text style={entry.isShared ? styles.costShared : styles.costDedicated}>
 			{entry.isShared ? `1/${entry.fragmentMemberCount}` : 'own'}
 		</Text>
-		<Text style={styles.dim}>
+		<Text
+			style={[styles.dim, styles.fragUuid]}
+			numberOfLines={1}
+		>
 			{entry.isShared ? truncateUuid(entry.fragmentUuid) : ''}
 		</Text>
 	</View>
@@ -229,41 +245,37 @@ const LayerDebugTree: FC<LayerDebugTreeProps> = ({ maxHeight = 200 }) => {
 
 	const { layers, groupingDepth } = info;
 
-	// Build rendering groups: when groupingDepth > 0, consecutive entries
-	// sharing the same fragmentUuid are collapsed into a FragmentGroup.
-	// Otherwise (groupingDepth === 0), every entry renders individually.
+	// Build rendering groups: when groupingDepth > 0, ALL entries sharing
+	// the same fragmentUuid are collapsed into a single FragmentGroup
+	// (not just consecutive runs — a shared native fragment may have its
+	// members interleaved with other types in JSX order).  Otherwise
+	// (groupingDepth === 0), every entry renders individually.
 	const groups: Array<
 		| { type: 'entry'; entry: LayerDebugEntry }
 		| { type: 'fragment'; fragmentUuid: string; entries: LayerDebugEntry[] }
 	> = [];
 
 	if (groupingDepth > 0) {
-		let run: LayerDebugEntry[] = [];
-		let runFragmentUuid: string | null = null;
+		// Collect entries by fragment UUID, preserving first-appearance order.
+		const fragmentMap = new Map<string, LayerDebugEntry[]>();
+		const fragmentOrder: string[] = [];
 
-		const flushRun = () => {
-			if (run.length === 0) {
-				return;
+		for (const entry of layers) {
+			const fragUuid = entry.fragmentUuid ?? '__dedicated__';
+			if (!fragmentMap.has(fragUuid)) {
+				fragmentMap.set(fragUuid, []);
+				fragmentOrder.push(fragUuid);
 			}
-			const fragUuid = runFragmentUuid ?? '__dedicated__';
+			fragmentMap.get(fragUuid)!.push(entry);
+		}
+
+		for (const fragUuid of fragmentOrder) {
 			groups.push({
 				type: 'fragment',
 				fragmentUuid: fragUuid,
-				entries: run,
+				entries: fragmentMap.get(fragUuid)!,
 			});
-			run = [];
-			runFragmentUuid = null;
-		};
-
-		for (const entry of layers) {
-			const frag = entry.fragmentUuid ?? '__dedicated__';
-			if (frag !== runFragmentUuid) {
-				flushRun();
-				runFragmentUuid = frag;
-			}
-			run.push(entry);
 		}
-		flushRun();
 	} else {
 		for (const entry of layers) {
 			groups.push({ type: 'entry', entry });
