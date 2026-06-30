@@ -118,6 +118,10 @@ const MapContainer = ({
 		registryRef.current = createLayerOrderRegistry();
 	}
 	const registry = registryRef.current;
+	// Bump generation on every render so useLayerOrder can distinguish a full coherent
+	// render pass (where already-registered layers must be repositioned to match the
+	// current document order) from a solo re-render of a single layer (where they must not).
+	registry.generation++;
 	// Reset on every render (not just mount): this is what gives useLayerOrder a fresh,
 	// reliable anchor at the start of each coherent render pass over `children`, so a layer
 	// that mounts/remounts there (e.g. a toggled-on <LayerPath/>) can insert itself in the
@@ -125,7 +129,7 @@ const MapContainer = ({
 	registry.cursor = undefined;
 	registry.cursorLayerType = undefined;
 	registry.fragmentIndices.clear();
-	registry.groupingDepth = 0;
+	registry.sharedLayerActive = false;
 
 	const mapHandleContextValue = useMemo<MapHandleContextValue>(
 		() => ({

@@ -32,7 +32,10 @@ export interface LayerDebugEntry {
 	 * components that use dedicated native layers.
 	 */
 	fragmentUuid: string | null;
-	/** True when this component is part of a shared native layer fragment. */
+	/**
+	 * True when this component shares a native layer fragment with at least
+	 * one other component (i.e. {@link fragmentMemberCount} > 1).
+	 */
 	isShared: boolean;
 	/** True when the native createLayer call has resolved with a real uuid. */
 	isResolved: boolean;
@@ -60,8 +63,21 @@ export interface LayerDebugInfo {
 	 * layers. This is the number of GPU draw calls for layer rendering.
 	 */
 	estimatedNativeLayerCount: number;
-	/** Current SharedLayer nesting depth (0 = no grouping active). */
-	groupingDepth: number;
+	/**
+	 * True when at least one native fragment is shared by multiple JS
+	 * components (e.g. inside a SharedLayer wrapper, or consecutive
+	 * same-type layers outside a SharedLayer). False when every component
+	 * has its own dedicated native layer.
+	 */
+	hasGroupedFragments: boolean;
+	/**
+	 * True when at least one {@link SharedLayer} wrapper rendered in the
+	 * current pass. This is a direct read of the registry flag set by
+	 * SharedLayer during render — it answers "is a SharedLayer present?"
+	 * rather than "are any fragments grouped?" (which can also happen
+	 * outside SharedLayer via consecutive same-type layers).
+	 */
+	sharedLayerActive: boolean;
 }
 
 /**
@@ -99,6 +115,9 @@ export const buildSnapshot = (
 		const uuidValue = registry.uuids.get(id);
 		const fragmentUuid = registry.fragmentUuids.get(id);
 		const layerType = registry.layerTypes.get(id);
+		const memberCount = fragmentUuid
+			? (fragmentMemberCounts.get(fragmentUuid) ?? 0)
+			: 1;
 
 		const entry: LayerDebugEntry = {
 			symbol: id,
@@ -106,11 +125,9 @@ export const buildSnapshot = (
 			layerType: layerType ?? null,
 			uuid: typeof uuidValue === 'string' ? uuidValue : null,
 			fragmentUuid: fragmentUuid ?? null,
-			isShared: !!fragmentUuid,
+			isShared: memberCount > 1,
 			isResolved: typeof uuidValue === 'string',
-			fragmentMemberCount: fragmentUuid
-				? (fragmentMemberCounts.get(fragmentUuid) ?? 0)
-				: 1,
+			fragmentMemberCount: memberCount,
 		};
 		layers.push(entry);
 
@@ -119,13 +136,19 @@ export const buildSnapshot = (
 		}
 	}
 
+	// hasGroupedFragments: true when at least one fragment has > 1 member
+	const hasGroupedFragments = Array.from(fragmentMemberCounts.values()).some(
+		(n) => n > 1
+	);
+
 	return {
 		layers,
 		layerCount: layers.length,
 		sharedFragmentCount: seenFragmentUuids.size,
 		dedicatedLayerCount: dedicatedCount,
 		estimatedNativeLayerCount: seenFragmentUuids.size + dedicatedCount,
-		groupingDepth: registry.groupingDepth,
+		hasGroupedFragments,
+		sharedLayerActive: registry.sharedLayerActive,
 	};
 };
 

@@ -1,12 +1,22 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, type ReactNode } from 'react';
 
 /**
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+
+/**
+ * Module-level counter for generating unique scope IDs. Increments on every
+ * SharedLayer mount, so each mount gets a fresh ID (stable across re-renders,
+ * but unique across instances). The counter never resets — even after all
+ * SharedLayers unmount and a new one mounts — which guarantees no accidental
+ * fragment UUID collision with a previously-destroyed scope.
+ */
+let nextScopeId = 0;
 
 /**
  * Wraps children in a shared-layer grouping context.
@@ -16,13 +26,14 @@ import MapHandleContext from '../context/MapHandleContext';
  * shared-layer fragment per type, regardless of interleaving. This gives
  * correct React-tree z-order at O(1) native draw calls.
  *
- * {@link SharedLayer} nests correctly — each wrapper increments
- * {@link LayerOrderRegistry.groupingDepth} during render (before children
- * render), so nested wrappers accumulate depth correctly.
+ * Uses React Context ({@link SharedLayerContext}) rather than a global mutable
+ * counter, so grouping is properly scoped to this wrapper's subtree. Siblings
+ * rendered after this SharedLayer are unaffected — they see the default
+ * {@code null} context value and receive dedicated native layers.
  *
- * {@link MapContainer} resets {@code groupingDepth = 0} at the start of every
- * render pass, so when a {@link SharedLayer} is removed from the tree the next
- * render immediately sees depth 0 — no stale value from the previous render.
+ * {@link SharedLayer} nests correctly — each wrapper provides its own scope
+ * ID, and {@link useLayerOrder} reads the nearest ancestor's context value.
+ * Nested SharedLayers each get their own independent fragment set.
  *
  * @example
  * ```tsx
@@ -38,11 +49,18 @@ import MapHandleContext from '../context/MapHandleContext';
 const SharedLayer = ({ children }: { children?: ReactNode }) => {
 	const { registry } = useContext(MapHandleContext);
 
-	// Increment during every render — MapContainer resets groupingDepth to 0
-	// at the start of each pass, so when this SharedLayer is present in the
-	// tree children always see depth ≥ 1, and when it's removed they see 0
-	// on the very next render (no stale cleanup value).
-	registry.groupingDepth++;
+	// Stable scope ID for this wrapper instance. Uses a ref so it survives
+	// re-renders but changes on remount (ensuring a fresh scope each time the
+	// wrapper reappears in the tree).
+	const scopeIdRef = useRef<string | null>(null);
+	if (!scopeIdRef.current) {
+		scopeIdRef.current = `_s${nextScopeId++}`;
+	}
+
+	// Mark the registry so the debug overlay can report whether any
+	// SharedLayer wrapper is active, regardless of where the overlay sits
+	// in the tree. MapContainer resets this to false each render pass.
+	registry.sharedLayerActive = true;
 
 	useEffect(() => {
 		registry.notify();
@@ -51,7 +69,11 @@ const SharedLayer = ({ children }: { children?: ReactNode }) => {
 		};
 	}, [registry]);
 
-	return <>{children}</>;
+	return (
+		<SharedLayerContext.Provider value={scopeIdRef.current}>
+			{children}
+		</SharedLayerContext.Provider>
+	);
 };
 
 export default SharedLayer;

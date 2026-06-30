@@ -12,6 +12,11 @@ import reportNativeError from '../reportNativeError';
 export type LayerOrderRegistry = {
 	order: symbol[];
 	uuids: Map<symbol, string>;
+	// Monotonically increasing counter bumped by MapContainer on each of its own renders.
+	// useLayerOrder compares its last-seen generation against this to detect full render
+	// passes (where already-registered layers must be repositioned) vs solo re-renders
+	// (where they must not be disturbed).
+	generation: number;
 	// Id of whichever layer instance rendered immediately before "now" within the current
 	// render pass. MapContainer resets this to undefined at the start of every one of its own
 	// renders; see useLayerOrder for how it's used to anchor newly mounted layers.
@@ -29,9 +34,10 @@ export type LayerOrderRegistry = {
 	// Per-component layer type string (e.g. 'path', 'marker', 'mapsforge', etc.).
 	// Populated by useLayerOrder during render.
 	layerTypes: Map<symbol, string>;
-	// Depth of nested <SharedLayer> wrappers. When > 0, all same-type children within
-	// the innermost SharedLayer collapse into a single shared fragment.
-	groupingDepth: number;
+	// True when at least one <SharedLayer> wrapper rendered in the current pass.
+	// Set by SharedLayer during render, reset by MapContainer each pass.
+	// Exists purely for debug display — useLayerOrder reads SharedLayerContext instead.
+	sharedLayerActive: boolean;
 	scheduleSync: (nativeNodeHandle: null | number) => void;
 	// Debug/devtools subscription — called whenever the registry mutates so the debug
 	// hook (useLayerDebugInfo) can re-read state via useSyncExternalStore.
@@ -142,13 +148,14 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	return {
 		order,
 		uuids,
+		generation: 0,
 		cursor: undefined,
 		cursorLayerType: undefined,
 		fragmentIndices,
 		fragmentUuids,
 		layerTypes,
-		groupingDepth: 0,
 		listeners,
+		sharedLayerActive: false,
 		subscribe: (callback: () => void) => {
 			listeners.add(callback);
 			return () => {
@@ -179,12 +186,13 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 const noopRegistry: LayerOrderRegistry = {
 	order: [],
 	uuids: new Map(),
+	generation: 0,
 	cursor: undefined,
 	cursorLayerType: undefined,
 	fragmentIndices: new Map(),
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
-	groupingDepth: 0,
+	sharedLayerActive: false,
 	listeners: new Set(),
 	subscribe: () => () => {},
 	notify: () => {},

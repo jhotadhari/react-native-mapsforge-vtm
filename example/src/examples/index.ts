@@ -7,6 +7,7 @@ import hillshading from './hillshading';
 import layerOrderVerification from './layer-order-verification';
 import layerShapes from './layer-shapes';
 import manyLayers from './many-layers';
+import mixedGrouping from './mixed-grouping';
 import manyShapes from './many-shapes';
 import mapsforge from './mapsforge';
 import markers from './markers';
@@ -27,6 +28,7 @@ export {
 	layerOrderVerification,
 	layerShapes,
 	manyLayers,
+	mixedGrouping,
 	manyShapes,
 	mapsforge,
 	markers,

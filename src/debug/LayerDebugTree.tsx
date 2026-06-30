@@ -223,9 +223,15 @@ const FragmentGroup: FC<{
  * its type, render-order position, native uuid, and shared-layer fragment
  * assignment.
  *
- * When {@link LayerDebugInfo.groupingDepth} > 0 (i.e. a {@link SharedLayer}
- * wrapper is active), entries are grouped by shared fragment uuid into
- * collapsible groups.
+ * Entries that share a native fragment (i.e. {@link LayerDebugEntry.isShared}
+ * is true because {@link LayerDebugEntry.fragmentMemberCount} > 1) are grouped
+ * into collapsible {@link FragmentGroup} components. Entries with their own
+ * dedicated native layer render as individual rows.
+ *
+ * This works correctly with mixed children — some under {@link SharedLayer}
+ * wrappers and some outside — because grouping is decided per-entry, not by
+ * a global binary flag. Groups and individual rows are interleaved in JSX
+ * document order.
  *
  * The tree is wrapped in a {@link ScrollView} so all layers remain
  * accessible even when the container is shorter than the content. Set
@@ -243,41 +249,48 @@ const LayerDebugTree: FC<LayerDebugTreeProps> = ({ maxHeight = 200 }) => {
 		);
 	}
 
-	const { layers, groupingDepth } = info;
+	const { layers } = info;
 
-	// Build rendering groups: when groupingDepth > 0, ALL entries sharing
-	// the same fragmentUuid are collapsed into a single FragmentGroup
-	// (not just consecutive runs — a shared native fragment may have its
-	// members interleaved with other types in JSX order).  Otherwise
-	// (groupingDepth === 0), every entry renders individually.
+	// Build rendering groups: entries with fragmentMemberCount > 1 are
+	// collapsed into a single FragmentGroup (ordered by first appearance);
+	// individual-dedicated entries render as standalone rows.
 	const groups: Array<
 		| { type: 'entry'; entry: LayerDebugEntry }
 		| { type: 'fragment'; fragmentUuid: string; entries: LayerDebugEntry[] }
 	> = [];
 
-	if (groupingDepth > 0) {
-		// Collect entries by fragment UUID, preserving first-appearance order.
-		const fragmentMap = new Map<string, LayerDebugEntry[]>();
-		const fragmentOrder: string[] = [];
+	// Collect shared-fragment entries by fragment UUID (preserving
+	// first-appearance order), tracking which fragment Uuids we've already
+	// emitted so shared entries don't appear twice.
+	const fragmentMap = new Map<string, LayerDebugEntry[]>();
+	const fragmentOrder: string[] = [];
+	const emittedFragmentUuids = new Set<string>();
 
-		for (const entry of layers) {
-			const fragUuid = entry.fragmentUuid ?? '__dedicated__';
-			if (!fragmentMap.has(fragUuid)) {
-				fragmentMap.set(fragUuid, []);
-				fragmentOrder.push(fragUuid);
+	for (const entry of layers) {
+		if (entry.isShared && entry.fragmentUuid) {
+			// Shared entry: collect into fragment group
+			if (!fragmentMap.has(entry.fragmentUuid)) {
+				fragmentMap.set(entry.fragmentUuid, []);
+				fragmentOrder.push(entry.fragmentUuid);
 			}
-			fragmentMap.get(fragUuid)!.push(entry);
+			fragmentMap.get(entry.fragmentUuid)!.push(entry);
 		}
+	}
 
-		for (const fragUuid of fragmentOrder) {
-			groups.push({
-				type: 'fragment',
-				fragmentUuid: fragUuid,
-				entries: fragmentMap.get(fragUuid)!,
-			});
-		}
-	} else {
-		for (const entry of layers) {
+	// Walk layers in position order, emitting fragment groups at their
+	// first member's position and individual entries in place.
+	for (const entry of layers) {
+		if (entry.isShared && entry.fragmentUuid) {
+			if (!emittedFragmentUuids.has(entry.fragmentUuid)) {
+				emittedFragmentUuids.add(entry.fragmentUuid);
+				groups.push({
+					type: 'fragment',
+					fragmentUuid: entry.fragmentUuid,
+					entries: fragmentMap.get(entry.fragmentUuid)!,
+				});
+			}
+			// else: already emitted this fragment group at first member position
+		} else {
 			groups.push({ type: 'entry', entry });
 		}
 	}

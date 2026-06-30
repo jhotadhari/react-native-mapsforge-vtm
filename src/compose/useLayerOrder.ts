@@ -7,6 +7,7 @@ import { useContext, useEffect, useRef } from 'react';
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
 
 /**
  * Registers a layer component into the shared, map-wide layer ordering registry, and keeps
@@ -19,7 +20,8 @@ import MapHandleContext from '../context/MapHandleContext';
  */
 const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
-	const isGrouped = registry.groupingDepth > 0;
+	const sharedScopeId = useContext(SharedLayerContext);
+	const isGrouped = sharedScopeId !== null;
 
 	const idRef = useRef<undefined | symbol>(undefined);
 	if (!idRef.current) {
@@ -32,6 +34,14 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const nativeNodeHandleRef = useRef(nativeNodeHandle);
 	nativeNodeHandleRef.current = nativeNodeHandle;
 
+	// Track the generation to detect new full render passes. MapContainer bumps
+	// this on every one of its own renders, so a change means the entire subtree
+	// is rendering in document order and already-registered layers must be
+	// repositioned to match.
+	const lastGenerationRef = useRef<number>(registry.generation);
+	const generationChanged = lastGenerationRef.current !== registry.generation;
+	lastGenerationRef.current = registry.generation;
+
 	// Register during render: React calls component render functions in a deterministic
 	// depth-first, document-order sequence regardless of nesting depth. MapContainer resets
 	// registry.cursor to undefined at the start of every one of its own renders, so within any
@@ -39,8 +49,10 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// siblings too, since none of them are memoized), each not-yet-registered instance can
 	// insert itself right after whichever sibling rendered immediately before it — giving it
 	// the correct position even when it's a fresh remount, not just on first-ever mount.
-	// Already-registered instances are never moved here, so a later solo re-render (e.g. this
-	// component's own uuid resolving asynchronously) can never disturb the order.
+	// Already-registered instances are repositioned when the generation changed (full render
+	// pass) but never on a solo re-render (e.g. this component's own uuid resolving
+	// asynchronously), preserving the key invariant that a single layer's state change can
+	// never disturb sibling order.
 	const previousId = registry.cursor;
 	registry.cursor = id;
 	const isNew = !registry.order.includes(id);
@@ -53,27 +65,61 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			0,
 			id
 		);
+	} else if (generationChanged) {
+		// Full render pass: reposition already-registered layers to match the
+		// current document order. The cursor tells us which sibling rendered
+		// immediately before this one, so this layer should sit right after it.
+		const currentIndex = registry.order.indexOf(id);
+		const expectedIndex =
+			previousId !== undefined
+				? registry.order.indexOf(previousId) + 1
+				: 0;
+		if (currentIndex !== expectedIndex) {
+			registry.order.splice(currentIndex, 1);
+			registry.order.splice(
+				currentIndex < expectedIndex
+					? expectedIndex - 1
+					: expectedIndex,
+				0,
+				id
+			);
+		}
 	}
 
 	// Store layer type for type-run boundary detection. For first-time renders,
 	// compute a fragment uuid eagerly so callers can use it immediately. On
 	// re-renders, just advance the cursor so subsequent siblings see the correct
 	// previous type.
+	//
+	// Inside a SharedLayer (sharedScopeId non-null): use the scope ID as the
+	// fragment UUID suffix, so all same-type children within a single SharedLayer
+	// wrapper share one native fragment, and sibling SharedLayers each get their
+	// own independent fragments.
+	//
+	// Outside SharedLayer (sharedScopeId null): use an incrementing per-type
+	// fragment index that advances on type-run boundaries (same as before).
 	if (layerType) {
 		if (isNew) {
 			registry.layerTypes.set(id, layerType);
-			const cursorType = registry.cursorLayerType;
-			if (cursorType !== layerType) {
-				// Type changed — advance fragment index for this type.
-				const currentIdx = registry.fragmentIndices.get(layerType) ?? 0;
-				// When isGrouped (inside <SharedLayer>), force all children
-				// of the same type into a single fragment (index 0).
-				const newIdx = isGrouped ? 0 : currentIdx + 1;
-				registry.fragmentIndices.set(layerType, newIdx);
+
+			if (isGrouped) {
+				// Inside SharedLayer: fragment UUID = __vtm_shared_<type>__<scopeId>
+				const fragmentUuid = `__vtm_shared_${layerType}__${sharedScopeId}`;
+				registry.fragmentUuids.set(id, fragmentUuid);
+			} else {
+				// Outside SharedLayer: use incrementing per-type fragment index.
+				// Consecutive same-type layers share a fragment (index doesn't
+				// change on type-match), alternating types get new fragments.
+				const cursorType = registry.cursorLayerType;
+				if (cursorType !== layerType) {
+					const currentIdx =
+						registry.fragmentIndices.get(layerType) ?? 0;
+					registry.fragmentIndices.set(layerType, currentIdx + 1);
+				}
+				const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
+				const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
+				registry.fragmentUuids.set(id, fragmentUuid);
 			}
-			const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
-			const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
-			registry.fragmentUuids.set(id, fragmentUuid);
 		}
 		// Always advance the cursor so subsequent siblings see the correct previous type
 		registry.cursorLayerType = layerType;
