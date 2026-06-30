@@ -29,6 +29,12 @@ import MapHandleContext from '../context/MapHandleContext';
 const useLayerReindex = () => {
 	const { registry } = useContext(MapHandleContext);
 	registry.generation++;
+	// Reset the cursor so the first child in this render pass anchors at
+	// position 0 rather than using the stale cursor from the previous pass.
+	// Without this, the repositioning logic in useLayerOrder computes
+	// expectedIndex relative to whatever layer rendered last in the prior
+	// pass, converging to the old order — the reindex is silently a no-op.
+	registry.cursor = undefined;
 };
 
 export default useLayerReindex;

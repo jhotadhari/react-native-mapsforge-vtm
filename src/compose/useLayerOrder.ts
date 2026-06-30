@@ -70,25 +70,41 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 		// current document order. The cursor tells us which sibling rendered
 		// immediately before this one, so this layer should sit right after it.
 		const currentIndex = registry.order.indexOf(id);
-		const expectedIndex =
-			previousId !== undefined
-				? registry.order.indexOf(previousId) + 1
-				: 0;
-		if (currentIndex !== expectedIndex) {
-			registry.order.splice(currentIndex, 1);
+		// Defensive: if the id is somehow not in order despite isNew===false
+		// (e.g. Concurrent Mode discarded a partial render), treat as new
+		// registration instead of corrupting the array with splice(-1, 1).
+		if (currentIndex === -1) {
+			const previousIndex = previousId
+				? registry.order.indexOf(previousId)
+				: -1;
 			registry.order.splice(
-				currentIndex < expectedIndex
-					? expectedIndex - 1
-					: expectedIndex,
+				previousIndex === -1
+					? registry.order.length
+					: previousIndex + 1,
 				0,
 				id
 			);
-			// The uuid-mapping useEffect won't re-fire on generation
-			// change (its deps don't include generation), so the native
-			// reorder would never be triggered. Schedule it here directly
-			// whenever a layer actually moved. The debounce coalesces
-			// multiple calls from sibling layers into one native call.
-			registry.scheduleSync(nativeNodeHandle);
+		} else {
+			const expectedIndex =
+				previousId !== undefined
+					? registry.order.indexOf(previousId) + 1
+					: 0;
+			if (currentIndex !== expectedIndex) {
+				registry.order.splice(currentIndex, 1);
+				registry.order.splice(
+					currentIndex < expectedIndex
+						? expectedIndex - 1
+						: expectedIndex,
+					0,
+					id
+				);
+				// The uuid-mapping useEffect won't re-fire on generation
+				// change (its deps don't include generation), so the native
+				// reorder would never be triggered. Schedule it here directly
+				// whenever a layer actually moved. The debounce coalesces
+				// multiple calls from sibling layers into one native call.
+				registry.scheduleSync(nativeNodeHandle);
+			}
 		}
 	}
 

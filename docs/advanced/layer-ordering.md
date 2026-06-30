@@ -1,0 +1,1 @@
+<!-- TODO: Document z-order model — React tree order = native draw order, useLayerOrder registration, generation counter, fragment UUIDs, SharedLayer grouping, useLayerReindex, known bug (TODO.md item 0) -->

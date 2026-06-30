@@ -145,14 +145,12 @@ const MapContainer = ({
 	// Drain the MarkerBatchQueue and cancel pending debounced reorderLayers
 	// timers on unmount, so they don't fire with a stale nativeNodeHandle
 	// after teardown (which would produce cosmetic console errors).
-	const registryRef2 = useRef(registry);
-	registryRef2.current = registry;
 	useEffect(() => {
 		return () => {
 			if (nativeNodeHandleRef.current != null) {
 				drainQueue(nativeNodeHandleRef.current);
 			}
-			registryRef2.current.destroy();
+			registryRef.current!.destroy();
 		};
 	}, []);
 

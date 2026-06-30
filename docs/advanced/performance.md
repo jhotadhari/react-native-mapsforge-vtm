@@ -1,0 +1,1 @@
+<!-- TODO: Document performance best practices — marker batch queue, SharedLayer for grouping, avoiding unnecessary recreations (teardown+recreate triggers), touch latency with overlay pointerEvents -->

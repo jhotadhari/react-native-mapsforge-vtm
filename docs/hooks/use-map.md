@@ -1,0 +1,1 @@
+<!-- TODO: Document useMap — 16 imperative methods (getPosition, jumpTo, panTo, panBy, setZoom/zoomTo/zoomOut, setBearing/rotateTo, resetNorth, setRoll, easeTo, flyTo, fitBounds, flyToBounds, panInsideBounds, panInside), AnimationOptions, EasingType, MapPositionTarget -->

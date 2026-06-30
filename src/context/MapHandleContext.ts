@@ -86,9 +86,10 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	let debounceTimer: null | ReturnType<typeof setTimeout> = null;
 	let maxWaitTimer: null | ReturnType<typeof setTimeout> = null;
 	let pendingNativeNodeHandle: null | number = null;
+	let destroyed = false;
 	const flush = () => {
 		const nativeNodeHandle = pendingNativeNodeHandle;
-		if (!nativeNodeHandle) {
+		if (nativeNodeHandle === null) {
 			return;
 		}
 		// Build orderedUuids from fragment uuids (computed eagerly during render
@@ -170,6 +171,9 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			listeners.forEach((cb) => cb());
 		},
 		scheduleSync: (nativeNodeHandle) => {
+			if (destroyed) {
+				return;
+			}
 			pendingNativeNodeHandle = nativeNodeHandle;
 			// Trailing debounce: every call pushes the flush out, so a continuous burst only
 			// flushes once it actually goes quiet.
@@ -185,6 +189,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			}
 		},
 		destroy: () => {
+			destroyed = true;
 			pendingNativeNodeHandle = null;
 			if (debounceTimer) {
 				clearTimeout(debounceTimer);
