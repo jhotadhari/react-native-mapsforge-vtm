@@ -81,6 +81,7 @@ import type {
 } from './NativeModules/NativeLayerMapsforge';
 
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
+import useLayerReindex from './compose/useLayerReindex';
 import useMap from './compose/useMap';
 import type {
 	EasingType,
@@ -187,6 +188,7 @@ export {
 
 	// Other
 	useRenderStyleOptions,
+	useLayerReindex,
 	CanvasAdapterModule,
 	SharedLayer,
 	type ErrorWithErrorMsg,
