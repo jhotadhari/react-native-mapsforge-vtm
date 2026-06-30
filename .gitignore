@@ -87,3 +87,7 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# yalc
+.yalc/
+yalc.lock
