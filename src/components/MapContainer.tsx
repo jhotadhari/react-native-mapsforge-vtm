@@ -100,18 +100,8 @@ const MapContainer = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ref?.current, setNativeNodeHandle]);
 
-	// Drain the MarkerBatchQueue on unmount to reject all pending marker
-	// create/remove promises and release the per-handle queue. Without this,
-	// the queue Map leaks and pending Promises hang forever.
 	const nativeNodeHandleRef = useRef(nativeNodeHandle);
 	nativeNodeHandleRef.current = nativeNodeHandle;
-	useEffect(() => {
-		return () => {
-			if (nativeNodeHandleRef.current != null) {
-				drainQueue(nativeNodeHandleRef.current);
-			}
-		};
-	}, []);
 
 	const registryRef = useRef<undefined | LayerOrderRegistry>(undefined);
 	if (!registryRef.current) {
@@ -122,14 +112,49 @@ const MapContainer = ({
 	// render pass (where already-registered layers must be repositioned to match the
 	// current document order) from a solo re-render of a single layer (where they must not).
 	registry.generation++;
+	// Rebuild fragment indices from existing order so new layers added during this
+	// pass see the correct continuation index for their type-run. Without this, a
+	// newly-mounted same-type layer at the end of an existing run would default to
+	// fragment index 1 instead of sharing the run's index, causing a z-order
+	// violation (and a fragment-UUID collision with earlier layers that hold index 1).
+	{
+		let lastType: string | undefined;
+		registry.fragmentIndices.clear();
+		for (const id of registry.order) {
+			const t = registry.layerTypes.get(id);
+			if (t) {
+				if (lastType !== t) {
+					const idx = registry.fragmentIndices.get(t) ?? 0;
+					registry.fragmentIndices.set(t, idx + 1);
+				}
+				lastType = t;
+			}
+		}
+		// Seed cursorLayerType from the last layer in order, so a new same-type
+		// layer added at the end sees a type-match and correctly shares the last
+		// fragment index (no spurious increment).
+		registry.cursorLayerType = lastType;
+	}
 	// Reset on every render (not just mount): this is what gives useLayerOrder a fresh,
 	// reliable anchor at the start of each coherent render pass over `children`, so a layer
 	// that mounts/remounts there (e.g. a toggled-on <LayerPath/>) can insert itself in the
 	// right relative position instead of always landing at the end.
 	registry.cursor = undefined;
-	registry.cursorLayerType = undefined;
-	registry.fragmentIndices.clear();
 	registry.sharedLayerActive = false;
+
+	// Drain the MarkerBatchQueue and cancel pending debounced reorderLayers
+	// timers on unmount, so they don't fire with a stale nativeNodeHandle
+	// after teardown (which would produce cosmetic console errors).
+	const registryRef2 = useRef(registry);
+	registryRef2.current = registry;
+	useEffect(() => {
+		return () => {
+			if (nativeNodeHandleRef.current != null) {
+				drainQueue(nativeNodeHandleRef.current);
+			}
+			registryRef2.current.destroy();
+		};
+	}, []);
 
 	const mapHandleContextValue = useMemo<MapHandleContextValue>(
 		() => ({

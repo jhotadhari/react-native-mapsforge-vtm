@@ -121,8 +121,15 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 				registry.fragmentUuids.set(id, fragmentUuid);
 			}
 		}
-		// Always advance the cursor so subsequent siblings see the correct previous type
-		registry.cursorLayerType = layerType;
+		// Advance the cursor for non-grouped type-run detection only. Inside a
+		// SharedLayer, fragment assignment uses the scope ID as suffix (not
+		// fragment indices), so cursorLayerType is irrelevant — and advancing
+		// it would leak the type across the SharedLayer boundary, causing the
+		// next layer outside the wrapper to falsely see a type-match and skip
+		// the fragment index increment.
+		if (!isGrouped) {
+			registry.cursorLayerType = layerType;
+		}
 	}
 
 	// Compute the current position index among JS-managed layers. This is called during

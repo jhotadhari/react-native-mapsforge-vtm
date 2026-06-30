@@ -39,6 +39,10 @@ export type LayerOrderRegistry = {
 	// Exists purely for debug display — useLayerOrder reads SharedLayerContext instead.
 	sharedLayerActive: boolean;
 	scheduleSync: (nativeNodeHandle: null | number) => void;
+	// Cancels pending debounced flush timers. Call when the map view is
+	// destroyed to prevent stale nativeNodeHandle calls that would produce
+	// cosmetic console errors (reportNativeError) after teardown.
+	destroy: () => void;
 	// Debug/devtools subscription — called whenever the registry mutates so the debug
 	// hook (useLayerDebugInfo) can re-read state via useSyncExternalStore.
 	listeners: Set<() => void>;
@@ -180,6 +184,17 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 				maxWaitTimer = setTimeout(doFlush, MAX_WAIT_MS);
 			}
 		},
+		destroy: () => {
+			pendingNativeNodeHandle = null;
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+				debounceTimer = null;
+			}
+			if (maxWaitTimer) {
+				clearTimeout(maxWaitTimer);
+				maxWaitTimer = null;
+			}
+		},
 	};
 };
 
@@ -197,6 +212,7 @@ const noopRegistry: LayerOrderRegistry = {
 	subscribe: () => () => {},
 	notify: () => {},
 	scheduleSync: () => {},
+	destroy: () => {},
 };
 
 const MapHandleContext = createContext<MapHandleContextValue>({

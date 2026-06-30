@@ -259,11 +259,9 @@ const LayerDebugTree: FC<LayerDebugTreeProps> = ({ maxHeight = 200 }) => {
 		| { type: 'fragment'; fragmentUuid: string; entries: LayerDebugEntry[] }
 	> = [];
 
-	// Collect shared-fragment entries by fragment UUID (preserving
-	// first-appearance order), tracking which fragment Uuids we've already
-	// emitted so shared entries don't appear twice.
+	// Collect shared-fragment entries by fragment UUID, keyed for O(1)
+	// lookup during the position-order walk below.
 	const fragmentMap = new Map<string, LayerDebugEntry[]>();
-	const fragmentOrder: string[] = [];
 	const emittedFragmentUuids = new Set<string>();
 
 	for (const entry of layers) {
@@ -271,7 +269,6 @@ const LayerDebugTree: FC<LayerDebugTreeProps> = ({ maxHeight = 200 }) => {
 			// Shared entry: collect into fragment group
 			if (!fragmentMap.has(entry.fragmentUuid)) {
 				fragmentMap.set(entry.fragmentUuid, []);
-				fragmentOrder.push(entry.fragmentUuid);
 			}
 			fragmentMap.get(entry.fragmentUuid)!.push(entry);
 		}

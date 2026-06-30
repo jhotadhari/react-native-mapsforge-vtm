@@ -10,11 +10,18 @@ import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
 
 /**
- * Module-level counter for generating unique scope IDs. Increments on every
- * SharedLayer mount, so each mount gets a fresh ID (stable across re-renders,
- * but unique across instances). The counter never resets — even after all
- * SharedLayers unmount and a new one mounts — which guarantees no accidental
- * fragment UUID collision with a previously-destroyed scope.
+ * Module-level prefix for scope IDs. Combines a timestamp and random suffix
+ * so that after Fast Refresh / HMR (which re-executes module scope and resets
+ * the counter), a newly-mounted SharedLayer cannot produce a scope ID that
+ * collides with a still-mounted instance from before the refresh.
+ */
+const SCOPE_ID_PREFIX = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+/**
+ * Counter for generating unique scope IDs within a single module lifetime.
+ * Increments on every SharedLayer mount, so each mount gets a fresh ID (stable
+ * across re-renders, but unique across instances). Combined with {@link SCOPE_ID_PREFIX},
+ * scope IDs are unique even across Fast Refresh boundaries.
  */
 let nextScopeId = 0;
 
@@ -54,7 +61,7 @@ const SharedLayer = ({ children }: { children?: ReactNode }) => {
 	// wrapper reappears in the tree).
 	const scopeIdRef = useRef<string | null>(null);
 	if (!scopeIdRef.current) {
-		scopeIdRef.current = `_s${nextScopeId++}`;
+		scopeIdRef.current = `_s${SCOPE_ID_PREFIX}_${nextScopeId++}`;
 	}
 
 	// Mark the registry so the debug overlay can report whether any
