@@ -30,7 +30,7 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 
 ## Advanced
 
-- **[Layer Ordering](./advanced/layer-ordering.md)** — How z-order works, SharedLayer, `useLayerReindex`
+- **[Layer Ordering](./advanced/layer-ordering.md)** — How z-order works, SharedLayer, `ReindexScope`
 - **[Performance](./advanced/performance.md)** — Batch insertion, shared layers, avoiding recreations
 - **[Known Issues](./advanced/known-issues.md)** — Current bugs and workarounds
 
