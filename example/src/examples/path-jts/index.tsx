@@ -43,11 +43,6 @@ const defaultCenter: Position = [-25, 17]; // Mid-Atlantic
 const rioDeJaneiro: Position = [-43.1729, -22.9068];
 const lisbon: Position = [-9.1393, 38.7223];
 
-// Generate intermediate waypoints along the great-circle route for the
-// LayerPathJts great-circle arc (JTS computes the arc internally; these
-// are just the endpoints).
-const greatCircleArc: Position[] = [rioDeJaneiro, lisbon];
-
 // Straight-line coordinates (LayerPath — rendered as a direct line).
 const straightLine: Position[] = [rioDeJaneiro, lisbon];
 
@@ -110,7 +105,7 @@ const styleStraight: GeometryStyle = {
 const styleGreatCircle: GeometryStyleJts = {
 	strokeColor: '#ff4444',
 	strokeWidth: 4,
-	generalization: 0.001,
+	generalization: 1, // SMALL — built-in Douglas-Peucker
 };
 
 const styleArcApprox: GeometryStyle = {
@@ -165,17 +160,17 @@ const Controls: FC<{
 			<ControlRow>
 				<Text
 					style={sharedStyles.text}
-					onPress={() => onGeneralization(0.0001)}
+					onPress={() => onGeneralization(0)}
 				>
 					Off
 				</Text>
 				<Switch
-					value={generalization > 0.0005}
-					onValueChange={(v) => onGeneralization(v ? 0.001 : 0.0001)}
+					value={generalization > 0}
+					onValueChange={(v) => onGeneralization(v ? 1 : 0)}
 				/>
 				<Text
 					style={sharedStyles.text}
-					onPress={() => onGeneralization(0.01)}
+					onPress={() => onGeneralization(8)}
 				>
 					Aggressive
 				</Text>
@@ -188,7 +183,7 @@ const Controls: FC<{
 				<Text style={{ color: '#ff4444', fontWeight: 'bold' }}>
 					Red arc
 				</Text>{' '}
-				= LayerPathJts great-circle (shortest path).{'\n'}•{' '}
+				= LayerPathJts (dedicated layer, guaranteed z-order).{'\n'}•{' '}
 				<Text style={{ color: '#0000ff', fontWeight: 'bold' }}>
 					Blue line
 				</Text>{' '}
@@ -216,7 +211,7 @@ const ExampleComponent: FC<{
 
 	const [showJts, setShowJts] = useState(true);
 	const [showPath, setShowPath] = useState(true);
-	const [generalization, setGeneralization] = useState(0.001);
+	const [generalization, setGeneralization] = useState(1);
 
 	const arcApprox = useMemo(() => generateArcApproximation(50), []);
 
@@ -260,7 +255,7 @@ const ExampleComponent: FC<{
 					)}
 					{showJts && (
 						<LayerPathJts
-							coordinates={greatCircleArc}
+							coordinates={arcApprox}
 							style={{
 								...styleGreatCircle,
 								generalization,

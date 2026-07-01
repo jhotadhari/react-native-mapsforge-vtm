@@ -36,6 +36,9 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const nativeNodeHandleRef = useRef(nativeNodeHandle);
 	nativeNodeHandleRef.current = nativeNodeHandle;
 
+	// Guard to skip redundant Map write when reindex scope hasn't changed.
+	const prevReindexScopeRef = useRef<symbol | null>(null);
+
 	// Track the generation to detect new full render passes. MapContainer bumps
 	// this on every one of its own renders, so a change means the entire subtree
 	// is rendering in document order and already-registered layers must be
@@ -161,8 +164,12 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// Runs every render, not just isNew, so the scope association stays
 	// current as long as this component is inside a ReindexScope.
 	if (reindexScopeId !== null) {
-		registry.layerReindexScopes.set(id, reindexScopeId);
+		if (prevReindexScopeRef.current !== reindexScopeId) {
+			prevReindexScopeRef.current = reindexScopeId;
+			registry.layerReindexScopes.set(id, reindexScopeId);
+		}
 	} else {
+		prevReindexScopeRef.current = null;
 		registry.layerReindexScopes.delete(id);
 	}
 
