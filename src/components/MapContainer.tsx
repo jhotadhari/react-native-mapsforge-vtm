@@ -65,7 +65,7 @@ const MapContainer = ({
 	hgtReadFileRate = moduleDefaults.hgtReadFileRate,
 	hgtFileInfoPurgeThreshold = moduleDefaults.hgtFileInfoPurgeThreshold,
 	responseInclude: responseIncludeParams = moduleDefaults.responseInclude,
-	mapEventRate = moduleDefaults.mapEventRate,
+	mapUpdateInterval = moduleDefaults.mapUpdateInterval,
 	emitsMapUpdateEvents = moduleDefaults.emitsMapUpdateEvents,
 	onMapUpdate,
 	onPause,
@@ -225,7 +225,7 @@ const MapContainer = ({
 					hgtFileInfoPurgeThreshold
 				)}
 				responseInclude={responseInclude}
-				mapEventRate={Math.round(mapEventRate)}
+				mapUpdateInterval={Math.round(mapUpdateInterval)}
 				emitsMapUpdateEvents={
 					isBoolean(emitsMapUpdateEvents)
 						? emitsMapUpdateEvents

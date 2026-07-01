@@ -59,7 +59,7 @@ public class MapsforgeVtmView extends LinearLayout {
 	private int hgtReadFileRate;
 	private int hgtFileInfoPurgeThreshold;
 	private ReadableMap responseInclude;
-	private int mapEventRate;
+	private int mapUpdateInterval;
 	private boolean emitsMapUpdateEvents;
 
 	public MapsforgeVtmView( ThemedReactContext context ) { super(context); }
@@ -342,15 +342,15 @@ public class MapsforgeVtmView extends LinearLayout {
 		return responseInclude;
 	}
 
-	public void setMapEventRate( int mapEventRate ) {
-		this.mapEventRate = mapEventRate;
+	public void setMapUpdateInterval( int mapUpdateInterval ) {
+		this.mapUpdateInterval = mapUpdateInterval;
 		if ( null != mapFragment ) {
 			mapFragment.updateRateLimiterRate();
 		}
 	}
 
-	public int getMapEventRate() {
-		return mapEventRate;
+	public int getMapUpdateInterval() {
+		return mapUpdateInterval;
 	}
 
 	public void setEmitsMapUpdateEvents( boolean emitsMapUpdateEvents ) {

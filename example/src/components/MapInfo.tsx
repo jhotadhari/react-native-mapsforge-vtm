@@ -7,9 +7,10 @@ import {
 	type NativeSyntheticEvent,
 } from 'react-native';
 import type { MapEventResponse } from 'react-native-mapsforge-vtm';
+import { useMapPosition } from 'react-native-mapsforge-vtm/reanimated';
 import { sharedStyles } from '../sharedDeps';
 
-// Collapsed by default -- the raw onMapUpdate JSON dump is mostly useful while actively debugging
+// Collapsed by default — the raw onMapUpdate JSON dump is mostly useful while actively debugging
 // a specific example, not something that should cover map content from the moment a screen opens.
 const MapInfo: FC<{
 	info?: MapEventResponse;
@@ -42,19 +43,58 @@ const MapInfo: FC<{
 	);
 };
 
+/**
+ * Hook that subscribes to map position updates for debug display.
+ *
+ * Internally composes {@link useMapPosition} so that every example
+ * automatically wires reanimated shared values alongside the debug
+ * overlay. The returned `handleMapUpdate` writes to shared values
+ * first, then stores the raw event for the JSON dump.
+ *
+ * ## For library consumers: when to use which API
+ *
+ * | API | Best for |
+ * |-----|----------|
+ * | `MapContainer.onMapUpdate` prop | One-shot reactions, debug logging, any code that already calls `setState` |
+ * | `useMapPosition()` (from `/reanimated`) | Smooth 60fps position displays, worklet-driven overlays — zero React re-renders for reads |
+ * | `useMap().getPosition()` (imperative) | Button-triggered snapshots ("save current position"), non-continuous queries |
+ *
+ * `onMapUpdate` and `useMapPosition()` coexist — you can use both in the
+ * same component. The bridge event fires once per `mapUpdateInterval` ms
+ * (default 40, ~25fps); shared values receive the same writes and worklet
+ * consumers read them on the UI thread without crossing the bridge.
+ */
 export const useMapInfo = () => {
+	const {
+		centerSv,
+		zoomSv,
+		bearingSv,
+		tiltSv,
+		handleMapUpdate: reanimatedHandleMapUpdate,
+	} = useMapPosition();
+
 	const [info, setInfo] = useState<MapEventResponse | undefined>(undefined);
 
 	const handleMapUpdate = useCallback(
 		(response: NativeSyntheticEvent<Readonly<MapEventResponse>>) => {
+			// Write to shared values (UI-thread-accessible, zero React re-renders).
+			reanimatedHandleMapUpdate(response);
+			// Mirror raw event for the JSON debug overlay.
 			// console.log('debug onMapUpdate', response?.nativeEvent); // debug
 			setInfo(response?.nativeEvent);
 		},
-		[]
+		[reanimatedHandleMapUpdate]
 	);
+
 	return {
 		handleMapUpdate,
 		info,
+		// Shared values — available for worklet consumers
+		// (useDerivedValue, useAnimatedStyle, etc.) in any example.
+		centerSv,
+		zoomSv,
+		bearingSv,
+		tiltSv,
 	};
 };
 

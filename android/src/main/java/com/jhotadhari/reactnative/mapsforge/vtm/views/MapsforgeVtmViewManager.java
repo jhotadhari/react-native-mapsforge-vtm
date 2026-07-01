@@ -233,11 +233,11 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 		}
 	}
 
-	@ReactProp( name = "mapEventRate" )
+	@ReactProp( name = "mapUpdateInterval" )
 	@Override
-	public void setMapEventRate( MapsforgeVtmView view, int value ) {
+	public void setMapUpdateInterval( MapsforgeVtmView view, int value ) {
 		if ( view != null ) {
-			view.setMapEventRate( value );
+			view.setMapUpdateInterval( value );
 		}
 	}
 

@@ -100,7 +100,7 @@ public class MapContainer extends NativeMapContainerSpec {
 		responseInclude.putInt( "tilt", 0 );
 		responseInclude.putInt( "center", 0 );
 		constants.put( "responseInclude", responseInclude );
-		constants.put( "mapEventRate", 40 );
+		constants.put( "mapUpdateInterval", 40 );
 		constants.put( "emitsMapUpdateEvents", null );
 		WritableArray emitsHardwareKeyUp = new WritableNativeArray();
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_UP" );

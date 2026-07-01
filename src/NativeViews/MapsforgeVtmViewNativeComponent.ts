@@ -87,7 +87,7 @@ interface MapViewProps extends ViewProps {
 	hgtFileInfoPurgeThreshold?: Int32;
 	responseInclude?: ResponseInclude;
 	emitsMapUpdateEvents: boolean;
-	mapEventRate?: Int32;
+	mapUpdateInterval?: Int32;
 	onMapCreated?: DirectEventHandler<Readonly<{}>> | null;
 	onMapUpdate?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
@@ -125,7 +125,7 @@ export type MapContainerProps = {
 	hgtReadFileRate?: MapViewProps['hgtReadFileRate'];
 	hgtFileInfoPurgeThreshold?: MapViewProps['hgtFileInfoPurgeThreshold'];
 	responseInclude?: MapViewProps['responseInclude'];
-	mapEventRate?: MapViewProps['mapEventRate'];
+	mapUpdateInterval?: MapViewProps['mapUpdateInterval'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];
 	onMapUpdate?: MapViewProps['onMapUpdate'];
 	onPause?: MapViewProps['onPause'];

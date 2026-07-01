@@ -180,3 +180,25 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 - `LayerHelper.getLayer()` / `getLayers()` — reads from `MapMutationQueue.getKnownLayers()` (ConcurrentHashMap, safe from any thread)
 - `LayerZoomBoundsHelper.removeUpdateListener()` — calls `mapView.map().events.unbind()` (event listener management, not layer mutation)
 - Marker/Path entry creation — operates on already-registered shared `Layer` objects (adds drawables/markers to `VectorLayer`/`ItemizedLayer`), not on `map.layers()`
+
+### Map position consumption patterns
+
+There are three tiers for reading the current map position (center, zoom, bearing, tilt) in JS,
+ordered from simplest to most performant:
+
+| Tier | API | Bridge crossings | React re-renders | When to use |
+|---|---|---|---|---|
+| **Callback** | `MapContainer.onMapUpdate` prop | ~25/sec (one-way native→JS) | ~25/sec | Debug overlays, one-shot reactions, anything that already calls `setState`. The event fires at most once per `mapUpdateInterval` ms (default 40). |
+| **Shared values** | `useMapPosition()` from `react-native-mapsforge-vtm/reanimated` | ~25/sec (writes only) | 0 (worklet reads are UI-thread) | Smooth coordinate displays, overlay positioning, any worklet-based UI that needs to track map position at 60fps without triggering React reconciliation. Requires `react-native-reanimated >= 3.0.0` (optional peer dependency). |
+| **Imperative** | `useMap().getPosition()` | 2 per call (round-trip JS→native→JS) | 0–1 per call | Button-triggered snapshots ("save current position"), non-continuous queries. Not suitable for tracking during pan/zoom — use the callback or shared values instead. |
+
+**Callback vs shared values — they coexist.** `useMapPosition()` internally creates reanimated shared
+values and returns a `handleMapUpdate` callback that you pass as the `onMapUpdate` prop. The bridge
+event still fires at the same rate; the shared values receive the same writes. The win is that
+worklet consumers (`useDerivedValue`, `useAnimatedStyle`, `useAnimatedProps`) read from shared values
+on the UI thread — zero bridge crossings, zero React re-renders for reads.
+
+**The trailing-edge guarantee.** `MapFragment` uses a throttle-with-trailing-edge pattern: during
+continuous movement, events fire at most once per `mapUpdateInterval` ms (throttle). When movement
+stops, a final flush fires after `mapUpdateInterval` ms of silence, guaranteeing the resting position
+is never lost. This applies to both the `onMapUpdate` callback and the shared-values channel.

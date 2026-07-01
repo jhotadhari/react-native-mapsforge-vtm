@@ -2,19 +2,6 @@
 
 React Native components to build vector maps using [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). Offline rendering of OpenStreetMap data. Android only
 
-**Just some ideas in early development state. Do not use this for production!** ... Well, you can use it, but things are changing!
-
-## Roadmap
-
-Some things will change sometime soonish:
-
-- Marker improvements: clustering and support for drag and drop.
-- Gesture events for `MapContainer` (added: `onTap` / `onLongPress`).
-- New components for geometry like polygons and circles (added: `LayerShape`).
-- New component `LayerGroup` (released as `SharedLayer`).
-- Dedicated JTS path layer with great-circle arcs (added: `LayerPathJts`).
-- ...
-
 ## Requirements
 
 - **React Native ≥ 0.80.0** with the **New Architecture** enabled. The library ships pre-generated native code that requires `target_compile_reactnative_options` (introduced in React Native 0.80.0). Older versions will hit `Unknown CMake command` errors at build time.

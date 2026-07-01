@@ -47,7 +47,7 @@ export interface ModuleParams {
 	hgtReadFileRate: Int32;
 	hgtFileInfoPurgeThreshold: Int32;
 	responseInclude: ResponseInclude;
-	mapEventRate: Int32;
+	mapUpdateInterval: Int32;
 	emitsMapUpdateEvents: null | boolean;
 	emitsHardwareKeyUp: ReadonlyArray<string>;
 }

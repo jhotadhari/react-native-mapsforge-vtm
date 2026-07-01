@@ -1,6 +1,8 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +35,10 @@ public class MapFragment extends Fragment {
 	private GestureLayer gestureLayer;
 
 	protected FixedWindowRateLimiter rateLimiter;
+
+	private Handler mainHandler;
+
+	private Runnable pendingTrailingEdge;
 
 	public MapView getMapView() {
 		return mapView;
@@ -79,7 +85,13 @@ public class MapFragment extends Fragment {
 
 	public void updateRateLimiterRate() {
 		if ( null != getMapsforgeVtmView() ) {
-			rateLimiter = new FixedWindowRateLimiter( getMapsforgeVtmView().getMapEventRate(), 1 );
+			rateLimiter = new FixedWindowRateLimiter( getMapsforgeVtmView().getMapUpdateInterval(), 1 );
+		}
+		// Cancel any pending trailing-edge flush scheduled with the old
+		// window size. The next onMapEvent will re-schedule a fresh one.
+		if ( null != pendingTrailingEdge && null != mainHandler ) {
+			mainHandler.removeCallbacks( pendingTrailingEdge );
+			pendingTrailingEdge = null;
 		}
 	}
 
@@ -95,6 +107,13 @@ public class MapFragment extends Fragment {
 		if ( updateListener != null ) {
 			mapView.map().events.unbind( updateListener );
 			updateListener = null;
+		}
+		// Cancel any pending trailing-edge flush so it doesn't fire
+		// after the listener has been unbound (would deliver a stale
+		// event to a component that is no longer listening).
+		if ( null != pendingTrailingEdge && null != mainHandler ) {
+			mainHandler.removeCallbacks( pendingTrailingEdge );
+			pendingTrailingEdge = null;
 		}
 	}
 
@@ -130,12 +149,39 @@ public class MapFragment extends Fragment {
 
 	protected void bindUpdateListener() {
 		if ( null != getMapsforgeVtmView() && getMapsforgeVtmView().getEmitsMapUpdateEvents() && null == updateListener ) {
+			if ( null == mainHandler ) {
+				mainHandler = new Handler( Looper.getMainLooper() );
+			}
 			updateListener = new Map.UpdateListener() {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
+					// Cancel any previously scheduled trailing-edge flush —
+					// each new vtm event resets the silence timer.
+					if ( null != pendingTrailingEdge ) {
+						mainHandler.removeCallbacks( pendingTrailingEdge );
+					}
+					// Leading edge: emit immediately if the rate limiter allows.
 					if ( rateLimiter.tryAcquire() ) {
 						getMapsforgeVtmView().emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
 					}
+					// Schedule trailing-edge flush: guarantees the final position
+					// after a gesture is never lost, even if the last vtm event
+					// fell in an already-consumed rate-limit window. Fires only
+					// after mapUpdateInterval ms of silence.
+					pendingTrailingEdge = new Runnable() {
+						@Override
+						public void run() {
+							pendingTrailingEdge = null;
+							MapsforgeVtmView parent = getMapsforgeVtmView();
+							if ( null != parent && null != mapView && null != mapView.map() ) {
+								parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
+							}
+						}
+					};
+					mainHandler.postDelayed(
+						pendingTrailingEdge,
+						getMapsforgeVtmView().getMapUpdateInterval()
+					);
 				}
 			};
 			mapView.map().events.bind( updateListener );
