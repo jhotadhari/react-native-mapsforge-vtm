@@ -60,10 +60,7 @@ const MapContainer = ({
 	roll = moduleDefaults.roll,
 	minRoll = moduleDefaults.minRoll,
 	maxRoll = moduleDefaults.maxRoll,
-	hgtDirPath = moduleDefaults.hgtDirPath as MapContainerProps['hgtDirPath'],
-	hgtInterpolation = moduleDefaults.hgtInterpolation,
-	hgtReadFileRate = moduleDefaults.hgtReadFileRate,
-	hgtFileInfoPurgeThreshold = moduleDefaults.hgtFileInfoPurgeThreshold,
+	hgtDirPath = null as string | null,
 	responseInclude: responseIncludeParams = moduleDefaults.responseInclude,
 	mapUpdateInterval = moduleDefaults.mapUpdateInterval,
 	emitsMapUpdateEvents = moduleDefaults.emitsMapUpdateEvents,
@@ -74,6 +71,7 @@ const MapContainer = ({
 	onTap,
 	onLongPress,
 }: MapContainerProps & {
+	hgtDirPath?: string | null;
 	triggerEvent?: MutableRefObject<null | ((params: TriggerParams) => void)>;
 }) => {
 	const ref = useRef(null);
@@ -187,6 +185,19 @@ const MapContainer = ({
 		};
 	}, [triggerEvent, nativeNodeHandle]);
 
+	// Wire hgtDirPath to native MapContainer.setHgtDirPath() for altitude queries.
+	useEffect(() => {
+		if (nativeNodeHandle) {
+			NativeMapContainer.setHgtDirPath({
+				nativeNodeHandle,
+				hgtDirPath: hgtDirPath ?? '',
+			}).catch(() => {
+				// Elevation is best-effort; silently ignore failures
+				// (e.g. invalid path, missing permissions).
+			});
+		}
+	}, [nativeNodeHandle, hgtDirPath]);
+
 	const responseInclude = useMemo(
 		() => ({
 			...moduleDefaults.responseInclude,
@@ -218,12 +229,6 @@ const MapContainer = ({
 				roll={roll}
 				minRoll={minRoll}
 				maxRoll={maxRoll}
-				hgtDirPath={hgtDirPath || ''}
-				hgtInterpolation={hgtInterpolation}
-				hgtReadFileRate={Math.round(hgtReadFileRate)}
-				hgtFileInfoPurgeThreshold={Math.round(
-					hgtFileInfoPurgeThreshold
-				)}
 				responseInclude={responseInclude}
 				mapUpdateInterval={Math.round(mapUpdateInterval)}
 				emitsMapUpdateEvents={

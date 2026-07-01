@@ -2,6 +2,8 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import androidx.annotation.NonNull;
 
+import androidx.annotation.Nullable;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
@@ -12,12 +14,17 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader;
 import com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeMapContainerSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.EventEmitterCallback;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+
+import org.mapsforge.map.layer.hills.DemFolder;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.oscim.android.MapView;
 import org.oscim.core.BoundingBox;
@@ -44,6 +51,11 @@ public class MapContainer extends NativeMapContainerSpec {
 	// together with the call that superseded it -- so by the time any of them resolves, the camera
 	// genuinely reflects whichever target was requested last.
 	private final Map<Integer, PendingAnimateTo> pendingAnimateTo = new HashMap<>();
+
+	// Elevation readers keyed by nativeNodeHandle, lazily created by setHgtDirPath.
+	// ConcurrentHashMap — accessed from Native Modules thread (setHgtDirPath, getAltitudeAtPosition),
+	// render thread (getElevationReader), and UI thread (removeElevationReader).
+	private final Map<Integer, ElevationReader> elevationReaders = new ConcurrentHashMap<>();
 
 	private static class PendingAnimateTo {
 		final org.oscim.map.Map.UpdateListener listener;
@@ -86,10 +98,6 @@ public class MapContainer extends NativeMapContainerSpec {
 		constants.put( "roll", 0 );
 		constants.put( "minRoll", -180 );
 		constants.put( "maxRoll", 180 );
-		constants.put( "hgtDirPath", null );
-		constants.put( "hgtInterpolation", true );
-		constants.put( "hgtReadFileRate", 100 );
-		constants.put( "hgtFileInfoPurgeThreshold", 3 );
 		WritableMap responseInclude = new WritableNativeMap();
 		responseInclude.putInt( "zoomLevel", 0 );
 		responseInclude.putInt( "zoom", 0 );
@@ -344,6 +352,106 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
+
+	@Override
+	public void setHgtDirPath( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "hgtDirPath" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or hgtDirPath" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String hgtDirPath = params.getString( "hgtDirPath" );
+
+			// Tear down any existing reader for this handle.
+			ElevationReader old = elevationReaders.remove( nativeNodeHandle );
+			if ( old != null ) {
+				old.close();
+			}
+
+			if ( hgtDirPath == null || hgtDirPath.isEmpty() ) {
+				promise.resolve( null );
+				return;
+			}
+
+			// Build a DemFolder from the path (same logic as the old
+			// MapsforgeVtmView.setHgtReader and LayerHillshading.buildDemFolder).
+			DemFolder demFolder = Utils.buildDemFolder( hgtDirPath, getReactApplicationContext() );
+			if ( demFolder == null ) {
+				Utils.promiseReject( promise, "hgtDirPath does not exist or is not a readable directory" );
+				return;
+			}
+
+			ElevationReader reader = new ElevationReader( demFolder );
+			elevationReaders.put( nativeNodeHandle, reader );
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void getAltitudeAtPosition( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "lng" ) || ! Utils.rMapHasKey( params, "lat" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle, lng, or lat" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			double lng = params.getDouble( "lng" );
+			double lat = params.getDouble( "lat" );
+
+			ElevationReader reader = elevationReaders.get( nativeNodeHandle );
+			if ( reader == null ) {
+				Utils.promiseReject( promise, "No elevation data configured — set hgtDirPath on MapContainer first" );
+				return;
+			}
+
+			Short elevation = reader.getElevation( lng, lat );
+			WritableMap result = new WritableNativeMap();
+			if ( elevation != null ) {
+				result.putDouble( "altitude", elevation.doubleValue() );
+			} else {
+				result.putNull( "altitude" );
+			}
+			promise.resolve( result );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	/**
+	 * Removes and closes the ElevationReader for the given nativeNodeHandle.
+	 * Called from MapFragment.onDestroy() during teardown.
+	 */
+	public static void removeElevationReader( int nativeNodeHandle, com.facebook.react.bridge.ReactContext reactContext ) {
+		if ( reactContext == null ) {
+			return;
+		}
+		MapContainer module = reactContext.getNativeModule( MapContainer.class );
+		if ( module != null ) {
+			ElevationReader reader = module.elevationReaders.remove( nativeNodeHandle );
+			if ( reader != null ) {
+				reader.close();
+			}
+		}
+	}
+
+	/**
+	 * Returns the ElevationReader for the given nativeNodeHandle, or null.
+	 * Called from MapFragment.getResponseBase() on the render thread — the
+	 * ElevationReader's getElevation() is thread-safe (synchronized LruCache
+	 * access + simple array reads) and cached lookups are sub-millisecond.
+	 */
+	@Nullable
+	public static ElevationReader getElevationReader( int nativeNodeHandle, com.facebook.react.bridge.ReactContext reactContext ) {
+		if ( reactContext == null ) {
+			return null;
+		}
+		MapContainer module = reactContext.getNativeModule( MapContainer.class );
+		if ( module == null ) {
+			return null;
+		}
+		return module.elevationReaders.get( nativeNodeHandle );
+	}
 
 	@Override
 	public void triggerEvent( ReadableMap params ) {

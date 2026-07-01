@@ -221,10 +221,16 @@ public class MapFragment extends Fragment {
 			double lng = mapPosition.getLongitude();
 			double lat = mapPosition.getLatitude();
 			Double alt = null;
-			if ( null != getMapsforgeVtmView().getHgtReader() ) {
-				Short altitude = getMapsforgeVtmView().getHgtReader().getAltitudeAtPosition( lng, lat, true );
-				if ( null != altitude ) {
-					alt = altitude.doubleValue();
+			MapsforgeVtmView parent = getMapsforgeVtmView();
+			if ( null != parent ) {
+				com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
+					com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
+						parent.getId(), parent.getReactContext() );
+				if ( null != reader ) {
+					Short elevation = reader.getElevation( lng, lat );
+					if ( null != elevation ) {
+						alt = elevation.doubleValue();
+					}
 				}
 			}
 			payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
@@ -351,6 +357,7 @@ public class MapFragment extends Fragment {
 			int handle = parent.getId();
 			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
+			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.removeElevationReader( handle, parent.getReactContext() );
 		}
 		if ( mapView != null ) {
 			if ( gestureLayer != null && mapView.map() != null ) {

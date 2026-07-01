@@ -1,10 +1,8 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.graphics.Color;
-import android.net.Uri;
 
 import androidx.annotation.NonNull;
-import androidx.documentfile.provider.DocumentFile;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -15,11 +13,9 @@ import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerHillshadingSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
-import org.mapsforge.map.android.hills.DemFolderAndroidContent;
 import org.mapsforge.map.layer.hills.AClasyHillShading;
 import org.mapsforge.map.layer.hills.AdaptiveClasyHillShading;
 import org.mapsforge.map.layer.hills.DemFolder;
-import org.mapsforge.map.layer.hills.DemFolderFS;
 import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
 import org.mapsforge.map.layer.hills.HalfResClasyHillShading;
 import org.mapsforge.map.layer.hills.HiResClasyHillShading;
@@ -32,7 +28,6 @@ import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.tiling.ITileCache;
 import org.oscim.tiling.source.hills.HillshadingTileSource;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -86,9 +81,10 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 			}
 			String hgtDirPath = params.getString( "hgtDirPath" );
 
-			DemFolder demFolder = buildDemFolder( hgtDirPath, promise );
+			DemFolder demFolder = Utils.buildDemFolder( hgtDirPath, getReactApplicationContext() );
 			if ( null == demFolder ) {
-				return; // buildDemFolder already rejected the promise with a specific message.
+				Utils.promiseReject( promise, "hgtDirPath does not exist or is not a readable directory" );
+				return;
 			}
 
 			// Get params, assign defaults.
@@ -160,28 +156,6 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 	@Override
 	public void updateEnabledZoomMinMax( ReadableMap params, Promise promise ) {
 		layerHelper.updateEnabledZoomMinMax( params, promise );
-	}
-
-	private DemFolder buildDemFolder( String hgtDirPath, Promise promise ) {
-		if ( hgtDirPath.startsWith( "content://" ) ) {
-			DocumentFile dir = DocumentFile.fromSingleUri( getReactApplicationContext(), Uri.parse( hgtDirPath ) );
-			if ( null == dir || ! dir.exists() || ! dir.isDirectory() ) {
-				Utils.promiseReject( promise, "hgtDirPath is not existing or not a directory" ); return null;
-			}
-			if ( ! Utils.hasScopedStoragePermission( getReactApplicationContext(), hgtDirPath, false ) ) {
-				Utils.promiseReject( promise, "No scoped storage read permission for hgtDirPath" ); return null;
-			}
-			return new DemFolderAndroidContent( Uri.parse( hgtDirPath ), getReactApplicationContext(), getReactApplicationContext().getContentResolver() );
-		}
-		if ( hgtDirPath.startsWith( "/" ) ) {
-			File demFolderFile = new File( hgtDirPath );
-			if ( ! demFolderFile.exists() || ! demFolderFile.isDirectory() || ! demFolderFile.canRead() ) {
-				Utils.promiseReject( promise, "hgtDirPath does not exist or is not a directory" ); return null;
-			}
-			return new DemFolderFS( demFolderFile );
-		}
-		Utils.promiseReject( promise, "hgtDirPath must start with '/' or 'content://'" );
-		return null;
 	}
 
 	private static class ShadingAlgorithmResult {

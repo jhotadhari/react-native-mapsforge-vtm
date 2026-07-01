@@ -1,7 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.annotation.SuppressLint;
-import android.net.Uri;
 import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,7 +8,6 @@ import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.bridge.ReadableArray;
@@ -19,21 +17,12 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.UIManagerHelper;
 import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
-import com.jhotadhari.reactnative.mapsforge.vtm.HgtReader;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-
-import org.mapsforge.map.android.hills.DemFolderAndroidContent;
-import org.mapsforge.map.layer.hills.DemFolder;
-import org.mapsforge.map.layer.hills.DemFolderFS;
-
-import java.io.File;
 
 @SuppressLint( "ViewConstructor" )
 public class MapsforgeVtmView extends LinearLayout {
 
 	private MapFragment mapFragment;
-
-	protected HgtReader hgtReader;
 
 	private double width;	// dp
 	private double height;	// dp
@@ -54,10 +43,6 @@ public class MapsforgeVtmView extends LinearLayout {
 	private double roll;
 	private double minRoll;
 	private double maxRoll;
-	private String hgtDirPath;
-	private boolean hgtInterpolation;
-	private int hgtReadFileRate;
-	private int hgtFileInfoPurgeThreshold;
 	private ReadableMap responseInclude;
 	private int mapUpdateInterval;
 	private boolean emitsMapUpdateEvents;
@@ -265,73 +250,6 @@ public class MapsforgeVtmView extends LinearLayout {
 			case "zoom" -> zoomEnabled;
 			default -> false;
 		};
-	}
-
-	public void setHgtDirPath( String hgtDirPath ) {
-		this.hgtDirPath = hgtDirPath;
-		setHgtReader();
-	}
-
-	public void setHgtInterpolation( boolean hgtInterpolation ) {
-		this.hgtInterpolation = hgtInterpolation;
-		updateHgtReader();
-	}
-
-	public void setHgtReadFileRate( int hgtReadFileRate ) {
-		this.hgtReadFileRate = hgtReadFileRate;
-		updateHgtReader();
-	}
-
-	public void setFileInfoPurgeThreshold( int hgtFileInfoPurgeThreshold ) {
-		this.hgtFileInfoPurgeThreshold = hgtFileInfoPurgeThreshold;
-		updateHgtReader();
-	}
-
-	public HgtReader getHgtReader() {
-		return hgtReader;
-	}
-
-	protected void updateHgtReader() {
-		if ( null == hgtReader ) {
-			setHgtReader();
-		} else {
-			hgtReader.updateInterpolation( hgtInterpolation );
-			hgtReader.updateRateLimiterWindowSize( hgtReadFileRate );
-			hgtReader.updateHgtFileInfoPurgeThreshold( hgtFileInfoPurgeThreshold );
-		}
-	}
-
-	protected void setHgtReader() {
-		// Init hgtReader
-		if ( null != hgtDirPath && ! hgtDirPath.isEmpty() ) {
-			DemFolder demFolder = null;
-			if ( hgtDirPath.startsWith( "content://" ) ) {
-				Uri uri = Uri.parse( hgtDirPath );
-				DocumentFile dir = DocumentFile.fromSingleUri( getReactContext(), uri );
-				if ( dir != null && dir.exists() && dir.isDirectory() ) {
-					if ( Utils.hasScopedStoragePermission( getReactContext(), hgtDirPath, false ) ) {
-						demFolder = new DemFolderAndroidContent( uri, getReactContext(), getReactContext().getContentResolver() );
-					}
-				}
-			} else if ( hgtDirPath.startsWith( "/" ) ) {
-				File demFolderFile = new File( hgtDirPath );
-				if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
-					demFolder = new DemFolderFS( demFolderFile );
-				}
-			}
-			if ( null != demFolder ) {
-				hgtReader = new HgtReader(
-					demFolder,
-					hgtInterpolation,
-					hgtReadFileRate,
-					hgtFileInfoPurgeThreshold
-				);
-			} else {
-				hgtReader = null;
-			}
-		} else {
-			hgtReader = null;
-		}
 	}
 
 	public void setResponseInclude( ReadableMap responseInclude ) {

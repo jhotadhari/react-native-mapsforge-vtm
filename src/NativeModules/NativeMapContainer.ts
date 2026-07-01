@@ -42,10 +42,6 @@ export interface ModuleParams {
 	roll: Double;
 	minRoll: Double;
 	maxRoll: Double;
-	hgtDirPath: null | string;
-	hgtInterpolation: boolean;
-	hgtReadFileRate: Int32;
-	hgtFileInfoPurgeThreshold: Int32;
 	responseInclude: ResponseInclude;
 	mapUpdateInterval: Int32;
 	emitsMapUpdateEvents: null | boolean;
@@ -95,12 +91,31 @@ export interface TriggerParams {
 	strategy?: string;
 }
 
+export interface SetHgtDirPathParams {
+	nativeNodeHandle: Int32;
+	hgtDirPath: string;
+}
+
+export interface GetAltitudeAtPositionParams {
+	nativeNodeHandle: Int32;
+	lng: Double;
+	lat: Double;
+}
+
+export interface GetAltitudeAtPositionResponse {
+	altitude: Double | null;
+}
+
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	reorderLayers(params: ReorderLayersParams): Promise<void>;
 	animateTo(params: AnimateToParams): Promise<void>;
 	getPosition(params: GetPositionParams): Promise<GetPositionResponse>;
 	triggerEvent(params: TriggerParams): void;
+	setHgtDirPath(params: SetHgtDirPathParams): Promise<void>;
+	getAltitudeAtPosition(
+		params: GetAltitudeAtPositionParams
+	): Promise<GetAltitudeAtPositionResponse>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('MapContainer');

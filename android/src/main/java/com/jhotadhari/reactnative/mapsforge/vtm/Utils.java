@@ -4,9 +4,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.UriPermission;
 import android.content.res.Resources;
+import android.net.Uri;
 import android.util.DisplayMetrics;
 
 import androidx.annotation.Nullable;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.bridge.Promise;
@@ -19,6 +21,10 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
+
+import org.mapsforge.map.android.hills.DemFolderAndroidContent;
+import org.mapsforge.map.layer.hills.DemFolder;
+import org.mapsforge.map.layer.hills.DemFolderFS;
 
 import org.oscim.android.MapView;
 import org.oscim.android.cache.TileCache;
@@ -233,6 +239,40 @@ public class Utils {
 	@Nullable
 	public static Double altFromPosition( ReadableArray position ) {
 		return position.size() > 2 ? position.getDouble( 2 ) : null;
+	}
+
+	/**
+	 * Constructs a DemFolder from a path string. Handles both absolute filesystem
+	 * paths ({@code /sdcard/...}) and Android content URIs ({@code content://...}).
+	 *
+	 * Shared by MapContainer (altitude queries) and LayerHillshading (visual shading).
+	 *
+	 * @return the DemFolder, or {@code null} if the path is invalid, doesn't exist,
+	 *         or lacks read permissions.
+	 */
+	@Nullable
+	public static DemFolder buildDemFolder( String hgtDirPath, Context context ) {
+		if ( hgtDirPath == null || hgtDirPath.isEmpty() ) {
+			return null;
+		}
+		if ( hgtDirPath.startsWith( "content://" ) ) {
+			Uri uri = Uri.parse( hgtDirPath );
+			DocumentFile dir = DocumentFile.fromSingleUri( context, uri );
+			if ( dir != null && dir.exists() && dir.isDirectory() ) {
+				if ( hasScopedStoragePermission( context, hgtDirPath, false ) ) {
+					return new DemFolderAndroidContent( uri, context, context.getContentResolver() );
+				}
+			}
+			return null;
+		}
+		if ( hgtDirPath.startsWith( "/" ) ) {
+			File demFolderFile = new File( hgtDirPath );
+			if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+				return new DemFolderFS( demFolderFile );
+			}
+			return null;
+		}
+		return null;
 	}
 
 }

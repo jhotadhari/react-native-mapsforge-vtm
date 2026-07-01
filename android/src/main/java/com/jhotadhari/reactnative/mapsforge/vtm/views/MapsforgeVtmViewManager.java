@@ -193,38 +193,6 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 		}
 	}
 
-	@ReactProp( name = "hgtDirPath" )
-	@Override
-	public void setHgtDirPath( MapsforgeVtmView view, String value ) {
-		if ( view != null ) {
-			view.setHgtDirPath( value );
-		}
-	}
-
-	@ReactProp( name = "hgtInterpolation" )
-	@Override
-	public void setHgtInterpolation( MapsforgeVtmView view, boolean value ) {
-		if ( view != null ) {
-			view.setHgtInterpolation( value );
-		}
-	}
-
-	@ReactProp( name = "hgtReadFileRate" )
-	@Override
-	public void setHgtReadFileRate( MapsforgeVtmView view, int value ) {
-		if ( view != null ) {
-			view.setHgtReadFileRate( value );
-		}
-	}
-
-	@ReactProp( name = "hgtFileInfoPurgeThreshold" )
-	@Override
-	public void setHgtFileInfoPurgeThreshold( MapsforgeVtmView view, int value ) {
-		if ( view != null ) {
-			view.setFileInfoPurgeThreshold( value );
-		}
-	}
-
 	@ReactProp( name = "responseInclude" )
 	@Override
 	public void setResponseInclude( MapsforgeVtmView view, @Nullable ReadableMap value ) {

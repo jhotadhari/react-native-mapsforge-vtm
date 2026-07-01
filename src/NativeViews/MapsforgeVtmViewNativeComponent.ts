@@ -81,10 +81,6 @@ interface MapViewProps extends ViewProps {
 	roll?: Double;
 	minRoll?: Double;
 	maxRoll?: Double;
-	hgtDirPath: string;
-	hgtInterpolation?: boolean;
-	hgtReadFileRate?: Int32;
-	hgtFileInfoPurgeThreshold?: Int32;
 	responseInclude?: ResponseInclude;
 	emitsMapUpdateEvents: boolean;
 	mapUpdateInterval?: Int32;
@@ -120,10 +116,6 @@ export type MapContainerProps = {
 	roll?: MapViewProps['roll'];
 	minRoll?: MapViewProps['minRoll'];
 	maxRoll?: MapViewProps['maxRoll'];
-	hgtDirPath?: null | `/${string}` | `content://${string}`;
-	hgtInterpolation?: MapViewProps['hgtInterpolation'];
-	hgtReadFileRate?: MapViewProps['hgtReadFileRate'];
-	hgtFileInfoPurgeThreshold?: MapViewProps['hgtFileInfoPurgeThreshold'];
 	responseInclude?: MapViewProps['responseInclude'];
 	mapUpdateInterval?: MapViewProps['mapUpdateInterval'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];

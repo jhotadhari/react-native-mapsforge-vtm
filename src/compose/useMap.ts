@@ -223,6 +223,37 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		// isn't already one, rather than doing a true minimal on-screen reveal.
 		const panInside = (point: Position): Promise<void> => panTo(point);
 
+		/**
+		 * Returns the elevation in metres at the given coordinate, or `null` if no
+		 * HGT data covers that position or no hgtDirPath has been configured on the
+		 * MapContainer.
+		 *
+		 * Requires a hgtDirPath to be set on MapContainer. The hillshading layer's
+		 * hgtDirPath is independent — this queries the MapContainer's own elevation
+		 * data source.
+		 */
+		const getAltitudeAtPosition = async (
+			lng: number,
+			lat: number
+		): Promise<number | null> => {
+			try {
+				const result = await NativeMapContainer.getAltitudeAtPosition({
+					nativeNodeHandle: requireHandle(nativeNodeHandle),
+					lng,
+					lat,
+				});
+				return result.altitude ?? null;
+			} catch (e) {
+				// Elevation is best-effort — resolve to null on any error.
+				// Log the raw rejection so configuration problems
+				// (e.g. "no elevation data configured") are visible during development.
+				if (__DEV__) {
+					console.warn('[useMap] getAltitudeAtPosition failed:', e);
+				}
+				return null;
+			}
+		};
+
 		return {
 			getPosition,
 			jumpTo,
@@ -243,6 +274,7 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			flyToBounds,
 			panInsideBounds,
 			panInside,
+			getAltitudeAtPosition,
 		};
 	}, [nativeNodeHandle]);
 };
