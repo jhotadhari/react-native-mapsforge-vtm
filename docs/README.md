@@ -21,12 +21,12 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 - **[LayerMarker](./components/layer-marker.md)** — Marker container with group-level defaults
 - **[Marker](./components/marker.md)** — Individual map marker
 - **[SharedLayer](./components/shared-layer.md)** — Collapse children into shared native layer fragments
+- **[ReindexScope](./components/reindex-scope.md)** — Signal layer reorder to the native stack
 
 ## Hooks
 
 - **[useMap](./hooks/use-map.md)** — Imperative map control (pan, zoom, animate, fly, fitBounds)
 - **[useRenderStyleOptions](./hooks/use-render-style-options.md)** — Read render-theme style menu
-- **[ReindexScope](./components/reindex-scope.md)** — Signal layer reorder to the native stack
 
 ## Advanced
 
