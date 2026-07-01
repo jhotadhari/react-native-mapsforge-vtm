@@ -10,6 +10,7 @@ import manyLayers from './many-layers';
 import mixedGrouping from './mixed-grouping';
 import manyShapes from './many-shapes';
 import mapsforge from './mapsforge';
+import pathJts from './path-jts';
 import markers from './markers';
 import mbtilesBitmap from './mbtiles-bitmap';
 import panZoom from './pan-zoom';
@@ -31,6 +32,7 @@ export {
 	mixedGrouping,
 	manyShapes,
 	mapsforge,
+	pathJts,
 	markers,
 	mbtilesBitmap,
 	panZoom,

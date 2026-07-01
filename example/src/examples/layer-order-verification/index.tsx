@@ -9,6 +9,7 @@ import {
 	LayerShape,
 	MapContainer,
 	Marker,
+	ReindexScope,
 	SharedLayer,
 	type GeometryStyle,
 	type Position,
@@ -38,6 +39,11 @@ import {
  * placed in increasing size so any out-of-order rendering is instantly
  * visible — a bottom-layer item should never paint over a top-layer one.
  *
+ * Toggle SharedLayer to see how same-type layers collapse into shared
+ * native fragments. Toggle ReindexScope to test the scope-based reindex
+ * component — each toggle forces a re-render, and the debug overlay shows
+ * the resulting fragment layout.
+ *
  * The 6 items, bottom → top:
  *   1. LayerShape  (red polygon)       — largest, should be covered by all
  *   2. LayerPath   (orange line)
@@ -58,38 +64,46 @@ const responseInclude = {
 	scale: 2,
 	zoomScale: 2,
 	bearing: 2,
-	roll: 2,
 	tilt: 2,
+	roll: 2,
 	center: 2,
 };
 
-// Each item is larger than the previous one so z-order violations are obvious.
-// If the large red polygon (item 1) renders on top of the small purple marker
-// (item 6), the bug is visible.
+// ── Item definitions ─────────────────────────────────────────────────────
 
-const items = [
+interface LayerItem {
+	id: string;
+	label: string;
+	shape: ShapeDefinition | undefined;
+	shapeStyle: ShapeStyle | undefined;
+	pathCoords: Position[] | undefined;
+	pathStyle: GeometryStyle | undefined;
+	markerPos: Position | undefined;
+	markerSym: SymbolParams | undefined;
+}
+
+const items: LayerItem[] = [
 	{
-		id: '1-shape-polygon',
+		id: '1-shape-red',
 		label: '1. Shape (red polygon)',
 		shape: {
-			type: 'polygon' as const,
+			type: 'polygon',
 			rings: [
-				[-77.4, -9.4],
-				[-76.6, -9.4],
-				[-76.6, -8.6],
-				[-77.4, -8.6],
+				[-77.06, -9.06],
+				[-76.94, -9.06],
+				[-76.94, -8.94],
+				[-77.06, -8.94],
 			],
 		} as ShapeDefinition,
 		shapeStyle: {
-			strokeWidth: 1,
+			fillColor: '#ff000066',
 			strokeColor: '#ff0000',
-			fillColor: '#ff0000',
-			fillAlpha: 0.4,
+			strokeWidth: 2,
 		} as ShapeStyle,
-		pathCoords: undefined as Position[] | undefined,
-		pathStyle: undefined as GeometryStyle | undefined,
-		markerPos: undefined as Position | undefined,
-		markerSym: undefined as SymbolParams | undefined,
+		pathCoords: undefined,
+		pathStyle: undefined,
+		markerPos: undefined,
+		markerSym: undefined,
 	},
 	{
 		id: '2-path-orange',
@@ -97,10 +111,16 @@ const items = [
 		shape: undefined,
 		shapeStyle: undefined,
 		pathCoords: [
-			[-77.35, -9.35],
-			[-76.65, -8.65],
+			[-77.04, -9.04],
+			[-76.96, -9.04],
+			[-76.96, -8.96],
+			[-77.04, -8.96],
+			[-77.04, -9.04],
 		] as Position[],
-		pathStyle: { strokeWidth: 10, strokeColor: '#ff8800' } as GeometryStyle,
+		pathStyle: {
+			strokeColor: '#ff8800',
+			strokeWidth: 8,
+		} as GeometryStyle,
 		markerPos: undefined,
 		markerSym: undefined,
 	},
@@ -113,24 +133,23 @@ const items = [
 		pathStyle: undefined,
 		markerPos: [-77, -9] as Position,
 		markerSym: {
-			text: '●',
+			text: '⬤',
 			textSize: 28,
-			fillColor: '#ffdd00',
+			fillColor: '#ffcc00',
 		} as SymbolParams,
 	},
 	{
-		id: '4-shape-circle',
+		id: '4-shape-green',
 		label: '4. Shape (green circle)',
 		shape: {
-			type: 'circle' as const,
+			type: 'circle',
 			center: [-77, -9],
-			radiusKm: 80,
+			radiusKm: 1.2,
 		} as ShapeDefinition,
 		shapeStyle: {
-			strokeWidth: 1,
-			strokeColor: '#00cc00',
-			fillColor: '#00cc00',
-			fillAlpha: 0.35,
+			fillColor: '#00ff0066',
+			strokeColor: '#00ff00',
+			strokeWidth: 2,
 		} as ShapeStyle,
 		pathCoords: undefined,
 		pathStyle: undefined,
@@ -143,10 +162,16 @@ const items = [
 		shape: undefined,
 		shapeStyle: undefined,
 		pathCoords: [
-			[-77.25, -9.25],
-			[-76.75, -8.75],
+			[-77.02, -9.02],
+			[-76.98, -9.02],
+			[-76.98, -8.98],
+			[-77.02, -8.98],
+			[-77.02, -9.02],
 		] as Position[],
-		pathStyle: { strokeWidth: 7, strokeColor: '#0066ff' } as GeometryStyle,
+		pathStyle: {
+			strokeColor: '#0088ff',
+			strokeWidth: 6,
+		} as GeometryStyle,
 		markerPos: undefined,
 		markerSym: undefined,
 	},
@@ -172,14 +197,18 @@ const Controls: FC<{
 	width: number;
 	containerHeight: number;
 	useSharedLayer: boolean;
+	useReindexScope: boolean;
 	reorderCount: number;
 	onToggleSharedLayer: () => void;
+	onToggleReindexScope: () => void;
 }> = ({
 	width,
 	containerHeight,
 	useSharedLayer,
+	useReindexScope,
 	reorderCount,
 	onToggleSharedLayer,
+	onToggleReindexScope,
 }) => {
 	const nativeLayerCount = useSharedLayer
 		? '3 fragments (1 Shape + 1 Path + 1 Marker)'
@@ -199,6 +228,15 @@ const Controls: FC<{
 					<Switch
 						value={useSharedLayer}
 						onValueChange={onToggleSharedLayer}
+					/>
+				</ControlRow>
+			</ControlSection>
+			<ControlSection title="ReindexScope">
+				<ControlRow>
+					<Text style={sharedStyles.text}>ReindexScope</Text>
+					<Switch
+						value={useReindexScope}
+						onValueChange={onToggleReindexScope}
 					/>
 				</ControlRow>
 				<StatusLine
@@ -224,6 +262,9 @@ const Controls: FC<{
 					<Text style={{ fontWeight: 'bold' }}>SharedLayer</Text>: all
 					shapes share 1 native layer, all paths share 1, all markers
 					share 1 — but still in the correct interleaved order.
+					{'\n\n'}• With{' '}
+					<Text style={{ fontWeight: 'bold' }}>ReindexScope</Text>:
+					the debug overlay shows scope-tagged layer blocks.
 				</Text>
 			</ControlSection>
 		</ControlPanel>
@@ -239,6 +280,7 @@ const ExampleComponent: FC<{
 	const { handleMapUpdate, info } = useMapInfo();
 
 	const [useSharedLayer, setUseSharedLayer] = useState(true);
+	const [useReindexScope, setUseReindexScope] = useState(true);
 	// TODO: track reorderCount via a map-level event or the debug hook.
 	// Currently hardcoded — the native reorderLayers call is fire-and-forget
 	// from JS, so there is no built-in acknowledgment to count.
@@ -277,7 +319,15 @@ const ExampleComponent: FC<{
 		});
 	}, []);
 
-	const children = useSharedLayer ? (
+	const children = useReindexScope ? (
+		<ReindexScope>
+			{useSharedLayer ? (
+				<SharedLayer>{renderItems}</SharedLayer>
+			) : (
+				renderItems
+			)}
+		</ReindexScope>
+	) : useSharedLayer ? (
 		<SharedLayer>{renderItems}</SharedLayer>
 	) : (
 		renderItems
@@ -289,8 +339,10 @@ const ExampleComponent: FC<{
 				width={width}
 				containerHeight={height}
 				useSharedLayer={useSharedLayer}
+				useReindexScope={useReindexScope}
 				reorderCount={reorderCount}
 				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
+				onToggleReindexScope={() => setUseReindexScope((v) => !v)}
 			/>
 
 			<View style={{ height, width }}>
