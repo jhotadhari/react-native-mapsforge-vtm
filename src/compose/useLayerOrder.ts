@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -172,7 +172,9 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const positionIndex = registry.order.indexOf(id);
 
 	// Unregister exactly once, on actual unmount -- not on every uuid change.
-	useEffect(() => {
+	// Uses useLayoutEffect so cleanup runs during commit (before ReindexScope's
+	// Phase 2 useLayoutEffect), preventing zombie symbols in Phase 2.
+	useLayoutEffect(() => {
 		return () => {
 			const index = registry.order.indexOf(id);
 			if (index !== -1) {

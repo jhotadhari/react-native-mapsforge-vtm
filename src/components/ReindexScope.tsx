@@ -26,7 +26,7 @@ import ReindexContext from '../context/ReindexContext';
  * useLayoutEffect) to ensure the block stays at the correct position
  * regardless of sibling insertions or removals.
  *
- * Replace the deprecated {@code useLayerReindex()} hook with this component:
+ * Replaces {@code useLayerReindex()}:
  *
  * ```tsx
  * // Before:
@@ -58,9 +58,6 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 	}
 	const scopeSymbol = scopeSymbolRef.current;
 
-	// ── Pre-render order (for Phase 2 correction) ────────────────────
-	const preRenderOrderRef = useRef<symbol[]>([]);
-
 	// ── Range start (persists between Phase 1 and Phase 2) ──────────
 	// -1 means "first mount, no existing scope layers found."
 	const rangeStartRef = useRef<number>(-1);
@@ -76,7 +73,6 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 			scopeSymbols.push(id);
 		}
 	}
-	preRenderOrderRef.current = scopeSymbols;
 
 	// 2. Determine rangeStart and set cursor
 	if (scopeSymbols.length > 0) {
@@ -90,7 +86,8 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 		if (firstScopeIdx > 0) {
 			const anchorSymbol = registry.order[firstScopeIdx - 1];
 			registry.cursor = anchorSymbol;
-			registry.cursorLayerType = registry.layerTypes.get(anchorSymbol!);
+			registry.cursorLayerType =
+				registry.layerTypes.get(anchorSymbol!) ?? undefined;
 		} else {
 			registry.cursor = undefined;
 			registry.cursorLayerType = undefined;
@@ -122,7 +119,26 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 		}
 	}
 
-	// 3. Bump generation so children's useLayerOrder repositioning fires
+	// 3. Rebuild fragment indices so new shared-type layers added
+	//    during a partial re-render (MapContainer not re-rendering)
+	//    see correct continuation indices. Mirrors MapContainer's
+	//    rebuild logic.
+	{
+		let lastType: string | undefined;
+		registry.fragmentIndices.clear();
+		for (const id of registry.order) {
+			const t = registry.layerTypes.get(id);
+			if (t) {
+				if (lastType !== t) {
+					const idx = registry.fragmentIndices.get(t) ?? 0;
+					registry.fragmentIndices.set(t, idx + 1);
+				}
+				lastType = t;
+			}
+		}
+	}
+
+	// 4. Bump generation so children's useLayerOrder repositioning fires
 	registry.generation++;
 
 	// ════════════════════════════════════════════════════════════════
@@ -131,6 +147,13 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 	// debounce window of scheduleSync (16ms trailing). Children's
 	// scheduleSync calls from render have started their timers but
 	// haven't fired yet, so the flush reads the corrected order.
+	//
+	// Phase 2 verifies that the scope block is at the position
+	// recorded in Phase 1. If a sibling ReindexScope's Phase 2
+	// shifted the block in the same commit, we accept the current
+	// position and update the recording. The cursor chain from
+	// Phase 1 handles internal ordering — Phase 2 only does
+	// block-level verification and first-mount recording.
 	// ════════════════════════════════════════════════════════════════
 	useLayoutEffect(() => {
 		// 1. Collect scope-tagged layers (just placed by children)
@@ -145,53 +168,24 @@ const ReindexScope = ({ children }: { children?: ReactNode }) => {
 			return; // All children unmounted
 		}
 
-		// 2. Sort by pre-render order so relative order within the
-		//    block is correct even when the cursor chain broke (e.g.
-		//    React.memo'd children skipped render).
-		const preRender = preRenderOrderRef.current;
-		const preRenderSet = new Set(preRender);
-		const sorted = preRender.filter((s) => currentScopeSymbols.includes(s));
-		// Append new symbols not in pre-render order (first mount
-		// during this render — they land at the end of the block).
-		for (const s of currentScopeSymbols) {
-			if (!preRenderSet.has(s)) {
-				sorted.push(s);
-			}
-		}
+		// 2. Determine current position
+		const currentFirstIdx = registry.order.indexOf(currentScopeSymbols[0]!);
 
-		// 3. Determine current first position
-		const currentFirstIdx = registry.order.indexOf(sorted[0]!);
-
-		// 4. Determine target position
-		let targetFirstIdx: number;
+		// 3. Verify or record position
 		if (rangeStartRef.current >= 0) {
-			targetFirstIdx = rangeStartRef.current;
-			// Clamp: if siblings before the block were removed,
-			// the original rangeStart may exceed current order length.
-			if (targetFirstIdx > registry.order.length) {
-				targetFirstIdx =
-					registry.order.length - currentScopeSymbols.length;
+			// Existing scope: if the block was shifted by a sibling
+			// ReindexScope's Phase 2 in the same commit, accept the
+			// current position and update the recording for Phase 1
+			// of the next render.
+			if (currentFirstIdx !== rangeStartRef.current) {
+				rangeStartRef.current = currentFirstIdx;
 			}
 		} else {
-			// First mount: record where children landed for next time
-			targetFirstIdx = currentFirstIdx;
+			// First mount: record where children landed
 			rangeStartRef.current = currentFirstIdx;
 		}
 
-		// 5. Extract and reinsert if position differs
-		if (targetFirstIdx !== currentFirstIdx) {
-			// Remove in reverse to preserve indices
-			for (let i = sorted.length - 1; i >= 0; i--) {
-				const idx = registry.order.indexOf(sorted[i]!);
-				if (idx !== -1) {
-					registry.order.splice(idx, 1);
-				}
-			}
-			// Re-insert at target
-			registry.order.splice(targetFirstIdx, 0, ...sorted);
-		}
-
-		// 6. Always schedule sync (flush dedup skips no-ops)
+		// 4. Always schedule sync (flush dedup skips no-ops)
 		registry.scheduleSync(nativeNodeHandle);
 	});
 
