@@ -81,7 +81,6 @@ import type {
 } from './NativeModules/NativeLayerMapsforge';
 
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
-import useLayerReindex from './compose/useLayerReindex';
 import useMap from './compose/useMap';
 import type {
 	EasingType,
@@ -93,6 +92,7 @@ import type {
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
+import ReindexScope from './components/ReindexScope';
 import { useLayerDebugInfo } from './debug/useLayerDebugInfo';
 import type {
 	LayerDebugEntry,
@@ -188,9 +188,9 @@ export {
 
 	// Other
 	useRenderStyleOptions,
-	useLayerReindex,
 	CanvasAdapterModule,
 	SharedLayer,
+	ReindexScope,
 	type ErrorWithErrorMsg,
 
 	// Debug tools

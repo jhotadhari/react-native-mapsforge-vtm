@@ -7,6 +7,7 @@ import { useContext, useEffect, useRef } from 'react';
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
+import ReindexContext from '../context/ReindexContext';
 import SharedLayerContext from '../context/SharedLayerContext';
 
 /**
@@ -22,6 +23,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
 	const sharedScopeId = useContext(SharedLayerContext);
 	const isGrouped = sharedScopeId !== null;
+	const reindexScopeId = useContext(ReindexContext);
 
 	const idRef = useRef<undefined | symbol>(undefined);
 	if (!idRef.current) {
@@ -154,6 +156,16 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 		}
 	}
 
+	// Tag with reindex scope so the containing ReindexScope can find this
+	// layer in registry.order during its Phase 1 / Phase 2 operations.
+	// Runs every render, not just isNew, so the scope association stays
+	// current as long as this component is inside a ReindexScope.
+	if (reindexScopeId !== null) {
+		registry.layerReindexScopes.set(id, reindexScopeId);
+	} else {
+		registry.layerReindexScopes.delete(id);
+	}
+
 	// Compute the current position index among JS-managed layers. This is called during
 	// render, so `order` already reflects the correct document-order position for this
 	// component, even if it was just registered above.
@@ -169,6 +181,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.uuids.delete(id);
 			registry.layerTypes.delete(id);
 			registry.fragmentUuids.delete(id);
+			registry.layerReindexScopes.delete(id);
 			registry.scheduleSync(nativeNodeHandleRef.current);
 			registry.notify();
 		};

@@ -34,6 +34,10 @@ export type LayerOrderRegistry = {
 	// Per-component layer type string (e.g. 'path', 'marker', 'mapsforge', etc.).
 	// Populated by useLayerOrder during render.
 	layerTypes: Map<symbol, string>;
+	// Per-layer reindex scope assignment.
+	// layer symbol → ReindexScope's stable scope symbol.
+	// Populated by useLayerOrder when inside a ReindexContext provider.
+	layerReindexScopes: Map<symbol, symbol>;
 	// True when at least one <SharedLayer> wrapper rendered in the current pass.
 	// Set by SharedLayer during render, reset by MapContainer each pass.
 	// Exists purely for debug display — useLayerOrder reads SharedLayerContext instead.
@@ -72,6 +76,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const fragmentIndices = new Map<string, number>();
 	const fragmentUuids = new Map<symbol, string>();
 	const layerTypes = new Map<symbol, string>();
+	const layerReindexScopes = new Map<symbol, symbol>();
 	let lastAppliedUuids: string[] = [];
 	let lastReorderWasEffective = false;
 
@@ -159,6 +164,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		fragmentIndices,
 		fragmentUuids,
 		layerTypes,
+		layerReindexScopes,
 		listeners,
 		sharedLayerActive: false,
 		subscribe: (callback: () => void) => {
@@ -212,6 +218,7 @@ const noopRegistry: LayerOrderRegistry = {
 	fragmentIndices: new Map(),
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
+	layerReindexScopes: new Map(),
 	sharedLayerActive: false,
 	listeners: new Set(),
 	subscribe: () => () => {},

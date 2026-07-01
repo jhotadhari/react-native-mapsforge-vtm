@@ -26,7 +26,7 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 
 - **[useMap](./hooks/use-map.md)** — Imperative map control (pan, zoom, animate, fly, fitBounds)
 - **[useRenderStyleOptions](./hooks/use-render-style-options.md)** — Read render-theme style menu
-- **[useLayerReindex](./hooks/use-layer-reindex.md)** — Signal layer reorder to the native stack
+- **[ReindexScope](./components/reindex-scope.md)** — Signal layer reorder to the native stack
 
 ## Advanced
 
