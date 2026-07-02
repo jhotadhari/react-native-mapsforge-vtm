@@ -107,7 +107,7 @@ yarn example android    # build & run on device/emulator
 ## Resources
 
 - **[Documentation](./docs/README.md)** — Full API reference, guides, and advanced topics
-- **[Terminology](./docs/TERMINOLOGY.md)** — Inclusive language conventions used in this project
+- **[Naming conventions and terminology](./docs/NAMING_TERMINOLOGY.md)** — Inclusive language conventions used in this project
 
 - **[Known Issues](./docs/advanced/known-issues.md)** — Current bugs, limitations, and workarounds
 - **[CHANGELOG.md](./CHANGELOG.md)** — Version history
