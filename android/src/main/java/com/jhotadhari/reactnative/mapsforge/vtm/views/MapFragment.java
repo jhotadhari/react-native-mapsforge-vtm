@@ -306,9 +306,9 @@ public class MapFragment extends Fragment {
 									return;
 								}
 								pendingAltitudeRefresh = null;
-								MapsforgeVtmView parent = getMapsforgeVtmView();
-								if ( null != parent && null != mapView && null != mapView.map() ) {
-									parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
+								MapsforgeVtmView parentView = getMapsforgeVtmView();
+								if ( null != parentView && null != mapView && null != mapView.map() ) {
+									parentView.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
 								}
 							} );
 						} );
