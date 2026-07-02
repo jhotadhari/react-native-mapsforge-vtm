@@ -41,14 +41,6 @@ public class MapFragment extends Fragment {
 
 	private Runnable pendingTrailingEdge;
 
-	/**
-	 * When a map-update event has a cache miss for elevation, a background
-	 * preload is started and this runnable is scheduled to re-emit the event
-	 * once the tile is expected to be cached. Cancelled on every new map
-	 * event (which will either hit the cache or schedule a fresh refresh).
-	 */
-	private Runnable pendingAltitudeRefresh;
-
 
 	public MapView getMapView() {
 		return mapView;
@@ -117,10 +109,6 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
-		if ( null != pendingAltitudeRefresh ) {
-			pendingAltitudeRefresh = null;
-		}
-
 	}
 
 	public void updateUpdateListener() {
@@ -145,10 +133,6 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
-		if ( null != pendingAltitudeRefresh ) {
-			pendingAltitudeRefresh = null;
-		}
-
 	}
 
 	protected void bindGestureLayer() {
@@ -195,12 +179,6 @@ public class MapFragment extends Fragment {
 					// each new vtm event resets the silence timer.
 					if ( null != pendingTrailingEdge ) {
 						mainHandler.removeCallbacks( pendingTrailingEdge );
-					}
-					// Cancel stale altitude refresh — a new map event
-					// means the position changed, so any pending refresh
-					// for the old position is irrelevant.
-					if ( null != pendingAltitudeRefresh ) {
-						pendingAltitudeRefresh = null;
 					}
 					// Leading edge: emit immediately if the rate limiter allows.
 					if ( rateLimiter.tryAcquire() ) {
@@ -272,49 +250,9 @@ public class MapFragment extends Fragment {
 			double lng = mapPosition.getLongitude();
 			double lat = mapPosition.getLatitude();
 			Double alt = null;
-			MapsforgeVtmView parent = getMapsforgeVtmView();
-			if ( null != parent ) {
-				com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
-					com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
-						parent.getId(), parent.getReactContext() );
-				if ( null != reader ) {
-					// Use cached-only lookup to avoid blocking the render
-					// thread on file I/O.
-					Short elevation = reader.getElevationIfCached( lng, lat );
-					if ( null != elevation ) {
-						alt = elevation.doubleValue();
-					} else {
-						// Preload on a background thread. When done, the
-						// callback re-emits the map-update event on the
-						// main thread so the JS side picks up the now-cached
-						// elevation without waiting for a real map move.
-						pendingAltitudeRefresh = new Runnable() {
-							@Override
-							public void run() {
-								// No-op — this Runnable is just a marker
-								// that the callback checks for staleness.
-							}
-						};
-						reader.preloadAsync( lng, lat, () -> {
-							if ( null == mainHandler ) {
-								return;
-							}
-							mainHandler.post( () -> {
-								// Only emit if this callback hasn't been
-								// superseded by a newer map event.
-								if ( null == pendingAltitudeRefresh ) {
-									return;
-								}
-								pendingAltitudeRefresh = null;
-								MapsforgeVtmView parentView = getMapsforgeVtmView();
-								if ( null != parentView && null != mapView && null != mapView.map() ) {
-									parentView.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
-								}
-							} );
-						} );
-					}
-				}
-			}
+			// Elevation intentionally left null. Queries go through the
+			// TurboModule getAltitudeAtPosition (Native Modules thread),
+			// never the render thread.
 			payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
 		}
 
