@@ -91,3 +91,6 @@ nitrogen/
 # yalc
 .yalc/
 yalc.lock
+
+# release-kit state file
+.release-kit-state.json
