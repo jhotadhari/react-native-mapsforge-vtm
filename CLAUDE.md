@@ -9,10 +9,9 @@ for offline vector map rendering from OpenStreetMap data. **Android only** — `
 stubs exist (required by the New Architecture build), but there is no real iOS implementation.
 
 The library was rewritten against the **React Native New Architecture** (Fabric + TurboModules) in
-commit `c9a6ace`, replacing an older bridge/`NativeModules` design. `MIGRATION.md` documents exactly
-what changed and why (including features intentionally dropped, like `LayerPathSlopeGradient` and
-GPX-file loading) — read it before assuming old-architecture patterns from outside this repo apply
-here. `TODO.md` tracks open work, notably a post-rewrite dependency upgrade plan.
+commit `c9a6ace`, replacing an older bridge/`NativeModules` design. The rewrite dropped several
+features intentionally (notably `LayerPathSlopeGradient` and GPX-file loading) — don't assume
+old-architecture patterns from outside this repo apply here. `TODO.md` tracks open work, notably a post-rewrite dependency upgrade plan.
 
 ## Common commands
 

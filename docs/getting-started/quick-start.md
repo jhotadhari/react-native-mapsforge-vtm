@@ -37,8 +37,7 @@ engine. Every other component must be a child of `MapContainer`.
 ### Center format: GeoJSON `Position`
 
 All positional data uses GeoJSON `Position` tuples: `[lng, lat, alt?]`. This
-replaces the old `{ lng, lat, alt? }` object format from the bridge-based API.
-See the [Migration Guide](../../MIGRATION.md) for details.
+uses GeoJSON `Position` tuples (`[lng, lat, alt?]`) rather than named-property objects like `{ lng, lat, alt? }`.
 
 ### Width and height
 

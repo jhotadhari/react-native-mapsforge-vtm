@@ -108,7 +108,7 @@ yarn example android    # build & run on device/emulator
 
 - **[Documentation](./docs/README.md)** — Full API reference, guides, and advanced topics
 - **[Terminology](./docs/TERMINOLOGY.md)** — Inclusive language conventions used in this project
-- **[Migration Guide (v0.7 → New Architecture)](./MIGRATION.md)** — Breaking changes from the old bridge-based API
+
 - **[Known Issues](./docs/advanced/known-issues.md)** — Current bugs, limitations, and workarounds
 - **[CHANGELOG.md](./CHANGELOG.md)** — Version history
 - **[TODO.md](./TODO.md)** — Open work and planned improvements
@@ -163,11 +163,3 @@ This library is a React Native wrapper around [mapsforge/vtm](https://github.com
 - [react-native-builder-bob](https://github.com/callstack/react-native-builder-bob) —
   build tooling (codegen, module bundling, type generation)
 - [keep-a-changelog](https://www.npmjs.com/package/keep-a-changelog) — CHANGELOG.md maintenance
-
-### Features intentionally dropped
-
-The New Architecture rewrite (see `MIGRATION.md`) intentionally removed:
-- `LayerPathSlopeGradient` — GPX-file loading and Savitzky–Golay smoothing (the dependencies
-  `android-gpx-parser` and `savitzky-golay` were removed)
-- `queue-promise` — replaced by native-side batching (`MarkerBatchQueue`)
-- `Lodash` — replaced by `lodash-es` (tree-shakeable ESM variant)

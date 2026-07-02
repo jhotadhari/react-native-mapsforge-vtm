@@ -14,8 +14,8 @@ The GeoJSON `Position` tuple — used everywhere for geographic coordinates:
 type Position = [lng: number, lat: number, alt?: number];
 ```
 
-This replaces the old `Location { lng, lat, alt? }` object type from the
-bridge-based API. All props and return values use `Position`.
+This library uses GeoJSON `Position` tuples rather than named-property
+objects. All props and return values use `Position`.
 
 ### `Bbox`
 
