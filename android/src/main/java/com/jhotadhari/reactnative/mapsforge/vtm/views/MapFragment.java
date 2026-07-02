@@ -117,8 +117,7 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
-		if ( null != pendingAltitudeRefresh && null != mainHandler ) {
-			mainHandler.removeCallbacks( pendingAltitudeRefresh );
+		if ( null != pendingAltitudeRefresh ) {
 			pendingAltitudeRefresh = null;
 		}
 
@@ -146,8 +145,7 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
-		if ( null != pendingAltitudeRefresh && null != mainHandler ) {
-			mainHandler.removeCallbacks( pendingAltitudeRefresh );
+		if ( null != pendingAltitudeRefresh ) {
 			pendingAltitudeRefresh = null;
 		}
 
@@ -202,7 +200,6 @@ public class MapFragment extends Fragment {
 					// means the position changed, so any pending refresh
 					// for the old position is irrelevant.
 					if ( null != pendingAltitudeRefresh ) {
-						mainHandler.removeCallbacks( pendingAltitudeRefresh );
 						pendingAltitudeRefresh = null;
 					}
 					// Leading edge: emit immediately if the rate limiter allows.
@@ -287,12 +284,34 @@ public class MapFragment extends Fragment {
 					if ( null != elevation ) {
 						alt = elevation.doubleValue();
 					} else {
-						reader.preloadAsync( lng, lat );
-						// Schedule a re-emit so the JS side picks up the
-						// elevation once the background preload finishes.
-						// Without this, the altitude stays stale until the
-						// next real map-move event.
-						scheduleAltitudeRefresh();
+						// Preload on a background thread. When done, the
+						// callback re-emits the map-update event on the
+						// main thread so the JS side picks up the now-cached
+						// elevation without waiting for a real map move.
+						pendingAltitudeRefresh = new Runnable() {
+							@Override
+							public void run() {
+								// No-op — this Runnable is just a marker
+								// that the callback checks for staleness.
+							}
+						};
+						reader.preloadAsync( lng, lat, () -> {
+							if ( null == mainHandler ) {
+								return;
+							}
+							mainHandler.post( () -> {
+								// Only emit if this callback hasn't been
+								// superseded by a newer map event.
+								if ( null == pendingAltitudeRefresh ) {
+									return;
+								}
+								pendingAltitudeRefresh = null;
+								MapsforgeVtmView parent = getMapsforgeVtmView();
+								if ( null != parent && null != mapView && null != mapView.map() ) {
+									parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
+								}
+							} );
+						} );
 					}
 				}
 			}
@@ -300,39 +319,6 @@ public class MapFragment extends Fragment {
 		}
 
 		return payload;
-	}
-
-	/**
-	 * Schedules a one-shot re-emit of the map-update event so the JS side
-	 * picks up elevation data that was previously a cache miss but has since
-	 * been loaded by a background preload.
-	 *
-	 * <p>The delay (150ms) is chosen to be comfortably longer than a typical
-	 * ~2.9MB HGT file read from flash storage (~50–100ms). If the preload
-	 * hasn't finished by then, the re-emit will just be another cache miss
-	 * (no harm — no further refresh is scheduled since the preload already
-	 * covers this tile).</p>
-	 */
-	private void scheduleAltitudeRefresh() {
-		if ( null == mainHandler ) {
-			return;
-		}
-		// Cancel any previously scheduled refresh — only the latest
-		// position matters.
-		if ( null != pendingAltitudeRefresh ) {
-			mainHandler.removeCallbacks( pendingAltitudeRefresh );
-		}
-		pendingAltitudeRefresh = new Runnable() {
-			@Override
-			public void run() {
-				pendingAltitudeRefresh = null;
-				MapsforgeVtmView parent = getMapsforgeVtmView();
-				if ( null != parent && null != mapView && null != mapView.map() ) {
-					parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
-				}
-			}
-		};
-		mainHandler.postDelayed( pendingAltitudeRefresh, 150 );
 	}
 
 	public void updateCenter() {

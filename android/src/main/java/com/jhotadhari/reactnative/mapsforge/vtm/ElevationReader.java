@@ -161,18 +161,36 @@ public class ElevationReader {
      * the load itself checks the cache first).</p>
      */
     public void preloadAsync(double lng, double lat) {
+        preloadAsync(lng, lat, null);
+    }
+
+    /**
+     * Like {@link #preloadAsync(double, double)} but invokes {@code onDone}
+     * (on the background preload thread) after the tile is loaded into the
+     * cache, or immediately if the tile is already cached / not found.
+     *
+     * <p>{@code onDone} is never called on the calling thread — always from
+     * the background executor.</p>
+     */
+    public void preloadAsync(double lng, double lat, Runnable onDone) {
         final String filename = tileFilename(lat, lng);
         final DemFile file;
         synchronized (fileIndex) {
             file = fileIndex.get(filename);
         }
         if (file == null) {
+            if (onDone != null) {
+                PRELOAD_EXECUTOR.execute(onDone);
+            }
             return;
         }
 
         // Quick check: skip if already cached.
         synchronized (dataCache) {
             if (dataCache.get(filename) != null) {
+                if (onDone != null) {
+                    PRELOAD_EXECUTOR.execute(onDone);
+                }
                 return;
             }
         }
@@ -182,6 +200,9 @@ public class ElevationReader {
             // preload may have finished while this task was enqueued.
             synchronized (dataCache) {
                 if (dataCache.get(filename) != null) {
+                    if (onDone != null) {
+                        onDone.run();
+                    }
                     return;
                 }
             }
@@ -194,6 +215,9 @@ public class ElevationReader {
                 }
             } catch (IOException e) {
                 // Best-effort — tile just won't be cached.
+            }
+            if (onDone != null) {
+                onDone.run();
             }
         });
     }
