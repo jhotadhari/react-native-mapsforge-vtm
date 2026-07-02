@@ -136,7 +136,7 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   (implements the codegen-generated Fabric manager interface).
 - `layer/` — custom vtm layer subclasses (`PathLayer`, `VectorLayer`, `ItemizedLayer`,
   `GestureLayer`) used by the path/marker layers and map-level gesture detection.
-- Top-level helpers: `HgtReader`/`Utils` (elevation lookups from `.hgt` DEM files), `LayerHelper`/
+- Top-level helpers: `ElevationReader`/`Utils` (elevation lookups from `.hgt` DEM files), `LayerHelper`/
   `LayerZoomBoundsHelper` (zoom-based layer visibility), `RenderThemeMenuLoader` (parses
   `<stylemenu>` from render-theme XML for `useRenderStyleOptions`), `FixedWindowRateLimiter` (throttles
   native map-event emission, used by `MapFragment`).

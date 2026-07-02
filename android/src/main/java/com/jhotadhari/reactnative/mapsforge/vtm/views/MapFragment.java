@@ -258,9 +258,14 @@ public class MapFragment extends Fragment {
 					com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
 						parent.getId(), parent.getReactContext() );
 				if ( null != reader ) {
-					Short elevation = reader.getElevation( lng, lat );
+					// Use cached-only lookup to avoid blocking the render
+					// thread on file I/O. On cache miss, kick off an async
+					// preload so subsequent frames pick up the elevation.
+					Short elevation = reader.getElevationIfCached( lng, lat );
 					if ( null != elevation ) {
 						alt = elevation.doubleValue();
+					} else {
+						reader.preloadAsync( lng, lat );
 					}
 				}
 			}

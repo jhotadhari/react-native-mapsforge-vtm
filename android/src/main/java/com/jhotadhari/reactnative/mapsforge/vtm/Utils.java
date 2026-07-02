@@ -200,12 +200,12 @@ public class Utils {
 	public static void promiseReject( Promise promise, String errorMsg ) {
 		try {
 			WritableMap error = new WritableNativeMap();
-			error.putString( "errorMsg", errorMsg );
+			error.putString( "errorMsg", errorMsg != null ? errorMsg : "Unknown error" );
 			promise.reject( "error", error );
 		} catch ( Throwable t ) {
 			// Graceful fallback when WritableNativeMap is unavailable
 			// (e.g., in Robolectric tests without native library support).
-			promise.reject( "error", errorMsg );
+			promise.reject( "error", errorMsg != null ? errorMsg : "Unknown error" );
 		}
 	}
 
