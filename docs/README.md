@@ -47,6 +47,6 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 ## Resources
 
 - **[Terminology](./TERMINOLOGY.md)** — Inclusive language conventions used throughout the project
-- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — 20 runnable examples (`yarn example android`)
+- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — 21 runnable examples across 3 categories (`yarn example android`)
 - **[Migration Guide (v0.7 → New Architecture)](../MIGRATION.md)** — Breaking changes from the old bridge-based API
 - **[Changelog](../CHANGELOG.md)** — Version history
