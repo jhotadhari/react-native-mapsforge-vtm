@@ -21,6 +21,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.MapsforgeVtmView;
 
 import org.mapsforge.map.android.hills.DemFolderAndroidContent;
 import org.mapsforge.map.layer.hills.DemFolder;
@@ -39,8 +40,17 @@ import java.text.Normalizer;
 import java.util.List;
 
 public class Utils {
-
 	public static MapFragment getMapFragment( ReactContext reactContext, int nativeNodeHandle ) {
+		// Check the explicit registry first — this is populated synchronously
+		// by MapsforgeVtmView.createFragment() before the FragmentManager
+		// transaction commits, which makes multi-map setups reliable: layer
+		// creation on a second map can find its fragment immediately without
+		// racing the async commit.
+		MapFragment registered = MapsforgeVtmView.getFragment( nativeNodeHandle );
+		if ( registered != null ) {
+			return registered;
+		}
+		// Fallback: FragmentManager lookup (backward compat, single-map).
 		try {
 			FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
 			if ( null == activity ) {

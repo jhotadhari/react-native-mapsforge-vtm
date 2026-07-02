@@ -1,7 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.annotation.SuppressLint;
-import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -18,6 +17,8 @@ import com.facebook.react.uimanager.UIManagerHelper;
 import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressLint( "ViewConstructor" )
 public class MapsforgeVtmView extends LinearLayout {
@@ -285,25 +286,46 @@ public class MapsforgeVtmView extends LinearLayout {
 	public void createFragment() {
 		if ( null == mapFragment ) {
 			mapFragment = new MapFragment();
+			int handle = this.getId();
+			// Register immediately so Utils.getMapFragment can find
+			// this fragment even before the FragmentManager transaction
+			// below executes.  This is what makes multi-map work:
+			// layer creation on a second MapContainer can look up the
+			// correct fragment by nativeNodeHandle without racing the
+			// async commit().
+			fragmentRegistry.put( handle, mapFragment );
 			setupLayout( this );
 			FragmentActivity activity = (FragmentActivity) getReactContext().getCurrentActivity();
 			if ( activity != null ) {
 				activity.getSupportFragmentManager().beginTransaction()
-					.replace( this.getId(), mapFragment, String.valueOf( this.getId() ) )
-					.commit();
+					.replace( handle, mapFragment, String.valueOf( handle ) )
+					.commitNow();
+				// commitNow() created the fragment synchronously, but the
+				// new child view may not have been measured yet. Post a
+				// one-shot layout so the MapView gets correct dimensions
+				// before any layer tries to load tiles.
+				post( () -> manuallyLayoutChildren( MapsforgeVtmView.this ) );
 			}
-		}
+	}
 	}
 
 	public void setupLayout(ViewGroup view) {
-		Choreographer.getInstance().postFrameCallback( new Choreographer.FrameCallback() {
+		// Use a one-shot OnLayoutChangeListener instead of a continuous
+		// Choreographer.FrameCallback loop.  The old continuous callback
+		// called the hidden API dispatchOnGlobalLayout() every frame,
+		// which caused layout thrashing between multiple MapsforgeVtmView
+		// instances — each view's callback would trigger re-layout of
+		// the other, continuously recreating GL surfaces and preventing
+		// tiles from loading (gray map) or corrupting textures (black
+		// tiles).
+		view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
 			@Override
-			public void doFrame(long frameTimeNanos) {
-				manuallyLayoutChildren(view);
-				view.getViewTreeObserver().dispatchOnGlobalLayout();
-				Choreographer.getInstance().postFrameCallback( this );
+			public void onLayoutChange(View v, int left, int top, int right,
+					int bottom, int oldLeft, int oldTop, int oldRight,
+					int oldBottom) {
+				manuallyLayoutChildren((ViewGroup) v);
 			}
-		} );
+		});
 	}
 
 	public void manuallyLayoutChildren(ViewGroup view) {
@@ -322,6 +344,32 @@ public class MapsforgeVtmView extends LinearLayout {
 		}
 
 		mapFragment.fixViewLayoutSize();
+	}
+
+	// ------------------------------------------------------------------
+	// Fragment registry — maps nativeNodeHandle → MapFragment so layer
+	// creation can find the correct fragment without relying on the async
+	// FragmentManager.commit() having already executed.  Multiple
+	// MapsforgeVtmViews in the same activity each get their own entry.
+	// ------------------------------------------------------------------
+
+	private static final ConcurrentHashMap<Integer, MapFragment> fragmentRegistry = new ConcurrentHashMap<>();
+
+	/**
+	 * Returns the {@link MapFragment} registered for {@code nativeNodeHandle},
+	 * or {@code null} if no fragment has been registered yet.
+	 */
+	@Nullable
+	public static MapFragment getFragment(int nativeNodeHandle) {
+		return fragmentRegistry.get(nativeNodeHandle);
+	}
+
+	/**
+	 * Removes the fragment registration for {@code nativeNodeHandle}.
+	 * Called from {@link MapFragment#onDestroy} during teardown.
+	 */
+	public static void removeFragment(int nativeNodeHandle) {
+		fragmentRegistry.remove(nativeNodeHandle);
 	}
 
 	private class MapEvent extends Event<MapEvent> {

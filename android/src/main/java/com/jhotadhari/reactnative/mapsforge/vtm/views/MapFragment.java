@@ -24,6 +24,7 @@ import org.oscim.event.Event;
 import org.oscim.layers.Layer;
 import org.oscim.map.Map;
 
+
 import java.lang.reflect.InvocationTargetException;
 
 public class MapFragment extends Fragment {
@@ -39,6 +40,7 @@ public class MapFragment extends Fragment {
 	private Handler mainHandler;
 
 	private Runnable pendingTrailingEdge;
+
 
 	public MapView getMapView() {
 		return mapView;
@@ -56,6 +58,7 @@ public class MapFragment extends Fragment {
 		if ( null != getMapsforgeVtmView() ) {
 			getMapsforgeVtmView().emitMapEvent( "onMapCreated", payload );
 		}
+
 	}
 
 	protected void createMapView( View view ) {
@@ -80,19 +83,33 @@ public class MapFragment extends Fragment {
 			e.printStackTrace();
 			emitError( e.getMessage() );
 		}
+
 	}
 
 
+
+	/**
+	 * Configures EGL context sharing for this MapView to work around vtm 0.28.0's
+	 * static rendering state limitation.  The first MapView creates the context
+	 * (which all subsequent MapViews share), so that vtm's static texture cache
+	 * — created in the first context — remains valid for every instance.
+	 *
+	 * <p>Must be called <b>after</b> {@code new MapView()} (constructor) but
+	 * <b>before</b> {@code addView(mapView)} — EGL context creation is lazy and
+	 * fires when the GLSurfaceView is first attached to the window.
+	 */
 	public void updateRateLimiterRate() {
 		if ( null != getMapsforgeVtmView() ) {
 			rateLimiter = new FixedWindowRateLimiter( getMapsforgeVtmView().getMapUpdateInterval(), 1 );
 		}
+
 		// Cancel any pending trailing-edge flush scheduled with the old
 		// window size. The next onMapEvent will re-schedule a fresh one.
 		if ( null != pendingTrailingEdge && null != mainHandler ) {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
+
 	}
 
 	public void updateUpdateListener() {
@@ -101,6 +118,7 @@ public class MapFragment extends Fragment {
 		} else if ( ! getMapsforgeVtmView().getEmitsMapUpdateEvents() && updateListener != null ) {
 			unbindUpdateListener();
 		}
+
 	}
 
 	protected void unbindUpdateListener() {
@@ -108,6 +126,7 @@ public class MapFragment extends Fragment {
 			mapView.map().events.unbind( updateListener );
 			updateListener = null;
 		}
+
 		// Cancel any pending trailing-edge flush so it doesn't fire
 		// after the listener has been unbound (would deliver a stale
 		// event to a component that is no longer listening).
@@ -115,17 +134,20 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
+
 	}
 
 	protected void bindGestureLayer() {
 		if ( null == mapView || null == getMapsforgeVtmView() ) {
 			return;
 		}
+
 		// Remove any stale instance first (e.g. after fragment recreation).
 		if ( gestureLayer != null && mapView.map() != null ) {
 			mapView.map().layers().remove( gestureLayer );
 			gestureLayer = null;
 		}
+
 		gestureLayer = new GestureLayer(
 			mapView.map(),
 			( eventName, x, y ) -> {
@@ -186,6 +208,7 @@ public class MapFragment extends Fragment {
 			};
 			mapView.map().events.bind( updateListener );
 		}
+
 	}
 
 	protected WritableMap getResponseBase( int includeLevel ) {
@@ -193,29 +216,37 @@ public class MapFragment extends Fragment {
 		if ( null == getMapsforgeVtmView() ) {
 			return payload;
 		}
+
 		ReadableMap responseInclude = getMapsforgeVtmView().getResponseInclude();
 		MapPosition mapPosition = mapView.map().getMapPosition();
 		if ( responseInclude.getInt( "zoomLevel" ) >= includeLevel ) {
 			payload.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
 		}
+
 		if ( responseInclude.getInt( "zoom" ) >= includeLevel ) {
 			payload.putDouble( "zoom", mapPosition.getZoom() );
 		}
+
 		if ( responseInclude.getInt( "scale" ) >= includeLevel ) {
 			payload.putDouble( "scale", mapPosition.getScale() );
 		}
+
 		if ( responseInclude.getInt( "zoomScale" ) >= includeLevel ) {
 			payload.putDouble( "zoomScale", mapPosition.getZoomScale() );
 		}
+
 		if ( responseInclude.getInt( "bearing" ) >= includeLevel ) {
 			payload.putDouble( "bearing", mapPosition.getBearing() );
 		}
+
 		if ( responseInclude.getInt( "roll" ) >= includeLevel ) {
 			payload.putDouble( "roll", mapPosition.getRoll() );
 		}
+
 		if ( responseInclude.getInt( "tilt" ) >= includeLevel ) {
 			payload.putDouble( "tilt", mapPosition.getTilt() );
 		}
+
 		// center
 		if ( responseInclude.getInt( "center" ) >= includeLevel ) {
 			double lng = mapPosition.getLongitude();
@@ -235,6 +266,7 @@ public class MapFragment extends Fragment {
 			}
 			payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
 		}
+
 		return payload;
 	}
 
@@ -246,6 +278,7 @@ public class MapFragment extends Fragment {
 				mapView.map().getMapPosition().getScale()
 			) );
 		}
+
 	}
 
 	public void updateZoomLevel() {
@@ -254,6 +287,7 @@ public class MapFragment extends Fragment {
 			mapPosition.setZoomLevel( getMapsforgeVtmView().getZoomLevel() );
 			mapView.map().setMapPosition( mapPosition );
 		}
+
 	}
 
 	public void updateZoomBounds() {
@@ -261,6 +295,7 @@ public class MapFragment extends Fragment {
 			mapView.map().viewport().setMinZoomLevel( getMapsforgeVtmView().getZoomBounds( "min" ) );
 			mapView.map().viewport().setMaxZoomLevel( getMapsforgeVtmView().getZoomBounds( "max" ) );
 		}
+
 	}
 
 	public void updateViewportBounds( String key ) {
@@ -280,6 +315,7 @@ public class MapFragment extends Fragment {
 					break;
 			}
 		}
+
 	}
 
 	public void updateViewportValue( String key ) {
@@ -296,6 +332,7 @@ public class MapFragment extends Fragment {
 					break;
 			}
 		}
+
 	}
 
 	public void updateInteractionEnabled() {
@@ -305,6 +342,7 @@ public class MapFragment extends Fragment {
 			mapView.map().getEventLayer().enableRotation( getMapsforgeVtmView().getInteractionEnabled( "rotation" ) );
 			mapView.map().getEventLayer().enableZoom( getMapsforgeVtmView().getInteractionEnabled( "zoom" ) );
 		}
+
 	}
 
 	@Override
@@ -323,6 +361,7 @@ public class MapFragment extends Fragment {
 				}
 			}
 		}
+
 		super.onPause();
 	}
 
@@ -343,6 +382,7 @@ public class MapFragment extends Fragment {
 				}
 			}
 		}
+
 	}
 
 	@Override
@@ -353,12 +393,13 @@ public class MapFragment extends Fragment {
 		// MapMutationQueue so pending layer mutations don't hang. Only then
 		// destroy the mapView itself.
 		MapsforgeVtmView parent = getMapsforgeVtmView();
+		int handle = parent != null ? parent.getId() : 0;
 		if ( parent != null ) {
-			int handle = parent.getId();
 			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.removeElevationReader( handle, parent.getReactContext() );
 		}
+
 		if ( mapView != null ) {
 			if ( gestureLayer != null && mapView.map() != null ) {
 				mapView.map().layers().remove( gestureLayer );
@@ -367,6 +408,13 @@ public class MapFragment extends Fragment {
 			mapView.onDestroy();
 			mapView = null;
 		}
+
+		// Remove the explicit fragment registry entry so Utils.getMapFragment
+		// won't return a stale fragment after teardown (multi-map support).
+		if ( handle != 0 ) {
+			MapsforgeVtmView.removeFragment( handle );
+		}
+
 		super.onDestroy();
 	}
 
@@ -377,12 +425,14 @@ public class MapFragment extends Fragment {
 			params.height = getView().getHeight();
 			getView().findViewById( R.id.mapView ).setLayoutParams( params );
 		}
+
 	}
 
 	private MapsforgeVtmView getMapsforgeVtmView() {
 		if ( null == getView() ) {
 			return null;
 		}
+
 		return (MapsforgeVtmView) getView().getParent();
 	}
 
@@ -392,6 +442,7 @@ public class MapFragment extends Fragment {
 			payload.putString( "errorMsg", errorMsg );
 			getMapsforgeVtmView().emitMapEvent( "onError", payload );
 		}
+
 	}
 
 }

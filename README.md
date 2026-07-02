@@ -41,14 +41,6 @@ npm install react-native-mapsforge-vtm
 yarn add react-native-mapsforge-vtm
 ```
 
-### Performance notes: touch/gesture latency
-
-When overlaying React Native `View`s on top of `MapContainer`, always set `pointerEvents="none"` or `pointerEvents="box-none"`. A full-screen absolute-positioned overlay without this prop forces every touch to hit-test through the JS-side React Native View before reaching the native `MapsforgeVtmView`. On Android this adds 1–2 frames of latency to pan/zoom gesture start, producing a perceptible "sticky" feel when swiping the map.
-
-**Why it matters:** React Native renders sibling Views in order — the last child is on top. The native map view (an Android `LinearLayout`) sits beneath any JS View rendered after it in the tree. Without `pointerEvents="none"`, React Native's touch dispatch system performs a JS-side hit-test through the overlay on every `MotionEvent`, which delays delivery to the native gesture recognizer.
-
-Observed at straymap commit `1db69df` (Center component overlaying `MapContainer` in `AppView.tsx`).
-
 ### Where to get maps?
 
 Vector maps in mapsforge V5 format and xml render styles [https://www.openandromaps.org/en/downloads](https://www.openandromaps.org/en/downloads).
