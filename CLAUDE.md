@@ -40,6 +40,146 @@ CI (`.github/workflows/ci.yml`) drives the Android build through `yarn turbo run
 To work on native Android code, open `example/android` in Android Studio — library Java sources show up
 under the `react-native-mapsforge-vtm` module (this repo is symlinked in via `example/`'s yarn workspace).
 
+## Terminology and naming conventions
+
+### Cross-boundary mapping — how JS names map to Java
+
+Every layer follows the same naming chain. Given a layer named `LayerFoo`:
+
+| Layer | JS spec | Registered as | Codegen Java base | Your Java class |
+|---|---|---|---|---|
+| TurboModule | `NativeModules/NativeLayerFoo.ts` | `'LayerFoo'` | `NativeLayerFooSpec.java` (generated) | `modules/LayerFoo.java extends NativeLayerFooSpec` |
+| Fabric view | `NativeViews/MapsforgeVtmViewNativeComponent.ts` | `'MapsforgeVtmView'` | `MapsforgeVtmViewManagerInterface<>` (generated) | `views/MapsforgeVtmViewManager.java`, `views/MapsforgeVtmView.java` |
+
+The hand-written Java class name **exactly matches** the string passed to `TurboModuleRegistry.getEnforcing<Spec>()` — no prefix, no suffix.
+
+### File naming
+
+| Directory | Convention | Examples |
+|---|---|---|
+| `src/components/` | `Layer<Name>.tsx` for map layers, plain `.tsx` for wrappers/children | `LayerMapsforge.tsx`, `Marker.tsx`, `SharedLayer.tsx` |
+| `src/NativeModules/` | `Native<Name>.ts` | `NativeLayerMarker.ts`, `NativeMapContainer.ts` |
+| `src/NativeViews/` | `<ViewName>NativeComponent.ts` | `MapsforgeVtmViewNativeComponent.ts` |
+| `src/compose/` | `use<HookName>.ts` (camelCase) | `useMap.ts`, `useLayerOrder.ts`, `useNativeLayerLifecycle.ts` |
+| `src/context/` | `<Name>Context.ts` | `MapHandleContext.ts`, `SharedLayerContext.ts` |
+| `src/reanimated/` | Separate barrel (`index.ts`) | `useMapPosition.ts` |
+| `android/…/modules/` | `<Name>.java` (matches TurboModule reg name) | `LayerMarker.java`, `MapContainer.java` |
+| `android/…/views/` | `<Name>View.java`, `<Name>ViewManager.java` | `MapsforgeVtmView.java`, `MapsforgeVtmViewManager.java` |
+| `android/…/layer/` | `<Name>Layer.java`, `<Name>LayerManager.java` for shared-layer managers | `VectorLayer.java`, `PathLayerManager.java` |
+
+### Type/interface naming (TypeScript)
+
+Use these suffixes consistently. When adding a new layer, copy the pattern from the nearest existing layer.
+
+| Suffix | Meaning | Examples |
+|---|---|---|
+| `*Props` | React component props (what consumers pass in JSX) | `LayerPathProps`, `MarkerProps`, `MapContainerProps` |
+| `*Response` | Payload from native back to JS (create/remove/event callbacks) | `MarkerResponse`, `LayerMapsforgeResponse`, `MapEventResponse` |
+| `*GestureResponse` | Gesture event shape (press/long-press/double-tap) | `LayerPathGestureResponse`, `LayerShapeGestureResponse` |
+| `*Params` | Input to a native method call | `CreateLayerParams`, `AnimateToParams`, `ReorderLayersParams` |
+| `*TriggerEvent` | `RefObject` type for programmatic gesture simulation | `PathTriggerEvent`, `MarkerTriggerParams` |
+| `*ResponseInclude` | Bitmask flags controlling what fields native includes in responses | `ResponseInclude`, `PathResponseInclude` |
+| `*Style` | Visual style shape (fill, stroke, stipple) | `GeometryStyle`, `SymbolParams`, `ShapeStyle` |
+| `Spec extends TurboModule` | The codegen-read interface (one per `Native*.ts` file) | Named `Spec` in every spec file |
+| `ModuleParams` | Return type of `getConstants()` | `ModuleParams` in each spec file |
+
+**Codegen constraint:** Types must be redeclared inline in spec files — codegen's TS parser cannot follow imports. This is why `Position`, `ResponseBase`, and `Bbox` are redeclared (with `Double` instead of `number`) in every `Native*.ts` file that uses them. Don't "clean up" these apparent duplicates.
+
+### Java class naming
+
+| Suffix | When to use | Examples |
+|---|---|---|
+| (no suffix) | TurboModule implementation in `modules/` | `LayerMarker`, `MapContainer`, `LayerPath` |
+| `*Spec` | Codegen-generated abstract base (in `generated/`) — never edit these | `NativeLayerMarkerSpec`, `NativeMapContainerSpec` |
+| `*ManagerInterface` / `*ManagerDelegate` | Codegen-generated Fabric boilerplate | `MapsforgeVtmViewManagerInterface<>` |
+| `*View` | Fabric native View subclass | `MapsforgeVtmView` |
+| `*ViewManager` | Fabric ViewManager | `MapsforgeVtmViewManager` |
+| `*Fragment` | Android Fragment hosting the map | `MapFragment` |
+| `*Layer` | Custom vtm `Layer` subclass in `layer/` | `VectorLayer`, `GestureLayer`, `ItemizedLayer` |
+| `*LayerManager` | Concrete shared-layer manager (one per type) | `PathLayerManager`, `MarkerLayerManager`, `ShapeLayerManager` |
+| `*Manager` | Abstract base for shared-layer managers | `LayerManager<TEntry>` |
+| `*Queue` | Serializes mutations onto the UI thread | `MapMutationQueue` |
+| `*Helper` | Stateless utility that operates on layers | `LayerHelper`, `LayerZoomBoundsHelper` |
+| `*Wrapper` | Adapts a third-party class | `PathLayerJtsWrapper` |
+| `*Loader` | Reads/parses a file format | `RenderThemeMenuLoader` |
+| `*Reader` | Reads a binary data format | `ElevationReader` |
+| `*RateLimiter` | Throttling/debouncing | `FixedWindowRateLimiter` |
+
+### React component naming
+
+| Pattern | When to use | Examples |
+|---|---|---|
+| `Layer<SourceOrType>` | Any map layer component (renders `null`, talks to a TurboModule) | `LayerMapsforge`, `LayerPath`, `LayerPathJts`, `LayerShape`, `LayerMarker`, `LayerBitmapTile` |
+| `<Name>` (no prefix) | Children inside a layer component, or structural wrappers | `Marker`, `SharedLayer`, `ReindexScope` |
+| `MapContainer` | The root map component (the only one without `Layer` prefix) | `MapContainer` |
+
+TurboModule registration names match component names exactly: the component `LayerFoo` talks to `NativeModules/NativeLayerFoo.ts` which registers as `'LayerFoo'`.
+
+### Hook naming
+
+| Pattern | When to use | Examples |
+|---|---|---|
+| `useMap()` | Imperative control of the map view | `useMap` → returns `{ animateTo, getPosition }` |
+| `useMapPosition()` | Reanimated shared values tracking live map position | `useMapPosition` → returns worklet-friendly `SharedValue`s |
+| `useLayerOrder()` | Register a layer component into the global render-order registry | Returns `{ nativeNodeHandle, positionIndex, fragmentUuid }` |
+| `useNativeLayerLifecycle()` | The null→false→uuid state machine for any native resource | Generic hook used by all layer components |
+| `use<Layer>EventSubscription()` | Route native gesture/trigger events to the right component | `useLayerPathEventSubscription`, `useMarkerEventSubscription`, `useLayerShapeEventSubscription` |
+| `useRenderStyleOptions()` | Parse render-theme XML for layer toggles | Returns style menu categories and overlays |
+
+### Context naming
+
+| Context | Hook to read it | Purpose |
+|---|---|---|
+| `MapHandleContext` | `useContext(MapHandleContext)` | Provides `nativeNodeHandle` + `LayerOrderRegistry` to all descendants |
+| `SharedLayerContext` | `useContext(SharedLayerContext)` | Scope ID for `<SharedLayer>` grouping (`null` = not inside one) |
+| `MarkerLayerContext` | `useContext(MarkerLayerContext)` | Current `LayerMarker`'s uuid (scopes `Marker` children) |
+| `ReindexContext` | `useContext(ReindexContext)` | Reindex scope symbol for `<ReindexScope>` |
+
+All contexts follow the `null` = "not within provider" convention.
+
+### Library-specific domain glossary
+
+| Term | Meaning |
+|---|---|
+| **nativeNodeHandle** | The Fabric handle of the map view (`findNodeHandle` result). Every layer's native call passes it to identify which map instance. |
+| **uuid** | Unique string returned from native `createLayer` / `createMarker`. Used for later remove/update calls and event filtering. |
+| **fragment / fragmentUuid** | A contiguous block of same-type shared-layer JS components collapsed into one native `Layer`. Fragment UUIDs are prefixed `__vtm_shared_` to distinguish them from per-component UUIDs. |
+| **shared layer** | Architecture where many JS components share one native `Layer` (used by `LayerPath`, `LayerMarker`, `LayerShape`). Managed by `LayerManager<TEntry>` subclasses on the native side. |
+| **dedicated layer** | Architecture where each JS component owns its own native `Layer` (used by `LayerPathJts`, `LayerMapsforge`, `LayerBitmapTile`, etc.). One TurboModule instance = one native layer. |
+| **LayerOrderRegistry** | Core mutable data structure in `MapHandleContext` tracking every mounted layer's document-order position (`Symbol` keyed), resolved native `uuid`, fragment assignment, and layer type. |
+| **positionIndex** | Zero-based document-order index among all managed layers on a map. Passed to native at creation time so layers land at the correct z-order without a follow-up `reorderLayers` call. |
+| **MapMutationQueue** | The **sole** place on the native side that calls `mapView.map().layers().add/remove` and the batch-level `updateMap()`. Serializes all mutations onto the UI thread. |
+| **knownLayers** | `MapMutationQueue.getKnownLayers()` — a `ConcurrentHashMap` of all UUIDs the queue is tracking. Thread-safe to read from any thread. |
+| **triggerEvent** | Programmatic gesture simulation (e.g., invoke a marker's `onPress` from JS imperatively). Exposed as a `RefObject` on the component. |
+| **ReindexScope** | React wrapper that resets `positionIndex` numbering within its subtree, so children are numbered relative to the scope boundary rather than the global order. |
+| **SharedLayer** | React wrapper that activates shared-layer grouping for its subtree — all same-type layers inside collapse into one native fragment per type, giving correct z-order at O(1) native draw calls. |
+| **MarkerBatchQueue** | JS-side utility that batches individual `createMarker`/`removeMarker` calls into single `createMarkers`/`removeMarkers` bridge calls (N bridge crossings → 1). |
+| **scheduleUpdate** | Coalesced `updateMap()` — multiple calls within one frame produce a single native `mapView.map().updateMap()` (via `AtomicBoolean` CAS + `Handler.post`). |
+
+### vtm/mapsforge domain terms
+
+| Term | Meaning |
+|---|---|
+| **mapFile** | `.map` binary vector tile file (produced by mapsforge-map-writer) or `.mbtiles` file |
+| **renderTheme** | XML file (or built-in name like `'OSMARENDER'`) defining how map elements are styled |
+| **stylemenu** | `<stylemenu>` element inside a render-theme XML listing toggleable layer groups — parsed by `RenderThemeMenuLoader` for `useRenderStyleOptions` |
+| **Layer** (`org.oscim.layers.Layer`) | Any drawable map overlay in vtm's rendering pipeline |
+| **GeoPoint** | Lat/lng coordinate in vtm's coordinate system |
+| **drawable** (vtm-jts) | A single shape/marker/path primitive within a `VectorLayer` (e.g. `CircleDrawable`, `PolygonDrawable`, `JtsDrawable`) |
+| **ItemizedLayer** | vtm's marker overlay (holds many `MarkerItem`s, each with a `MarkerSymbol`) |
+| **CanvasAdapter** | vtm's rendering backend abstraction (`org.oscim.backend.CanvasAdapter`) |
+
+### React Native New Architecture terms
+
+| Term | In this codebase |
+|---|---|
+| **Fabric** | RN's new rendering system. `MapsforgeVtmView` is a Fabric component — events arrive as `DirectEventHandler` props, not via `NativeEventEmitter`. |
+| **TurboModule** | RN's new native module system. Every `modules/*.java` is a TurboModule, loaded on demand via JSI. |
+| **codegen** | Build-time tool that reads the TS `Spec` interface and generates `Native*Spec.java` base classes. The hand-written Java class extends the generated base. |
+| **findNodeHandle** | Returns the native view handle for a React ref. Used by `MapContainer` to obtain `nativeNodeHandle`, which every layer passes to its TurboModule calls. |
+| **DirectEventHandler** | Fabric event callback — events flow directly from native to the registering component (no global emitter). Used for `onTap`, `onLongPress`, `onMapUpdate`, etc. |
+| **codegenNativeComponent** | Function in `MapsforgeVtmViewNativeComponent.ts` that registers the Fabric view spec for codegen. |
+
 ## Architecture
 
 ### One Fabric view, one TurboModule per layer

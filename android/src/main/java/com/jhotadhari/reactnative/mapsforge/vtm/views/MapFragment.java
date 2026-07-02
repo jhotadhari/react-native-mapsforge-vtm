@@ -41,6 +41,14 @@ public class MapFragment extends Fragment {
 
 	private Runnable pendingTrailingEdge;
 
+	/**
+	 * When a map-update event has a cache miss for elevation, a background
+	 * preload is started and this runnable is scheduled to re-emit the event
+	 * once the tile is expected to be cached. Cancelled on every new map
+	 * event (which will either hit the cache or schedule a fresh refresh).
+	 */
+	private Runnable pendingAltitudeRefresh;
+
 
 	public MapView getMapView() {
 		return mapView;
@@ -109,6 +117,10 @@ public class MapFragment extends Fragment {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
 		}
+		if ( null != pendingAltitudeRefresh && null != mainHandler ) {
+			mainHandler.removeCallbacks( pendingAltitudeRefresh );
+			pendingAltitudeRefresh = null;
+		}
 
 	}
 
@@ -133,6 +145,10 @@ public class MapFragment extends Fragment {
 		if ( null != pendingTrailingEdge && null != mainHandler ) {
 			mainHandler.removeCallbacks( pendingTrailingEdge );
 			pendingTrailingEdge = null;
+		}
+		if ( null != pendingAltitudeRefresh && null != mainHandler ) {
+			mainHandler.removeCallbacks( pendingAltitudeRefresh );
+			pendingAltitudeRefresh = null;
 		}
 
 	}
@@ -181,6 +197,13 @@ public class MapFragment extends Fragment {
 					// each new vtm event resets the silence timer.
 					if ( null != pendingTrailingEdge ) {
 						mainHandler.removeCallbacks( pendingTrailingEdge );
+					}
+					// Cancel stale altitude refresh — a new map event
+					// means the position changed, so any pending refresh
+					// for the old position is irrelevant.
+					if ( null != pendingAltitudeRefresh ) {
+						mainHandler.removeCallbacks( pendingAltitudeRefresh );
+						pendingAltitudeRefresh = null;
 					}
 					// Leading edge: emit immediately if the rate limiter allows.
 					if ( rateLimiter.tryAcquire() ) {
@@ -259,13 +282,17 @@ public class MapFragment extends Fragment {
 						parent.getId(), parent.getReactContext() );
 				if ( null != reader ) {
 					// Use cached-only lookup to avoid blocking the render
-					// thread on file I/O. On cache miss, kick off an async
-					// preload so subsequent frames pick up the elevation.
+					// thread on file I/O.
 					Short elevation = reader.getElevationIfCached( lng, lat );
 					if ( null != elevation ) {
 						alt = elevation.doubleValue();
 					} else {
 						reader.preloadAsync( lng, lat );
+						// Schedule a re-emit so the JS side picks up the
+						// elevation once the background preload finishes.
+						// Without this, the altitude stays stale until the
+						// next real map-move event.
+						scheduleAltitudeRefresh();
 					}
 				}
 			}
@@ -273,6 +300,39 @@ public class MapFragment extends Fragment {
 		}
 
 		return payload;
+	}
+
+	/**
+	 * Schedules a one-shot re-emit of the map-update event so the JS side
+	 * picks up elevation data that was previously a cache miss but has since
+	 * been loaded by a background preload.
+	 *
+	 * <p>The delay (150ms) is chosen to be comfortably longer than a typical
+	 * ~2.9MB HGT file read from flash storage (~50–100ms). If the preload
+	 * hasn't finished by then, the re-emit will just be another cache miss
+	 * (no harm — no further refresh is scheduled since the preload already
+	 * covers this tile).</p>
+	 */
+	private void scheduleAltitudeRefresh() {
+		if ( null == mainHandler ) {
+			return;
+		}
+		// Cancel any previously scheduled refresh — only the latest
+		// position matters.
+		if ( null != pendingAltitudeRefresh ) {
+			mainHandler.removeCallbacks( pendingAltitudeRefresh );
+		}
+		pendingAltitudeRefresh = new Runnable() {
+			@Override
+			public void run() {
+				pendingAltitudeRefresh = null;
+				MapsforgeVtmView parent = getMapsforgeVtmView();
+				if ( null != parent && null != mapView && null != mapView.map() ) {
+					parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
+				}
+			}
+		};
+		mainHandler.postDelayed( pendingAltitudeRefresh, 150 );
 	}
 
 	public void updateCenter() {
