@@ -55,13 +55,21 @@ simplest to most performant:
 
 | Tier | API | Bridge crossings | React re-renders | Best for |
 |---|---|---|---|---|
-| Callback | `MapContainer.onMapUpdate` | ~25/sec (one-way) | ~25/sec | Debug overlays, one-shot reactions |
+| Callback | `MapContainer.onMapUpdate` | ~25/sec (one-way) | ~25/sec | Coordinate tracking, debug overlays, one-shot reactions. Elevation is intentionally excluded — use `useMap().getAltitudeAtPosition()` instead. |
 | Shared values | `useMapPosition()` from `reanimated` module | ~25/sec (writes only) | 0 | Smooth UI tracking at 60fps |
 | Imperative | `useMap().getPosition()` | 2 per call (round-trip) | 0–1 | Button-triggered snapshots |
 
 `useMapPosition()` returns reanimated shared values. Worklet consumers read
 from them on the UI thread — zero bridge crossings, zero React re-renders
 for reads. Requires `react-native-reanimated >= 3.0.0`.
+
+### Altitude (elevation)
+
+`useMap().getAltitudeAtPosition(lng, lat)` returns a `Promise<number | null>`
+for point-elevation queries. It runs on the **Native Modules thread** (not
+the render thread) — file I/O during HGT tile loads never blocks rendering.
+Call it on a debounce after the map settles for center-altitude displays,
+or directly for tap/long-press handlers.
 
 ## Touch latency
 
