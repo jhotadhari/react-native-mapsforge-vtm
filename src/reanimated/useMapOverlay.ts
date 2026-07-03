@@ -73,10 +73,14 @@ export function useMapOverlay(
 			};
 		}
 
+		// Explicitly set opacity so reanimated clears it from the
+		// null-path return above (some versions don't auto-clear
+		// properties that are absent from later returns).
 		return {
 			position: 'absolute' as const,
 			left: screenPos.x,
 			top: screenPos.y,
+			opacity: 1,
 		};
 	});
 

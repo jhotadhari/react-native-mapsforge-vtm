@@ -1,6 +1,16 @@
 {
-	"extends": "../tsconfig.json",
 	"compilerOptions": {
+		"target": "ESNext",
+		"lib": ["ESNext"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"noEmit": true,
 		"paths": {
 			"react-native-mapsforge-vtm": ["../src/index.tsx"],
 			"react-native-mapsforge-vtm/reanimated": [
