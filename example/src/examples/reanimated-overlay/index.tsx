@@ -5,7 +5,7 @@ import {
 	StyleSheet,
 	type NativeSyntheticEvent,
 } from 'react-native';
-import Animated, { useDerivedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import {
 	LayerBitmapTile,
 	LayerScalebar,
@@ -97,21 +97,39 @@ const CITIES = [
 	},
 ];
 
-const DebugOverlay: FC<{ pos: MapPositionSharedValues }> = ({ pos }) => {
-	const debugText = useDerivedValue(() => {
+/**
+ * Dual debug display: JS-thread values from the raw map event (top line),
+ * UI-thread shared values via useAnimatedProps (bottom line).
+ * If the top line shows real values but the bottom line shows 0/?, the
+ * shared values aren't receiving updates (responseInclude issue).
+ */
+const DebugOverlay: FC<{
+	pos: MapPositionSharedValues;
+	event: MapEventResponse | undefined;
+}> = ({ pos, event }) => {
+	const animatedProps = useAnimatedProps(() => {
 		const c = pos.centerSv.value;
-		return `center: ${c ? c.map((v) => v.toFixed(4)).join(', ') : 'null'}
-zoom: ${pos.zoomSv.value}
-vp: ${pos.viewportWidthSv.value}×${pos.viewportHeightSv.value}`;
+		return {
+			text:
+				`[UI] ctr=${c?.[0]?.toFixed(2) ?? '?'},${c?.[1]?.toFixed(2) ?? '?'} ` +
+				`z=${pos.zoomSv.value} ` +
+				`vp=${pos.viewportWidthSv.value}×${pos.viewportHeightSv.value}`,
+		} as { text: string };
 	});
 
 	return (
-		<Animated.Text
-			style={styles.debug}
-			numberOfLines={3}
-		>
-			{debugText}
-		</Animated.Text>
+		<View style={styles.debug}>
+			<Text style={styles.debugText}>
+				[JS] ctr={event?.center?.join(',') ?? '?'}
+				{'\n'}
+				z={event?.zoomLevel ?? '?'} vp={event?.viewportWidth ?? '?'}×
+				{event?.viewportHeight ?? '?'}
+			</Text>
+			<Animated.Text
+				style={styles.debugText}
+				animatedProps={animatedProps}
+			/>
+		</View>
 	);
 };
 
@@ -174,7 +192,10 @@ const ExampleComponent: FC<{
 				/>
 			))}
 
-			<DebugOverlay pos={pos} />
+			<DebugOverlay
+				pos={pos}
+				event={info}
+			/>
 
 			<Center
 				height={height}
@@ -214,11 +235,13 @@ const styles = StyleSheet.create({
 		top: 4,
 		left: 4,
 		backgroundColor: 'rgba(255, 255, 0, 0.85)',
-		color: '#000',
-		fontSize: 9,
 		padding: 4,
 		borderRadius: 4,
 		zIndex: 1000,
+	},
+	debugText: {
+		color: '#000',
+		fontSize: 9,
 	},
 });
 
