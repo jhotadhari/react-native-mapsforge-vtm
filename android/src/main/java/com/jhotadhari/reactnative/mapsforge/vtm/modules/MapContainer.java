@@ -107,6 +107,8 @@ public class MapContainer extends NativeMapContainerSpec {
 		responseInclude.putInt( "roll", 0 );
 		responseInclude.putInt( "tilt", 0 );
 		responseInclude.putInt( "center", 0 );
+		responseInclude.putInt( "viewportWidth", 0 );
+		responseInclude.putInt( "viewportHeight", 0 );
 		constants.put( "responseInclude", responseInclude );
 		constants.put( "mapUpdateInterval", 40 );
 		constants.put( "emitsMapUpdateEvents", null );

@@ -8,6 +8,10 @@ export interface MapPositionSharedValues {
 	zoomSv: SharedValue<number>;
 	bearingSv: SharedValue<number>;
 	tiltSv: SharedValue<number>;
+	/** Map viewport width in dp (0 until the first map update event arrives). */
+	viewportWidthSv: SharedValue<number>;
+	/** Map viewport height in dp (0 until the first map update event arrives). */
+	viewportHeightSv: SharedValue<number>;
 	/**
 	 * Pass this to MapContainer's onMapUpdate prop.
 	 * Intercepts bridge events and writes to shared values.
@@ -15,6 +19,13 @@ export interface MapPositionSharedValues {
 	handleMapUpdate: (response: {
 		nativeEvent: Readonly<MapEventResponse>;
 	}) => void;
+	/**
+	 * Spread this into {@code <MapContainer responseInclude={...} />} to opt
+	 * in to viewport-dimension emission. Without it the native side does not
+	 * send {@code viewportWidth} / {@code viewportHeight}, and the
+	 * corresponding shared values stay at {@code 0}.
+	 */
+	responseInclude: { viewportWidth: number; viewportHeight: number };
 }
 
 /**
@@ -59,6 +70,8 @@ export function useMapPosition(): MapPositionSharedValues {
 	const zoomSv = useSharedValue<number>(0);
 	const bearingSv = useSharedValue<number>(0);
 	const tiltSv = useSharedValue<number>(0);
+	const viewportWidthSv = useSharedValue<number>(0);
+	const viewportHeightSv = useSharedValue<number>(0);
 
 	const handleMapUpdate = useCallback(
 		(response: { nativeEvent: Readonly<MapEventResponse> }) => {
@@ -69,12 +82,18 @@ export function useMapPosition(): MapPositionSharedValues {
 			if (e.zoomLevel != null) zoomSv.value = e.zoomLevel;
 			if (e.bearing != null) bearingSv.value = e.bearing;
 			if (e.tilt != null) tiltSv.value = e.tilt;
+			if (e.viewportWidth != null)
+				viewportWidthSv.value = e.viewportWidth;
+			if (e.viewportHeight != null)
+				viewportHeightSv.value = e.viewportHeight;
 		},
 		[
 			centerSv,
 			zoomSv,
 			bearingSv,
 			tiltSv,
+			viewportWidthSv,
+			viewportHeightSv,
 		]
 	);
 
@@ -84,13 +103,18 @@ export function useMapPosition(): MapPositionSharedValues {
 			zoomSv,
 			bearingSv,
 			tiltSv,
+			viewportWidthSv,
+			viewportHeightSv,
 			handleMapUpdate,
+			responseInclude: { viewportWidth: 2, viewportHeight: 2 },
 		}),
 		[
 			centerSv,
 			zoomSv,
 			bearingSv,
 			tiltSv,
+			viewportWidthSv,
+			viewportHeightSv,
 			handleMapUpdate,
 		]
 	);

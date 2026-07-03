@@ -265,6 +265,20 @@ public class MapFragment extends Fragment {
 				payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
 			}
 
+			// viewport dimensions (dp) — for worklet-based coordinate transforms
+			if ( responseInclude.getInt( "viewportWidth" ) >= includeLevel ) {
+				MapsforgeVtmView parent = getMapsforgeVtmView();
+				if ( parent != null ) {
+					payload.putDouble( "viewportWidth", parent.getWidthInDp() );
+				}
+			}
+			if ( responseInclude.getInt( "viewportHeight" ) >= includeLevel ) {
+				MapsforgeVtmView parent = getMapsforgeVtmView();
+				if ( parent != null ) {
+					payload.putDouble( "viewportHeight", parent.getHeightInDp() );
+				}
+			}
+
 			return payload;
 		}
 

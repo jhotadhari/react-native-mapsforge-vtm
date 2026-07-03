@@ -24,6 +24,8 @@ export interface MapEventResponse {
 	roll?: Double;
 	tilt?: Double;
 	center?: Double[]; // type Position - named aliases aren't resolved for event payloads by codegen.
+	viewportWidth?: Double;
+	viewportHeight?: Double;
 }
 
 // 0	never include in response.
@@ -39,6 +41,8 @@ export interface ResponseInclude {
 	roll?: Int32;
 	tilt?: Int32;
 	center?: Int32;
+	viewportWidth?: Int32;
+	viewportHeight?: Int32;
 }
 
 interface ErrorWithErrorMsg {

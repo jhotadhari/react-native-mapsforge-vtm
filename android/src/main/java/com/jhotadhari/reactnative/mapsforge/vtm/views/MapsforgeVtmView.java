@@ -92,6 +92,19 @@ public class MapsforgeVtmView extends LinearLayout {
 		return dimension;
 	}
 
+	/**
+	 * Returns the stored width in dp (the unit used for React Native style values).
+	 * The underlying {@code width} field is already in dp -- it is set via
+	 * {@link #setDimension} from the JS-side view-manager prop.
+	 */
+	public double getWidthInDp() { return width; }
+
+	/**
+	 * Returns the stored height in dp.
+	 * @see #getWidthInDp()
+	 */
+	public double getHeightInDp() { return height; }
+
 	public void setCenter( @Nullable ReadableArray center ) {
 		if ( null != center ) {
 			this.center = center;
