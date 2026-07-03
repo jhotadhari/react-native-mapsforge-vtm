@@ -5,7 +5,7 @@ import {
 	StyleSheet,
 	type NativeSyntheticEvent,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useDerivedValue } from 'react-native-reanimated';
 import {
 	LayerBitmapTile,
 	LayerScalebar,
@@ -97,6 +97,24 @@ const CITIES = [
 	},
 ];
 
+const DebugOverlay: FC<{ pos: MapPositionSharedValues }> = ({ pos }) => {
+	const debugText = useDerivedValue(() => {
+		const c = pos.centerSv.value;
+		return `center: ${c ? c.map((v) => v.toFixed(4)).join(', ') : 'null'}
+zoom: ${pos.zoomSv.value}
+vp: ${pos.viewportWidthSv.value}×${pos.viewportHeightSv.value}`;
+	});
+
+	return (
+		<Animated.Text
+			style={styles.debug}
+			numberOfLines={3}
+		>
+			{debugText}
+		</Animated.Text>
+	);
+};
+
 const ExampleComponent: FC<{
 	height: number;
 	width: number;
@@ -108,8 +126,20 @@ const ExampleComponent: FC<{
 	const [info, setInfo] = useState<MapEventResponse | undefined>(undefined);
 	const handleMapUpdate = useCallback(
 		(response: NativeSyntheticEvent<Readonly<MapEventResponse>>) => {
+			const e = response?.nativeEvent;
+			console.log(
+				'[reanimated-overlay] map event —',
+				'center:',
+				e?.center,
+				'zoom:',
+				e?.zoomLevel,
+				'vp:',
+				e?.viewportWidth,
+				'×',
+				e?.viewportHeight
+			);
 			pos.handleMapUpdate(response);
-			setInfo(response?.nativeEvent);
+			setInfo(e);
 		},
 		[pos]
 	);
@@ -144,6 +174,8 @@ const ExampleComponent: FC<{
 				/>
 			))}
 
+			<DebugOverlay pos={pos} />
+
 			<Center
 				height={height}
 				width={width}
@@ -176,6 +208,17 @@ const styles = StyleSheet.create({
 	label: {
 		fontSize: 11,
 		fontWeight: '600',
+	},
+	debug: {
+		position: 'absolute',
+		top: 4,
+		left: 4,
+		backgroundColor: 'rgba(255, 255, 0, 0.85)',
+		color: '#000',
+		fontSize: 9,
+		padding: 4,
+		borderRadius: 4,
+		zIndex: 1000,
 	},
 });
 

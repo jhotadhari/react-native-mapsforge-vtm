@@ -106,7 +106,15 @@ export function useMapPosition(): MapPositionSharedValues {
 			viewportWidthSv,
 			viewportHeightSv,
 			handleMapUpdate,
-			responseInclude: { viewportWidth: 2, viewportHeight: 2 },
+			// Request all fields needed for worklet-based coordinate
+			// transforms and overlay positioning. Value 2 = include in
+			// both lifecycle events and onMapUpdate.
+			responseInclude: {
+				center: 2,
+				zoomLevel: 2,
+				viewportWidth: 2,
+				viewportHeight: 2,
+			},
 		}),
 		[
 			centerSv,
