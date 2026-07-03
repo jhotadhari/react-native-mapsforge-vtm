@@ -245,16 +245,30 @@ public class MapFragment extends Fragment {
 			payload.putDouble( "tilt", mapPosition.getTilt() );
 		}
 
-		// center
-		if ( responseInclude.getInt( "center" ) >= includeLevel ) {
-			double lng = mapPosition.getLongitude();
-			double lat = mapPosition.getLatitude();
-			Double alt = null;
-			// Elevation intentionally left null. Queries go through the
-			// TurboModule getAltitudeAtPosition (Native Modules thread),
-			// never the render thread.
-			payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
-		}
+			// center
+			if ( responseInclude.getInt( "center" ) >= includeLevel ) {
+				double lng = mapPosition.getLongitude();
+				double lat = mapPosition.getLatitude();
+				Double alt = null;
+				MapsforgeVtmView parent = getMapsforgeVtmView();
+				if ( null != parent ) {
+					com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
+						com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
+							parent.getId(), parent.getReactContext() );
+					if ( null != reader ) {
+						// Cached-only lookup: sub-millisecond on hit.
+						// On miss, kick off a background preload so
+						// the next map event picks up the elevation.
+						Short elevation = reader.getElevationIfCached( lng, lat );
+						if ( null != elevation ) {
+							alt = elevation.doubleValue();
+						} else {
+							reader.preloadAsync( lng, lat );
+						}
+					}
+				}
+				payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
+			}
 
 		return payload;
 	}
