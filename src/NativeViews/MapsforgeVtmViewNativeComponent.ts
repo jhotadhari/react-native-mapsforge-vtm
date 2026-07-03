@@ -28,23 +28,6 @@ export interface MapEventResponse {
 	viewportHeight?: Double;
 }
 
-// 0	never include in response.
-// 1	include in lifeCycle response.
-// 2	include in lifeCycle and onMapEvent response.
-export interface ResponseInclude {
-	// [value: string]: Int32			 // Doesn't work with codegen
-	zoomLevel?: Int32;
-	zoom?: Int32;
-	scale?: Int32;
-	zoomScale?: Int32;
-	bearing?: Int32;
-	roll?: Int32;
-	tilt?: Int32;
-	center?: Int32;
-	viewportWidth?: Int32;
-	viewportHeight?: Int32;
-}
-
 interface ErrorWithErrorMsg {
 	errorMsg: string;
 }
@@ -63,25 +46,6 @@ export interface LongPressEventResponse {
 	lat: Double;
 	x: Double;
 	y: Double;
-}
-
-/**
- * Lightweight position-only event payload for 60fps overlay tracking.
- *
- * Unlike {@link MapEventResponse}, every field is always present (no
- * optionality), the lng/lat are flat doubles (no nested `center` array), and
- * there is no elevation, scale, zoomScale, or roll — just the 8 fields
- * needed by {@code useMapOverlay} and {@code mercatorUtils}.
- */
-export interface PositionEventResponse {
-	lng: Double;
-	lat: Double;
-	zoom: Double;
-	zoomLevel: Int32;
-	bearing: Double;
-	tilt: Double;
-	viewportWidth: Double;
-	viewportHeight: Double;
 }
 
 interface MapViewProps extends ViewProps {
@@ -104,12 +68,9 @@ interface MapViewProps extends ViewProps {
 	roll?: Double;
 	minRoll?: Double;
 	maxRoll?: Double;
-	responseInclude?: ResponseInclude;
 	emitsMapUpdateEvents: boolean;
-	mapUpdateInterval?: Int32;
 	onMapCreated?: DirectEventHandler<Readonly<{}>> | null;
 	onMapUpdate?: DirectEventHandler<Readonly<MapEventResponse>> | null;
-	onMapPosition?: DirectEventHandler<Readonly<PositionEventResponse>> | null;
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onResume?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onError?: DirectEventHandler<Readonly<ErrorWithErrorMsg>> | null;
@@ -140,11 +101,8 @@ export type MapContainerProps = {
 	roll?: MapViewProps['roll'];
 	minRoll?: MapViewProps['minRoll'];
 	maxRoll?: MapViewProps['maxRoll'];
-	responseInclude?: MapViewProps['responseInclude'];
-	mapUpdateInterval?: MapViewProps['mapUpdateInterval'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];
 	onMapUpdate?: MapViewProps['onMapUpdate'];
-	onMapPosition?: MapViewProps['onMapPosition'];
 	onPause?: MapViewProps['onPause'];
 	onResume?: MapViewProps['onResume'];
 	onError?: MapViewProps['onError'];

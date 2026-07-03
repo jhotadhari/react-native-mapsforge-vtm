@@ -5,8 +5,8 @@ import {
 	LayerBitmapTile,
 	LayerScalebar,
 	MapContainer,
+	type MapEventResponse,
 	type Position,
-	type PositionEventResponse,
 } from 'react-native-mapsforge-vtm';
 import {
 	useMapPosition,
@@ -96,13 +96,13 @@ const ExampleComponent: FC<{
 	width: number;
 }> = ({ height, width }) => {
 	// One useMapPosition — feeds all overlay instances, zero extra cost.
-	// The fast channel (onMapPosition) writes to shared values at 60fps
-	// with zero throttling — overlays track the map smoothly.
+	// onMapUpdate fires every vtm frame at 60fps — overlays track the
+	// map smoothly with zero throttling.
 	const pos = useMapPosition();
 
-	const handleMapPosition = useCallback(
-		(response: { nativeEvent: Readonly<PositionEventResponse> }) => {
-			pos.handleMapPosition(response);
+	const handleMapUpdate = useCallback(
+		(response: { nativeEvent: Readonly<MapEventResponse> }) => {
+			pos.handleMapUpdate(response);
 		},
 		[pos]
 	);
@@ -114,8 +114,7 @@ const ExampleComponent: FC<{
 				height={height}
 				center={defaultCenter}
 				zoomLevel={2}
-				mapUpdateInterval={16}
-				onMapPosition={handleMapPosition}
+				onMapUpdate={handleMapUpdate}
 				onPause={handleMapEvent.onPause}
 				onResume={handleMapEvent.onResume}
 				onError={handleMapEvent.onError}

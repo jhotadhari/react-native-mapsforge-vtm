@@ -61,11 +61,8 @@ const MapContainer = ({
 	minRoll = moduleDefaults.minRoll,
 	maxRoll = moduleDefaults.maxRoll,
 	hgtDirPath = null as string | null,
-	responseInclude: responseIncludeParams = moduleDefaults.responseInclude,
-	mapUpdateInterval = moduleDefaults.mapUpdateInterval,
 	emitsMapUpdateEvents = moduleDefaults.emitsMapUpdateEvents,
 	onMapUpdate,
-	onMapPosition,
 	onPause,
 	onResume,
 	onError,
@@ -199,14 +196,6 @@ const MapContainer = ({
 		}
 	}, [nativeNodeHandle, hgtDirPath]);
 
-	const responseInclude = useMemo(
-		() => ({
-			...moduleDefaults.responseInclude,
-			...responseIncludeParams,
-		}),
-		[responseIncludeParams]
-	);
-
 	return (
 		<View>
 			<MapsforgeVtmView
@@ -230,16 +219,13 @@ const MapContainer = ({
 				roll={roll}
 				minRoll={minRoll}
 				maxRoll={maxRoll}
-				responseInclude={responseInclude}
-				mapUpdateInterval={Math.round(mapUpdateInterval)}
 				emitsMapUpdateEvents={
 					isBoolean(emitsMapUpdateEvents)
 						? emitsMapUpdateEvents
-						: !!(onMapUpdate || onMapPosition)
+						: !!onMapUpdate
 				}
 				onMapCreated={handleMapCreated}
 				onMapUpdate={onMapUpdate ? onMapUpdate : null}
-				onMapPosition={onMapPosition ? onMapPosition : null}
 				onPause={onPause ? onPause : null}
 				onResume={onResume ? onResume : null}
 				onError={onError ? onError : null}

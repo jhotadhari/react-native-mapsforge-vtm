@@ -1,7 +1,6 @@
 import MapContainer from './components/MapContainer';
 import type {
 	MapEventResponse,
-	ResponseInclude,
 	MapContainerProps,
 	TapEventResponse,
 	LongPressEventResponse,
@@ -118,7 +117,6 @@ export {
 	// MapContainer and MapsforgeVtmViewNativeComponent.
 	MapContainer,
 	type MapEventResponse,
-	type ResponseInclude,
 	type MapContainerProps,
 	type TapEventResponse,
 	type LongPressEventResponse,

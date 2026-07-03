@@ -1,8 +1,6 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,7 +11,6 @@ import androidx.fragment.app.Fragment;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
-import com.jhotadhari.reactnative.mapsforge.vtm.FixedWindowRateLimiter;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.GestureLayer;
@@ -35,11 +32,6 @@ public class MapFragment extends Fragment {
 
 	private GestureLayer gestureLayer;
 
-	protected FixedWindowRateLimiter rateLimiter;
-
-	private Handler mainHandler;
-
-	private Runnable pendingTrailingEdge;
 
 
 	public MapView getMapView() {
@@ -63,7 +55,6 @@ public class MapFragment extends Fragment {
 
 	protected void createMapView( View view ) {
 		try {
-			updateRateLimiterRate();
 			mapView = new MapView( getContext() );
 			RelativeLayout relativeLayout = view.findViewById( R.id.mapView );
 			relativeLayout.addView( mapView );
@@ -88,29 +79,6 @@ public class MapFragment extends Fragment {
 
 
 
-	/**
-	 * Configures EGL context sharing for this MapView to work around vtm 0.28.0's
-	 * static rendering state limitation.  The first MapView creates the context
-	 * (which all subsequent MapViews share), so that vtm's static texture cache
-	 * — created in the first context — remains valid for every instance.
-	 *
-	 * <p>Must be called <b>after</b> {@code new MapView()} (constructor) but
-	 * <b>before</b> {@code addView(mapView)} — EGL context creation is lazy and
-	 * fires when the GLSurfaceView is first attached to the window.
-	 */
-	public void updateRateLimiterRate() {
-		if ( null != getMapsforgeVtmView() ) {
-			rateLimiter = new FixedWindowRateLimiter( getMapsforgeVtmView().getMapUpdateInterval(), 1 );
-		}
-
-		// Cancel any pending trailing-edge flush scheduled with the old
-		// window size. The next onMapEvent will re-schedule a fresh one.
-		if ( null != pendingTrailingEdge && null != mainHandler ) {
-			mainHandler.removeCallbacks( pendingTrailingEdge );
-			pendingTrailingEdge = null;
-		}
-	}
-
 	public void updateUpdateListener() {
 		if ( null != getMapsforgeVtmView() && getMapsforgeVtmView().getEmitsMapUpdateEvents() && updateListener == null ) {
 			bindUpdateListener();
@@ -126,13 +94,6 @@ public class MapFragment extends Fragment {
 			updateListener = null;
 		}
 
-		// Cancel any pending trailing-edge flush so it doesn't fire
-		// after the listener has been unbound (would deliver a stale
-		// event to a component that is no longer listening).
-		if ( null != pendingTrailingEdge && null != mainHandler ) {
-			mainHandler.removeCallbacks( pendingTrailingEdge );
-			pendingTrailingEdge = null;
-		}
 	}
 
 	protected void bindGestureLayer() {
@@ -169,60 +130,13 @@ public class MapFragment extends Fragment {
 
 	protected void bindUpdateListener() {
 		if ( null != getMapsforgeVtmView() && getMapsforgeVtmView().getEmitsMapUpdateEvents() && null == updateListener ) {
-			if ( null == mainHandler ) {
-				mainHandler = new Handler( Looper.getMainLooper() );
-			}
 			updateListener = new Map.UpdateListener() {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					MapsforgeVtmView parent = getMapsforgeVtmView();
-
-					// =====================================================
-					// FAST CHANNEL — unthrottled, every vtm frame (60fps).
-					// Emit a lightweight position-only event for reanimated
-					// overlay tracking. No rate limiter, no elevation disk
-					// I/O, no responseInclude gating — just 8 flat doubles.
-					// =====================================================
 					if ( null != parent ) {
-						parent.emitMapPositionEvent(
-							mapPosition.getLongitude(),
-							mapPosition.getLatitude(),
-							mapPosition.getZoom(),
-							mapPosition.getZoomLevel(),
-							mapPosition.getBearing(),
-							mapPosition.getTilt(),
-							parent.getWidthInDp(),
-							parent.getHeightInDp()
-						);
+						parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
 					}
-
-					// Cancel any previously scheduled trailing-edge flush —
-					// each new vtm event resets the silence timer.
-					if ( null != pendingTrailingEdge ) {
-						mainHandler.removeCallbacks( pendingTrailingEdge );
-					}
-					// Leading edge: emit immediately if the rate limiter allows.
-					if ( rateLimiter.tryAcquire() ) {
-						getMapsforgeVtmView().emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
-					}
-					// Schedule trailing-edge flush: guarantees the final position
-					// after a gesture is never lost, even if the last vtm event
-					// fell in an already-consumed rate-limit window. Fires only
-					// after mapUpdateInterval ms of silence.
-					pendingTrailingEdge = new Runnable() {
-						@Override
-						public void run() {
-							pendingTrailingEdge = null;
-							MapsforgeVtmView parent = getMapsforgeVtmView();
-							if ( null != parent && null != mapView && null != mapView.map() ) {
-								parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
-							}
-						}
-					};
-					mainHandler.postDelayed(
-						pendingTrailingEdge,
-						getMapsforgeVtmView().getMapUpdateInterval()
-					);
 				}
 			};
 			mapView.map().events.bind( updateListener );
@@ -236,75 +150,44 @@ public class MapFragment extends Fragment {
 			return payload;
 		}
 
-		ReadableMap responseInclude = getMapsforgeVtmView().getResponseInclude();
 		MapPosition mapPosition = mapView.map().getMapPosition();
 		// Use getZoom() (fractional double) instead of getZoomLevel() (int)
 		// so reanimated overlays track the map smoothly during pinch-zoom
 		// where the scale can be e.g. 2.7, not just an integer.
-		if ( responseInclude.getInt( "zoomLevel" ) >= includeLevel ) {
-			payload.putDouble( "zoomLevel", mapPosition.getZoom() );
-		}
+		// All fields are always emitted — no responseInclude gating.
+		MapsforgeVtmView parent = getMapsforgeVtmView();
 
-		if ( responseInclude.getInt( "zoom" ) >= includeLevel ) {
-			payload.putDouble( "zoom", mapPosition.getZoom() );
-		}
+		payload.putDouble( "zoomLevel", mapPosition.getZoom() );
+		payload.putDouble( "zoom", mapPosition.getZoom() );
+		payload.putDouble( "scale", mapPosition.getScale() );
+		payload.putDouble( "zoomScale", mapPosition.getZoomScale() );
+		payload.putDouble( "bearing", mapPosition.getBearing() );
+		payload.putDouble( "tilt", mapPosition.getTilt() );
+		payload.putDouble( "roll", mapPosition.getRoll() );
 
-		if ( responseInclude.getInt( "scale" ) >= includeLevel ) {
-			payload.putDouble( "scale", mapPosition.getScale() );
-		}
-
-		if ( responseInclude.getInt( "zoomScale" ) >= includeLevel ) {
-			payload.putDouble( "zoomScale", mapPosition.getZoomScale() );
-		}
-
-		if ( responseInclude.getInt( "bearing" ) >= includeLevel ) {
-			payload.putDouble( "bearing", mapPosition.getBearing() );
-		}
-
-		if ( responseInclude.getInt( "roll" ) >= includeLevel ) {
-			payload.putDouble( "roll", mapPosition.getRoll() );
-		}
-
-		if ( responseInclude.getInt( "tilt" ) >= includeLevel ) {
-			payload.putDouble( "tilt", mapPosition.getTilt() );
-		}
-
-			// center
-			if ( responseInclude.getInt( "center" ) >= includeLevel ) {
-				double lng = mapPosition.getLongitude();
-				double lat = mapPosition.getLatitude();
-				Double alt = null;
-				MapsforgeVtmView parent = getMapsforgeVtmView();
-				if ( null != parent ) {
-					com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
-						com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
-							parent.getId(), parent.getReactContext() );
-					if ( null != reader ) {
-						Short elevation = reader.getElevation( lng, lat );
-						if ( null != elevation ) {
-							alt = elevation.doubleValue();
-						}
-					}
-				}
-				payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
-			}
-
-			// viewport dimensions (dp) — for worklet-based coordinate transforms
-			if ( responseInclude.getInt( "viewportWidth" ) >= includeLevel ) {
-				MapsforgeVtmView parent = getMapsforgeVtmView();
-				if ( parent != null ) {
-					payload.putDouble( "viewportWidth", parent.getWidthInDp() );
+		double lng = mapPosition.getLongitude();
+		double lat = mapPosition.getLatitude();
+		Double alt = null;
+		if ( null != parent ) {
+			com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
+				com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
+					parent.getId(), parent.getReactContext() );
+			if ( null != reader ) {
+				Short elevation = reader.getElevation( lng, lat );
+				if ( null != elevation ) {
+					alt = elevation.doubleValue();
 				}
 			}
-			if ( responseInclude.getInt( "viewportHeight" ) >= includeLevel ) {
-				MapsforgeVtmView parent = getMapsforgeVtmView();
-				if ( parent != null ) {
-					payload.putDouble( "viewportHeight", parent.getHeightInDp() );
-				}
-			}
-
-			return payload;
 		}
+		payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
+
+		if ( null != parent ) {
+			payload.putDouble( "viewportWidth", parent.getWidthInDp() );
+			payload.putDouble( "viewportHeight", parent.getHeightInDp() );
+		}
+
+		return payload;
+	}
 
 	public void updateCenter() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {

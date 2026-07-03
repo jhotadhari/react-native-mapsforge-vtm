@@ -4,7 +4,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -190,22 +189,6 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 	public void setMaxRoll( MapsforgeVtmView view, double value ) {
 		if ( null != view ) {
 			view.setViewportBounds( "roll", "max", value );
-		}
-	}
-
-	@ReactProp( name = "responseInclude" )
-	@Override
-	public void setResponseInclude( MapsforgeVtmView view, @Nullable ReadableMap value ) {
-		if ( null != value && view != null ) {
-			view.setResponseInclude( value );
-		}
-	}
-
-	@ReactProp( name = "mapUpdateInterval" )
-	@Override
-	public void setMapUpdateInterval( MapsforgeVtmView view, int value ) {
-		if ( view != null ) {
-			view.setMapUpdateInterval( value );
 		}
 	}
 
