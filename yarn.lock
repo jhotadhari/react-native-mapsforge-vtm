@@ -2226,6 +2226,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@jhotadhari/release-kit@file:.yalc/@jhotadhari/release-kit::locator=react-native-mapsforge-vtm%40workspace%3A.":
+  version: 0.0.6
+  resolution: "@jhotadhari/release-kit@file:.yalc/@jhotadhari/release-kit#.yalc/@jhotadhari/release-kit::hash=715836&locator=react-native-mapsforge-vtm%40workspace%3A."
+  dependencies:
+    "@octokit/rest": ^22.0.1
+    commander: ^15.0.0
+    keep-a-changelog: ^3.0.5
+    picocolors: ^1.1.1
+    semver: ^7.8.5
+    simple-git: ^3.36.0
+    tsx: ^4.22.4
+  bin:
+    release-kit: ./bin/release-kit.js
+  checksum: 8c5b0c3cd4a8b163decaf18313cc9982c607a0473570e71b6aee1264af82f63e082ed075407db7c33c748c323c5d0c0c54902e0e52592205bc4a8e6200aee623
+  languageName: node
+  linkType: hard
+
 "@jridgewell/gen-mapping@npm:^0.3.12, @jridgewell/gen-mapping@npm:^0.3.5":
   version: 0.3.13
   resolution: "@jridgewell/gen-mapping@npm:0.3.13"
@@ -8531,6 +8548,7 @@ __metadata:
     "@eslint/eslintrc": ^3.3.5
     "@eslint/js": ^9.22.0
     "@evilmartians/lefthook": ^2.1.9
+    "@jhotadhari/release-kit": "file:.yalc/@jhotadhari/release-kit"
     "@react-native-community/cli": 20.1.3
     "@react-native/eslint-config": ^0.86.0
     "@react-native/jest-preset": ^0.86.0
@@ -8553,7 +8571,6 @@ __metadata:
     react-native-builder-bob: ^0.43.0
     react-native-reanimated: ">=3.0.0"
     react-native-worklets: ">=0.1.0"
-    release-kit: "file:.yalc/release-kit"
     turbo: ^2.9.18
     typescript: ^6.0.3
   peerDependencies:
@@ -8776,23 +8793,6 @@ __metadata:
   bin:
     regjsparser: bin/parser
   checksum: 20ece45a3e9f63c8a3fa50fbcde7a3cc35d97c244ca9bc1c94d0907d4f6eb3f50bb7326e60f848649024d7cd6ff89c9a75a36d6faded0cf225677a3d13914a31
-  languageName: node
-  linkType: hard
-
-"release-kit@file:.yalc/release-kit::locator=react-native-mapsforge-vtm%40workspace%3A.":
-  version: 0.0.1
-  resolution: "release-kit@file:.yalc/release-kit#.yalc/release-kit::hash=c2031d&locator=react-native-mapsforge-vtm%40workspace%3A."
-  dependencies:
-    "@octokit/rest": ^22.0.1
-    commander: ^15.0.0
-    keep-a-changelog: ^3.0.5
-    picocolors: ^1.1.1
-    semver: ^7.8.5
-    simple-git: ^3.36.0
-    tsx: ^4.22.4
-  bin:
-    release-kit: ./bin/release-kit.js
-  checksum: ce6c6490b3f75c900abf613ebc55deceec1ee8a401c9c1035cf803a7b767ff61b7754335beae3a92eab7b26ecd21e98e456643f21b7023aea3293a585acf1173
   languageName: node
   linkType: hard
 
