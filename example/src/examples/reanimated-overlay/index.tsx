@@ -5,7 +5,10 @@ import {
 	StyleSheet,
 	type NativeSyntheticEvent,
 } from 'react-native';
-import Animated, { useAnimatedProps } from 'react-native-reanimated';
+import Animated, {
+	useAnimatedProps,
+	useAnimatedStyle,
+} from 'react-native-reanimated';
 import {
 	LayerBitmapTile,
 	LayerScalebar,
@@ -133,6 +136,20 @@ const DebugOverlay: FC<{
 	);
 };
 
+/** Fixed-position test: if this red square doesn't appear,
+ * useAnimatedStyle itself is broken in this setup. */
+const FixedTest: FC = () => {
+	const style = useAnimatedStyle(() => ({
+		position: 'absolute' as const,
+		left: 100,
+		top: 100,
+		width: 30,
+		height: 30,
+		backgroundColor: 'red',
+	}));
+	return <Animated.View style={style} />;
+};
+
 const ExampleComponent: FC<{
 	height: number;
 	width: number;
@@ -184,6 +201,9 @@ const ExampleComponent: FC<{
 			 * Their left/top is driven by worklets on the UI thread —
 			 * 60fps, zero bridge crossings, zero React re-renders.
 			 */}
+			{/* Test: fixed red square to verify useAnimatedStyle works at all */}
+			<FixedTest />
+
 			{CITIES.map((city) => (
 				<CityOverlay
 					key={city.name}
