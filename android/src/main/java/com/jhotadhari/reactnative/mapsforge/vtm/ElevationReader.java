@@ -18,25 +18,13 @@ import java.util.concurrent.Executors;
 /**
  * Reads SRTM HGT files to provide point-elevation queries.
  *
- * Much thinner than the old {@code HgtReader} (which was a ~530-line copy of mapsforge's
- * {@code HgtCache} + JOSM's {@code SRTMTile} + JOSM's {@code HgtReader}):
- * <ul>
- *   <li>No thread pool — construction-time directory scan is fast enough for typical
- *       SRTM directories (runs off the UI thread).</li>
- *   <li>No rate limiter — queries are explicit user actions or per-frame cache hits,
- *       not automated file I/O.</li>
- *   <li>No manual purge — Android's {@link LruCache} handles memory.</li>
- * </ul>
+ * <p>Much thinner than the old {@code HgtReader} (which was a ~530-line copy of
+ * mapsforge's {@code HgtCache} + JOSM's {@code SRTMTile} + JOSM's {@code HgtReader}).
  *
- * <p>Two tiers of elevation query are provided:
- * <ul>
- *   <li>{@link #getElevation} — full lookup; loads the tile from disk on cache miss.
- *       Safe for explicit user actions (e.g. long-press) but not for hot render-thread
- *       paths.</li>
- *   <li>{@link #getElevationIfCached} — returns {@code null} on cache miss without
- *       touching disk. Safe to call at frame rate (e.g. from map-update events).
- *       Pair with {@link #preloadAsync} to warm the cache from a background thread.</li>
- * </ul>
+ * <p>{@link #getElevation} is safe to call on the render thread at frame rate:
+ * on cache hit it does a sub-millisecond array lookup + bilinear interpolation;
+ * on cache miss it kicks off a background load and returns {@code null} — the
+ * next call (typically 40ms later from the next map event) hits the cache.
  */
 public class ElevationReader {
 
@@ -52,7 +40,7 @@ public class ElevationReader {
      */
     private static final short SRTM_VOID = Short.MIN_VALUE; // -32768
 
-    /** Single-thread executor for background tile preloads. */
+    /** Single-thread executor for background tile loads. */
     private static final Executor PRELOAD_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "ElevationReader-preload");
         t.setDaemon(true);
@@ -82,51 +70,18 @@ public class ElevationReader {
     }
 
     /**
-     * Returns the elevation in metres at the given coordinate, or {@code null} if no
-     * data covers that position or the position falls in a void (ocean) area.
+     * Returns the elevation in metres at the given coordinate, or {@code null}
+     * if no data covers that position, the position falls in a void (ocean)
+     * area, or the tile is not yet cached.
      *
-     * <p>On cache miss this method reads the HGT tile from disk synchronously —
-     * call it only from explicit user actions (e.g. a long-press handler), not from
-     * hot render-thread paths. For frame-rate call sites use {@link #getElevationIfCached}
-     * paired with {@link #preloadAsync}.</p>
+     * <p>On cache miss this method starts a background load and returns
+     * {@code null} immediately — it <strong>never</strong> does file I/O on
+     * the calling thread. The next call (from the next map-update event,
+     * typically 40ms later) will hit the now-warm cache.
      *
-     * <p>This method is thread-safe: the LruCache and fileIndex accesses are
-     * synchronized, and the DemFile reads are single-threaded per tile.</p>
+     * <p>This method is thread-safe.</p>
      */
     public Short getElevation(double lng, double lat) {
-        try {
-            String filename = tileFilename(lat, lng);
-            DemFile file;
-            synchronized (fileIndex) {
-                file = fileIndex.get(filename);
-            }
-            if (file == null) {
-                return null;
-            }
-
-            short[][] data = getOrLoadTileData(filename, file);
-            if (data == null) {
-                return null;
-            }
-
-            return interpolate(data, lat, lng);
-        } catch (Exception e) {
-            // Elevation is best-effort — never let a bad tile or I/O error
-            // propagate to the caller (especially dangerous on the render thread).
-            return null;
-        }
-    }
-
-    /**
-     * Returns the elevation in metres at the given coordinate, or {@code null} if
-     * the tile covering that position is not yet in the cache.
-     *
-     * <p>Unlike {@link #getElevation}, this method <strong>never</strong> reads from
-     * disk. It is safe to call on the render thread at frame rate (e.g. from
-     * map-update event handlers). To warm the cache, call {@link #preloadAsync}
-     * when a cache miss occurs.</p>
-     */
-    public Short getElevationIfCached(double lng, double lat) {
         try {
             String filename = tileFilename(lat, lng);
             DemFile file;
@@ -142,84 +97,16 @@ public class ElevationReader {
                 data = dataCache.get(filename);
             }
             if (data == null) {
-                return null; // Cache miss — don't do I/O
+                // Cache miss — start a background load so the next call hits.
+                preload(filename, file);
+                return null;
             }
 
             return interpolate(data, lat, lng);
         } catch (Exception e) {
-            // Best-effort; never crash on bad data.
+            // Best-effort — never let bad data crash the caller.
             return null;
         }
-    }
-
-    /**
-     * Kicks off a background load of the HGT tile covering (lng, lat) so that
-     * subsequent {@link #getElevationIfCached} calls for this area return quickly.
-     *
-     * <p>Safe to call at frame rate — duplicate requests for an already-cached or
-     * already-loading tile are cheap no-ops (the executor serializes work, and
-     * the load itself checks the cache first).</p>
-     */
-    public void preloadAsync(double lng, double lat) {
-        preloadAsync(lng, lat, null);
-    }
-
-    /**
-     * Like {@link #preloadAsync(double, double)} but invokes {@code onDone}
-     * (on the background preload thread) after the tile is loaded into the
-     * cache, or immediately if the tile is already cached / not found.
-     *
-     * <p>{@code onDone} is never called on the calling thread — always from
-     * the background executor.</p>
-     */
-    public void preloadAsync(double lng, double lat, Runnable onDone) {
-        final String filename = tileFilename(lat, lng);
-        final DemFile file;
-        synchronized (fileIndex) {
-            file = fileIndex.get(filename);
-        }
-        if (file == null) {
-            if (onDone != null) {
-                PRELOAD_EXECUTOR.execute(onDone);
-            }
-            return;
-        }
-
-        // Quick check: skip if already cached.
-        synchronized (dataCache) {
-            if (dataCache.get(filename) != null) {
-                if (onDone != null) {
-                    PRELOAD_EXECUTOR.execute(onDone);
-                }
-                return;
-            }
-        }
-
-        PRELOAD_EXECUTOR.execute(() -> {
-            // Double-check after acquiring the executor slot — a previous
-            // preload may have finished while this task was enqueued.
-            synchronized (dataCache) {
-                if (dataCache.get(filename) != null) {
-                    if (onDone != null) {
-                        onDone.run();
-                    }
-                    return;
-                }
-            }
-            try {
-                short[][] data = readHgtFile(file);
-                if (data != null) {
-                    synchronized (dataCache) {
-                        dataCache.put(filename, data);
-                    }
-                }
-            } catch (IOException e) {
-                // Best-effort — tile just won't be cached.
-            }
-            if (onDone != null) {
-                onDone.run();
-            }
-        });
     }
 
     /** Releases cached tile data and clears the file index. */
@@ -235,29 +122,29 @@ public class ElevationReader {
     // ---- internal helpers -------------------------------------------------------
 
     /**
-     * Returns the cached tile data for {@code filename}, loading it from disk
-     * and inserting it into the cache on miss. Returns {@code null} if the file
-     * cannot be read.
+     * Submits a background load of {@code file} into the cache under
+     * {@code filename}, unless already cached or already loading.
      */
-    private short[][] getOrLoadTileData(String filename, DemFile file) {
-        short[][] data;
-        // Only hold the lock during cache access, not during file I/O.
-        synchronized (dataCache) {
-            data = dataCache.get(filename);
-        }
-        if (data == null) {
-            try {
-                data = readHgtFile(file);
-            } catch (IOException e) {
-                return null;
-            }
-            if (data != null) {
-                synchronized (dataCache) {
-                    dataCache.put(filename, data);
+    private void preload(String filename, DemFile file) {
+        PRELOAD_EXECUTOR.execute(() -> {
+            // Double-check — a previous preload may have finished while
+            // this task was enqueued.
+            synchronized (dataCache) {
+                if (dataCache.get(filename) != null) {
+                    return;
                 }
             }
-        }
-        return data;
+            try {
+                short[][] data = readHgtFile(file);
+                if (data != null) {
+                    synchronized (dataCache) {
+                        dataCache.put(filename, data);
+                    }
+                }
+            } catch (IOException e) {
+                // Best-effort — tile just won't be cached.
+            }
+        });
     }
 
     /**
@@ -377,7 +264,6 @@ public class ElevationReader {
 
     /**
      * Reads a single .hgt file into a {@code short[][]}.
-     * Preserves the same parsing logic as the old {@code HgtFileInfo.readHgtFile()}.
      */
     private static short[][] readHgtFile(DemFile file) throws IOException {
         InputStream fis = file.asStream();

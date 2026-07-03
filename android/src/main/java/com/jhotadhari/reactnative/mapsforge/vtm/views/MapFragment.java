@@ -256,22 +256,17 @@ public class MapFragment extends Fragment {
 						com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
 							parent.getId(), parent.getReactContext() );
 					if ( null != reader ) {
-						// Cached-only lookup: sub-millisecond on hit.
-						// On miss, kick off a background preload so
-						// the next map event picks up the elevation.
-						Short elevation = reader.getElevationIfCached( lng, lat );
+						Short elevation = reader.getElevation( lng, lat );
 						if ( null != elevation ) {
 							alt = elevation.doubleValue();
-						} else {
-							reader.preloadAsync( lng, lat );
 						}
 					}
 				}
 				payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
 			}
 
-		return payload;
-	}
+			return payload;
+		}
 
 	public void updateCenter() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
