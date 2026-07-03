@@ -101,6 +101,19 @@ import type {
 import LayerDebugTree from './debug/LayerDebugTree';
 import type { LayerDebugTreeProps } from './debug/LayerDebugTree';
 
+// Extension points — stable hooks/contexts that extension libraries
+// (e.g. react-native-mapsforge-vtm-ext-grib) use to create custom layer types.
+import MapHandleContext, {
+	createLayerOrderRegistry,
+	type LayerOrderRegistry,
+	type MapHandleContextValue,
+} from './context/MapHandleContext';
+import useLayerOrder from './compose/useLayerOrder';
+import useNativeLayerLifecycle, {
+	type CreateFlags,
+	type RemoveFlags,
+} from './compose/useNativeLayerLifecycle';
+
 export {
 	// MapContainer and MapsforgeVtmViewNativeComponent.
 	MapContainer,
@@ -199,6 +212,17 @@ export {
 	type LayerDebugEntry,
 	type LayerDebugInfo,
 	type LayerDebugTreeProps,
+
+	// Extension points for external layer-type libraries
+	// (e.g. react-native-mapsforge-vtm-ext-grib).
+	MapHandleContext,
+	createLayerOrderRegistry,
+	type LayerOrderRegistry,
+	type MapHandleContextValue,
+	useLayerOrder,
+	useNativeLayerLifecycle,
+	type CreateFlags,
+	type RemoveFlags,
 };
 
 export type * from './types';
