@@ -1,0 +1,12 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"paths": {
+			"react-native-mapsforge-vtm": ["../src/index.tsx"],
+			"react-native-mapsforge-vtm/reanimated": [
+				"../src/reanimated/index.ts"
+			]
+		}
+	},
+	"include": ["src"]
+}
