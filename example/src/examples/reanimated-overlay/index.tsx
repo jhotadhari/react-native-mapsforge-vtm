@@ -187,6 +187,7 @@ const ExampleComponent: FC<{
 				center={defaultCenter}
 				responseInclude={pos.responseInclude}
 				zoomLevel={2}
+				mapUpdateInterval={16}
 				onMapUpdate={handleMapUpdate}
 				onPause={handleMapEvent.onPause}
 				onResume={handleMapEvent.onResume}
