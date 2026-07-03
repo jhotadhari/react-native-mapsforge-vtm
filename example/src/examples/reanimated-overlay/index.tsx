@@ -169,7 +169,7 @@ const ExampleComponent: FC<{
 				height={height}
 				center={defaultCenter}
 				responseInclude={pos.responseInclude}
-				zoomLevel={5}
+				zoomLevel={2}
 				onMapUpdate={handleMapUpdate}
 				onPause={handleMapEvent.onPause}
 				onResume={handleMapEvent.onResume}
