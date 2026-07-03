@@ -1,10 +1,11 @@
 import type { SharedValue } from 'react-native-reanimated';
 
 /**
- * Internal helpers — normalised Web Mercator coordinates (0..1 range).
- * These are zoom-independent: the tile-scale factor 256·2^zoom cancels when
- * computing the screen-pixel delta from the map centre, so no zoom term
- * appears in the public API.
+ * Web Mercator projection helpers for reanimated worklets.
+ *
+ * Geographic (lat/lng) ↔ normalised Mercator [0..1] ↔ screen pixels (dp).
+ * Screen-pixel projection requires the current map zoom level because the
+ * world-to-screen scale factor is 256·2^zoom.
  */
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -75,8 +76,8 @@ function wrapMxDelta(dMx: number): number {
  * Converts a lat/lng geographic point to screen pixel coordinates (dp).
  *
  * Reads shared values directly — callable from any worklet or the JS thread.
- * Returns `null` when the map centre is not yet known or the viewport has zero
- * dimensions.
+ * Returns `null` when the map centre is not yet known, the viewport has zero
+ * dimensions, or the zoom level is not yet available.
  *
  * **Limitation (v1):** Bearing and tilt are **not** accounted for. The
  * returned coordinates are correct only when the map is north-up and untilted.
@@ -87,6 +88,7 @@ function wrapMxDelta(dMx: number): number {
  *   `null` if no position has been received yet.
  * @param viewportWidthSv - Shared value holding the map viewport width in dp.
  * @param viewportHeightSv - Shared value holding the map viewport height in dp.
+ * @param zoomSv - Shared value holding the current zoom level.
  * @param geoPoint - The geographic coordinate to project.
  * @returns `{ x, y }` in dp (the unit used for React Native `left`/`top`
  *   styles), or `null` if the projection cannot be computed.
@@ -95,7 +97,7 @@ function wrapMxDelta(dMx: number): number {
  * ```ts
  * // Inside a useAnimatedStyle worklet:
  * const screenPos = toScreenPosition(
- *   centerSv, viewportWidthSv, viewportHeightSv,
+ *   centerSv, viewportWidthSv, viewportHeightSv, zoomSv,
  *   { lat: 51.5074, lng: -0.1278 }
  * );
  * if (screenPos) {
@@ -108,11 +110,15 @@ export function toScreenPosition(
 	centerSv: SharedValue<[number, number] | null>,
 	viewportWidthSv: SharedValue<number>,
 	viewportHeightSv: SharedValue<number>,
+	zoomSv: SharedValue<number>,
 	geoPoint: { lat: number; lng: number }
 ): { x: number; y: number } | null {
 	'worklet';
 	const center = centerSv.value;
 	if (!center || center.length < 2) return null;
+
+	const zoom = zoomSv.value;
+	if (zoom <= 0) return null;
 
 	const vpW = viewportWidthSv.value;
 	const vpH = viewportHeightSv.value;
@@ -121,12 +127,18 @@ export function toScreenPosition(
 	const centerMerc = latLngToMercator(center[1], center[0]);
 	const pointMerc = latLngToMercator(geoPoint.lat, geoPoint.lng);
 
+	// dMx, dMy are in normalised Mercator units [0..1].
+	// Scale to world pixels at current zoom: 256 · 2^zoom.
 	const dMx = wrapMxDelta(pointMerc.mx - centerMerc.mx);
 	const dMy = pointMerc.my - centerMerc.my;
 
+	const worldPx = 256 * Math.pow(2, zoom);
+
+	// Mercator y and screen y increase in the same direction (southward /
+	// downward), so dMy maps to +y without a sign flip.
 	return {
-		x: Math.round(vpW * (0.5 + dMx)),
-		y: Math.round(vpH * (0.5 - dMy)),
+		x: Math.round(vpW / 2 + dMx * worldPx),
+		y: Math.round(vpH / 2 + dMy * worldPx),
 	};
 }
 
@@ -140,6 +152,7 @@ export function toScreenPosition(
  * @param centerSv - Shared value holding `[lng, lat]` of the map centre.
  * @param viewportWidthSv - Shared value holding the map viewport width in dp.
  * @param viewportHeightSv - Shared value holding the map viewport height in dp.
+ * @param zoomSv - Shared value holding the current zoom level.
  * @param screenPoint - The screen coordinates in dp (same unit as React Native
  *   `left`/`top` styles).
  * @returns `{ lat, lng }`, or `null` if the projection cannot be computed.
@@ -148,20 +161,26 @@ export function fromScreenPosition(
 	centerSv: SharedValue<[number, number] | null>,
 	viewportWidthSv: SharedValue<number>,
 	viewportHeightSv: SharedValue<number>,
+	zoomSv: SharedValue<number>,
 	screenPoint: { x: number; y: number }
 ): { lat: number; lng: number } | null {
 	'worklet';
 	const center = centerSv.value;
 	if (!center || center.length < 2) return null;
 
+	const zoom = zoomSv.value;
+	if (zoom <= 0) return null;
+
 	const vpW = viewportWidthSv.value;
 	const vpH = viewportHeightSv.value;
 	if (vpW <= 0 || vpH <= 0) return null;
 
+	const worldPx = 256 * Math.pow(2, zoom);
+
 	const centerMerc = latLngToMercator(center[1], center[0]);
 
-	const dMx = screenPoint.x / vpW - 0.5;
-	const dMy = 0.5 - screenPoint.y / vpH;
+	const dMx = (screenPoint.x - vpW / 2) / worldPx;
+	const dMy = (screenPoint.y - vpH / 2) / worldPx;
 
 	const pointMx = centerMerc.mx + dMx;
 	const pointMy = centerMerc.my + dMy;

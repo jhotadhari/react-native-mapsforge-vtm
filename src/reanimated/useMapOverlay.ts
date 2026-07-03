@@ -52,13 +52,15 @@ export function useMapOverlay(
 	target: { lat: number; lng: number },
 	sharedValues: MapPositionSharedValues
 ) {
-	const { centerSv, viewportWidthSv, viewportHeightSv } = sharedValues;
+	const { centerSv, viewportWidthSv, viewportHeightSv, zoomSv } =
+		sharedValues;
 
 	const animatedStyle = useAnimatedStyle(() => {
 		const screenPos = toScreenPosition(
 			centerSv,
 			viewportWidthSv,
 			viewportHeightSv,
+			zoomSv,
 			target
 		);
 
