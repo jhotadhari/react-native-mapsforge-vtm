@@ -69,6 +69,46 @@ public class MapsforgeVtmView extends LinearLayout {
 		}
 	}
 
+	/**
+	 * Emits a lightweight position-only event for 60fps overlay tracking.
+	 *
+	 * <p>Called directly from the vtm {@code Map.UpdateListener} (GL thread,
+	 * every frame) in {@link MapFragment#bindUpdateListener}. This event fires
+	 * unconditionally when the update listener is active — no rate limiter, no
+	 * {@code responseInclude} gating, no elevation disk I/O.</p>
+	 *
+	 * <p>The payload is a flat {@link WritableMap} with 8 primitive entries
+	 * (lng, lat, zoom, zoomLevel, bearing, tilt, viewportWidth, viewportHeight).
+	 * Contrast with the legacy {@code emitMapEvent("onMapUpdate", ...)} path
+	 * which is throttled via {@link FixedWindowRateLimiter} and includes a
+	 * nested {@code center} array plus elevation.</p>
+	 */
+	public void emitMapPositionEvent(
+			double lng, double lat,
+			double zoom, int zoomLevel,
+			double bearing, double tilt,
+			double viewportWidth, double viewportHeight) {
+
+		int surfaceId = UIManagerHelper.getSurfaceId(getReactContext());
+		EventDispatcher eventDispatcher =
+			UIManagerHelper.getEventDispatcherForReactTag(getReactContext(), getId());
+
+		if (eventDispatcher != null) {
+			WritableMap payload = Arguments.createMap();
+			payload.putDouble("lng", lng);
+			payload.putDouble("lat", lat);
+			payload.putDouble("zoom", zoom);
+			payload.putInt("zoomLevel", zoomLevel);
+			payload.putDouble("bearing", bearing);
+			payload.putDouble("tilt", tilt);
+			payload.putDouble("viewportWidth", viewportWidth);
+			payload.putDouble("viewportHeight", viewportHeight);
+
+			MapEvent event = new MapEvent(surfaceId, getId(), "onMapPosition", payload);
+			eventDispatcher.dispatchEvent(event);
+		}
+	}
+
 	public void setDimension( String key, double dimension ) {
 		switch ( key ) {
 			case "width":

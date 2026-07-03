@@ -1,20 +1,12 @@
-import { useCallback, useState, type FC } from 'react';
-import {
-	View,
-	Text,
-	StyleSheet,
-	type NativeSyntheticEvent,
-} from 'react-native';
-import Animated, {
-	useAnimatedProps,
-	useAnimatedStyle,
-} from 'react-native-reanimated';
+import { useCallback, type FC } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
 	LayerBitmapTile,
 	LayerScalebar,
 	MapContainer,
-	type MapEventResponse,
 	type Position,
+	type PositionEventResponse,
 } from 'react-native-mapsforge-vtm';
 import {
 	useMapPosition,
@@ -22,7 +14,6 @@ import {
 	type MapPositionSharedValues,
 } from 'react-native-mapsforge-vtm/reanimated';
 import Center from '../../components/Center';
-import MapInfo from '../../components/MapInfo';
 import type { Example } from '../../types';
 import { handleMapEvent } from '../../sharedDeps';
 
@@ -100,81 +91,18 @@ const CITIES = [
 	},
 ];
 
-/**
- * Dual debug display: JS-thread values from the raw map event (top line),
- * UI-thread shared values via useAnimatedProps (bottom line).
- * If the top line shows real values but the bottom line shows 0/?, the
- * shared values aren't receiving updates (responseInclude issue).
- */
-const DebugOverlay: FC<{
-	pos: MapPositionSharedValues;
-	event: MapEventResponse | undefined;
-}> = ({ pos, event }) => {
-	const animatedProps = useAnimatedProps(() => {
-		const c = pos.centerSv.value;
-		return {
-			text:
-				`[UI] ctr=${c?.[0]?.toFixed(2) ?? '?'},${c?.[1]?.toFixed(2) ?? '?'} ` +
-				`z=${pos.zoomSv.value} ` +
-				`vp=${pos.viewportWidthSv.value}×${pos.viewportHeightSv.value}`,
-		} as { text: string };
-	});
-
-	return (
-		<View style={styles.debug}>
-			<Text style={styles.debugText}>
-				[JS] ctr={event?.center?.join(',') ?? '?'}
-				{'\n'}
-				z={event?.zoomLevel ?? '?'} vp={event?.viewportWidth ?? '?'}×
-				{event?.viewportHeight ?? '?'}
-			</Text>
-			<Animated.Text
-				style={styles.debugText}
-				animatedProps={animatedProps}
-			/>
-		</View>
-	);
-};
-
-/** Fixed-position test: if this red square doesn't appear,
- * useAnimatedStyle itself is broken in this setup. */
-const FixedTest: FC = () => {
-	const style = useAnimatedStyle(() => ({
-		position: 'absolute' as const,
-		left: 100,
-		top: 100,
-		width: 30,
-		height: 30,
-		backgroundColor: 'red',
-	}));
-	return <Animated.View style={style} />;
-};
-
 const ExampleComponent: FC<{
 	height: number;
 	width: number;
 }> = ({ height, width }) => {
 	// One useMapPosition — feeds all overlay instances, zero extra cost.
+	// The fast channel (onMapPosition) writes to shared values at 60fps
+	// with zero throttling — overlays track the map smoothly.
 	const pos = useMapPosition();
 
-	// Debug info: mirror the raw event for the MapInfo JSON dump.
-	const [info, setInfo] = useState<MapEventResponse | undefined>(undefined);
-	const handleMapUpdate = useCallback(
-		(response: NativeSyntheticEvent<Readonly<MapEventResponse>>) => {
-			const e = response?.nativeEvent;
-			console.log(
-				'[reanimated-overlay] map event —',
-				'center:',
-				e?.center,
-				'zoom:',
-				e?.zoomLevel,
-				'vp:',
-				e?.viewportWidth,
-				'×',
-				e?.viewportHeight
-			);
-			pos.handleMapUpdate(response);
-			setInfo(e);
+	const handleMapPosition = useCallback(
+		(response: { nativeEvent: Readonly<PositionEventResponse> }) => {
+			pos.handleMapPosition(response);
 		},
 		[pos]
 	);
@@ -185,10 +113,9 @@ const ExampleComponent: FC<{
 				width={width}
 				height={height}
 				center={defaultCenter}
-				responseInclude={pos.responseInclude}
 				zoomLevel={2}
 				mapUpdateInterval={16}
-				onMapUpdate={handleMapUpdate}
+				onMapPosition={handleMapPosition}
 				onPause={handleMapEvent.onPause}
 				onResume={handleMapEvent.onResume}
 				onError={handleMapEvent.onError}
@@ -202,9 +129,6 @@ const ExampleComponent: FC<{
 			 * Their left/top is driven by worklets on the UI thread —
 			 * 60fps, zero bridge crossings, zero React re-renders.
 			 */}
-			{/* Test: fixed red square to verify useAnimatedStyle works at all */}
-			<FixedTest />
-
 			{CITIES.map((city) => (
 				<CityOverlay
 					key={city.name}
@@ -213,16 +137,10 @@ const ExampleComponent: FC<{
 				/>
 			))}
 
-			<DebugOverlay
-				pos={pos}
-				event={info}
-			/>
-
 			<Center
 				height={height}
 				width={width}
 			/>
-			<MapInfo info={info} />
 		</View>
 	);
 };
@@ -250,19 +168,6 @@ const styles = StyleSheet.create({
 	label: {
 		fontSize: 11,
 		fontWeight: '600',
-	},
-	debug: {
-		position: 'absolute',
-		top: 4,
-		left: 4,
-		backgroundColor: 'rgba(255, 255, 0, 0.85)',
-		padding: 4,
-		borderRadius: 4,
-		zIndex: 1000,
-	},
-	debugText: {
-		color: '#000',
-		fontSize: 9,
 	},
 });
 

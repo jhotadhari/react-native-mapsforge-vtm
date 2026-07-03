@@ -65,6 +65,25 @@ export interface LongPressEventResponse {
 	y: Double;
 }
 
+/**
+ * Lightweight position-only event payload for 60fps overlay tracking.
+ *
+ * Unlike {@link MapEventResponse}, every field is always present (no
+ * optionality), the lng/lat are flat doubles (no nested `center` array), and
+ * there is no elevation, scale, zoomScale, or roll — just the 8 fields
+ * needed by {@code useMapOverlay} and {@code mercatorUtils}.
+ */
+export interface PositionEventResponse {
+	lng: Double;
+	lat: Double;
+	zoom: Double;
+	zoomLevel: Int32;
+	bearing: Double;
+	tilt: Double;
+	viewportWidth: Double;
+	viewportHeight: Double;
+}
+
 interface MapViewProps extends ViewProps {
 	width?: Double;
 	height?: Double;
@@ -90,6 +109,7 @@ interface MapViewProps extends ViewProps {
 	mapUpdateInterval?: Int32;
 	onMapCreated?: DirectEventHandler<Readonly<{}>> | null;
 	onMapUpdate?: DirectEventHandler<Readonly<MapEventResponse>> | null;
+	onMapPosition?: DirectEventHandler<Readonly<PositionEventResponse>> | null;
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onResume?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onError?: DirectEventHandler<Readonly<ErrorWithErrorMsg>> | null;
@@ -124,6 +144,7 @@ export type MapContainerProps = {
 	mapUpdateInterval?: MapViewProps['mapUpdateInterval'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];
 	onMapUpdate?: MapViewProps['onMapUpdate'];
+	onMapPosition?: MapViewProps['onMapPosition'];
 	onPause?: MapViewProps['onPause'];
 	onResume?: MapViewProps['onResume'];
 	onError?: MapViewProps['onError'];

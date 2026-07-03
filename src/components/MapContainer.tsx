@@ -65,6 +65,7 @@ const MapContainer = ({
 	mapUpdateInterval = moduleDefaults.mapUpdateInterval,
 	emitsMapUpdateEvents = moduleDefaults.emitsMapUpdateEvents,
 	onMapUpdate,
+	onMapPosition,
 	onPause,
 	onResume,
 	onError,
@@ -234,10 +235,11 @@ const MapContainer = ({
 				emitsMapUpdateEvents={
 					isBoolean(emitsMapUpdateEvents)
 						? emitsMapUpdateEvents
-						: !!onMapUpdate
+						: !!(onMapUpdate || onMapPosition)
 				}
 				onMapCreated={handleMapCreated}
 				onMapUpdate={onMapUpdate ? onMapUpdate : null}
+				onMapPosition={onMapPosition ? onMapPosition : null}
 				onPause={onPause ? onPause : null}
 				onResume={onResume ? onResume : null}
 				onError={onError ? onError : null}

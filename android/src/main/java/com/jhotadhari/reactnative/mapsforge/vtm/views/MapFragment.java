@@ -175,6 +175,27 @@ public class MapFragment extends Fragment {
 			updateListener = new Map.UpdateListener() {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
+					MapsforgeVtmView parent = getMapsforgeVtmView();
+
+					// =====================================================
+					// FAST CHANNEL — unthrottled, every vtm frame (60fps).
+					// Emit a lightweight position-only event for reanimated
+					// overlay tracking. No rate limiter, no elevation disk
+					// I/O, no responseInclude gating — just 8 flat doubles.
+					// =====================================================
+					if ( null != parent ) {
+						parent.emitMapPositionEvent(
+							mapPosition.getLongitude(),
+							mapPosition.getLatitude(),
+							mapPosition.getZoom(),
+							mapPosition.getZoomLevel(),
+							mapPosition.getBearing(),
+							mapPosition.getTilt(),
+							parent.getWidthInDp(),
+							parent.getHeightInDp()
+						);
+					}
+
 					// Cancel any previously scheduled trailing-edge flush —
 					// each new vtm event resets the silence timer.
 					if ( null != pendingTrailingEdge ) {
