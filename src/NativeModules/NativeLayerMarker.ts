@@ -38,6 +38,13 @@ export const MarkerHotspotPlaces = [
 	'LOWER_LEFT_CORNER',
 ] as const;
 
+export const MarkerShape = [
+	'circle',
+	'square',
+	'diamond',
+	'triangle',
+] as const;
+
 export const FontFamily = [
 	'DEFAULT',
 	'DEFAULT_BOLD',
@@ -78,6 +85,8 @@ interface ModuleLayerParams {
 		textPositionY?: null | Double;
 		fontFamily?: string; // FontFamily
 		fontStyle?: string; // FontStyle
+		shape?: string; // MarkerShape
+		fontPath?: null | string; // filesystem path to .ttf/.otf
 	};
 }
 
@@ -199,6 +208,8 @@ export interface SymbolParams {
 	textPositionY?: null | Double;
 	fontFamily?: (typeof FontFamily)[number];
 	fontStyle?: (typeof FontStyle)[number];
+	shape?: (typeof MarkerShape)[number];
+	fontPath?: string;
 }
 
 export type LayerMarkerProps = {

@@ -4,6 +4,7 @@ import coastlines from './coastlines';
 import fitBounds from './fit-bounds';
 import flyEase from './fly-ease';
 import hillshading from './hillshading';
+import icons from './icons';
 import layerOrderVerification from './layer-order-verification';
 import layerShapes from './layer-shapes';
 import manyLayers from './many-layers';
@@ -27,6 +28,7 @@ export {
 	fitBounds,
 	flyEase,
 	hillshading,
+	icons,
 	layerOrderVerification,
 	layerShapes,
 	manyLayers,

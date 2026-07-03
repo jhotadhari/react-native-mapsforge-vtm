@@ -15,6 +15,7 @@ import LayerMarkerModule, {
 } from '../NativeModules/NativeLayerMarker';
 import {
 	MarkerHotspotPlaces,
+	MarkerShape,
 	type MarkerResponse,
 } from '../NativeModules/NativeLayerMarker';
 import type { ErrorBase } from '../types';
@@ -171,6 +172,7 @@ const Marker = ({
 Marker.HotspotPlaces = MarkerHotspotPlaces;
 Marker.FontFamily = FontFamily;
 Marker.FontStyle = FontStyle;
+Marker.Shapes = MarkerShape;
 
 Marker.defaults = omit(LayerMarkerModule.getConstants(), ['strategy']);
 

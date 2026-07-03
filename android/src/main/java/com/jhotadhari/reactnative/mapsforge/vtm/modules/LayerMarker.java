@@ -83,11 +83,13 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		final String fontStyle;
 		final Float textPositionX;
 		final Float textPositionY;
+		final String shape;
+		final String fontPath;
 
 		MarkerBitmapParams(
 			int width, int height, String fillColor, String strokeColor, String text, String filePath,
 			int strokeWidth, int textMargin, String textColor, int textSize, String fontFamily,
-			String fontStyle, Float textPositionX, Float textPositionY
+			String fontStyle, Float textPositionX, Float textPositionY, String shape, String fontPath
 		) {
 			this.width = width;
 			this.height = height;
@@ -103,6 +105,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			this.fontStyle = fontStyle;
 			this.textPositionX = textPositionX;
 			this.textPositionY = textPositionY;
+			this.shape = shape;
+			this.fontPath = fontPath;
 		}
 
 		@Override
@@ -123,14 +127,16 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 				&& Objects.equals( fontFamily, that.fontFamily )
 				&& Objects.equals( fontStyle, that.fontStyle )
 				&& Objects.equals( textPositionX, that.textPositionX )
-				&& Objects.equals( textPositionY, that.textPositionY );
+				&& Objects.equals( textPositionY, that.textPositionY )
+				&& Objects.equals( shape, that.shape )
+				&& Objects.equals( fontPath, that.fontPath );
 		}
 
 		@Override
 		public int hashCode() {
 			return Objects.hash(
 				width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
-				textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
+				textColor, textSize, fontFamily, fontStyle, shape, fontPath, textPositionX, textPositionY
 			);
 		}
 	}
@@ -165,6 +171,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		symbol.putInt( "textSize", 30 );
 		symbol.putString( "fontFamily", "DEFAULT" );
 		symbol.putString( "fontStyle", "NORMAL" );
+		symbol.putString( "shape", "circle" );
+		symbol.putString( "fontPath", null );
 		constants.put( "symbol", symbol );
 		// For marker.
 		constants.put( "title", "" );
@@ -535,6 +543,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		int textSize = Utils.rMapHasKey( symbolMap, "textSize" ) ? symbolMap.getInt( "textSize" ) : symbolConstants.getInt( "textSize" );
 		String fontFamily = Utils.rMapHasKey( symbolMap, "fontFamily" ) ? symbolMap.getString( "fontFamily" ) : symbolConstants.getString( "fontFamily" );
 		String fontStyle = Utils.rMapHasKey( symbolMap, "fontStyle" ) ? symbolMap.getString( "fontStyle" ) : symbolConstants.getString( "fontStyle" );
+		String shape = Utils.rMapHasKey( symbolMap, "shape" ) ? symbolMap.getString( "shape" ) : symbolConstants.getString( "shape" );
+		String fontPath = Utils.rMapHasKey( symbolMap, "fontPath" ) ? symbolMap.getString( "fontPath" ) : symbolConstants.getString( "fontPath" );
 		// Plain if/else, not a nested ternary: a ternary mixing a primitive float branch with a
 		// null branch forces javac to unify the expression's type as primitive float, unboxing
 		// the *other* branch's boxed Float unconditionally as part of evaluating that type -- so
@@ -558,7 +568,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		}
 		return new MarkerBitmapParams(
 			width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
-			textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
+			textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY, shape, fontPath
 		);
 	}
 
@@ -638,25 +648,58 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			markerCanvas.drawBitmapScaled( imageBitmap );
 		}
 		if ( null != fillColor && fillColor.startsWith( "#" ) ) {
-			markerCanvasDrawCircle( markerCanvas, width, height, fillColor, Paint.Style.FILL,null );
+			markerCanvasDrawShape( markerCanvas, params.shape, width, height, fillColor, Paint.Style.FILL,null );
 		}
 		if ( null != strokeColor && strokeColor.startsWith( "#" ) ) {
-			markerCanvasDrawCircle( markerCanvas, width, height, strokeColor, Paint.Style.STROKE, strokeWidth );
+			markerCanvasDrawShape( markerCanvas, params.shape, width, height, strokeColor, Paint.Style.STROKE, strokeWidth );
 		}
 		// Fallback
 		if ( null == imageBitmap && fillColor == null && ( strokeColor == null || ! strokeColor.startsWith( "#" ) ) ){
-			markerCanvasDrawCircle( markerCanvas, width, height,"#ff0000", Paint.Style.FILL, null );
-			markerCanvasDrawCircle( markerCanvas, width, height, "#000000", Paint.Style.STROKE, strokeWidth );
+			markerCanvasDrawShape( markerCanvas, params.shape, width, height,"#ff0000", Paint.Style.FILL, null );
+			markerCanvasDrawShape( markerCanvas, params.shape, width, height, "#000000", Paint.Style.STROKE, strokeWidth );
 		}
-		// Draw text.
+		// Draw text — when fontPath is set, use Android native Typeface rendering
+		// (bypasses vtm's closed FontFamily enum) so that custom TTF/OTF fonts
+		// (e.g. Material Design Icons from @react-native-vector-icons) can be
+		// used as marker icons.
 		if ( text != null ) {
-			Bitmap textBitmap = CanvasAdapter.newBitmap(textWidth + textMargin, textHeight + textMargin, 0 );
-			Canvas textCanvas = CanvasAdapter.newCanvas();
-			textCanvas.setBitmap( textBitmap );
-			textCanvas.drawText( text, textMargin, textHeight - textMargin, textPainter );
-			float textPositionX = null != params.textPositionX ? params.textPositionX : width * 0.5f - ( textWidth * 0.5f );
-			float textPositionY = null != params.textPositionY ? params.textPositionY : 0;
-			markerCanvas.drawBitmap( textBitmap, textPositionX, textPositionY );
+			if ( null != params.fontPath && ! params.fontPath.isEmpty() ) {
+				// Custom TTF: render with android.graphics.* primitives
+				android.graphics.Bitmap aBmp = android.graphics.Bitmap.createBitmap(
+					textWidth + textMargin, textHeight + textMargin,
+					android.graphics.Bitmap.Config.ARGB_8888
+				);
+				android.graphics.Canvas aCanvas = new android.graphics.Canvas( aBmp );
+				android.graphics.Paint aPaint = new android.graphics.Paint();
+				aPaint.setAntiAlias( true );
+				aPaint.setColor( android.graphics.Color.parseColor( params.textColor ) );
+				aPaint.setTextSize( params.textSize );
+				try {
+					android.graphics.Typeface tf = android.graphics.Typeface.createFromFile( params.fontPath );
+					aPaint.setTypeface( tf );
+				} catch ( RuntimeException e ) {
+					// Font file not found or invalid — fall through to the default
+					// font-family path below.
+					emitError( "Unable to load fontPath: " + params.fontPath );
+					aPaint = null;
+				}
+				if ( aPaint != null ) {
+					aCanvas.drawText( text, textMargin, textHeight - textMargin, aPaint );
+					org.oscim.android.canvas.AndroidBitmap vtmBmp = new org.oscim.android.canvas.AndroidBitmap( aBmp );
+					float textPositionX = null != params.textPositionX ? params.textPositionX : width * 0.5f - ( textWidth * 0.5f );
+					float textPositionY = null != params.textPositionY ? params.textPositionY : 0;
+					markerCanvas.drawBitmap( vtmBmp, textPositionX, textPositionY );
+				}
+			} else {
+				// Default: use vtm's Paint for rendering (supports FontFamily enum)
+				Bitmap textBitmap = CanvasAdapter.newBitmap(textWidth + textMargin, textHeight + textMargin, 0 );
+				Canvas textCanvas = CanvasAdapter.newCanvas();
+				textCanvas.setBitmap( textBitmap );
+				textCanvas.drawText( text, textMargin, textHeight - textMargin, textPainter );
+				float textPositionX = null != params.textPositionX ? params.textPositionX : width * 0.5f - ( textWidth * 0.5f );
+				float textPositionY = null != params.textPositionY ? params.textPositionY : 0;
+				markerCanvas.drawBitmap( textBitmap, textPositionX, textPositionY );
+			}
 		}
 		return markerBitmap;
 	}
@@ -732,6 +775,79 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			( (float) ( ( width - strokeWith ) + ( height - strokeWith ) ) / 2 ) * 0.5f,
 			painter
 		);
+	}
+
+	/**
+	 * Draw a filled/stroked shape on the marker canvas.  Non-circle shapes use
+	 * {@code drawLine} and {@code fillRectangle} (the only polygon primitives
+	 * the vtm Canvas exposes).  Fills for diamond/triangle fall back to a
+	 * circle fill for now since the vtm Canvas has no polygon-fill method.
+	 */
+	protected void markerCanvasDrawShape(
+		Canvas markerCanvas,
+		String shape,
+		float width,
+		float height,
+		String color,
+		Paint.Style style,
+		@Nullable Integer strokeWith
+	) {
+		if ( null == shape || "circle".equals( shape ) ) {
+			markerCanvasDrawCircle( markerCanvas, width, height, color, style, strokeWith );
+			return;
+		}
+
+		final Paint painter = CanvasAdapter.newPaint();
+		painter.setStyle( style );
+		painter.setColor( Color.parseColor( color ) );
+		final int sw = null != strokeWith ? strokeWith : 0;
+		painter.setStrokeWidth( sw );
+
+		final float hw = width * 0.5f;
+		final float hh = height * 0.5f;
+		// Inset by half stroke to keep the outline inside the bitmap bounds.
+		final float inset = sw * 0.5f;
+		final float left = inset;
+		final float top = inset;
+		final float right = width - inset;
+		final float bottom = height - inset;
+
+		switch ( shape ) {
+			case "square":
+				if ( Paint.Style.FILL == style ) {
+					markerCanvas.fillRectangle( left, top, right - left, bottom - top, Color.parseColor( color ) );
+				} else {
+					markerCanvas.drawLine( left, top, right, top, painter );
+					markerCanvas.drawLine( right, top, right, bottom, painter );
+					markerCanvas.drawLine( right, bottom, left, bottom, painter );
+					markerCanvas.drawLine( left, bottom, left, top, painter );
+				}
+				break;
+			case "diamond":
+				// Stroke only (vtm Canvas has no polygon fill); fill falls back to circle.
+				if ( Paint.Style.FILL != style ) {
+					markerCanvas.drawLine( hw, top, right, hh, painter );
+					markerCanvas.drawLine( right, hh, hw, bottom, painter );
+					markerCanvas.drawLine( hw, bottom, left, hh, painter );
+					markerCanvas.drawLine( left, hh, hw, top, painter );
+				} else {
+					markerCanvasDrawCircle( markerCanvas, width, height, color, style, strokeWith );
+				}
+				break;
+			case "triangle":
+				// Stroke only; fill falls back to circle.
+				if ( Paint.Style.FILL != style ) {
+					markerCanvas.drawLine( hw, top, right, bottom, painter );
+					markerCanvas.drawLine( right, bottom, left, bottom, painter );
+					markerCanvas.drawLine( left, bottom, hw, top, painter );
+				} else {
+					markerCanvasDrawCircle( markerCanvas, width, height, color, style, strokeWith );
+				}
+				break;
+			default:
+				markerCanvasDrawCircle( markerCanvas, width, height, color, style, strokeWith );
+				break;
+		}
 	}
 
 	@Override
