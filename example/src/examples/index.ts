@@ -15,6 +15,7 @@ import pathJts from './path-jts';
 import markers from './markers';
 import mbtilesBitmap from './mbtiles-bitmap';
 import panZoom from './pan-zoom';
+import reanimatedOverlay from './reanimated-overlay';
 import sharedLayerGrouping from './shared-layer-grouping';
 import tapEvents from './tap-events';
 import trigger from './trigger';
@@ -38,6 +39,7 @@ export {
 	markers,
 	mbtilesBitmap,
 	panZoom,
+	reanimatedOverlay,
 	sharedLayerGrouping,
 	tapEvents,
 	trigger,
