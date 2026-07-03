@@ -217,8 +217,11 @@ public class MapFragment extends Fragment {
 
 		ReadableMap responseInclude = getMapsforgeVtmView().getResponseInclude();
 		MapPosition mapPosition = mapView.map().getMapPosition();
+		// Use getZoom() (fractional double) instead of getZoomLevel() (int)
+		// so reanimated overlays track the map smoothly during pinch-zoom
+		// where the scale can be e.g. 2.7, not just an integer.
 		if ( responseInclude.getInt( "zoomLevel" ) >= includeLevel ) {
-			payload.putDouble( "zoomLevel", mapPosition.getZoomLevel() );
+			payload.putDouble( "zoomLevel", mapPosition.getZoom() );
 		}
 
 		if ( responseInclude.getInt( "zoom" ) >= includeLevel ) {
