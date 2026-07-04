@@ -344,7 +344,7 @@ public class MapFragment extends Fragment {
 
 	}
 
-	private MapsforgeVtmView getMapsforgeVtmView() {
+	protected MapsforgeVtmView getMapsforgeVtmView() {
 		if ( null == getView() ) {
 			return null;
 		}

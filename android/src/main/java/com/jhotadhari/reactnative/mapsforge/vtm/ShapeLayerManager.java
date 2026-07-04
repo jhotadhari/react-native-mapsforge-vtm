@@ -105,11 +105,11 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Instance state ──────────────────────────────────────────────────
 
 	/** Maps each Drawable in a shared VectorLayer back to its shape entry uuid. */
-	private final Map<Drawable, String> drawableToEntry = new ConcurrentHashMap<>();
+	protected final Map<Drawable, String> drawableToEntry = new ConcurrentHashMap<>();
 
 	// ── Constructor ─────────────────────────────────────────────────────
 
-	private ShapeLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
+	protected ShapeLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
 		super(nativeNodeHandle, mapView, name, BASE_POSITION);
 	}
 
@@ -308,7 +308,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	 * shared layer's {@code onGesture()} short-circuits at the first guard —
 	 * no hit-test loop at all.
 	 */
-	private void syncGestureSupport() {
+	protected void syncGestureSupport() {
 		boolean hasAny = false;
 		for (ShapeEntry entry : entries.values()) {
 			if (entry.supportsGestures) {
@@ -326,7 +326,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Style parsing ────────────────────────────────────────────────────
 
 	@NonNull
-	private Style.Builder getStyleBuilderFromMap(@Nullable ReadableMap styleMap) {
+	protected Style.Builder getStyleBuilderFromMap(@Nullable ReadableMap styleMap) {
 		double strokeWidth = 2d;
 		String strokeColor = "#4488ff";
 
@@ -434,7 +434,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Drawable factory ─────────────────────────────────────────────────
 
 	@NonNull
-	private JtsDrawable createDrawable(@NonNull ReadableMap shapeMap, @NonNull Style style) throws Exception {
+	protected JtsDrawable createDrawable(@NonNull ReadableMap shapeMap, @NonNull Style style) throws Exception {
 		String type = shapeMap.getString("type");
 		if (type == null) {
 			throw new IllegalArgumentException("Shape type is required");
@@ -515,7 +515,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Gesture listener ────────────────────────────────────────────────
 
 	@NonNull
-	private VectorLayer.GestureListener createGestureListener() {
+	protected VectorLayer.GestureListener createGestureListener() {
 		return (type, eventParams) -> {
 			if (eventCallback == null) {
 				return;

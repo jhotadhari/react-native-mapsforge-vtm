@@ -105,7 +105,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	// ── Instance state ──────────────────────────────────────────────────
 
 	/** Maps each Drawable in the shared VectorLayer back to its path entry uuid. */
-	private final Map<Drawable, String> drawableToEntry = new ConcurrentHashMap<>();
+	protected final Map<Drawable, String> drawableToEntry = new ConcurrentHashMap<>();
 
 	// ── Constructor ─────────────────────────────────────────────────────
 
@@ -365,7 +365,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	 * {@link #updateSupportsGestures} so the flag stays consistent across
 	 * the entry lifecycle.
 	 */
-	private void syncGestureSupport() {
+	protected void syncGestureSupport() {
 		boolean hasAny = false;
 		for (PathEntry entry : entries.values()) {
 			if (entry.supportsGestures) {
@@ -628,7 +628,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	// ── Gesture listener ────────────────────────────────────────────────
 
 	@NonNull
-	private VectorLayer.GestureListener createGestureListener() {
+	protected VectorLayer.GestureListener createGestureListener() {
 		return (type, eventParams) -> {
 			// eventParams already has the correct per-entry uuid from the
 			// UuidResolver. Add type, emit through the callback.

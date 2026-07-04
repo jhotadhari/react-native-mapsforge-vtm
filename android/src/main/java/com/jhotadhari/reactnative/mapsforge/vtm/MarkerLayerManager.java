@@ -151,7 +151,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 	// ── Constructor ─────────────────────────────────────────────────────
 
-	private MarkerLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
+	protected MarkerLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
 		super(nativeNodeHandle, mapView, name, BASE_POSITION);
 	}
 
@@ -897,7 +897,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	/**
 	 * Ensures a group exists, creating the root group lazily if needed.
 	 */
-	private void ensureGroup(@NonNull String groupUuid, @NonNull String fragmentUuid, @Nullable MarkerSymbol defaultSymbol, int positionIndex) {
+	protected void ensureGroup(@NonNull String groupUuid, @NonNull String fragmentUuid, @Nullable MarkerSymbol defaultSymbol, int positionIndex) {
 		if (!groups.containsKey(groupUuid)) {
 			groups.put(groupUuid, new MarkerGroup(groupUuid, fragmentUuid, defaultSymbol, positionIndex));
 		}
@@ -907,7 +907,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	 * Inserts a marker into the shared ItemizedLayer at the position that
 	 * maintains ascending positionIndex order.
 	 */
-	private void insertMarkerSorted(
+	protected void insertMarkerSorted(
 		@NonNull MarkerItem markerItem,
 		int positionIndex,
 		@NonNull ItemizedLayer layer
@@ -932,7 +932,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	 * Creates the single OnItemGestureListener for the shared ItemizedLayer.
 	 */
 	@NonNull
-	private ItemizedLayer.OnItemGestureListener<MarkerInterface> createGestureListener() {
+	protected ItemizedLayer.OnItemGestureListener<MarkerInterface> createGestureListener() {
 		return new ItemizedLayer.OnItemGestureListener<MarkerInterface>() {
 			@Override
 			public boolean onItemSingleTapUp(int index, MarkerInterface item) {
