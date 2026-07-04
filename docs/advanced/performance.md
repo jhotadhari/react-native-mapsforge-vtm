@@ -55,7 +55,7 @@ simplest to most performant:
 
 | Tier | API | Bridge crossings | React re-renders | Best for |
 |---|---|---|---|---|
-| Callback | `MapContainer.onMapUpdate` | ~25/sec (one-way) | ~25/sec | Coordinate tracking, debug overlays, one-shot reactions. Elevation is intentionally excluded — use `useMap().getAltitudeAtPosition()` instead. |
+| Callback | `MapContainer.onMapUpdate` | ~25/sec (one-way) | ~25/sec | Coordinate tracking, debug overlays, one-shot reactions. Elevation is included in the `center` array (third element) from the DEM cache when available — `null` on cache miss. |
 | Shared values | `useMapPosition()` from `reanimated` module | ~25/sec (writes only) | 0 | Smooth UI tracking at 60fps |
 | Shared values (native) | `useMapPosition()` + `activateNativeBridge()` | **0** (writes bypass the bridge entirely) | 0 | Zero-jitter overlay tracking at true 60fps |
 | Imperative | `useMap().getPosition()` | 2 per call (round-trip) | 0–1 | Button-triggered snapshots |
