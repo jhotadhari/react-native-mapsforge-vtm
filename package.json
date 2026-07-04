@@ -74,7 +74,7 @@
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.22.0",
     "@evilmartians/lefthook": "^2.1.9",
-    "@jhotadhari/release-kit": "file:.yalc/@jhotadhari/release-kit",
+    "@jhotadhari/release-kit": "^0.0.6",
     "@react-native-community/cli": "20.1.3",
     "@react-native/eslint-config": "^0.86.0",
     "@react-native/jest-preset": "^0.86.0",

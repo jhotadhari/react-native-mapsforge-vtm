@@ -58,6 +58,25 @@ public class LayerPath extends NativeLayerPathSpec {
 		return NAME;
 	}
 
+	/**
+	 * Factory method for creating the {@link PathLayerManager} used by this
+	 * module. Subclasses may override to return a custom manager (e.g.
+	 * {@code ColorRampPathLayerManager}) without duplicating the full
+	 * {@code createLayer} / {@code removeLayer} / {@code updateCoordinates}
+	 * machinery.
+	 *
+	 * @param nativeNodeHandle the map view's native node handle
+	 * @param mapView          the vtm {@code MapView} instance
+	 * @return a {@code PathLayerManager} for the given map view
+	 */
+	@NonNull
+	protected PathLayerManager createPathLayerManager(
+		int nativeNodeHandle,
+		@NonNull MapView mapView
+	) {
+		return PathLayerManager.get(nativeNodeHandle, mapView);
+	}
+
 	@Override
 	protected Map<String, Object> getTypedExportedConstants() {
 		final Map<String, Object> constants = new HashMap<>();
@@ -201,8 +220,8 @@ public class LayerPath extends NativeLayerPathSpec {
 				? params.getString( "fragmentUuid" )
 				: "__vtm_shared_path__0";
 
-			// Delegate to PathLayerManager.
-			PathLayerManager manager = PathLayerManager.get( nativeNodeHandle, mapView );
+			// Delegate to PathLayerManager (subclassable via createPathLayerManager).
+			PathLayerManager manager = createPathLayerManager( nativeNodeHandle, mapView );
 			manager.setEventCallback(( eventName, payload ) -> {
 				if ( "onPathEvent".equals( eventName ) ) {
 					emitOnPathEvent( payload );

@@ -409,7 +409,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	 * PathLayerManager is self-contained.
 	 */
 	@NonNull
-	private static Style.Builder getStyleBuilder(@Nullable ReadableMap styleMap) {
+	protected Style.Builder getStyleBuilder(@Nullable ReadableMap styleMap) {
 		// Hard-coded defaults matching LayerPath.getTypedExportedConstants.
 		double strokeWidth = 4d;
 		String strokeColor = "#ff0000";
@@ -535,7 +535,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	 * Draws LineDrawable segments onto the shared VectorLayer.
 	 * Mirrors {@code LayerPath.drawLineForCoordinates}.
 	 */
-	private void drawSegments(
+	protected void drawSegments(
 		@NonNull Coordinate[] jtsCoordinates,
 		@NonNull Style.Builder styleBuilder,
 		@NonNull String entryUuid,
