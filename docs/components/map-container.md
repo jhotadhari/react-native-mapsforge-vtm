@@ -49,21 +49,14 @@ event itself.
 
 | Prop | Type | Description |
 |---|---|---|
-| `onMapUpdate` | `(e: NativeSyntheticEvent<MapEventResponse>) => void` | Map position changed (pan, zoom, tilt, etc.). Rate-limited by `mapUpdateInterval`. |
+| `onMapUpdate` | `(e: NativeSyntheticEvent<MapEventResponse>) => void` | Map position changed (pan, zoom, tilt, etc.). Fires every vtm frame at 60fps with all position fields always present. |
 | `onPause` | `(e: NativeSyntheticEvent<MapEventResponse>) => void` | Map paused (activity lifecycle) |
 | `onResume` | `(e: NativeSyntheticEvent<MapEventResponse>) => void` | Map resumed |
 | `onError` | `(e: NativeSyntheticEvent<{ errorMsg: string }>) => void` | Native error occurred |
 | `onTap` | `(e: NativeSyntheticEvent<TapEventResponse>) => void` | Single tap on the map (not on a marker/path) |
 | `onLongPress` | `(e: NativeSyntheticEvent<LongPressEventResponse>) => void` | Long press on the map |
 | `onMapCreated` | `() => void` | Internal — fires when the native `MapView` is ready |
-
-### Map update configuration
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `responseInclude` | `ResponseInclude` | (all level 1) | Which fields to include in events. Level 1 = `onPause`/`onResume`, level 2 = `onMapUpdate`. Each field is an integer threshold. |
-| `mapUpdateInterval` | `number` | `40` | Minimum ms between `onMapUpdate` events (throttle window) |
-| `emitsMapUpdateEvents` | `boolean` | `true` if `onMapUpdate` set | Enable/disable position events |
+| `emitsMapUpdateEvents` | `boolean` | `true` if `onMapUpdate` set | Enable/disable position events. When `false`, the native side stops emitting `onMapUpdate` entirely, saving bridge bandwidth when no consumer is listening. |
 
 ### State lifting
 
