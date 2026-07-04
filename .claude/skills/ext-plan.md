@@ -158,7 +158,7 @@ Core library hooks needed: depends on which LayerManager is extended. Phase 1 ho
 4. Install release-kit from npm (`@jhotadhari/release-kit@^0.0.6`)
 5. Init CLAUDE.md via `/init`
 6. Create ROADMAP.md with phased implementation plan
-7. Commit on `development` branch
+7. Commit on `main` and `development` branch
 
 ## Template repo
 
