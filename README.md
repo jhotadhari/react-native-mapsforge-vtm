@@ -107,6 +107,7 @@ yarn example android    # build & run on device/emulator
 ## Resources
 
 - **[Documentation](./docs/README.md)** — Full API reference, guides, and advanced topics
+- **[Extending the library](./docs/advanced/extending.md)** — Build custom layer-type extensions (JS-only, TurboModule, or vtm-shadowing). Start with `/ext-plan`.
 - **[Naming conventions and terminology](./docs/NAMING_TERMINOLOGY.md)** — Inclusive language conventions used in this project
 
 - **[Known Issues](./docs/advanced/known-issues.md)** — Current bugs, limitations, and workarounds
