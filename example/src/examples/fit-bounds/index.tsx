@@ -64,17 +64,6 @@ const bboxToRing = (bounds: Bbox): Position[] => {
 	];
 };
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const Controls: FC<{
 	mapWidth: number;
 	isBusy: boolean;
@@ -259,7 +248,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={8}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

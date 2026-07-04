@@ -24,17 +24,6 @@ import {
 
 const defaultCenter: Position = [-77, -9]; // [ lng, lat ]
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 type MapApi = ReturnType<typeof useMap>;
 
 const Controls: FC<{
@@ -161,7 +150,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={8}
 					tiltEnabled={true}
 					rotationEnabled={true}

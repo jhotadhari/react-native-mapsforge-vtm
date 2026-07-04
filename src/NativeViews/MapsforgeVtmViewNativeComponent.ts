@@ -16,12 +16,8 @@ import type { Dispatch, SetStateAction } from 'react';
 type Position = ReadonlyArray<Double>;
 
 export interface MapEventResponse {
-	zoomLevel?: Int32;
-	zoom?: Double;
-	scale?: Double;
-	zoomScale?: Double;
+	zoomLevel?: Double;
 	bearing?: Double;
-	roll?: Double;
 	tilt?: Double;
 	center?: Double[]; // type Position - named aliases aren't resolved for event payloads by codegen.
 	viewportWidth?: Double;

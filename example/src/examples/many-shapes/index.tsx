@@ -36,17 +36,6 @@ import {
 
 const defaultCenter: Position = [-77, -9]; // [ lng, lat ]
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const countOptions = [
 	100,
 	500,
@@ -238,7 +227,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={6}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

@@ -60,8 +60,8 @@ const MapInfo: FC<{
  * | `useMap().getPosition()` (imperative) | Button-triggered snapshots ("save current position"), non-continuous queries |
  *
  * `onMapUpdate` and `useMapPosition()` coexist — you can use both in the
- * same component. The bridge event fires once per `mapUpdateInterval` ms
- * (default 40, ~25fps); shared values receive the same writes and worklet
+ * same component. The bridge event fires every vtm frame at 60fps
+ * (unthrottled); shared values receive the same writes and worklet
  * consumers read them on the UI thread without crossing the bridge.
  */
 export const useMapInfo = () => {

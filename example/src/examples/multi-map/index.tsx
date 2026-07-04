@@ -92,16 +92,6 @@ const defaultCenter: Position = [13.405, 52.52]; // [ lng, lat ]
  * Fields that must appear in `onMapUpdate` events for sync to work.
  * Level 2 = included in lifeCycle AND onMapEvent responses.
  */
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -269,7 +259,6 @@ const MapPanel: FC<MapPanelProps> = ({
 				width={width}
 				height={height}
 				center={center}
-				responseInclude={responseInclude}
 				zoomLevel={zoomLevel}
 				onMapUpdate={onMapUpdate}
 				onPause={handleMapEvent.onPause}

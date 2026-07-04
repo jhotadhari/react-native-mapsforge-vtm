@@ -25,17 +25,6 @@ import {
 
 const defaultCenter: Position = [-77, -9]; // [ lng, lat ]
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const MAX_TAP_MARKERS = 10;
 
 const Controls: FC<{
@@ -173,7 +162,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={8}
 					onTap={handleTap}
 					onLongPress={handleLongPress}

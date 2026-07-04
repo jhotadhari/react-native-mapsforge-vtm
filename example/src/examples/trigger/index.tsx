@@ -34,17 +34,6 @@ const pathCoordinates: Position[] = [
 	[-76.85, -8.9],
 ];
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const ExampleComponent: FC<{
 	height: number;
 	width: number;
@@ -193,7 +182,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={8}
 					triggerEvent={triggerMarkerEvent}
 					onMapUpdate={handleMapUpdate}

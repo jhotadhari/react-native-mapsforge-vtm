@@ -58,17 +58,6 @@ import {
 const center: Position = [-77, -9]; // [ lng, lat ]
 const defaultCenter: Position = center;
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	tilt: 2,
-	roll: 2,
-	center: 2,
-};
-
 // ── Item definitions ─────────────────────────────────────────────────────
 
 interface LayerItem {
@@ -350,7 +339,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={10}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

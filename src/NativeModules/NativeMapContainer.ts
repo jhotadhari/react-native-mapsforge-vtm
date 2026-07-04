@@ -10,18 +10,6 @@ import type { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
  */
 type Position = ReadonlyArray<Double>;
 
-interface ResponseInclude {
-	// [value: string]: Int32			 // Doesn't work with codegen
-	zoomLevel?: Int32;
-	zoom?: Int32;
-	scale?: Int32;
-	zoomScale?: Int32;
-	bearing?: Int32;
-	roll?: Int32;
-	tilt?: Int32;
-	center?: Int32;
-}
-
 export interface ModuleParams {
 	width: null | Double;
 	height: Double;
@@ -42,8 +30,6 @@ export interface ModuleParams {
 	roll: Double;
 	minRoll: Double;
 	maxRoll: Double;
-	responseInclude: ResponseInclude;
-	mapUpdateInterval: Int32;
 	emitsMapUpdateEvents: null | boolean;
 	emitsHardwareKeyUp: ReadonlyArray<string>;
 }

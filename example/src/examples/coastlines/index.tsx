@@ -22,17 +22,6 @@ import coastlines from '../../assets/coastlines.geo.json';
 
 const defaultCenter: Position = [10, 20]; // [ lng, lat ] -- frames several continents at once
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 // All 475 features in coastlines.geo.json are already flattened to LineString (no
 // MultiLineString left to handle) -- so this is just one LayerPath per feature.
 const coastlineCoordinates: Position[][] = coastlines.features.map(
@@ -150,7 +139,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={2}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

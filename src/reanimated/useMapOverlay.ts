@@ -37,7 +37,6 @@ import { toScreenPosition } from './mercatorUtils';
  *   <View style={{ flex: 1 }}>
  *     <MapContainer
  *       onMapUpdate={pos.handleMapUpdate}
- *       responseInclude={pos.responseInclude}
  *     >
  *       <LayerMapsforge mapFile={...} />
  *     </MapContainer>

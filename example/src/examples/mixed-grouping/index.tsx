@@ -65,17 +65,6 @@ import {
 const center: Position = [-77, -9];
 const defaultCenter: Position = center;
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 // ── Controls ────────────────────────────────────────────────────────────
 
 const Controls: FC<{
@@ -264,7 +253,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={9}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

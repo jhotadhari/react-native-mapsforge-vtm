@@ -25,17 +25,6 @@ const mapFile = '/sdcard/Download/test-data/mbtiles/OAM-World-1-8-J80.mbtiles';
 
 const defaultCenter: Position = [0, 0]; // [ lng, lat ]
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const ExampleComponent: FC<{
 	height: number;
 	width: number;
@@ -70,7 +59,6 @@ const ExampleComponent: FC<{
 				width={width}
 				height={height}
 				center={center}
-				responseInclude={responseInclude}
 				zoomLevel={3}
 				onMapUpdate={handleMapUpdate}
 				onPause={handleMapEvent.onPause}

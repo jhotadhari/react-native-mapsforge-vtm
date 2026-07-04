@@ -23,17 +23,6 @@ const defaultCenter: Position = [13.405, 52.52]; // Berlin [ lng, lat ]
 const berlin: Position = [13.405, 52.52];
 const tokyo: Position = [139.6917, 35.6895];
 
-const responseInclude = {
-	zoomLevel: 2,
-	zoom: 2,
-	scale: 2,
-	zoomScale: 2,
-	bearing: 2,
-	roll: 2,
-	tilt: 2,
-	center: 2,
-};
-
 const Controls: FC<{
 	mapWidth: number;
 	lastAction: string;
@@ -214,7 +203,6 @@ const ExampleComponent: FC<{
 					width={width}
 					height={height}
 					center={defaultCenter}
-					responseInclude={responseInclude}
 					zoomLevel={8}
 					onMapUpdate={handleMapUpdate}
 					onPause={handleMapEvent.onPause}

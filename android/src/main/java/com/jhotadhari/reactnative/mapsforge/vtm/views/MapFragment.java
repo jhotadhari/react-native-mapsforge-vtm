@@ -80,9 +80,10 @@ public class MapFragment extends Fragment {
 
 
 	public void updateUpdateListener() {
-		if ( null != getMapsforgeVtmView() && getMapsforgeVtmView().getEmitsMapUpdateEvents() && updateListener == null ) {
+		MapsforgeVtmView parent = getMapsforgeVtmView();
+		if ( null != parent && parent.getEmitsMapUpdateEvents() && updateListener == null ) {
 			bindUpdateListener();
-		} else if ( ! getMapsforgeVtmView().getEmitsMapUpdateEvents() && updateListener != null ) {
+		} else if ( null != parent && ! parent.getEmitsMapUpdateEvents() && updateListener != null ) {
 			unbindUpdateListener();
 		}
 
@@ -134,8 +135,8 @@ public class MapFragment extends Fragment {
 				@Override
 				public void onMapEvent( Event e, MapPosition mapPosition ) {
 					MapsforgeVtmView parent = getMapsforgeVtmView();
-					if ( null != parent ) {
-						parent.emitMapEvent( "onMapUpdate", getResponseBase( 2 ) );
+					if ( null != parent && null != mapView && null != mapView.map() ) {
+						parent.emitMapEvent( "onMapUpdate", getResponseBase() );
 					}
 				}
 			};
@@ -144,7 +145,7 @@ public class MapFragment extends Fragment {
 
 	}
 
-	protected WritableMap getResponseBase( int includeLevel ) {
+	protected WritableMap getResponseBase() {
 		WritableMap payload = Arguments.createMap();
 		if ( null == getMapsforgeVtmView() ) {
 			return payload;
@@ -158,17 +159,13 @@ public class MapFragment extends Fragment {
 		MapsforgeVtmView parent = getMapsforgeVtmView();
 
 		payload.putDouble( "zoomLevel", mapPosition.getZoom() );
-		payload.putDouble( "zoom", mapPosition.getZoom() );
-		payload.putDouble( "scale", mapPosition.getScale() );
-		payload.putDouble( "zoomScale", mapPosition.getZoomScale() );
 		payload.putDouble( "bearing", mapPosition.getBearing() );
 		payload.putDouble( "tilt", mapPosition.getTilt() );
-		payload.putDouble( "roll", mapPosition.getRoll() );
 
 		double lng = mapPosition.getLongitude();
 		double lat = mapPosition.getLatitude();
 		Double alt = null;
-		if ( null != parent ) {
+		if ( null != parent && null != mapView && null != mapView.map() ) {
 			com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
 				com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
 					parent.getId(), parent.getReactContext() );
@@ -181,7 +178,7 @@ public class MapFragment extends Fragment {
 		}
 		payload.putArray( "center", Utils.positionToWritableArray( lng, lat, alt ) );
 
-		if ( null != parent ) {
+		if ( null != parent && null != mapView && null != mapView.map() ) {
 			payload.putDouble( "viewportWidth", parent.getWidthInDp() );
 			payload.putDouble( "viewportHeight", parent.getHeightInDp() );
 		}
@@ -268,7 +265,7 @@ public class MapFragment extends Fragment {
 	public void onPause() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
 			mapView.onPause();
-			getMapsforgeVtmView().emitMapEvent( "onPause", getResponseBase( 1 ) );
+			getMapsforgeVtmView().emitMapEvent( "onPause", getResponseBase() );
 			for ( Layer layer : mapView.map().layers() ) {
 				try {
 					layer.getClass().getMethod("onPause").invoke( layer );
@@ -289,7 +286,7 @@ public class MapFragment extends Fragment {
 		super.onResume();
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
 			mapView.onResume();
-			getMapsforgeVtmView().emitMapEvent( "onResume", getResponseBase( 1 ) );
+			getMapsforgeVtmView().emitMapEvent( "onResume", getResponseBase() );
 			for ( Layer layer : mapView.map().layers() ) {
 				try {
 					layer.getClass().getMethod("onResume").invoke( layer );

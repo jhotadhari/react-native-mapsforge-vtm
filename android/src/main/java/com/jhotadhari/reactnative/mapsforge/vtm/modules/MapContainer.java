@@ -98,19 +98,7 @@ public class MapContainer extends NativeMapContainerSpec {
 		constants.put( "roll", 0 );
 		constants.put( "minRoll", -180 );
 		constants.put( "maxRoll", 180 );
-		WritableMap responseInclude = new WritableNativeMap();
-		responseInclude.putInt( "zoomLevel", 0 );
-		responseInclude.putInt( "zoom", 0 );
-		responseInclude.putInt( "scale", 0 );
-		responseInclude.putInt( "zoomScale", 0 );
-		responseInclude.putInt( "bearing", 0 );
-		responseInclude.putInt( "roll", 0 );
-		responseInclude.putInt( "tilt", 0 );
-		responseInclude.putInt( "center", 0 );
-		responseInclude.putInt( "viewportWidth", 0 );
-		responseInclude.putInt( "viewportHeight", 0 );
-		constants.put( "responseInclude", responseInclude );
-		constants.put( "mapUpdateInterval", 40 );
+
 		constants.put( "emitsMapUpdateEvents", null );
 		WritableArray emitsHardwareKeyUp = new WritableNativeArray();
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_UP" );
