@@ -2226,9 +2226,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jhotadhari/release-kit@file:.yalc/@jhotadhari/release-kit::locator=react-native-mapsforge-vtm%40workspace%3A.":
+"@jhotadhari/release-kit@npm:^0.0.6":
   version: 0.0.6
-  resolution: "@jhotadhari/release-kit@file:.yalc/@jhotadhari/release-kit#.yalc/@jhotadhari/release-kit::hash=715836&locator=react-native-mapsforge-vtm%40workspace%3A."
+  resolution: "@jhotadhari/release-kit@npm:0.0.6"
   dependencies:
     "@octokit/rest": ^22.0.1
     commander: ^15.0.0
@@ -2238,8 +2238,8 @@ __metadata:
     simple-git: ^3.36.0
     tsx: ^4.22.4
   bin:
-    release-kit: ./bin/release-kit.js
-  checksum: 8c5b0c3cd4a8b163decaf18313cc9982c607a0473570e71b6aee1264af82f63e082ed075407db7c33c748c323c5d0c0c54902e0e52592205bc4a8e6200aee623
+    release-kit: bin/release-kit.js
+  checksum: 07a2331f410d59e2c97bb031c0a50c35a75a7ecc99b08e34623eff3dfb4990515c2e28026fbe036ffa5165d242731ab2e9a8bf2cde889670da86e1304b4ddd89
   languageName: node
   linkType: hard
 
@@ -8548,7 +8548,7 @@ __metadata:
     "@eslint/eslintrc": ^3.3.5
     "@eslint/js": ^9.22.0
     "@evilmartians/lefthook": ^2.1.9
-    "@jhotadhari/release-kit": "file:.yalc/@jhotadhari/release-kit"
+    "@jhotadhari/release-kit": ^0.0.6
     "@react-native-community/cli": 20.1.3
     "@react-native/eslint-config": ^0.86.0
     "@react-native/jest-preset": ^0.86.0
