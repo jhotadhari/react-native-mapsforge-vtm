@@ -79,6 +79,7 @@ public class MapContainer extends NativeMapContainerSpec {
 	@Override
 	protected Map<String, Object> getTypedExportedConstants() {
 		final Map<String, Object> constants = new HashMap<>();
+			installMapPositionJSI();
 		constants.put( "width", null );
 		constants.put( "height", 200 );
 		constants.put( "center", Utils.positionToWritableArray( -77.605, -9.118, null ) );
@@ -474,5 +475,30 @@ public class MapContainer extends NativeMapContainerSpec {
 		} );
 
 		manager.triggerAllMarkers( x, y, strategy );
+	}
+
+	private void installMapPositionJSI() {
+		if ( !com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter.ensureLibraryLoaded() ) {
+			return;
+		}
+		installMapPositionJSI( null );
+	}
+
+	/**
+	 * Installs the __bindMapPositionSynchronizables global function on the
+	 * React Native JS runtime.  Called synchronously from the JS thread
+	 * during useMapPosition() initialization.
+	 *
+	 * <p>When reanimated is not installed the native library won't be
+	 * built - UnsatisfiedLinkError is caught and the call is a no-op.
+	 */
+		@Override
+	public void installMapPositionJSI(ReadableMap params) {
+		com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+			.nativeInstallJSI(
+				getReactApplicationContext()
+					.getJavaScriptContextHolder()
+					.get()
+			);
 	}
 }

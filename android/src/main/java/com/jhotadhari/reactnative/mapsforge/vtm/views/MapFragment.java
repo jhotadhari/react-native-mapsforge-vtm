@@ -137,6 +137,33 @@ public class MapFragment extends Fragment {
 					MapsforgeVtmView parent = getMapsforgeVtmView();
 					if ( null != parent && null != mapView && null != mapView.map() ) {
 						parent.emitMapEvent( "onMapUpdate", getResponseBase() );
+
+						// Write position directly to reanimated Synchronizable
+						// primitives on the render thread, bypassing the JS
+						// bridge entirely for 60fps overlay tracking.
+						// Guarded so an UnsatisfiedLinkError (native library
+						// not built because reanimated isn't installed) won't
+						// crash the update listener.
+						if ( com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+								.isAvailable() ) {
+							MapPosition mp = mapView.map().getMapPosition();
+							try {
+								com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+									.nativeSetPosition(
+										parent.getId(),
+										mp.getLongitude(),
+										mp.getLatitude(),
+										mp.getZoom(),
+										mp.getBearing(),
+										mp.getTilt(),
+										parent.getWidthInDp(),
+										parent.getHeightInDp()
+									);
+							} catch ( UnsatisfiedLinkError ignored ) {
+								// Library was unloaded between check and call
+								// (shouldn't happen in practice).
+							}
+						}
 					}
 				}
 			};
@@ -314,6 +341,8 @@ public class MapFragment extends Fragment {
 			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.removeElevationReader( handle, parent.getReactContext() );
+				com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+					.nativeReleaseWriter( handle );
 		}
 
 		if ( mapView != null ) {

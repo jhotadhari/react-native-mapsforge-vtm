@@ -286,6 +286,16 @@ public class MapsforgeVtmView extends LinearLayout {
 			// correct fragment by nativeNodeHandle without racing the
 			// async commit().
 			fragmentRegistry.put( handle, mapFragment );
+
+				// Create a native shared-value writer for this map view.
+				// When reanimated is not installed the native library
+				// won't be built — UnsatisfiedLinkError is caught and
+				// the legacy Fabric-event path continues to work.
+				if ( com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+						.ensureLibraryLoaded() ) {
+					com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter
+						.nativeCreateWriter( handle );
+				}
 			setupLayout( this );
 			FragmentActivity activity = (FragmentActivity) getReactContext().getCurrentActivity();
 			if ( activity != null ) {

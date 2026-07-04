@@ -57,11 +57,52 @@ simplest to most performant:
 |---|---|---|---|---|
 | Callback | `MapContainer.onMapUpdate` | ~25/sec (one-way) | ~25/sec | Coordinate tracking, debug overlays, one-shot reactions. Elevation is intentionally excluded — use `useMap().getAltitudeAtPosition()` instead. |
 | Shared values | `useMapPosition()` from `reanimated` module | ~25/sec (writes only) | 0 | Smooth UI tracking at 60fps |
+| Shared values (native) | `useMapPosition()` + `activateNativeBridge()` | **0** (writes bypass the bridge entirely) | 0 | Zero-jitter overlay tracking at true 60fps |
 | Imperative | `useMap().getPosition()` | 2 per call (round-trip) | 0–1 | Button-triggered snapshots |
 
 `useMapPosition()` returns reanimated shared values. Worklet consumers read
 from them on the UI thread — zero bridge crossings, zero React re-renders
 for reads. Requires `react-native-reanimated >= 3.0.0`.
+
+### Native shared-value bridge (zero bridge crossings)
+
+When `activateNativeBridge(handle)` is called, position data flows directly
+from the vtm render thread into reanimated primitives — the JS bridge is
+bypassed entirely. A worklet poller on the UI thread reads those primitives
+each frame and updates standard `SharedValue` objects at true 60fps.
+
+Use `setNativeNodeHandle` / `nativeNodeHandle` (already exposed by
+`MapContainer`) to obtain the native view handle, then call
+`activateNativeBridge` in a `useEffect`:
+
+```tsx
+import { useMapPosition } from 'react-native-mapsforge-vtm/reanimated';
+import { useState, useEffect } from 'react';
+
+function App() {
+  const pos = useMapPosition();
+  const [nativeNodeHandle, setNativeNodeHandle] =
+    useState<number | null>(null);
+
+  useEffect(() => {
+    if (nativeNodeHandle) pos.activateNativeBridge(nativeNodeHandle);
+  }, [nativeNodeHandle, pos]);
+
+  return (
+    <MapContainer
+      nativeNodeHandle={nativeNodeHandle}
+      setNativeNodeHandle={setNativeNodeHandle}
+      onMapUpdate={pos.handleMapUpdate}
+    >
+      {/* layers */}
+    </MapContainer>
+  );
+}
+```
+
+When the native bridge is inactive (no `activateNativeBridge` call, or
+reanimated not installed), the hook falls back to the existing
+`onMapUpdate` Fabric-event path — no change in behaviour.
 
 ### Altitude (elevation)
 

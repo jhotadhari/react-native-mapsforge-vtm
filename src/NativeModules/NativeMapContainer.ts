@@ -102,6 +102,13 @@ export interface Spec extends TurboModule {
 	getAltitudeAtPosition(
 		params: GetAltitudeAtPositionParams
 	): Promise<GetAltitudeAtPositionResponse>;
+
+	/**
+	 * Installs the __getMapPositionSynchronizables global JSI function on the React Native JS
+	 * on the React Native JS runtime.  Called once per process from the
+	 * JS thread during useMapPosition() initialization.  Idempotent.
+	 */
+	installMapPositionJSI(params: {}): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('MapContainer');

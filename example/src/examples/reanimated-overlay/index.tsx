@@ -1,4 +1,4 @@
-import { useCallback, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import {
@@ -100,6 +100,10 @@ const ExampleComponent: FC<{
 	// map smoothly with zero throttling.
 	const pos = useMapPosition();
 
+	const [nativeNodeHandle, setNativeNodeHandle] = useState<number | null>(
+		null
+	);
+
 	const handleMapUpdate = useCallback(
 		(response: { nativeEvent: Readonly<MapEventResponse> }) => {
 			pos.handleMapUpdate(response);
@@ -107,9 +111,15 @@ const ExampleComponent: FC<{
 		[pos]
 	);
 
+	useEffect(() => {
+		if (nativeNodeHandle) pos.activateNativeBridge(nativeNodeHandle);
+	}, [nativeNodeHandle, pos]);
+
 	return (
 		<View style={{ height, width }}>
 			<MapContainer
+				nativeNodeHandle={nativeNodeHandle}
+				setNativeNodeHandle={setNativeNodeHandle}
 				width={width}
 				height={height}
 				center={defaultCenter}

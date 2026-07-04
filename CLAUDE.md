@@ -170,6 +170,7 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 
 **Key rules:**
 - `MapMutationQueue.flush()` is the **only** place that calls `layers().add/remove` and the batch-level `updateMap()`. It runs on the UI thread, serialized with vtm's own rendering.
+- `MapFragment.bindUpdateListener()` runs on the **render thread** (vtm's GL thread, 60fps). It writes position data to C++ `Synchronizable` primitives via `MapPositionWriter.nativeSetPosition()` (thread-safe mutex). See `android/src/main/cpp/MapPositionWriter.cpp`.
 - `scheduleUpdate()` (in `LayerManager`) coalesces per-entry `updateMap()` calls onto the UI thread via `AtomicBoolean` CAS + `Handler.post`. Use it instead of calling `mapView.map().updateMap()` directly.
 - `MapContainer.animateTo()` / `getPosition()` dispatch to the UI thread via `UiThreadUtil.runOnUiThread` (vtm's `Animator` asserts the UI thread).
 - `MapFragment.onDestroy()` must tear down `LayerManager`s **before** `mapView.onDestroy()`, or shared layers silently leak.
@@ -182,14 +183,15 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 
 ### Map position consumption patterns
 
-There are three tiers for reading the current map position (center, zoom, bearing, tilt) in JS,
+There are four tiers for reading the current map position (center, zoom, bearing, tilt) in JS,
 ordered from simplest to most performant:
 
 | Tier | API | Bridge crossings | React re-renders | When to use |
 |---|---|---|---|---|
-| **Callback** | `MapContainer.onMapUpdate` prop | ~25/sec (one-way native→JS) | ~25/sec | Debug overlays, one-shot reactions, anything that already calls `setState`. The event fires at most once per `mapUpdateInterval` ms (default 40). |
-| **Shared values** | `useMapPosition()` from `react-native-mapsforge-vtm/reanimated` | ~25/sec (writes only) | 0 (worklet reads are UI-thread) | Smooth coordinate displays, overlay positioning, any worklet-based UI that needs to track map position at 60fps without triggering React reconciliation. Requires `react-native-reanimated >= 3.0.0` (optional peer dependency). |
-| **Imperative** | `useMap().getPosition()` | 2 per call (round-trip JS→native→JS) | 0–1 per call | Button-triggered snapshots ("save current position"), non-continuous queries. Not suitable for tracking during pan/zoom — use the callback or shared values instead. |
+| **Callback** | `MapContainer.onMapUpdate` prop | ~25/sec (one-way native→JS) | ~25/sec | Debug overlays, one-shot reactions, anything that already calls `setState`. |
+| **Shared values** | `useMapPosition()` from `react-native-mapsforge-vtm/reanimated` | ~25/sec (writes only) | 0 (worklet reads are UI-thread) | Smooth coordinate displays, overlay positioning. Requires `react-native-reanimated >= 3.0.0`. |
+| **Shared values (native)** | `useMapPosition()` + `activateNativeBridge(handle)` | **0** (writes bypass the bridge entirely) | 0 | Zero-jitter overlay tracking at true 60fps. Native writes position data directly from the render thread into reanimated Synchronizable primitives. See `docs/advanced/performance.md`. |
+| **Imperative** | `useMap().getPosition()` | 2 per call (round-trip JS→native→JS) | 0–1 per call | Button-triggered snapshots, non-continuous queries. |
 
 **Callback vs shared values — they coexist.** `useMapPosition()` internally creates reanimated shared
 values and returns a `handleMapUpdate` callback that you pass as the `onMapUpdate` prop. The bridge
@@ -197,7 +199,16 @@ event still fires at the same rate; the shared values receive the same writes. T
 worklet consumers (`useDerivedValue`, `useAnimatedStyle`, `useAnimatedProps`) read from shared values
 on the UI thread — zero bridge crossings, zero React re-renders for reads.
 
-**The trailing-edge guarantee.** `MapFragment` uses a throttle-with-trailing-edge pattern: during
-continuous movement, events fire at most once per `mapUpdateInterval` ms (throttle). When movement
-stops, a final flush fires after `mapUpdateInterval` ms of silence, guaranteeing the resting position
-is never lost. This applies to both the `onMapUpdate` callback and the shared-values channel.
+**Native shared-value bridge.** When `activateNativeBridge(handle)` is called (via
+`setNativeNodeHandle` + `useEffect` — see `docs/advanced/performance.md`), the render thread
+(vtm's `Map.UpdateListener`) writes position data directly into C++-created `Synchronizable`
+primitives via `MapPositionWriter.nativeSetPosition()`. A worklet poller on the UI thread
+reads those primitives each frame (`getBlocking()` — direct C++ access, thread-safe mutex)
+and updates standard `SharedValue` objects, triggering reanimated's normal dependency tracking.
+The entire path: render thread → Synchronizable → worklet poller → SharedValue → consumer —
+zero bridge crossings at every stage.
+
+**The trailing-edge guarantee.** `MapFragment` fires events on every vtm frame with no
+throttling. The `onMapUpdate` callback path is rate-limited by Fabric's event dispatch.
+The native shared-value bridge bypasses this entirely — writes go directly from the
+render thread to C++ primitives.
