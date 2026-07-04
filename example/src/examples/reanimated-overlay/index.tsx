@@ -114,6 +114,8 @@ const ExampleComponent: FC<{
 				height={height}
 				center={defaultCenter}
 				zoomLevel={2}
+				rotationEnabled={true}
+				tiltEnabled={true}
 				onMapUpdate={handleMapUpdate}
 				onPause={handleMapEvent.onPause}
 				onResume={handleMapEvent.onResume}

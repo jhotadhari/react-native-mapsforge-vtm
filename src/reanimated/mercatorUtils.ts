@@ -79,16 +79,18 @@ function wrapMxDelta(dMx: number): number {
  * Returns `null` when the map centre is not yet known, the viewport has zero
  * dimensions, or the zoom level is not yet available.
  *
- * **Limitation (v1):** Bearing and tilt are **not** accounted for. The
- * returned coordinates are correct only when the map is north-up and untilted.
- * The shared values already track `bearing` and `tilt`; a future version may
- * add the rotation-matrix + perspective-transform correction.
+ * Bearing and tilt are fully accounted for.  When the map is north-up and
+ * untilted this produces the same result as the v1 implementation.
  *
  * @param centerSv - Shared value holding `[lng, lat]` of the map centre, or
  *   `null` if no position has been received yet.
  * @param viewportWidthSv - Shared value holding the map viewport width in dp.
  * @param viewportHeightSv - Shared value holding the map viewport height in dp.
  * @param zoomSv - Shared value holding the current zoom level.
+ * @param bearingSv - Shared value holding the current map bearing in degrees
+ *   (0 = north-up, clockwise).
+ * @param tiltSv - Shared value holding the current map tilt in degrees
+ *   (0 = top-down, increasing = tilted toward horizon).
  * @param geoPoint - The geographic coordinate to project.
  * @returns `{ x, y }` in dp (the unit used for React Native `left`/`top`
  *   styles), or `null` if the projection cannot be computed.
@@ -98,6 +100,7 @@ function wrapMxDelta(dMx: number): number {
  * // Inside a useAnimatedStyle worklet:
  * const screenPos = toScreenPosition(
  *   centerSv, viewportWidthSv, viewportHeightSv, zoomSv,
+ *   bearingSv, tiltSv,
  *   { lat: 51.5074, lng: -0.1278 }
  * );
  * if (screenPos) {
@@ -111,6 +114,8 @@ export function toScreenPosition(
 	viewportWidthSv: SharedValue<number>,
 	viewportHeightSv: SharedValue<number>,
 	zoomSv: SharedValue<number>,
+	bearingSv: SharedValue<number>,
+	tiltSv: SharedValue<number>,
 	geoPoint: { lat: number; lng: number }
 ): { x: number; y: number } | null {
 	'worklet';
@@ -134,25 +139,46 @@ export function toScreenPosition(
 
 	const worldPx = 256 * Math.pow(2, zoom);
 
-	// Mercator y and screen y increase in the same direction (southward /
-	// downward), so dMy maps to +y without a sign flip.
+	// World-pixel offset from map centre (dx = east, dy = south).
+	const dx = dMx * worldPx;
+	const dy = dMy * worldPx;
+
+	// Rotate by +bearing — when the map rotates clockwise under a fixed
+	// viewport, geographic points trace counter-clockwise paths on screen.
+	const bearingRad = bearingSv.value * DEG_TO_RAD;
+	const cosB = Math.cos(bearingRad);
+	const sinB = Math.sin(bearingRad);
+	const rx = cosB * dx - sinB * dy; // screen-x before tilt
+	const ry = sinB * dx + cosB * dy; // screen-y before tilt
+
+	// Tilt foreshortening: orthographic projection of the rotated map plane.
+	// The tilt axis is the horizontal screen axis, so only y is scaled.
+	// cos(tilt) is exact for vtm's orthographic map rendering.
+	const tiltRad = tiltSv.value * DEG_TO_RAD;
+	const cosT = Math.cos(tiltRad);
+	const ty = ry * cosT;
+
+	// Translate to screen centre.  Mercator y and screen y increase in the
+	// same direction (southward / downward), so no sign flip is needed.
 	return {
-		x: Math.round(vpW / 2 + dMx * worldPx),
-		y: Math.round(vpH / 2 + dMy * worldPx),
+		x: Math.round(vpW / 2 + rx),
+		y: Math.round(vpH / 2 + ty),
 	};
 }
 
 /**
  * Converts screen pixel coordinates (dp) back to a lat/lng geographic point.
  *
- * The inverse of {@link toScreenPosition}. Same assumptions apply (no
- * bearing/tilt correction). Reads shared values directly — callable from any
- * worklet or the JS thread.
+ * The inverse of {@link toScreenPosition}.  Bearing and tilt are fully
+ * accounted for.  Reads shared values directly — callable from any worklet
+ * or the JS thread.
  *
  * @param centerSv - Shared value holding `[lng, lat]` of the map centre.
  * @param viewportWidthSv - Shared value holding the map viewport width in dp.
  * @param viewportHeightSv - Shared value holding the map viewport height in dp.
  * @param zoomSv - Shared value holding the current zoom level.
+ * @param bearingSv - Shared value holding the current map bearing in degrees.
+ * @param tiltSv - Shared value holding the current map tilt in degrees.
  * @param screenPoint - The screen coordinates in dp (same unit as React Native
  *   `left`/`top` styles).
  * @returns `{ lat, lng }`, or `null` if the projection cannot be computed.
@@ -162,6 +188,8 @@ export function fromScreenPosition(
 	viewportWidthSv: SharedValue<number>,
 	viewportHeightSv: SharedValue<number>,
 	zoomSv: SharedValue<number>,
+	bearingSv: SharedValue<number>,
+	tiltSv: SharedValue<number>,
 	screenPoint: { x: number; y: number }
 ): { lat: number; lng: number } | null {
 	'worklet';
@@ -175,12 +203,28 @@ export function fromScreenPosition(
 	const vpH = viewportHeightSv.value;
 	if (vpW <= 0 || vpH <= 0) return null;
 
+	// Screen offset from viewport centre.
+	const sx = screenPoint.x - vpW / 2;
+	const sy = screenPoint.y - vpH / 2;
+
+	// Undo tilt: reverse the orthographic y-foreshortening.
+	const tiltRad = tiltSv.value * DEG_TO_RAD;
+	const cosT = Math.cos(tiltRad);
+	const ry = cosT > 0.001 ? sy / cosT : sy; // guard div-by-zero at ~90° tilt
+
+	// Undo rotation: rotate screen offset by -bearing.
+	const bearingRad = bearingSv.value * DEG_TO_RAD;
+	const cosB = Math.cos(bearingRad);
+	const sinB = Math.sin(bearingRad);
+	const dx = cosB * sx + sinB * ry;
+	const dy = -sinB * sx + cosB * ry;
+
 	const worldPx = 256 * Math.pow(2, zoom);
 
 	const centerMerc = latLngToMercator(center[1], center[0]);
 
-	const dMx = (screenPoint.x - vpW / 2) / worldPx;
-	const dMy = (screenPoint.y - vpH / 2) / worldPx;
+	const dMx = dx / worldPx;
+	const dMy = dy / worldPx;
 
 	const pointMx = centerMerc.mx + dMx;
 	const pointMy = centerMerc.my + dMy;

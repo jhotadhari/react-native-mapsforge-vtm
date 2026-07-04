@@ -16,8 +16,8 @@ import { toScreenPosition } from './mercatorUtils';
  * there is no extra cost for additional overlays; they all read from the same
  * shared values.
  *
- * **Limitation (v1):** Bearing and tilt are not accounted for. The overlay
- * position is correct only when the map is north-up and untilted.
+ * Bearing and tilt are fully supported — overlays track correctly on rotated
+ * and tilted maps.
  *
  * @param target - The fixed geographic coordinate to track.
  * @param sharedValues - The object returned by {@link useMapPosition}.
@@ -51,8 +51,14 @@ export function useMapOverlay(
 	target: { lat: number; lng: number },
 	sharedValues: MapPositionSharedValues
 ) {
-	const { centerSv, viewportWidthSv, viewportHeightSv, zoomSv } =
-		sharedValues;
+	const {
+		centerSv,
+		viewportWidthSv,
+		viewportHeightSv,
+		zoomSv,
+		bearingSv,
+		tiltSv,
+	} = sharedValues;
 
 	const animatedStyle = useAnimatedStyle(() => {
 		const screenPos = toScreenPosition(
@@ -60,6 +66,8 @@ export function useMapOverlay(
 			viewportWidthSv,
 			viewportHeightSv,
 			zoomSv,
+			bearingSv,
+			tiltSv,
 			target
 		);
 
