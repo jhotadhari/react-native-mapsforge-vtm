@@ -109,7 +109,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	// ── Constructor ─────────────────────────────────────────────────────
 
-	private PathLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
+	protected PathLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
 		super(nativeNodeHandle, mapView, name, BASE_POSITION);
 	}
 
