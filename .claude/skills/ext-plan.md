@@ -152,19 +152,110 @@ Core library hooks needed: depends on which LayerManager is extended. Phase 1 ho
 
 ## After planning
 
+Reference: the core library's extension docs at `docs/advanced/extending.md`
+describe each pattern in detail and include Java patterns, threading rules,
+and TurboModule spec conventions.
+
+### Phase A — Scaffold with `create-react-native-library`
+
+```sh
+npx create-react-native-library --yes \
+  --directory ~/Development/android/react-native-mapsforge-vtm-ext-<name> \
+  --slug react-native-mapsforge-vtm-ext-<name> \
+  --description "<one-line description>" \
+  --author-name "jhotadhari" \
+  --author-email "tellme@waterproof-webdesign.de" \
+  --author-url "https://github.com/jhotadhari" \
+  --repo-url "https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-<name>" \
+  --type fabric-view \
+  --languages kotlin-objc \
+  --example vanilla \
+  --tools eslint,jest,lefthook \
+  --local
+```
+
+This generates a complete library skeleton with:
+- `package.json` (bob build, codegen config, workspaces, scripts)
+- `tsconfig.json`, `tsconfig.build.json`
+- `src/index.tsx` (stub), `src/NativeXxxViewNativeComponent.ts` (codegen spec)
+- `android/build.gradle`, `android/gradle.properties`
+- `android/src/main/AndroidManifest.xml` + `AndroidManifestNew.xml`
+- `example/` — full vanilla React Native app (metro, babel, android/, tsconfig)
+- `babel.config.js`, `react-native.config.js`, `turbo.json`
+- `lefthook.yml`, `.gitignore`, `.editorconfig`, `LICENSE`, `README.md`
+- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
+
+### Phase B — Android-only cleanup + verbose Java namespace
+
+1. **Remove iOS artifacts** (extension is Android-only):
+   ```sh
+   rm -rf ios/ *.podspec
+   ```
+
+2. **Rename Java namespace** from the flattened form that `create-react-native-library`
+   derives to the verbose hierarchical form used by the library:
+   - Generated: `com.mapsforgevtmext<name>` (all non-alphanumeric chars stripped)
+   - Target: `com.jhotadhari.reactnative.mapsforge.vtm.ext.<name>`
+
+   Files to update:
+   - `package.json`: `codegenConfig.android.javaPackageName`
+   - `android/build.gradle`: `namespace` and `react.codegenJavaPackageName`
+   - Every `.java` file: `package` declaration
+   - Directory layout under `android/src/main/java/`: move files to the hierarchical path
+   - `android/build.gradle`: `react.libraryName` (use CamelCase: `MapsforgeVtmExt<Name>View`)
+
+### Phase C — Project-standard overrides
+
+The scaffold generates a default config. Override with the project-standard tooling:
+
+| Replace | With | Source |
+|---|---|---|
+| Inline eslint config in `package.json` + `.eslintrc` | `eslint.config.mjs` (flat config) | Copy from core library |
+| Inline prettier config in `package.json` | `.prettierrc` + `.prettierignore` | Copy from core library |
+| Generated `.gitignore` | Core library's `.gitignore` | Copy from core library, adapt |
+| `devDependencies.release-it` + `release-it` config block | `devDependencies.@jhotadhari/release-kit` + `scripts.release: "release-kit"` | npm install |
+| Default `tsconfig.json` paths | Update paths, remove iOS/example references if Android-only | Manual edit |
+
+### Phase D — Example app setup
+
+1. Add `react-native-mapsforge-vtm` to `example/package.json` dependencies
+   (the extension's components import from it, and `MapContainer` is needed for any
+   meaningful example).
+
+2. During development, `yalc`-link the core library:
+   ```sh
+   cd example && yalc link react-native-mapsforge-vtm
+   ```
+
+3. Replace `example/src/App.tsx` with a minimal example that imports:
+   ```tsx
+   import { MapContainer, LayerMapsforge } from 'react-native-mapsforge-vtm';
+   import { LayerXxx } from 'react-native-mapsforge-vtm-ext-<name>';
+   ```
+
+### Phase E — Documentation and commit
+
 1. Write the plan to `/home/jhotadhari/.claude/plans/<slug>.md`
-2. Scaffold the repo at `~/Development/android/react-native-mapsforge-vtm-ext-<name>/`
-3. Copy configs from the core library or ext-template
-4. Install release-kit from npm (`@jhotadhari/release-kit@^0.0.6`)
-5. Init CLAUDE.md via `/init`
-6. Create ROADMAP.md with phased implementation plan
-7. Commit on `main` and `development` branch
+2. Init CLAUDE.md via `/init`
+3. Create ROADMAP.md with phased implementation plan
+4. `git add -A && git commit -m "Initial scaffold"` on `main`
+5. `git checkout -b development` for ongoing work
 
-## Template repo
+### Phase F — Add vtm dependencies to `android/build.gradle`
 
-If the user wants a faster start, suggest copying from `react-native-mapsforge-vtm-ext-path-color-ramp`
-(or a future `ext-template` repo) which already has:
-- bob builder, prettier, eslint, lefthook, release-kit configured
-- Android build.gradle with vtm dependencies
-- Stub TurboModule spec + component
-- JS utility patterns (hooks, color utils, metric calculators)
+The template's `build.gradle` only depends on `react-android` + `kotlin-stdlib`.
+Add the vtm dependencies (same versions as the core library):
+
+```groovy
+dependencies {
+  // ...existing template deps...
+
+  // react-native-mapsforge-vtm (peer — provides vtm transitively)
+  implementation project(':react-native-mapsforge-vtm')
+
+  // vtm — keep versions in sync with core library
+  implementation 'com.github.mapsforge.vtm:vtm:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-jts:0.28.0'
+  implementation 'org.locationtech.jts:jts-core:1.20.0'
+}
+```
