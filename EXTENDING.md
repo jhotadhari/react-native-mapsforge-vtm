@@ -4,12 +4,35 @@ This library provides hooks and patterns for building custom layer-type extensio
 that integrate with the map's render-order registry, lifecycle management, and
 native rendering pipeline.
 
+## Quick start
+
+Run the interactive planning command to determine which pattern fits your idea:
+
+```
+/ext-plan
+```
+
+It walks through 7 questions (rendering target, native changes needed, vtm classes
+to shadow, core hooks required, data flow, bridge payload, naming) and outputs a
+plan file plus scaffolded repo. See `.claude/skills/ext-plan.md` for the full
+decision tree.
+
 ## Architecture of an extension
 
 An extension is a separate npm package that depends on `react-native-mapsforge-vtm`
 as a peer dependency. It uses the library's public extension hooks to create React
-components that render custom content on the map (native layers, tile sources, or
-reanimated overlays).
+components that render custom content on the map.
+
+### Three patterns (pick one)
+
+| | Pattern A: JS-only | Pattern B: TurboModule | Pattern C: vtm-shadowing |
+|---|---|---|---|
+| Native code? | No | Yes (TurboModule) | Yes (TurboModule + vtm patches) |
+| vtm classes shadowed? | No | No | Yes (LineBucket, RenderBuckets, etc.) |
+| Custom GLSL shaders? | No | No | Yes |
+| Complexity | Low | Medium | High |
+| Example | `useSlopeColoring` hook | Custom tile source (ext-grib) | Color-ramp paths (ext-path-color-ramp) |
+| Best for | Calculations, color mapping, data transforms | New layer types using existing vtm rendering | New GPU rendering effects |
 
 ### Extension hooks (public API)
 
@@ -29,28 +52,94 @@ import {
 | `useLayerOrder(uuid, layerType?)` | Registers a component into the render-order registry. Returns `{ nativeNodeHandle, positionIndex, fragmentUuid }`. Call this once per layer component. |
 | `useNativeLayerLifecycle({ enabled, create, remove, onError })` | State machine: `null → false → uuid`. Callers provide `create` (returns `Promise<uuid>`) and `remove` (returns `Promise<boolean>`) callbacks. The hook handles mount/unmount, re-creation on prop changes, and error reporting. |
 
-### Creating a native layer extension
+### Core library extensibility hooks (Java)
 
-The `react-native-mapsforge-vtm-ext-grib` library is the reference implementation.
-Follow this pattern:
+For extensions that need to customize layer rendering (Pattern B and C), the core
+library exposes these hooks on the Java side:
+
+| Hook | Location | Purpose |
+|---|---|---|
+| `createPathLayerManager(nativeNodeHandle, mapView)` | `LayerPath.java` | Factory method — override to return a custom `PathLayerManager` subclass |
+| `drawSegments(...)` | `PathLayerManager.java` | `protected` — override to customize how `LineDrawable` objects are styled per segment |
+| `getStyleBuilder(styleMap)` | `PathLayerManager.java` | `protected` — override to customize `Style.Builder` creation |
+
+Extension TurboModules override `createPathLayerManager()` to inject their custom
+manager without duplicating the full `createLayer`/`removeLayer`/`updateCoordinates`
+machinery:
+
+```java
+// In your extension's TurboModule (extends LayerPath):
+@Override
+protected PathLayerManager createPathLayerManager(int nativeNodeHandle, MapView mapView) {
+    return ColorRampPathLayerManager.get(nativeNodeHandle, mapView);
+}
+```
+
+## Pattern A: JS-only extension
+
+No native code. Hooks, utilities, calculations on the JS side. Components use
+existing `<LayerPath>`, `<LayerMarker>`, etc. from the core library.
+
+### File structure
 
 ```
-extension-package/
-  src/
-    NativeModules/NativeMyLayer.ts    ← TurboModule spec (codegen)
-    components/MyLayer.tsx            ← React component
-    index.ts                          ← Public exports
-  android/
-    build.gradle
-    src/main/java/.../
-      MyLayerPackage.java             ← ReactPackage for autolinking
-      modules/MyLayer.java            ← TurboModule implementation
-      tiles/MyTileSource.java         ← Custom vtm TileSource or Layer
+ext-<name>/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.tsx
+│   ├── hooks/
+│   └── utils/
+└── (no android/ dir)
+```
+
+### Example: a slope-coloring hook
+
+```tsx
+// ext-slope-utils/src/hooks/useSlopeColoring.ts
+export function useSlopeColoring(coordinates, demData) {
+  return useMemo(() => {
+    const slopes = calculateSlope(coordinates);
+    const colors = slopes.map(s => slopeToColor(s));
+    return colors;
+  }, [coordinates, demData]);
+}
+
+// Consumer:
+const colors = useSlopeColoring(trailCoords, demTiles);
+// Pass colors to existing <LayerPath> instances split by color group
+```
+
+Core library hooks needed: typically none.
+
+## Pattern B: TurboModule (new layer using existing vtm rendering)
+
+Creates a new TurboModule that extends an existing `LayerManager` from the core
+library. No vtm class shadowing — reuses vtm's existing `VectorLayer`,
+`ItemizedLayer`, or `TileSource` infrastructure.
+
+### File structure
+
+```
+ext-<name>/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.tsx
+│   ├── components/LayerXxx.tsx
+│   ├── NativeModules/NativeLayerXxx.ts
+│   └── hooks/
+├── android/
+│   ├── build.gradle
+│   └── src/main/java/.../
+│       ├── XxxPackage.java          ← ReactPackage for autolinking
+│       └── modules/LayerXxx.java    ← TurboModule implementation
+└── (no vtm shadow classes)
 ```
 
 ### Two rendering strategies
 
-#### Strategy A: Custom TileSource (simpler, faster to ship)
+#### Strategy B1: Custom TileSource (simpler, faster to ship)
 
 Implement `org.oscim.tiling.ITileDataSource` and extend `org.oscim.tiling.TileSource`
 directly. Feed into vtm's existing `BitmapTileLayer`. Best for data that can be
@@ -78,7 +167,7 @@ public class MyTileDataSource implements ITileDataSource {
 
 Reference: `LayerHillshading.java` in this repo, `WeatherTileSource.java` in ext-grib.
 
-#### Strategy B: Custom vtm Layer (more control, more complex)
+#### Strategy B2: Custom vtm Layer (more control, more complex)
 
 Extend `org.oscim.layers.Layer` directly. Get the Mercator projection matrix from
 vtm's rendering pipeline. Render to OpenGL in `update()`/`render()`. Best for
@@ -102,23 +191,90 @@ public class MyLayer extends Layer {
 }
 ```
 
-### TurboModule pattern
+Core library hooks needed: factory method in existing TurboModule if extending a
+`LayerManager`. Phase 1 hooks cover `PathLayerManager`.
 
-Every extension that creates native layers needs a TurboModule. Follow this structure
-(in `src/NativeModules/NativeMyLayer.ts`):
+## Pattern C: vtm class shadowing (new GPU rendering)
+
+When the extension needs new vertex attributes, custom GLSL shaders, or changes to
+vtm's internal rendering pipeline. The extension places modified copies of vtm JAR
+classes in its own source tree — the Android Gradle classpath gives these compiled
+classes precedence over the originals in the vtm JAR.
+
+vtm is LGPL-licensed, which explicitly allows this pattern. Only shadow the minimum
+set of classes needed (typically 2–3). Add an LGPL attribution comment at the top
+of each shadowed file.
+
+### When to use Pattern C
+
+- Per-segment or per-vertex data passed to the GPU (new vertex attributes)
+- Custom GLSL shaders for fragment-level effects (color ramps, gradients, animation)
+- Changes to vtm's render pipeline (bucket compilation, draw call setup, texture binding)
+- The feature cannot be achieved by extending existing vtm Layer classes
+
+### File structure
+
+```
+ext-<name>/
+├── (all Pattern B files)
+├── android/src/main/
+│   ├── assets/
+│   │   └── shaders/
+│   │       └── custom_shader.glsl      ← shadows vtm JAR shader
+│   └── java/
+│       ├── org/oscim/renderer/bucket/
+│       │   ├── LineBucket.java         ← shadows vtm JAR class (LGPL attribution)
+│       │   └── RenderBuckets.java      ← shadows vtm JAR class (VERTEX_CNT change)
+│       └── com/.../ext/<name>/
+│           ├── CustomVectorLayer.java
+│           ├── CustomLayerManager.java
+│           └── modules/LayerXxx.java
+```
+
+### What changes in each shadowed class
+
+| Shadowed class | Typical change |
+|---|---|
+| `RenderBuckets.java` | `VERTEX_CNT[LINE]` (or other bucket type): increase stride for new vertex attrib |
+| `LineBucket.java` | New vertex attribute (`a_value`), new `addVertex` overload, modified `Shader` and `Renderer` inner classes |
+| `PolygonBucket.java` | Same pattern for polygon rendering |
+| `TextureBucket.java` | Additional texture bindings or sampler uniforms |
+
+### GLSL shaders
+
+Place modified shaders in `android/src/main/assets/shaders/`. Android asset merging
+gives these precedence over the same-named files in the vtm JAR. Use new shader
+filenames (e.g., `line_aa_value.glsl` instead of overwriting `line_aa.glsl`) to
+avoid conflicts with other extensions.
+
+For OpenGL ES 2.0 compatibility:
+- Use `sampler2D` (not `sampler1D` — unsupported in GLES 2.0)
+- For 1D color ramp lookups: `texture2D(u_ramp, vec2(v_value, 0.5))` with a 256×1 RGBA8 texture
+
+### Example: color-ramp paths
+
+See [`react-native-mapsforge-vtm-ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp)
+for a working extension that shadows `LineBucket` and `RenderBuckets` to add a
+per-vertex `a_value` attribute and a `u_colorRamp` sampler2D uniform. The vertex
+format changes from 4 shorts (x, y, dx, dy) to 5 shorts (x, y, dx, dy, value).
+
+Core library hooks needed: Phase 1 hooks (`drawSegments()` protected,
+`createPathLayerManager()` factory).
+
+## TurboModule spec pattern
+
+Every extension that creates native layers needs a TurboModule spec. Follow this
+structure (in `src/NativeModules/NativeLayerXxx.ts`):
 
 ```typescript
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 import type { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 
-export interface ModuleParams {
-  // Custom params for your layer
-}
-
-interface CreateLayerParams extends ModuleParams {
+interface CreateLayerParams {
   nativeNodeHandle?: Int32;
-  positionIndex: Int32;
+  positionIndex?: Int32;
+  // ...extension-specific params
 }
 
 interface RemoveLayerParams {
@@ -127,16 +283,17 @@ interface RemoveLayerParams {
 }
 
 export interface Spec extends TurboModule {
-  getConstants(): ModuleParams;
-  createLayer(params: CreateLayerParams): Promise<string>;
+  createLayer(params: CreateLayerParams): Promise<Object>;
   removeLayer(params: RemoveLayerParams): Promise<string>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('MyLayer');
+export default TurboModuleRegistry.getEnforcing<Spec>('LayerXxx');
 ```
 
 **Important:** Types used in `Spec` must be declared inline — react-native-codegen's
-TypeScript parser cannot follow cross-file imports.
+TypeScript parser cannot follow cross-file imports. If you need to mirror types
+from the core library (e.g., `GeometryStyle`), copy them inline and add a comment
+referencing the canonical source to keep them in sync.
 
 The `package.json` must include:
 
@@ -144,17 +301,103 @@ The `package.json` must include:
 {
   "codegenConfig": {
     "name": "RNMyExtensionSpec",
-    "type": "modules",
+    "type": "all",
     "jsSrcsDir": "src",
+    "outputDir": {
+      "android": "android/generated"
+    },
     "android": {
-      "javaPackageName": "com.example.myextension"
+      "javaPackageName": "com.jhotadhari.reactnative.mapsforge.vtm.ext.<name>"
     },
     "includesGeneratedCode": true
   }
 }
 ```
 
-### Java ReactPackage
+## Scaffolding a new extension
+
+### Prerequisites
+
+1. Node.js, Yarn 3.6.1 (or match the core library's `packageManager` version)
+2. `react-native-builder-bob` (build tool — already in devDependencies)
+3. `@jhotadhari/release-kit@^0.0.6` (release pipeline — npm, not yalc)
+
+### Steps
+
+1. **Plan first.** Run `/ext-plan` to determine pattern, identify needed hooks,
+   and get a scaffolded plan file.
+
+2. **Create the repo:**
+   ```sh
+   mkdir react-native-mapsforge-vtm-ext-<name>
+   cd react-native-mapsforge-vtm-ext-<name>
+   git init && git checkout -b main
+   ```
+
+3. **Copy configuration** from the core library (`react-native-mapsforge-vtm`):
+   - `.prettierrc`, `.prettierignore`
+   - `eslint.config.mjs`
+   - `lefthook.yml`
+   - `.gitignore` (adapt — remove `example/`, `ios/` entries if Android-only)
+   - `.yarnrc.yml`, `.yarn/releases/`, `.yarn/plugins/`
+   - Adapt `tsconfig.json` (update paths, remove example references)
+
+4. **Create `package.json`:**
+   - `name`: `react-native-mapsforge-vtm-ext-<name>`
+   - `peerDependencies`: `react-native-mapsforge-vtm`
+   - `devDependencies`: copy versions from core library
+   - `react-native-builder-bob` config (same as core, Android-only targets)
+   - `codegenConfig` with unique `name` and correct `javaPackageName`
+
+5. **Create `android/build.gradle`:**
+   - Depend on `project(':react-native-mapsforge-vtm')` (provides vtm transitively)
+   - Add vtm dependencies at same versions as core library
+   - `react { ... }` block for codegen
+
+6. **Create `ROADMAP.md`** with phased implementation plan (reference the plan
+   file from `/ext-plan`).
+
+7. **Init CLAUDE.md:**
+   ```
+   /init
+   ```
+
+8. **Install and verify:**
+   ```sh
+   yarn install
+   yarn typecheck
+   yarn lint
+   ```
+
+9. **Start on `development` branch:**
+   ```sh
+   git checkout -b development
+   ```
+
+### Boilerplate checklist
+
+| File | Source |
+|---|---|
+| `package.json` | Hand-written (follow core's structure) |
+| `tsconfig.json` | Copy from core, update paths |
+| `tsconfig.build.json` | Copy from core |
+| `eslint.config.mjs` | Copy from core |
+| `.prettierrc` | Copy from core |
+| `.prettierignore` | Copy from core, adapt |
+| `lefthook.yml` | Copy from core |
+| `.gitignore` | Copy from core, adapt |
+| `bob.config.js` | Create (Android only) or use `react-native-builder-bob` key in package.json |
+| `android/build.gradle` | Hand-written (follow pattern) |
+| `android/src/main/AndroidManifest.xml` | Minimal (`<manifest>`) |
+| `ROADMAP.md` | Hand-written (phased plan) |
+| `CLAUDE.md` | Generated by `/init` |
+| `src/index.tsx` | Hand-written (public exports) |
+| `src/NativeModules/NativeXxx.ts` | Hand-written (TurboModule spec) |
+| `src/components/Xxx.tsx` | Hand-written (React component) |
+
+## Java patterns
+
+### ReactPackage for autolinking
 
 Every extension needs a `ReactPackage` for autolinking:
 
@@ -197,7 +440,7 @@ const { positionIndex } = useLayerOrder(uuid);
 Module.createLayer({ nativeNodeHandle, positionIndex, ...otherParams });
 ```
 
-### Reanimated overlays (no native code)
+## Reanimated overlays (no native code)
 
 For simple markers that don't need native rendering, use `useMapOverlay` from the
 `/reanimated` subpath export. Positions an `<Animated.View>` over a fixed geographic
@@ -219,11 +462,12 @@ const overlay = useMapOverlay({ lat: 51.5, lng: -0.12 }, pos);
 **Limitation (v1):** Bearing and tilt are not accounted for. Correct only when
 north-up and untilted.
 
-### Complete example
+## Complete examples
 
-See [`react-native-mapsforge-vtm-ext-grib`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-grib)
-for a working extension that uses Strategy A (custom TileSource) to render weather
-GRIB overlays.
+| Extension | Pattern | What it demonstrates |
+|---|---|---|
+| [`ext-grib`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-grib) | B1 (TileSource) | Custom `TileSource` + `ITileDataSource` for weather GRIB overlays |
+| [`ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp) | C (vtm-shadowing) | `LineBucket` shadowing + custom GLSL shaders + per-vertex attributes |
 
 ---
 
@@ -295,3 +539,18 @@ registerExtension({
   capabilities: ['weather-overlay'],
 });
 ```
+
+### 7. vtm class shadowing utilities
+
+A script that diffs a shadowed class against the original vtm source and produces
+a patch file. This would make it easier to:
+- Review what changed vs upstream vtm
+- Rebase patches when upgrading vtm versions
+- Audit LGPL compliance (exactly what was modified)
+
+### 8. Extension template repo
+
+A minimal working extension that can be copied and renamed. Already has bob builder,
+prettier, eslint, lefthook, release-kit, and stub TurboModule files — eliminates
+the boilerplate checklist above. Currently `ext-path-color-ramp` serves this role
+informally; a dedicated `react-native-mapsforge-vtm-ext-template` would be cleaner.
