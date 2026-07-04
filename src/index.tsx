@@ -223,4 +223,7 @@ export {
 	type RemoveFlags,
 };
 
+// Shared path response type — union of both PathResponseInclude variants.
+export type ResponseInclude = PathResponseInclude | PathJtsResponseInclude;
+
 export type * from './types';
