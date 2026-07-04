@@ -76,6 +76,7 @@ public class MapsforgeVtmView extends LinearLayout {
 				this.height = dimension;
 				break;
 		}
+		requestLayout();
 	}
 
 	public double getDimension( String key, String unit ) {
