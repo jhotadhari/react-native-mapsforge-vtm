@@ -1,3 +1,8 @@
+---
+name: ext-plan
+description: This skill should be used when the user wants to create a new extension for react-native-mapsforge-vtm. Trigger phrases include "build an extension", "create a heatmap overlay", "extend the map", "I want to build a...", "create an extension for", "/ext-plan". Walks through architectural decisions (JS-only, TurboModule, or vtm-shadowing patterns) and generates a plan file plus scaffolded repo.
+---
+
 # /ext-plan
 
 Interactive planning command for creating new `react-native-mapsforge-vtm` extensions.
@@ -65,8 +70,8 @@ Also identify what changes in each:
 ### Q4: Core library extensibility hooks needed?
 
 Check if the core library needs API openings for this extension:
-- **Extending PathLayerManager?** → Needs `drawSegments()` + `getStyleBuilder()` `protected` (DONE in Phase 1)
-- **Custom LayerManager?** → Needs `createPathLayerManager()` factory in `LayerPath.java` (DONE in Phase 1)
+- **Extending PathLayerManager?** → Needs `drawSegments()` + `getStyleBuilder()` `protected` (available)
+- **Custom LayerManager?** → Needs `createPathLayerManager()` factory in `LayerPath.java` (available)
 - **Hooking into map lifecycle?** → Needs event emission from `MapFragment.java`
 - **Custom map rendering?** → `CustomRenderLayer` already available in vtm — no core hooks needed
 - **New gesture handling?** → `GestureLayer` already available — no core hooks needed
@@ -148,7 +153,7 @@ ext-<name>/
 │           └── modules/LayerXxx.java
 ```
 
-Core library hooks needed: depends on which LayerManager is extended. Phase 1 hooks cover PathLayerManager.
+Core library hooks needed: depends on which LayerManager is extended. The core library currently exposes createPathLayerManager() (in LayerPath) and drawSegments() / getStyleBuilder() (in PathLayerManager), all protected, for PathLayerManager extensions.
 
 ## After planning
 

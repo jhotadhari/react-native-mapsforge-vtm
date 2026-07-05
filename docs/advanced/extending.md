@@ -6,22 +6,22 @@ native rendering pipeline.
 
 ## Quick start
 
-Run the interactive planning command (via Claude Code) to determine which pattern
-fits your idea:
-
-```
-/ext-plan
-```
-
-It walks through 7 questions (rendering target, native changes needed, vtm classes
-to shadow, core hooks required, data flow, bridge payload, naming) and outputs a
-plan file plus a scaffolded repo using `create-react-native-library`. The skill
+An interactive planning skill (`/ext-plan`) walks through 7 architectural questions
+and scaffolds a complete extension repo using `create-react-native-library`. It
 handles all boilerplate: bob build setup, example app, Android configuration,
 prettier/eslint/release-kit tooling, and the verbose hierarchical Java namespace
 (`com.jhotadhari.reactnative.mapsforge.vtm.ext.<name>`).
 
-See [`.claude/skills/ext-plan.md`](../../.claude/skills/ext-plan.md) for the full
-decision tree.
+The skill lives at [`.claude/skills/ext-plan/SKILL.md`](../../.claude/skills/ext-plan/SKILL.md).
+It is **auto-discovered** by Claude Code — no manual registration needed. Claude
+Code scans `.claude/skills/` for subdirectories containing a `SKILL.md` file (with
+YAML frontmatter declaring `name` and `description`). Because the file follows this
+convention, `/ext-plan` is available as a slash command in any session opened in
+this repo.
+
+If you're reading this from an extension repo (not the core library), copy the
+`ext-plan/` skill directory into your own `.claude/skills/` to make `/ext-plan`
+available there too.
 
 ## Architecture of an extension
 
@@ -40,23 +40,110 @@ components that render custom content on the map.
 | Example | `useSlopeColoring` hook | Custom tile source (ext-grib) | Color-ramp paths (ext-path-color-ramp) |
 | Best for | Calculations, color mapping, data transforms | New layer types using existing vtm rendering | New GPU rendering effects |
 
-### Extension hooks (public API)
+### Extension API (public)
 
-Three hooks form the extension API. Import them from the main package:
+Two hooks, one context, and one factory function form the extension API. Import them from
+the main package:
 
 ```tsx
 import {
   MapHandleContext,
+  createLayerOrderRegistry,
   useLayerOrder,
   useNativeLayerLifecycle,
 } from 'react-native-mapsforge-vtm';
 ```
 
-| Hook | Purpose |
-|---|---|
-| `MapHandleContext` | React context. Provides `nativeNodeHandle` (the map view's Android view ID) and `registry` (the `LayerOrderRegistry` that tracks every layer's position in the render tree). |
-| `useLayerOrder(uuid, layerType?)` | Registers a component into the render-order registry. Returns `{ nativeNodeHandle, positionIndex, fragmentUuid }`. Call this once per layer component. |
-| `useNativeLayerLifecycle({ enabled, create, remove, onError })` | State machine: `null → false → uuid`. Callers provide `create` (returns `Promise<uuid>`) and `remove` (returns `Promise<boolean>`) callbacks. The hook handles mount/unmount, re-creation on prop changes, and error reporting. |
+Also exported as types: `LayerOrderRegistry`, `MapHandleContextValue`, `CreateFlags`,
+`RemoveFlags`, `ErrorBase`, `ErrorWithErrorMsg`, `ResponseBase`, `Position`.
+
+#### `MapHandleContext` — React context
+
+Provides `nativeNodeHandle` (the map view's Android view tag, `null | number`) and
+`registry` (the `LayerOrderRegistry` that tracks every layer's position in the render
+tree).
+
+```tsx
+const { nativeNodeHandle, registry } = useContext(MapHandleContext);
+```
+
+#### `createLayerOrderRegistry()` — factory function
+
+Creates a `LayerOrderRegistry` instance with debounced native `reorderLayers` syncing
+(16ms debounce, 250ms max-wait cap). Extensions typically don't call this directly — it's
+used by `MapContainer` internally. Exported for custom container scenarios.
+
+#### `useLayerOrder(uuid, layerType?)` — hook
+
+Registers a component into the render-order registry during render. Call this once per
+layer component.
+
+```tsx
+const { nativeNodeHandle, positionIndex, fragmentUuid } =
+  useLayerOrder(uuid, layerType);
+```
+
+| Parameter | Type | Meaning |
+|---|---|---|
+| `uuid` | `null \| false \| string` | The layer's native UUID. `null` = not yet created/disabled; `false` = create-in-progress; `string` = resolved native UUID. |
+| `layerType` | `string` (optional) | A type string like `'path'`, `'marker'`, `'mapsforge'`. When passed, a shared-layer fragment UUID is computed (e.g. `__vtm_shared_path__2`). When omitted, the component is treated as a dedicated-layer type. |
+
+| Return field | Type | Meaning |
+|---|---|---|
+| `nativeNodeHandle` | `null \| number` | The map's native view tag from context. |
+| `positionIndex` | `number` | This layer's zero-based index in `registry.order` — its document-order position among all JS-managed layers. `-1` if not yet registered. |
+| `fragmentUuid` | `string \| undefined` | Shared-layer fragment UUID. `undefined` when no `layerType` was passed. |
+
+#### `useNativeLayerLifecycle({ enabled, create, remove, onError? })` — hook
+
+State machine: `null → false → uuid`. The hook handles mount/create, prop-change
+re-creation, unmount cleanup, and error reporting.
+
+```tsx
+const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+  enabled: true,
+  create: async (flags) => {
+    const { uuid } = await MyModule.createLayer({ nativeNodeHandle, positionIndex });
+    return uuid;
+  },
+  remove: async (uuid, flags) => {
+    return MyModule.removeLayer({ nativeNodeHandle, uuid });
+  },
+  onError: (err) => console.error(err),
+});
+```
+
+| Parameter | Type | Meaning |
+|---|---|---|
+| `enabled` | `boolean` | Gates whether `create` is attempted. While `false`, `uuid` stays `null`. Flipping back to `true` re-attempts creation. |
+| `create` | `(flags: CreateFlags) => Promise<TUuid>` | Calls the native create method and returns the new UUID string. |
+| `remove` | `(uuid: TUuid, flags: RemoveFlags) => Promise<boolean>` | Calls the native remove method. Return `true` on success. |
+| `onError` | `null \| ((err: ErrorBase) => void)` (optional) | Error handler. When omitted, errors are reported via `reportNativeError`. |
+
+`CreateFlags`:
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `triggerOnCreate` | `true` | Fire the `onCreate` callback on the native side. |
+| `triggerOnChange` | `false` | Fire the `onChange` callback on the native side. |
+
+`RemoveFlags`:
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `triggerOnRemove` | `true` | Fire the `onRemove` callback on the native side. |
+
+**Return value:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `uuid` | `null \| false \| TUuid` | `null` = not yet created/disabled; `false` = create-in-progress; `TUuid` (string) = native resource exists. |
+| `triggerCreate` | `(flags?: CreateFlags) => void` | Manually trigger creation (defaults: `triggerOnCreate: true, triggerOnChange: false`). No-op when `enabled` is `false`. Stable identity. |
+| `triggerRemove` | `(flags?: RemoveFlags) => Promise<boolean>` | Manually trigger removal (defaults: `triggerOnRemove: true`). Returns `Promise<boolean>` — `false` if no UUID exists. Stable identity. |
+
+**Auto-lifecycle:** The hook auto-creates on mount (when `enabled` is `true`) and
+auto-removes on unmount. If the component unmounts while `create` is still in-flight,
+the newly-created resource is immediately removed to balance the lifecycle.
 
 ### Core library extensibility hooks (Java)
 
@@ -198,7 +285,9 @@ public class MyLayer extends Layer {
 ```
 
 Core library hooks needed: factory method in existing TurboModule if extending a
-`LayerManager`. Phase 1 hooks cover `PathLayerManager`.
+`LayerManager`. The core library currently exposes `createPathLayerManager()` in
+`LayerPath` and `drawSegments()` / `getStyleBuilder()` in `PathLayerManager` (all
+`protected`) for this purpose.
 
 ## Pattern C: vtm class shadowing (new GPU rendering)
 
@@ -264,8 +353,8 @@ for a working extension that shadows `LineBucket` and `RenderBuckets` to add a
 per-vertex `a_value` attribute and a `u_colorRamp` sampler2D uniform. The vertex
 format changes from 4 shorts (x, y, dx, dy) to 5 shorts (x, y, dx, dy, value).
 
-Core library hooks needed: Phase 1 hooks (`drawSegments()` protected,
-`createPathLayerManager()` factory).
+Core library hooks needed: `drawSegments()` (`protected`) and `createPathLayerManager()`
+factory method — see the Java extensibility hooks table above.
 
 ## TurboModule spec pattern
 
@@ -327,7 +416,7 @@ The `package.json` must include:
 Every extension needs a `ReactPackage` for autolinking:
 
 ```java
-public class MyExtensionPackage extends BaseReactPackage implements ReactPackage {
+public class MyExtensionPackage extends BaseReactPackage {
     @Override
     public NativeModule getModule(String name, ReactApplicationContext ctx) {
         if (MyLayer.NAME.equals(name)) return new MyLayer(ctx);
@@ -373,15 +462,38 @@ coordinate at 60fps with zero bridge crossings:
 
 ```tsx
 import { useMapPosition, useMapOverlay } from 'react-native-mapsforge-vtm/reanimated';
+import { MapHandleContext } from 'react-native-mapsforge-vtm';
 import Animated from 'react-native-reanimated';
+import { useContext, useEffect } from 'react';
 
+// Inside a component under <MapContainer>:
+const { nativeNodeHandle } = useContext(MapHandleContext);
 const pos = useMapPosition();
 const overlay = useMapOverlay({ lat: 51.5, lng: -0.12 }, pos);
 
-<MapContainer onMapUpdate={pos.handleMapUpdate} responseInclude={pos.responseInclude}>
-  <LayerMapsforge mapFile="..." />
-</MapContainer>
+// Activate the native shared-value bridge for true zero-bridge 60fps.
+// Without this, position data still flows but goes through the JS bridge
+// (~25fps) instead of directly from the render thread.
+useEffect(() => {
+  if (nativeNodeHandle) pos.activateNativeBridge(nativeNodeHandle);
+}, [nativeNodeHandle]);
+
 <Animated.View style={[styles.marker, overlay.animatedStyle]} />
+```
+
+**`toScreenPosition` and `fromScreenPosition`:** Two Mercator-projection utilities
+are also exported from `/reanimated` for converting between geographic coordinates
+and screen-space pixel positions. These run as worklets (UI-thread) and can be used
+inside `useDerivedValue` / `useAnimatedStyle`:
+
+```tsx
+import { toScreenPosition, fromScreenPosition } from 'react-native-mapsforge-vtm/reanimated';
+import { useMapPosition } from 'react-native-mapsforge-vtm/reanimated';
+
+const pos = useMapPosition();
+// Convert a geo coordinate to screen pixel position (worklet):
+const screenPoint = toScreenPosition({ lat: 51.5, lng: -0.12 }, pos);
+// screenPoint: { x: number, y: number } — pixel position on the map view
 ```
 
 **Limitation (v1):** Bearing and tilt are not accounted for. Correct only when
@@ -475,7 +587,9 @@ a patch file. This would make it easier to:
 
 ### 8. Extension template repo
 
-The `/ext-plan` skill (via Claude Code) now scaffolds extensions using
-`create-react-native-library`, eliminating manual boilerplate. The scaffolded
+The `/ext-plan` skill (at `.claude/skills/ext-plan/SKILL.md`) scaffolds extensions
+using `create-react-native-library`, eliminating manual boilerplate. The scaffolded
 output already has bob builder, prettier, eslint, lefthook, release-kit, example
-app, and stub TurboModule files — no manual copying needed.
+app, and stub TurboModule files — no manual copying needed. The skill is
+auto-discovered by Claude Code from the directory-based skill format (see
+Quick start above).
