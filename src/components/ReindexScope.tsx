@@ -173,7 +173,9 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				sentinelRef.current = Symbol('reindex-sentinel');
 				registry.order.splice(
 					insertAfterIdx === -1
-						? registry.order.length
+						? order !== undefined
+							? 0
+							: registry.order.length
 						: insertAfterIdx + 1,
 					0,
 					sentinelRef.current
@@ -187,7 +189,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				const curIdx = registry.order.indexOf(sentinelRef.current!);
 				const targetIdx =
 					insertAfterIdx === -1
-						? registry.order.length - 1
+						? 0
 						: insertAfterIdx >= curIdx
 							? insertAfterIdx
 							: insertAfterIdx + 1;
