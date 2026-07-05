@@ -168,7 +168,8 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 			}
 
 			if (!hasSentinel) {
-				// Create a new sentinel.
+				// Create a new sentinel at the cursor position
+				// (initial render or first mount of a late scope).
 				sentinelRef.current = Symbol('reindex-sentinel');
 				registry.order.splice(
 					insertAfterIdx === -1
@@ -178,9 +179,11 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 					sentinelRef.current
 				);
 				registry.sentinels.add(sentinelRef.current);
-			} else {
-				// Reposition existing sentinel (handles generation
-				// changes or order-prop-driven moves).
+			} else if (order !== undefined) {
+				// Reposition existing sentinel for order-prop-driven
+				// priority changes. Without an order prop, the initial
+				// position (from MapContainer's first render pass) is
+				// always correct — never reposition it.
 				const curIdx = registry.order.indexOf(sentinelRef.current!);
 				const targetIdx =
 					insertAfterIdx === -1
@@ -193,6 +196,10 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 					registry.order.splice(targetIdx, 0, sentinelRef.current!);
 				}
 			}
+			// else: sentinel exists, no order prop — leave it at its
+			// initial position (placed correctly during the first
+			// render pass). Repositioning would use a stale cursor
+			// from a partial re-render and break the ordering.
 
 			// Set cursor to the sentinel so any non-scoped layers
 			// rendered after this scope insert after it.
@@ -307,6 +314,17 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 			return; // All children unmounted (sentinel still in place)
 		}
 
+		// Remove sentinel if children mounted in this same render
+		// (Phase 1 could not detect children before they rendered).
+		if (
+			sentinelRef.current !== undefined &&
+			registry.order.includes(sentinelRef.current)
+		) {
+			const sIdx = registry.order.indexOf(sentinelRef.current);
+			registry.order.splice(sIdx, 1);
+			registry.sentinels.delete(sentinelRef.current);
+			sentinelRef.current = undefined;
+		}
 		// 2. Determine current position
 		const currentFirstIdx = registry.order.indexOf(currentScopeSymbols[0]!);
 
