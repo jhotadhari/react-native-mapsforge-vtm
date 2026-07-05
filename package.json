@@ -39,7 +39,7 @@
     "example": "yarn workspace react-native-mapsforge-vtm-example",
     "test": "jest",
     "typecheck": "tsc",
-    "lint": "eslint \"**/*.{js,ts,tsx}\"",
+    "lint": "eslint",
     "clean": "del-cli android/build example/android/build example/android/app/build lib",
     "prepare": "bob build",
     "format": "prettier . --write",
