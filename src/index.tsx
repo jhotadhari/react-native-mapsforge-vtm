@@ -96,6 +96,7 @@ import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
 import ReindexScope from './components/ReindexScope';
+import type { ReindexScopeProps } from './components/ReindexScope';
 import { useLayerDebugInfo } from './debug/useLayerDebugInfo';
 import type {
 	LayerDebugEntry,
@@ -210,6 +211,7 @@ export {
 	CanvasAdapterModule,
 	SharedLayer,
 	ReindexScope,
+	type ReindexScopeProps,
 	type ErrorWithErrorMsg,
 
 	// Debug tools

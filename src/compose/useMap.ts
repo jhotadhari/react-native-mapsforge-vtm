@@ -87,6 +87,7 @@ export type FragmentSummaryEntry = {
  */
 export type RegistryDebugSnapshot = {
 	orderLength: number;
+	sentinelCount: number;
 	resolvedCount: number;
 	generation: number;
 	sharedLayerActive: boolean;
@@ -337,14 +338,16 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			// be serialized, so we iterate `order` by position index and look up
 			// each entry's metadata from the registry's parallel maps.
 			const reg = registryRef.current;
-			const registryLayers: RegistryLayerEntry[] = reg.order.map(
-				(id, index) => ({
+			const registryLayers: RegistryLayerEntry[] = reg.order
+				.filter(function (id) {
+					return !reg.sentinels.has(id);
+				})
+				.map((id, index) => ({
 					index,
 					layerType: reg.layerTypes.get(id) ?? null,
 					uuid: reg.uuids.get(id) ?? null,
 					fragmentUuid: reg.fragmentUuids.get(id) ?? null,
-				})
-			);
+				}));
 
 			const fragmentIndices: Record<string, number> = {};
 			reg.fragmentIndices.forEach((value, key) => {
@@ -385,6 +388,7 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 
 			const registrySnapshot: RegistryDebugSnapshot = {
 				orderLength: reg.order.length,
+				sentinelCount: reg.sentinels.size,
 				resolvedCount: registryLayers.filter((l) => l.uuid !== null)
 					.length,
 				generation: reg.generation,

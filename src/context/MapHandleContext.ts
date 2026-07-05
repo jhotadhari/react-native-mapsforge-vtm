@@ -38,6 +38,15 @@ export type LayerOrderRegistry = {
 	// layer symbol → ReindexScope's stable scope symbol.
 	// Populated by useLayerOrder when inside a ReindexContext provider.
 	layerReindexScopes: Map<symbol, symbol>;
+	// Sentinel symbols pushed into `order` by ReindexScope wrappers whose
+	// children haven't mounted yet. These mark where the scope's block will
+	// go when children eventually mount. flush() skips them.
+	sentinels: Set<symbol>;
+	// Optional scope-level priority for ordering across sibling ReindexScope
+	// instances. scope symbol → priority number (lower = rendered first in
+	// order = lower z-index). Scopes without a priority are placed at the end
+	// in render-tree order. Populated by ReindexScope during render.
+	scopePriorities: Map<symbol, number>;
 	// True when at least one <SharedLayer> wrapper rendered in the current pass.
 	// Set by SharedLayer during render, reset by MapContainer each pass.
 	// Exists purely for debug display — useLayerOrder reads SharedLayerContext instead.
@@ -77,6 +86,8 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const fragmentUuids = new Map<symbol, string>();
 	const layerTypes = new Map<symbol, string>();
 	const layerReindexScopes = new Map<symbol, symbol>();
+	const sentinels = new Set<symbol>();
+	const scopePriorities = new Map<symbol, number>();
 	let lastAppliedUuids: string[] = [];
 	let lastReorderWasEffective = false;
 
@@ -105,6 +116,10 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		const seenUuids = new Set<string>();
 
 		for (const id of order) {
+			// Skip sentinels — they are placeholders, not real layers.
+			if (sentinels.has(id)) {
+				continue;
+			}
 			const fragmentUuid = fragmentUuids.get(id);
 			if (fragmentUuid) {
 				// Shared-layer type: use the fragment uuid
@@ -165,6 +180,8 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		fragmentUuids,
 		layerTypes,
 		layerReindexScopes,
+		sentinels,
+		scopePriorities,
 		listeners,
 		sharedLayerActive: false,
 		subscribe: (callback: () => void) => {
@@ -219,6 +236,8 @@ const noopRegistry: LayerOrderRegistry = {
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
 	layerReindexScopes: new Map(),
+	sentinels: new Set(),
+	scopePriorities: new Map(),
 	sharedLayerActive: false,
 	listeners: new Set(),
 	subscribe: () => () => {},
