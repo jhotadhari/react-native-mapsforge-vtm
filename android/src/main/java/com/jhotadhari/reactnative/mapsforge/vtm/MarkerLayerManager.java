@@ -271,10 +271,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@NonNull MapFragment mapFragment,
 		@NonNull ContentResolver contentResolver
 	) throws Exception {
-		MarkerGroup group = groups.get(entry.groupUuid);
-		ItemizedLayer layer = group != null
-			? (ItemizedLayer) getSharedLayer(group.fragmentUuid)
-			: null;
+		// Use entry.fragmentUuid, NOT group.fragmentUuid: bare
+		// markers share the ROOT group but may live in different
+		// fragments when interleaved with other layer types.
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(entry.fragmentUuid);
 		boolean positionChanged = false;
 
 		if (Utils.rMapHasKey(params, "position")) {
@@ -308,10 +308,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		viewport.toScreenPoint(entry.markerItem.getPoint(), tmpPoint);
 
 		MarkerSymbol symbol = entry.markerItem.getMarker();
-		MarkerGroup groupForHit = groups.get(entry.groupUuid);
-		ItemizedLayer layer = groupForHit != null
-			? (ItemizedLayer) getSharedLayer(groupForHit.fragmentUuid)
-			: null;
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(entry.fragmentUuid);
 		if (symbol == null && layer != null) {
 			symbol = layer.getDefaultMarker();
 		}
@@ -586,12 +583,17 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				if (entry != null) {
 					MarkerGroup group = groups.get(entry.groupUuid);
 					if (group != null) {
-						ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
-						if (layer != null) {
-							layer.removeItem(entry.markerItem);
-							affectedFragments.add(group.fragmentUuid);
-						}
 						group.memberMarkerUuids.remove(markerUuid);
+					}
+					// Use entry.fragmentUuid, NOT group.fragmentUuid:
+					// bare markers (no LayerMarker wrapper) all
+					// share the ROOT group but may live in
+					// different fragments when interleaved with
+					// other layer types (e.g. path, marker, path).
+					ItemizedLayer layer = (ItemizedLayer) getSharedLayer(entry.fragmentUuid);
+					if (layer != null) {
+						layer.removeItem(entry.markerItem);
+						affectedFragments.add(entry.fragmentUuid);
 					}
 				}
 			} catch (Exception e) {

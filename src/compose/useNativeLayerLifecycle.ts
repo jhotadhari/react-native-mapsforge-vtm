@@ -58,6 +58,11 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 	const uuidRef = useRef(uuid);
 	uuidRef.current = uuid;
 
+	// Tracks whether the component is still mounted so in-flight create
+	// resolutions can detect that the component unmounted before the
+	// native resource was ready, and clean it up.
+	const mountedRef = useRef(true);
+
 	const triggerCreate = useCallback(
 		(
 			flags: CreateFlags = {
@@ -72,6 +77,22 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 			createRef
 				.current(flags)
 				.then((newUuid) => {
+					if (!mountedRef.current) {
+						// Component unmounted while create was
+						// in-flight. The component's create() callback
+						// already fired onCreate (inside its own
+						// .then() before returning newUuid), so we
+						// fire onRemove to balance the lifecycle and
+						// clean up the native resource.
+						removeRef
+							.current(newUuid, {
+								triggerOnRemove: true,
+							})
+							.catch((err: ErrorBase) => {
+								reportNativeError(err, onError);
+							});
+						return;
+					}
 					setUuid(newUuid);
 				})
 				.catch((err: ErrorBase) => {
@@ -118,6 +139,19 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 		uuid,
 		triggerCreate,
 	]);
+
+	// Track mounted state so in-flight create resolutions can detect
+	// that the component unmounted before the native resource was
+	// ready. This MUST be separate from the unmount-remove effect
+	// below: that effect needs a real uuid to enqueue a remove, but
+	// this one runs unconditionally so triggerCreate can check
+	// mountedRef.current regardless of uuid state.
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
 
 	// Remove on true unmount only. Deliberately *not* depending on `uuid`/`triggerRemove`'s
 	// per-render identity: if this effect re-ran on every uuid transition like the one above, its
