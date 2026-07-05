@@ -96,8 +96,10 @@ remaining step).
 See `TODO.md` in the repository root for implementation-tracked bugs,
 including:
 
-- **Layer render order at scale** (item 0) — under load, layer z-order
-  doesn't strictly follow the React component tree
+- **Layer render order at scale** (item 0) — partially addressed by sentinel
+  mechanism + `order` prop on `<ReindexScope>` (branch
+  `fix/reindexscope-first-mount-ordering`). Shared-layer drawable UUID
+  resolution in `knownLayers` remains the remaining sub-issue
 - **Thread-safety during layer creation** (item 2) — `animateTo` now
   dispatches to the UI thread, layer create/remove on native modules
   thread

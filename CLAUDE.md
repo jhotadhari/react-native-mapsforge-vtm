@@ -82,8 +82,12 @@ prop-injection wiring left in this repo. `LayerMarker` does its own one-level-do
 
 **Invariant: native layer rendering must strictly follow React component tree order.** A layer
 declared later in JSX (e.g. a `LayerMarker` mounted after a `LayerPath`) must always render on top of
-it, same as later siblings paint on top in the DOM. This currently does **not** hold under load — see
-TODO.md's "Layer render order doesn't strictly follow React tree hierarchy" entry.
+it, same as later siblings paint on top in the DOM. Within a single render pass this holds
+automatically (React's depth-first render order drives the cursor chain). For async children, two
+mechanisms preserve it: (1) `<ReindexScope>` sentinel placeholders (pushed during initial render,
+consumed when children mount), and (2) the optional `order` prop for explicit priority. Without
+either, new layers append at the stale cursor. See TODO.md item 0 for the remaining shared-layer
+`knownLayers` sub-issue.
 
 ### Path layers: `LayerPath` vs `LayerPathJts`
 

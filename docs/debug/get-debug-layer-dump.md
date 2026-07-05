@@ -72,7 +72,8 @@ type DebugLayerDump = {
   // ── JS-side component registry ───────────────────────────────────
 
   registry: {
-    orderLength: number;        // mounted React components in doc order
+    orderLength: number;        // symbols in registry.order (incl. sentinels)
+    sentinelCount: number;      // ReindexScope placeholders awaiting children
     resolvedCount: number;      // how many have resolved their native uuid
     generation: number;         // MapContainer render generation counter
     sharedLayerActive: boolean; // true when <SharedLayer> is present
