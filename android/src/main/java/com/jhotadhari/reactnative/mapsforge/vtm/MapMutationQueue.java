@@ -525,4 +525,12 @@ public class MapMutationQueue {
 	public Map<String, Layer> getKnownLayers() {
 		return knownLayers;
 	}
+
+	/**
+	 * Returns the number of mutations currently pending in the queue.
+	 * Used by {@code MapContainer.getDebugLayerDump} for diagnostic reporting.
+	 */
+	public int getPendingCount() {
+		return pending.size();
+	}
 }

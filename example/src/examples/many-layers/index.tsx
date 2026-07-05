@@ -1,11 +1,19 @@
-import { Fragment, useMemo, useState, type FC } from 'react';
-import { View, Text, Button, Switch } from 'react-native';
+import { Fragment, useMemo, useState, useCallback, type FC } from 'react';
+import {
+	View,
+	Text,
+	Button,
+	Switch,
+	Pressable,
+	StyleSheet,
+} from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
 	MapContainer,
 	Marker,
 	SharedLayer,
+	useMap,
 	type Position,
 	type SymbolParams,
 } from 'react-native-mapsforge-vtm';
@@ -138,6 +146,33 @@ const Controls: FC<{
 		</ControlPanel>
 	);
 };
+/**
+ * Floating debug button that dumps the complete layer hierarchy (native +
+ * JS registry) to the console.  Must be rendered as a child of
+ * <MapContainer> so that useMap() has access to the real context.
+ */
+const LayerDebugDumpButton: FC = () => {
+	const { getDebugLayerDump } = useMap();
+
+	const handlePress = useCallback(() => {
+		getDebugLayerDump()
+			.then((dump) => {
+				console.log('[LayerDebugDump]', JSON.stringify(dump, null, 2));
+			})
+			.catch((err) => {
+				console.error('[LayerDebugDump] failed:', err);
+			});
+	}, [getDebugLayerDump]);
+
+	return (
+		<Pressable
+			style={dumpStyles.button}
+			onPress={handlePress}
+		>
+			<Text style={dumpStyles.text}>{'🐛 Dump'}</Text>
+		</Pressable>
+	);
+};
 
 const ExampleComponent: FC<{
 	height: number;
@@ -226,17 +261,36 @@ const ExampleComponent: FC<{
 							</Fragment>
 						))}
 					{__DEV__ && <LayerDebugOverlay />}
+					{__DEV__ && <LayerDebugDumpButton />}
 				</MapContainer>
+
+				<MapInfo info={info} />
 
 				<Center
 					height={height}
 					width={width}
 				/>
-				<MapInfo info={info} />
 			</View>
 		</View>
 	);
 };
+
+const dumpStyles = StyleSheet.create({
+	button: {
+		position: 'absolute',
+		bottom: 12,
+		right: 100,
+		zIndex: 999,
+		backgroundColor: '#333333',
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+	},
+	text: {
+		color: '#fff',
+		fontWeight: 'bold',
+	},
+});
 
 export default {
 	ExampleComponent,

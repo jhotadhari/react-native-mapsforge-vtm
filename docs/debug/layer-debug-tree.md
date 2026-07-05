@@ -47,4 +47,5 @@ the layer registry and re-renders on every change.
 ## See also
 
 - **[useLayerDebugInfo](./use-layer-debug-info.md)** — Raw data hook
+- **[getDebugLayerDump()](./get-debug-layer-dump.md)** — One-shot JSON dump of native + JS layer state
 - **[Layer Ordering](../advanced/layer-ordering.md)** — Understanding z-order

@@ -225,7 +225,24 @@ const handle = useRef<number | null>(null);
 <Button onPress={() => { if (handle.current) zoomTo(15); }} />
 ```
 
+### `getDebugLayerDump(): Promise<DebugLayerDump>`
+
+One-shot async JSON dump of every layer on the map — native ground truth
+(actual vtm `Layer` objects, their Java class names, z-indices, enabled
+state) plus the JS-side component registry (React render order, fragment
+assignments, generation counter).
+
+```tsx
+const { getDebugLayerDump } = useMap();
+const dump = await getDebugLayerDump();
+console.log(JSON.stringify(dump, null, 2));
+```
+
+See **[getDebugLayerDump()](../debug/get-debug-layer-dump.md)** for the
+full return-type reference and interpretation guide.
+
 ## See also
 
 - **[MapContainer](../components/map-container.md)** — Root map view
 - **[Performance](../advanced/performance.md)** — Reanimated `useMapPosition()` for 60fps tracking
+- **[Debug tools](../debug/get-debug-layer-dump.md)** — Layer introspection and debugging

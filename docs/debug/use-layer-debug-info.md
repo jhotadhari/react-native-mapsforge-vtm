@@ -52,4 +52,5 @@ Don't use it in production render paths — it's a debug tool.
 ## See also
 
 - **[LayerDebugTree](./layer-debug-tree.md)** — Visual debug overlay
+- **[getDebugLayerDump()](./get-debug-layer-dump.md)** — One-shot JSON dump of native + JS layer state
 - **[Layer Ordering](../advanced/layer-ordering.md)** — Understanding the z-order model

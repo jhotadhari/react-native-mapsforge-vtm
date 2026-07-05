@@ -87,6 +87,10 @@ import type {
 	AnimationOptions,
 	FitBoundsOptions,
 	GetPositionResponse,
+	DebugLayerDump,
+	FragmentSummaryEntry,
+	RegistryDebugSnapshot,
+	RegistryLayerEntry,
 } from './compose/useMap';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
@@ -196,6 +200,10 @@ export {
 	type AnimationOptions,
 	type FitBoundsOptions,
 	type GetPositionResponse,
+	type DebugLayerDump,
+	type FragmentSummaryEntry,
+	type RegistryDebugSnapshot,
+	type RegistryLayerEntry,
 
 	// Other
 	useRenderStyleOptions,

@@ -92,6 +92,27 @@ export interface GetAltitudeAtPositionResponse {
 	altitude: Double | null;
 }
 
+export interface GetDebugLayerDumpParams {
+	nativeNodeHandle: Int32;
+}
+
+export interface DebugLayerInfo {
+	zIndex: Int32;
+	className: string;
+	simpleName: string;
+	uuid: string | null;
+	isJsManaged: boolean;
+	enabled: boolean;
+}
+
+export interface GetDebugLayerDumpResponse {
+	nativeNodeHandle: Int32;
+	totalLayers: Int32;
+	jsManagedCount: Int32;
+	pendingMutations: Int32;
+	layers: ReadonlyArray<DebugLayerInfo>;
+}
+
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	reorderLayers(params: ReorderLayersParams): Promise<void>;
@@ -102,6 +123,15 @@ export interface Spec extends TurboModule {
 	getAltitudeAtPosition(
 		params: GetAltitudeAtPositionParams
 	): Promise<GetAltitudeAtPositionResponse>;
+
+	/**
+	 * Returns a JSON dump of all layers currently on the map, including both
+	 * JS-managed and vtm-internal layers, with their z-indices, class names,
+	 * uuids, and enabled state.  Useful for debugging layer ordering issues.
+	 */
+	getDebugLayerDump(
+		params: GetDebugLayerDumpParams
+	): Promise<GetDebugLayerDumpResponse>;
 
 	/**
 	 * Installs the __getMapPositionSynchronizables global JSI function on the React Native JS

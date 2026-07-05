@@ -409,6 +409,80 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
+	@Override
+	public void getDebugLayerDump( ReadableMap params, Promise promise ) {
+		// Read knownLayers on the calling thread (ConcurrentHashMap, safe from any thread)
+		// and dispatch the map.layers() read to the UI thread, consistent with getPosition.
+		UiThreadUtil.runOnUiThread( () -> getDebugLayerDumpOnUiThread( params, promise ) );
+	}
+
+	private void getDebugLayerDumpOnUiThread( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView ) {
+				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+			}
+
+			MapMutationQueue queue = MapMutationQueue.getInstance( nativeNodeHandle );
+			Map<String, org.oscim.layers.Layer> knownLayers = queue != null
+				? queue.getKnownLayers()
+				: java.util.Collections.emptyMap();
+
+			// Build a reverse map: Layer -> uuid for O(1) uuid lookup per layer
+			Map<org.oscim.layers.Layer, String> layerToUuid = new HashMap<>();
+			for ( Map.Entry<String, org.oscim.layers.Layer> entry : knownLayers.entrySet() ) {
+				layerToUuid.put( entry.getValue(), entry.getKey() );
+			}
+
+			int totalLayers = mapView.map().layers().size();
+			WritableArray layersArray = new WritableNativeArray();
+			int jsManagedCount = 0;
+
+			for ( int i = 0; i < totalLayers; i++ ) {
+				org.oscim.layers.Layer layer = mapView.map().layers().get( i );
+				String uuid = layerToUuid.get( layer );
+				boolean isJsManaged = uuid != null || knownLayers.containsValue( layer );
+
+				if ( isJsManaged ) {
+					jsManagedCount++;
+				}
+
+				WritableMap layerInfo = new WritableNativeMap();
+				layerInfo.putInt( "zIndex", i );
+				layerInfo.putString( "className", layer.getClass().getName() );
+				layerInfo.putString( "simpleName", layer.getClass().getSimpleName() );
+				if ( uuid != null ) {
+					layerInfo.putString( "uuid", uuid );
+				} else {
+					layerInfo.putNull( "uuid" );
+				}
+				layerInfo.putBoolean( "isJsManaged", isJsManaged );
+				layerInfo.putBoolean( "enabled", layer.isEnabled() );
+
+				layersArray.pushMap( layerInfo );
+			}
+
+			int pendingMutations = queue != null ? queue.getPendingCount() : 0;
+
+			WritableMap response = new WritableNativeMap();
+			response.putInt( "nativeNodeHandle", nativeNodeHandle );
+			response.putInt( "totalLayers", totalLayers );
+			response.putInt( "jsManagedCount", jsManagedCount );
+			response.putInt( "pendingMutations", pendingMutations );
+			response.putArray( "layers", layersArray );
+
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
 	/**
 	 * Removes and closes the ElevationReader for the given nativeNodeHandle.
 	 * Called from MapFragment.onDestroy() during teardown.
