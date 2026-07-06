@@ -365,12 +365,17 @@ public class MapFragment extends Fragment {
 
 	public void fixViewLayoutSize() {
 		if ( null != getView() && null != getView().findViewById( R.id.mapView ) ) {
-			ViewGroup.LayoutParams params = getView().findViewById( R.id.mapView ).getLayoutParams();
-			params.width = getView().getWidth();
-			params.height = getView().getHeight();
-			getView().findViewById( R.id.mapView ).setLayoutParams( params );
+			View mapViewContainer = getView().findViewById( R.id.mapView );
+			int w = getView().getWidth();
+			int h = getView().getHeight();
+			if ( w > 0 && h > 0 ) {
+				mapViewContainer.measure(
+					View.MeasureSpec.makeMeasureSpec( w, View.MeasureSpec.EXACTLY ),
+					View.MeasureSpec.makeMeasureSpec( h, View.MeasureSpec.EXACTLY )
+				);
+				mapViewContainer.layout( 0, 0, w, h );
+			}
 		}
-
 	}
 
 	protected MapsforgeVtmView getMapsforgeVtmView() {
