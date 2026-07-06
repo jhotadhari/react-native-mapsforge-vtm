@@ -79,7 +79,7 @@ export type MapContainerProps = {
 	nativeNodeHandle?: null | number;
 	setNativeNodeHandle?: null | Dispatch<SetStateAction<number | null>>;
 	width?: null | MapViewProps['width'];
-	height?: MapViewProps['height'];
+	height?: null | MapViewProps['height'];
 	center?: MapViewProps['center'];
 	zoomLevel?: MapViewProps['zoomLevel'];
 	zoomMin?: MapViewProps['zoomMin'];
