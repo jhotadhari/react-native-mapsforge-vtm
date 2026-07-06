@@ -26,6 +26,15 @@ public class MapsforgeVtmView extends LinearLayout {
 
 	private double width;	// dp
 	private double height;	// dp
+
+	/**
+	 * Track whether the JS side has explicitly set width / height props.
+	 * When false, getDimension / getWidthInDp / getHeightInDp fall back to
+	 * the actual measured view dimensions so the component can participate
+	 * in Yoga flex layout (e.g. {@code flex: 1}) without explicit JS props.
+	 */
+	private boolean hasExplicitWidth = false;
+	private boolean hasExplicitHeight = false;
 	private ReadableArray center;	// Position: [ lng, lat, alt? ]
 	private int zoomLevel;
 	private int zoomMin;
@@ -71,15 +80,29 @@ public class MapsforgeVtmView extends LinearLayout {
 		switch ( key ) {
 			case "width":
 				this.width = dimension;
+				hasExplicitWidth = true;
 				break;
 			case "height":
 				this.height = dimension;
+				hasExplicitHeight = true;
 				break;
 		}
 		requestLayout();
 	}
 
 	public double getDimension( String key, String unit ) {
+		// When the caller needs pixels and no explicit JS prop was set,
+		// use the actual measured view dimensions — this is what makes
+		// flex:1 work without JS-side width/height props.
+		if ( "px".equals( unit ) ) {
+			if ( "width".equals( key ) && ! hasExplicitWidth ) {
+				return getMeasuredWidth();
+			}
+			if ( "height".equals( key ) && ! hasExplicitHeight ) {
+				return getMeasuredHeight();
+			}
+		}
+
 		double dimension = switch ( key ) {
 			case "width" -> width;
 			case "height" -> height;
@@ -92,17 +115,25 @@ public class MapsforgeVtmView extends LinearLayout {
 	}
 
 	/**
-	 * Returns the stored width in dp (the unit used for React Native style values).
-	 * The underlying {@code width} field is already in dp -- it is set via
-	 * {@link #setDimension} from the JS-side view-manager prop.
+	 * Returns the viewport width in dp.  When an explicit JS prop was set
+	 * the stored value (already dp) is returned; otherwise the actual measured
+	 * width in pixels is converted to dp so flex layout works transparently.
 	 */
-	public double getWidthInDp() { return width; }
+	public double getWidthInDp() {
+		return hasExplicitWidth
+			? width
+			: Utils.convertPixelsToDp( getMeasuredWidth(), getContext() );
+	}
 
 	/**
-	 * Returns the stored height in dp.
+	 * Returns the viewport height in dp.
 	 * @see #getWidthInDp()
 	 */
-	public double getHeightInDp() { return height; }
+	public double getHeightInDp() {
+		return hasExplicitHeight
+			? height
+			: Utils.convertPixelsToDp( getMeasuredHeight(), getContext() );
+	}
 
 	public void setCenter( @Nullable ReadableArray center ) {
 		if ( null != center ) {

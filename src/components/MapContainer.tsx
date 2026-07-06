@@ -33,6 +33,10 @@ const moduleDefaults = NativeMapContainer.getConstants();
 
 const useDefaultWidth = (propsWidth?: number | null) => {
 	const { width } = useWindowDimensions();
+	// Explicit null signals "use flex layout" — preserve it rather than
+	// falling back to the screen width so the native view reads measured
+	// dimensions from Yoga instead.
+	if (propsWidth === null) return null;
 	return propsWidth || width;
 };
 
@@ -196,12 +200,19 @@ const MapContainer = ({
 		}
 	}, [nativeNodeHandle, hgtDirPath]);
 
+	const useFlex = width === null || height === null;
+
+	const flexStyle = useMemo(
+		() => (useFlex ? { flex: 1 } : undefined),
+		[useFlex]
+	);
+
 	return (
-		<View>
+		<View style={flexStyle}>
 			<MapsforgeVtmView
 				ref={ref}
-				width={width}
-				height={height}
+				width={width !== null ? width : undefined}
+				height={height !== null ? height : undefined}
 				center={center}
 				zoomLevel={Math.round(zoomLevel)}
 				zoomMin={Math.round(zoomMin)}
