@@ -203,6 +203,18 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.uuids.set(id, uuid);
 		} else {
 			registry.uuids.delete(id);
+			// If this layer has a fragmentUuid (inside SharedLayer or
+			// same-type run) but no native UUID yet, the shared native
+			// layer hasn't been created. Skip scheduleSync — including
+			// the fragment UUID in orderedUuids before the native layer
+			// exists would cause the first reorderLayers to silently drop
+			// it. Subsequent flushes with the same UUID list would then
+			// be skipped (unchanged && lastReorderWasEffective guard),
+			// permanently stranding the layer at the wrong z-index.
+			const fragmentUuid = registry.fragmentUuids.get(id);
+			if (fragmentUuid) {
+				return;
+			}
 		}
 		registry.scheduleSync(nativeNodeHandle);
 		registry.notify();
