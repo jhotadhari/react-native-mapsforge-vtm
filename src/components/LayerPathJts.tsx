@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -72,6 +72,7 @@ const LayerPathJts = ({
 	// resolves to a layer creation failure with no recovery path.
 	const hasCoordinates = !!coordinates && coordinates.length >= 2;
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -84,7 +85,7 @@ const LayerPathJts = ({
 			}
 			return LayerPathJtsModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				coordinates,
 				supportsGestures,
 				...(style && { style }),
@@ -123,6 +124,7 @@ const LayerPathJts = ({
 	// other layers. No layerType means no fragment uuid — each component's own
 	// uuid is used directly in orderedUuids.
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// Redraw the existing native layer in place when the line or its style
 	// changes, instead of tearing down and recreating the layer.

@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -83,6 +83,7 @@ const LayerHillshading = ({
 }: LayerHillshadingProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && !!hgtDirPath,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -95,7 +96,7 @@ const LayerHillshading = ({
 			}
 			return LayerHillshadingModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				hgtDirPath,
 				...(zoomMin !== undefined && { zoomMin }),
 				...(zoomMax !== undefined && { zoomMax }),
@@ -153,6 +154,7 @@ const LayerHillshading = ({
 	});
 
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {

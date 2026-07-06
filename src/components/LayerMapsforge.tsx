@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -52,6 +52,7 @@ const LayerMapsforgeSubLayer = ({
 }) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: () => {
@@ -62,7 +63,7 @@ const LayerMapsforgeSubLayer = ({
 			}
 			return createSubLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				parentUuid,
 				...(enabledZoomMin !== undefined && {
 					enabledZoomMin,
@@ -87,6 +88,7 @@ const LayerMapsforgeSubLayer = ({
 	});
 
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	useEffect(() => {
 		if (nativeNodeHandle && uuid) {
@@ -130,6 +132,7 @@ const LayerMapsforge = ({
 }: LayerMapsforgeProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && !!mapFile,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -142,7 +145,7 @@ const LayerMapsforge = ({
 			}
 			return LayerMapsforgeModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				mapFile,
 				...(renderTheme && { renderTheme }),
 				...(renderStyle && { renderStyle }),
@@ -187,6 +190,7 @@ const LayerMapsforge = ({
 	});
 
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// enabledZoomMin/enabledZoomMax changed -- update in place, same as every other layer type.
 	useEffect(() => {

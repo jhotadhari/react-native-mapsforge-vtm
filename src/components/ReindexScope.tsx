@@ -129,6 +129,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		const sIdx = registry.order.indexOf(sentinelRef.current!);
 		registry.order.splice(sIdx, 1);
 		registry.sentinels.delete(sentinelRef.current!);
+		registry.sentinelScopes.delete(sentinelRef.current!);
 		sentinelRef.current = undefined;
 	}
 
@@ -146,11 +147,13 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				let lastLowerIdx = -1;
 				for (let i = 0; i < registry.order.length; i++) {
 					const sym = registry.order[i]!;
-					// Sentinels are placeholders, not real layers — skip.
-					if (registry.sentinels.has(sym)) {
-						continue;
+					let symScope = registry.layerReindexScopes.get(sym);
+					// Sentinels don't have real layer symbols, so
+					// layerReindexScopes may not map them. Look up the
+					// sentinel's owning scope directly instead.
+					if (symScope === undefined && registry.sentinels.has(sym)) {
+						symScope = registry.sentinelScopes.get(sym);
 					}
-					const symScope = registry.layerReindexScopes.get(sym);
 					if (symScope !== undefined) {
 						const symOrder = registry.scopePriorities.get(symScope);
 						if (symOrder !== undefined && symOrder < order) {
@@ -181,6 +184,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 					sentinelRef.current
 				);
 				registry.sentinels.add(sentinelRef.current);
+				registry.sentinelScopes.set(sentinelRef.current, scopeSymbol);
 			} else if (order !== undefined) {
 				// Reposition existing sentinel for order-prop-driven
 				// priority changes. Without an order prop, the initial
@@ -325,6 +329,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 			const sIdx = registry.order.indexOf(sentinelRef.current);
 			registry.order.splice(sIdx, 1);
 			registry.sentinels.delete(sentinelRef.current);
+			registry.sentinelScopes.delete(sentinelRef.current);
 			sentinelRef.current = undefined;
 		}
 		// 2. Determine current position
@@ -360,6 +365,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				const sIdx = registry.order.indexOf(sentinelRef.current);
 				registry.order.splice(sIdx, 1);
 				registry.sentinels.delete(sentinelRef.current);
+				registry.sentinelScopes.delete(sentinelRef.current);
 			}
 			// Remove scope priority.
 			registry.scopePriorities.delete(scopeSymbol);

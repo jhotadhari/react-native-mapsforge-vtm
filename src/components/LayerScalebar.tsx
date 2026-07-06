@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext } from 'react';
+import { useContext, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -18,6 +18,7 @@ import MapHandleContext from '../context/MapHandleContext';
 const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate }) => {
@@ -28,7 +29,7 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 			}
 			return LayerScalebarModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })
@@ -59,6 +60,7 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 	});
 
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	return null;
 };

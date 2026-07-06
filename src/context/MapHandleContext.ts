@@ -47,6 +47,10 @@ export type LayerOrderRegistry = {
 	// order = lower z-index). Scopes without a priority are placed at the end
 	// in render-tree order. Populated by ReindexScope during render.
 	scopePriorities: Map<symbol, number>;
+	// Maps each sentinel symbol to its owning ReindexScope's scope symbol,
+	// so sentinel placement can check scope priorities even when no real
+	// children exist in the scope.
+	sentinelScopes: Map<symbol, symbol>;
 	// True when at least one <SharedLayer> wrapper rendered in the current pass.
 	// Set by SharedLayer during render, reset by MapContainer each pass.
 	// Exists purely for debug display — useLayerOrder reads SharedLayerContext instead.
@@ -87,6 +91,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const layerTypes = new Map<symbol, string>();
 	const layerReindexScopes = new Map<symbol, symbol>();
 	const sentinels = new Set<symbol>();
+	const sentinelScopes = new Map<symbol, symbol>();
 	const scopePriorities = new Map<symbol, number>();
 	let lastAppliedUuids: string[] = [];
 	let lastReorderWasEffective = false;
@@ -181,6 +186,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		layerTypes,
 		layerReindexScopes,
 		sentinels,
+		sentinelScopes,
 		scopePriorities,
 		listeners,
 		sharedLayerActive: false,
@@ -237,6 +243,7 @@ const noopRegistry: LayerOrderRegistry = {
 	layerTypes: new Map(),
 	layerReindexScopes: new Map(),
 	sentinels: new Set(),
+	sentinelScopes: new Map(),
 	scopePriorities: new Map(),
 	sharedLayerActive: false,
 	listeners: new Set(),

@@ -57,6 +57,7 @@ const LayerMarker = ({
 
 	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -67,7 +68,7 @@ const LayerMarker = ({
 			}
 			return LayerMarkerModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				fragmentUuid: fragmentUuidRef.current,
 				...(symbol && { symbol }),
 			}).then((newUuid) => {
@@ -103,6 +104,7 @@ const LayerMarker = ({
 	});
 
 	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'marker');
+	positionIndexRef.current = positionIndex;
 	fragmentUuidRef.current = fragmentUuid;
 
 	useEffect(() => {

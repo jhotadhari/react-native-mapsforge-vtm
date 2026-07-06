@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -32,6 +32,7 @@ const LayerBitmapTile = ({
 }: LayerBitmapTileProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
+	const positionIndexRef = useRef<number>(-1);
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -42,7 +43,7 @@ const LayerBitmapTile = ({
 			}
 			return LayerBitmapTileModule.createLayer({
 				nativeNodeHandle,
-				positionIndex,
+				positionIndex: positionIndexRef.current,
 				...(url && { url }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
 				...(zoomMin && { zoomMin }),
@@ -91,6 +92,7 @@ const LayerBitmapTile = ({
 	});
 
 	const { positionIndex } = useLayerOrder(uuid);
+	positionIndexRef.current = positionIndex;
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {
