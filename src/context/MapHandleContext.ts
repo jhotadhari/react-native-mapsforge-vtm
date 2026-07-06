@@ -113,10 +113,26 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		if (nativeNodeHandle === null) {
 			return;
 		}
-		// Build orderedUuids from fragment uuids (computed eagerly during render
-		// by useLayerOrder for shared-layer types) and per-component uuids (for
-		// dedicated-layer types). Fragment uuids start with __vtm_shared_ so we
-		// can distinguish them from per-component uuids without a hardcoded list.
+		// Build a set of fragment UUIDs whose native shared layer
+		// already exists. Shared fragment UUIDs are computed eagerly
+		// during render (before createLayer resolves), but the native
+		// side silently ignores unknown UUIDs in reorderLayers. Only
+		// include a fragment UUID when at least one component sharing
+		// it has resolved its native UUID, so we never send UUIDs for
+		// layers that don't exist yet.
+		const readyFragmentUuids = new Set<string>();
+		for (const sym of uuids.keys()) {
+			const fUuid = fragmentUuids.get(sym);
+			if (fUuid) {
+				readyFragmentUuids.add(fUuid);
+			}
+		}
+
+		// Build orderedUuids from fragment uuids (computed eagerly during
+		// render by useLayerOrder for shared-layer types) and per-component
+		// uuids (for dedicated-layer types). Fragment uuids start with
+		// __vtm_shared_ so we can distinguish them from per-component
+		// uuids without a hardcoded list.
 		const orderedUuids: string[] = [];
 		const seenUuids = new Set<string>();
 
@@ -127,8 +143,11 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			}
 			const fragmentUuid = fragmentUuids.get(id);
 			if (fragmentUuid) {
-				// Shared-layer type: use the fragment uuid
-				if (!seenUuids.has(fragmentUuid)) {
+				// Shared-layer type: only include if the native layer exists
+				if (
+					!seenUuids.has(fragmentUuid) &&
+					readyFragmentUuids.has(fragmentUuid)
+				) {
 					seenUuids.add(fragmentUuid);
 					orderedUuids.push(fragmentUuid);
 				}
