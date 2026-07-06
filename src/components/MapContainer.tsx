@@ -211,6 +211,7 @@ const MapContainer = ({
 		<View style={flexStyle}>
 			<MapsforgeVtmView
 				ref={ref}
+				style={flexStyle}
 				width={width !== null ? width : undefined}
 				height={height !== null ? height : undefined}
 				center={center}
