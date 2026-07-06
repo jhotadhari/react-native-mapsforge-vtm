@@ -14,9 +14,9 @@ export interface ModuleParams {
 	width: null | Double;
 	height: Double;
 	center: Position;
-	zoomLevel: Int32;
-	zoomMin: Int32;
-	zoomMax: Int32;
+	zoomLevel: Double;
+	zoomMin: Double;
+	zoomMax: Double;
 	moveEnabled: boolean;
 	tiltEnabled: boolean;
 	rotationEnabled: boolean;
@@ -64,7 +64,7 @@ export interface GetPositionParams {
 
 export interface GetPositionResponse {
 	center: Position;
-	zoomLevel: Int32;
+	zoomLevel: Double;
 	bearing: Double;
 	tilt: Double;
 	roll: Double;

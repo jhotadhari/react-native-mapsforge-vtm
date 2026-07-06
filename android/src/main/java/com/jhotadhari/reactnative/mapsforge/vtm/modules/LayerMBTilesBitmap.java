@@ -166,8 +166,8 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 		responseParams.putString( "attribution", dataSource.getAttribution() );
 		responseParams.putString( "description", dataSource.getDescription() );
 		responseParams.putString( "version", dataSource.getVersion() );
-		responseParams.putInt( "zoomMin", dataSource.getMinZoom() );
-		responseParams.putInt( "zoomMax", dataSource.getMaxZoom() );
+		responseParams.putDouble( "zoomMin", dataSource.getMinZoom() );
+		responseParams.putDouble( "zoomMax", dataSource.getMaxZoom() );
 	}
 
 	@Override

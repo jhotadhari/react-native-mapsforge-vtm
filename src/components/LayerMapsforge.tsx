@@ -65,10 +65,10 @@ const LayerMapsforgeSubLayer = ({
 				positionIndex,
 				parentUuid,
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			});
 		},
@@ -94,10 +94,10 @@ const LayerMapsforgeSubLayer = ({
 				nativeNodeHandle,
 				uuid,
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).catch((err: ErrorBase) => {
 				reportNativeError(err, onError);
@@ -150,10 +150,10 @@ const LayerMapsforge = ({
 				hasBuildings: !!hasBuildings,
 				hasLabels: !!hasLabels,
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).then((response: LayerMapsforgeResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
@@ -195,10 +195,10 @@ const LayerMapsforge = ({
 				nativeNodeHandle,
 				uuid,
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).catch((err: ErrorBase) => {
 				reportNativeError(err, onError);

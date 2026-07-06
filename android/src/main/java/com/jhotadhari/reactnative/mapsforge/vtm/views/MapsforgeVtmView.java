@@ -36,9 +36,9 @@ public class MapsforgeVtmView extends LinearLayout {
 	private boolean hasExplicitWidth = false;
 	private boolean hasExplicitHeight = false;
 	private ReadableArray center;	// Position: [ lng, lat, alt? ]
-	private int zoomLevel;
-	private int zoomMin;
-	private int zoomMax;
+	private float zoomLevel;
+	private float zoomMin;
+	private float zoomMax;
 	private boolean moveEnabled;
 	private boolean tiltEnabled;
 	private boolean rotationEnabled;
@@ -148,18 +148,18 @@ public class MapsforgeVtmView extends LinearLayout {
 		return center;
 	}
 
-	public void setZoomLevel( int zoomLevel ) {
+	public void setZoomLevel( float zoomLevel ) {
 		this.zoomLevel = zoomLevel;
 		if ( null != mapFragment ) {
 			mapFragment.updateZoomLevel();
 		}
 	}
 
-	public int getZoomLevel() {
+	public float getZoomLevel() {
 		return zoomLevel;
 	}
 
-	public void setZoomBounds( String key, int value ) {
+	public void setZoomBounds( String key, float value ) {
 		switch ( key ) {
 			case "min":
 				zoomMin = value;
@@ -173,11 +173,11 @@ public class MapsforgeVtmView extends LinearLayout {
 		}
 	}
 
-	public int getZoomBounds( String bound ) {
+	public float getZoomBounds( String bound ) {
 		return switch ( bound ) {
 			case "min" -> zoomMin;
 			case "max" -> zoomMax;
-			default -> 0;
+			default -> 0f;
 		};
 	}
 

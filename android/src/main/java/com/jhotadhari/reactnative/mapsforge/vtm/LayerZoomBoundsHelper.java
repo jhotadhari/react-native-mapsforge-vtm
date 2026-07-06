@@ -28,8 +28,8 @@ public class LayerZoomBoundsHelper extends LayerHelper {
 		if ( null == mapView ) { return null; }
 
 		// Get params, assign defaults.
-		int enabledZoomMin = Utils.rMapHasKey( params, "enabledZoomMin" ) ? params.getInt( "enabledZoomMin" ) : (int) module.getConstants().get( "enabledZoomMin" );
-		int enabledZoomMax = Utils.rMapHasKey( params, "enabledZoomMax" ) ? params.getInt( "enabledZoomMax" ) : (int) module.getConstants().get( "enabledZoomMax" );
+		int enabledZoomMin = Utils.rMapHasKey( params, "enabledZoomMin" ) ? (int) params.getDouble( "enabledZoomMin" ) : (int) module.getConstants().get( "enabledZoomMin" );
+		int enabledZoomMax = Utils.rMapHasKey( params, "enabledZoomMax" ) ? (int) params.getDouble( "enabledZoomMax" ) : (int) module.getConstants().get( "enabledZoomMax" );
 
 		updateEnabled(
 			layer,
@@ -55,8 +55,8 @@ public class LayerZoomBoundsHelper extends LayerHelper {
 			}
 
 			// Get params, assign defaults.
-			int enabledZoomMin = Utils.rMapHasKey( params, "enabledZoomMin" ) ? params.getInt( "enabledZoomMin" ) : (int) module.getConstants().get( "enabledZoomMin"  );
-			int enabledZoomMax = Utils.rMapHasKey( params, "enabledZoomMax" ) ? params.getInt( "enabledZoomMax" ) : (int) module.getConstants().get( "enabledZoomMax"  );
+			int enabledZoomMin = Utils.rMapHasKey( params, "enabledZoomMin" ) ? (int) params.getDouble( "enabledZoomMin" ) : (int) module.getConstants().get( "enabledZoomMin"  );
+			int enabledZoomMax = Utils.rMapHasKey( params, "enabledZoomMax" ) ? (int) params.getDouble( "enabledZoomMax" ) : (int) module.getConstants().get( "enabledZoomMax"  );
 
 			updateUpdateListener(
 				params.getInt( "nativeNodeHandle" ),

@@ -227,7 +227,7 @@ public class MapFragment extends Fragment {
 	public void updateZoomLevel() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
 			MapPosition mapPosition = mapView.map().getMapPosition();
-			mapPosition.setZoomLevel( getMapsforgeVtmView().getZoomLevel() );
+			mapPosition.setZoomLevel( (int) getMapsforgeVtmView().getZoomLevel() );
 			mapView.map().setMapPosition( mapPosition );
 		}
 
@@ -235,8 +235,8 @@ public class MapFragment extends Fragment {
 
 	public void updateZoomBounds() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
-			mapView.map().viewport().setMinZoomLevel( getMapsforgeVtmView().getZoomBounds( "min" ) );
-			mapView.map().viewport().setMaxZoomLevel( getMapsforgeVtmView().getZoomBounds( "max" ) );
+			mapView.map().viewport().setMinZoomLevel( (int) getMapsforgeVtmView().getZoomBounds( "min" ) );
+			mapView.map().viewport().setMaxZoomLevel( (int) getMapsforgeVtmView().getZoomBounds( "max" ) );
 		}
 
 	}

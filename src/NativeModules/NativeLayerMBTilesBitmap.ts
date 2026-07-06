@@ -9,8 +9,8 @@ export interface ModuleParams {
 	mapFile?: string;
 	transparentColor?: string;
 	alpha?: Double; // float between 0 and 1.
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 	cacheSize?: Int32; // mb
 	cacheDirBase?: string; // empty will be handled java side.
 	cacheDirChild?: string; // empty will be handled java side.
@@ -29,8 +29,8 @@ interface RemoveLayerParams {
 interface UpdateEnabledZoomMinMaxParams {
 	nativeNodeHandle: Int32;
 	uuid: string;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 }
 
 interface SetAlphaParams {
@@ -58,8 +58,8 @@ export interface LayerMBTilesBitmapResponse extends ResponseBase {
 	attribution?: string;
 	description?: string;
 	version?: string;
-	zoomMin?: Int32; // the .mbtiles file's own declared zoom range, unrelated to enabledZoomMin/Max.
-	zoomMax?: Int32;
+	zoomMin?: Double; // the .mbtiles file's own declared zoom range, unrelated to enabledZoomMin/Max.
+	zoomMax?: Double;
 }
 
 export type LayerMBTilesBitmapProps = {

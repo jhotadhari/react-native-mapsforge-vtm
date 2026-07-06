@@ -71,8 +71,8 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 
 			// Get params, assign defaults.
 			String url = Utils.rMapHasKey( params, "url" ) ? params.getString( "url" ) : (String) getConstants().get( "url" );
-			int zoomMin = Utils.rMapHasKey( params, "zoomMin" ) ? params.getInt( "zoomMin" ) : (int) getConstants().get( "zoomMin" );
-			int zoomMax = Utils.rMapHasKey( params, "zoomMax" ) ? params.getInt( "zoomMax" ) : (int) getConstants().get( "zoomMax" );
+			int zoomMin = Utils.rMapHasKey( params, "zoomMin" ) ? (int) params.getDouble( "zoomMin" ) : (int) getConstants().get( "zoomMin" );
+			int zoomMax = Utils.rMapHasKey( params, "zoomMax" ) ? (int) params.getDouble( "zoomMax" ) : (int) getConstants().get( "zoomMax" );
 			double alpha = Utils.rMapHasKey( params, "alpha" ) ? params.getDouble( "alpha" ) : (int) getConstants().get( "alpha" );
 			int cacheSize = Utils.rMapHasKey( params, "cacheSize" ) ? params.getInt( "cacheSize" ) : (int) getConstants().get( "cacheSize" );
 			String cacheDirBase = Utils.rMapHasKey( params, "cacheDirBase" ) ? params.getString( "cacheDirBase" ) : (String) getConstants().get( "cacheDirBase" );

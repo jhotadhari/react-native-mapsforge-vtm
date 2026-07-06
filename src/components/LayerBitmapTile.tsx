@@ -45,13 +45,13 @@ const LayerBitmapTile = ({
 				positionIndex,
 				...(url && { url }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
-				...(zoomMin && { zoomMin: Math.round(zoomMin) }),
-				...(zoomMax && { zoomMax: Math.round(zoomMax) }),
+				...(zoomMin && { zoomMin }),
+				...(zoomMax && { zoomMax }),
 				...(enabledZoomMin && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 				...(cacheSize && { cacheSize: Math.round(cacheSize) }),
 				...(cacheDirBase && { cacheDirBase: cacheDirBase.trim() }),
@@ -99,10 +99,10 @@ const LayerBitmapTile = ({
 				nativeNodeHandle,
 				uuid,
 				...(enabledZoomMin && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).catch((err: ErrorBase) => {
 				reportNativeError(err, onError);

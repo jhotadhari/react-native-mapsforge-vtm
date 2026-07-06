@@ -88,8 +88,8 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 			}
 
 			// Get params, assign defaults.
-			int zoomMin = Utils.rMapHasKey( params, "zoomMin" ) ? params.getInt( "zoomMin" ) : (int) getConstants().get( "zoomMin" );
-			int zoomMax = Utils.rMapHasKey( params, "zoomMax" ) ? params.getInt( "zoomMax" ) : (int) getConstants().get( "zoomMax" );
+			int zoomMin = Utils.rMapHasKey( params, "zoomMin" ) ? (int) params.getDouble( "zoomMin" ) : (int) getConstants().get( "zoomMin" );
+			int zoomMax = Utils.rMapHasKey( params, "zoomMax" ) ? (int) params.getDouble( "zoomMax" ) : (int) getConstants().get( "zoomMax" );
 			String shadingAlgorithmKey = Utils.rMapHasKey( params, "shadingAlgorithm" ) ? params.getString( "shadingAlgorithm" ) : (String) getConstants().get( "shadingAlgorithm" );
 			ReadableMap shadingAlgorithmOptions = Utils.rMapHasKey( params, "shadingAlgorithmOptions" ) ? params.getMap( "shadingAlgorithmOptions" ) : null;
 			int magnitude = Utils.rMapHasKey( params, "magnitude" ) ? params.getInt( "magnitude" ) : (int) getConstants().get( "magnitude" );

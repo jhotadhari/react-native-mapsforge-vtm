@@ -1,6 +1,5 @@
 import { codegenNativeComponent } from 'react-native';
 import type {
-	Int32,
 	Double,
 	DirectEventHandler,
 } from 'react-native/Libraries/Types/CodegenTypes';
@@ -48,9 +47,9 @@ interface MapViewProps extends ViewProps {
 	width?: Double;
 	height?: Double;
 	center?: Position;
-	zoomLevel?: Int32;
-	zoomMin?: Int32;
-	zoomMax?: Int32;
+	zoomLevel?: Double;
+	zoomMin?: Double;
+	zoomMax?: Double;
 	moveEnabled?: boolean;
 	tiltEnabled?: boolean;
 	rotationEnabled?: boolean;

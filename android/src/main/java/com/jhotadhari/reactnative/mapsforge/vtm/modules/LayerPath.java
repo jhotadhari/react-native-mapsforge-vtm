@@ -114,7 +114,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			styleBuilder.buffer( styleMap.getDouble( "buffer" ) );
 		}
 		if ( Utils.rMapHasKey( styleMap, "scalingZoomLevel" ) ) {
-			styleBuilder.scaleZoomLevel( (int) styleMap.getInt( "scalingZoomLevel" ) );
+			styleBuilder.scaleZoomLevel( (int) styleMap.getDouble( "scalingZoomLevel" ) );
 		}
 		if ( Utils.rMapHasKey( styleMap, "cap" ) ) {
 			Paint.Cap cap = switch ( Objects.requireNonNull( styleMap.getString("cap" ) ) ) {

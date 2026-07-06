@@ -49,8 +49,8 @@ export interface ModuleParams {
 	renderOverlays?: string[];
 	hasBuildings?: boolean;
 	hasLabels?: boolean;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 }
 
 interface CreateLayerParams extends ModuleParams {
@@ -68,15 +68,15 @@ interface CreateSubLayerParams {
 	positionIndex: Int32;
 	// The uuid of the already-created main tile layer this sub-layer renders on top of.
 	parentUuid: string;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 }
 
 interface UpdateEnabledZoomMinMaxParams {
 	nativeNodeHandle: Int32;
 	uuid: string;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 }
 
 interface GetRenderThemeOptionsParams {

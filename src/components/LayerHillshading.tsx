@@ -97,13 +97,13 @@ const LayerHillshading = ({
 				nativeNodeHandle,
 				positionIndex,
 				hgtDirPath,
-				...(zoomMin !== undefined && { zoomMin: Math.round(zoomMin) }),
-				...(zoomMax !== undefined && { zoomMax: Math.round(zoomMax) }),
+				...(zoomMin !== undefined && { zoomMin }),
+				...(zoomMax !== undefined && { zoomMax }),
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 				...(shadingAlgorithm && { shadingAlgorithm }),
 				...(shadingAlgorithmOptions && {
@@ -161,10 +161,10 @@ const LayerHillshading = ({
 				nativeNodeHandle,
 				uuid,
 				...(enabledZoomMin !== undefined && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax !== undefined && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).catch((err: ErrorBase) => {
 				reportNativeError(err, onError);

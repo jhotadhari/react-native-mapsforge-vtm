@@ -125,7 +125,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 				styleBuilder.buffer(styleMap.getDouble("buffer"));
 			}
 			if (styleMap.hasKey("scalingZoomLevel")) {
-				styleBuilder.scaleZoomLevel(styleMap.getInt("scalingZoomLevel"));
+				styleBuilder.scaleZoomLevel((int) styleMap.getDouble("scalingZoomLevel"));
 			}
 			if (styleMap.hasKey("cap")) {
 				Paint.Cap cap = switch (Objects.requireNonNull(styleMap.getString("cap"))) {

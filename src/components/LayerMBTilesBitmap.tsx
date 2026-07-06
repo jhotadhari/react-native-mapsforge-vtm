@@ -49,10 +49,10 @@ const LayerMBTilesBitmap = ({
 				...(transparentColor && { transparentColor }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
 				...(enabledZoomMin && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 				...(cacheSize !== undefined && {
 					cacheSize: Math.round(cacheSize),
@@ -96,10 +96,10 @@ const LayerMBTilesBitmap = ({
 				nativeNodeHandle,
 				uuid,
 				...(enabledZoomMin && {
-					enabledZoomMin: Math.round(enabledZoomMin),
+					enabledZoomMin,
 				}),
 				...(enabledZoomMax && {
-					enabledZoomMax: Math.round(enabledZoomMax),
+					enabledZoomMax,
 				}),
 			}).catch((err: ErrorBase) => {
 				reportNativeError(err, onError);

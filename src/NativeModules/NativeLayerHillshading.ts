@@ -30,10 +30,10 @@ export type ShadingAlgorithmOptions = {
 // declaration emit needs every type reachable from an exported value to be nameable.
 export interface ModuleParams {
 	hgtDirPath?: string;
-	zoomMin?: Int32;
-	zoomMax?: Int32;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	zoomMin?: Double;
+	zoomMax?: Double;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 	shadingAlgorithm?: string; // ShadingAlgorithm
 	shadingAlgorithmOptions?: {
 		// ShadingAlgorithmOptions
@@ -68,8 +68,8 @@ interface RemoveLayerParams {
 interface UpdateEnabledZoomMinMaxParams {
 	nativeNodeHandle: Int32;
 	uuid: string;
-	enabledZoomMin?: Int32;
-	enabledZoomMax?: Int32;
+	enabledZoomMin?: Double;
+	enabledZoomMax?: Double;
 }
 
 export type LayerHillshadingProps = {

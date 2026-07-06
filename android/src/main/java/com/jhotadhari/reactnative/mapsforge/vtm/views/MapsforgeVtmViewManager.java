@@ -66,25 +66,25 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 
 	@ReactProp( name = "zoomLevel" )
 	@Override
-	public void setZoomLevel( MapsforgeVtmView view, int value ) {
+	public void setZoomLevel( MapsforgeVtmView view, double value ) {
 		if ( view != null ) {
-			view.setZoomLevel( value );
+			view.setZoomLevel( (float) value );
 		}
 	}
 
 	@ReactProp( name = "zoomMin" )
 	@Override
-	public void setZoomMin( MapsforgeVtmView view, int value ) {
+	public void setZoomMin( MapsforgeVtmView view, double value ) {
 		if ( view != null ) {
-			view.setZoomBounds( "min", value );
+			view.setZoomBounds( "min", (float) value );
 		}
 	}
 
 	@ReactProp( name = "zoomMax" )
 	@Override
-	public void setZoomMax( MapsforgeVtmView view, int value ) {
+	public void setZoomMax( MapsforgeVtmView view, double value ) {
 		if ( view != null ) {
-			view.setZoomBounds( "max", value );
+			view.setZoomBounds( "max", (float) value );
 		}
 	}
 

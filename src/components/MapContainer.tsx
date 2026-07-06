@@ -215,9 +215,9 @@ const MapContainer = ({
 				width={width !== null ? width : undefined}
 				height={height !== null ? height : undefined}
 				center={center}
-				zoomLevel={Math.round(zoomLevel)}
-				zoomMin={Math.round(zoomMin)}
-				zoomMax={Math.round(zoomMax)}
+				zoomLevel={zoomLevel}
+				zoomMin={zoomMin}
+				zoomMax={zoomMax}
 				moveEnabled={moveEnabled}
 				tiltEnabled={tiltEnabled}
 				rotationEnabled={rotationEnabled}

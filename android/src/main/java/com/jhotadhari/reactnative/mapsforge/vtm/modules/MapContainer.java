@@ -331,7 +331,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			MapPosition mapPosition = mapView.map().getMapPosition();
 			WritableMap response = new WritableNativeMap();
 			response.putArray( "center", Utils.positionToWritableArray( mapPosition.getLongitude(), mapPosition.getLatitude(), null ) );
-			response.putInt( "zoomLevel", mapPosition.getZoomLevel() );
+			response.putDouble( "zoomLevel", mapPosition.getZoom() );
 			response.putDouble( "bearing", mapPosition.getBearing() );
 			response.putDouble( "tilt", mapPosition.getTilt() );
 			response.putDouble( "roll", mapPosition.getRoll() );

@@ -32,7 +32,7 @@ export type GeometryStyle = {
 	fillColor?: `#${string}`;
 	fillAlpha?: Double;
 	buffer?: Double;
-	scalingZoomLevel?: Int32;
+	scalingZoomLevel?: Double;
 	cap?: 'SQUARE' | 'ROUND' | 'BUTT';
 	fixed?: boolean;
 	strokeIncrease?: Double;
@@ -83,7 +83,7 @@ interface UpdateCoordinatesParams {
 		fillColor?: string;
 		fillAlpha?: Double;
 		buffer?: Double;
-		scalingZoomLevel?: Int32;
+		scalingZoomLevel?: Double;
 		cap?: string;
 		fixed?: boolean;
 		strokeIncrease?: Double;
