@@ -291,7 +291,10 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 	}
 
 	// 4. Bump generation so children's useLayerOrder repositioning fires
-	registry.generation++;
+	// REMOVED: registry.generation++ — bumping generation from a Redux-triggered
+	// partial re-render causes unrelated layers (in other scopes) to reposition
+	// using a cursor set by this scope's children, destroying the layer order.
+	// MapContainer already bumps generation on full render passes.
 
 	// ════════════════════════════════════════════════════════════════
 	// PHASE 2: useLayoutEffect
