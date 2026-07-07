@@ -6,12 +6,168 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+This release is a complete rewrite of the library against the **React Native New Architecture**
+(Fabric + TurboModules). Every component, hook, and native module has been rebuilt from the
+ground up. The new design replaces the old bridge-based `NativeModules` + `NativeEventEmitter`
+pattern with codegen-generated Fabric components and TurboModules, context-driven layer ordering
+instead of `cloneElement` prop injection, and a serialized UI-thread mutation queue that
+eliminates the threading races of the old architecture.
+
+Performance is dramatically improved: shared-layer batching collapses hundreds of paths or
+markers into a single GPU draw call, marker creation uses batch bridge calls (N markers in
+one round-trip), and the new native shared-value bridge delivers map position updates at a true
+60 fps with zero JavaScript bridge crossings. The API surface has been streamlined — imperative
+map control lives in the `useMap()` hook, map events arrive as direct Fabric props, and a new
+`react-native-mapsforge-vtm/reanimated` subpackage provides worklet-based overlay positioning.
+
 ### Added
-- Re-add `CanvasAdapterModule` — a TurboModule with `setTextScale`/`setLineScale`/`setSymbolScale`
-  to control global vtm rendering scale, dropped during the New Architecture rewrite. Keeps its
-  pre-rewrite name (including the "Module" suffix), unlike other modules in this repo, since it's
-  the only one exported directly to consumers rather than backing a component. Same behavior as
-  before: call before mounting the `MapContainer`/`LayerMapsforge` whose theme you want scaled.
+
+- **React Native New Architecture** — full Fabric + TurboModules support. The library now requires
+  React Native 0.76+ with the New Architecture enabled.
+- **`LayerPathJts`** — dedicated-layer JTS path component. One native layer per JS component for
+  guaranteed render order, with `addGreatCircle()` for great-circle arcs, built-in
+  Douglas-Peucker generalization via `Style.generalization`, JTS `LineString` input, and
+  per-layer gesture hit-testing (`onPress`, `onLongPress`, `onDoubleTap`).
+- **`LayerShape`** — geometric shape overlays. Draw JTS polygons (with holes), circles (center +
+  radius in km), rectangles, hexagons, and points with full `GeometryStyleJts` styling (fill,
+  stroke, transparency, stipple) and gesture callbacks.
+- **`SharedLayer`** — explicit shared-layer grouping component. Collapses multiple `LayerPath` or
+  `Marker` children into one native draw call for maximum performance at scale.
+- **`ReindexScope`** — sentinel-based render-order placeholders. Ensures async children (lazy-loaded
+  markers, data-driven paths) insert at the correct position in the layer stack, preserving the
+  invariant that native layer rendering strictly follows React component tree order.
+- **`useMap()` hook** — unified imperative map control. Provides `animateTo()`, `getPosition()`,
+  `fitBounds()`, `triggerEvent()` (per-layer), and `getDebugLayerDump()` for introspection.
+  Replaces the old `MapContainer` ref methods.
+- **`useMapPosition()`** from `react-native-mapsforge-vtm/reanimated` — 60 fps shared-value map
+  position tracking. Returns reanimated `SharedValue`s for center, zoom, bearing, and tilt that
+  update on every render-thread frame. Worklet consumers read with zero bridge crossings.
+- **`useMapOverlay()`** from `react-native-mapsforge-vtm/reanimated` — worklet-based Mercator
+  projection. Converts lat/lng coordinates to screen positions on the UI thread for smooth
+  overlay animations. Includes `toScreenPosition()` and `fromScreenPosition()` utilities.
+- **Native shared-value bridge** — bypasses the JavaScript bridge entirely. vtm's render thread
+  writes position data directly into C++ `Synchronizable` primitives via `MapPositionWriter`;
+  a worklet poller reads them each frame and updates standard `SharedValue` objects. Zero
+  bridge crossings at every stage.
+- **`MapHandleContext` + `useLayerOrder()`** — context-driven layer ordering. Each layer component
+  registers its position via a stable render-order cursor, debouncing a single native
+  `reorderLayers` call when the resolved order changes. Replaces the old `cloneElement` /
+  static `isMapLayer` tree walk.
+- **`useNativeLayerLifecycle()`** — unified create/remove lifecycle. Tracks a `null → false → uuid`
+  state machine for every layer component, with centralized `reportNativeError()` and teardown
+  race protection via `mountedRef`.
+- **Extension points** — `MapHandleContext`, `createLayerOrderRegistry`, `useLayerOrder`,
+  `useNativeLayerLifecycle`, and their types are exported as a stable public API for building
+  third-party layer-type libraries (e.g. `react-native-mapsforge-vtm-ext-grib`).
+- **`ext-plan` skill** — interactive scaffolding for extension libraries. Walks through
+  architectural decisions (JS-only, TurboModule, or vtm-shadowing patterns) and generates a
+  plan file plus scaffolded repo.
+- **`CanvasAdapterModule`** — global scale control. Set `lineScale`, `textScale`, and `symbolScale`
+  for all mapsforge layers across all `MapContainer` instances (must be called before the first
+  map initializes).
+- **Batch marker creation** — `createMarkers()` sends N markers in a single bridge call via
+  `MarkerBatchQueue`, dramatically reducing latency for large marker sets.
+- **`MapMutationQueue`** — serialized UI-thread layer mutation queue. All `layers().add/remove`
+  and the batch-level `updateMap()` flow through a single `flush()` call on the Main Looper,
+  eliminating the threading races of the old ad-hoc approach.
+- **`ElevationReader` / `getAltitudeAtPosition()`** — thin, non-blocking elevation API. Multithreaded
+  HGT file loading with interpolation support (3 arc-second DEMs). Replaces the old `HgtReader`
+  with its callback-heavy view props.
+- **`getDebugLayerDump()`** — layer introspection. Returns a structured snapshot of every native
+  layer's fragment UUIDs, position indices, and type for debugging render-order issues.
+- **`useLayerDebugInfo()` / `LayerDebugTree`** — debug visualization components for inspecting
+  the live layer tree in development.
+- **Flex layout support** — `MapContainer` now accepts `flex: 1` and falls back to measured view
+  dimensions when no explicit `width`/`height` is set.
+- **Bearing and tilt** — included in map position data, overlay projection, and map events.
+- **`RenderThemeMenuLoader`** — parses `<stylemenu>` from render-theme XML for
+  `useRenderStyleOptions()`.
+- **Trailing-edge flush** — map position events fire at the render thread's native frame rate
+  (~60 fps) with a trailing-edge guarantee (the latest position is always delivered).
+- **Comprehensive documentation** — rewritten README, new `docs/advanced/extending.md`,
+  `docs/advanced/performance.md` and inline code comments.
+- **`FixedWindowRateLimiter`** — throttles native map-event emission to avoid flooding the
+  Fabric event channel.
+
+### Changed
+
+- **Breaking:** Complete rewrite against React Native New Architecture. The library requires
+  React Native 0.76+ with `newArchEnabled=true`. The old bridge-based architecture is no
+  longer supported.
+- **Breaking:** Layer ordering uses context-based `MapHandleContext` + `useLayerOrder` instead
+  of `cloneElement` prop injection. The `reactTreeIndex` prop is gone — ordering follows
+  React component tree position automatically.
+- **Breaking:** Map events delivered as direct Fabric event props on `MapContainer`
+  (`onMapUpdate`, `onTap`, `onLongPress`, `onPause`, `onResume`) instead of a global
+  `NativeEventEmitter`. Each `MapContainer` receives only its own events.
+- **Breaking:** `useMapEvents()` hook removed. Use the `onMapUpdate` prop on `MapContainer`
+  for callback-based consumption, or `useMapPosition()` from the reanimated subpackage for
+  shared-value consumption.
+- **Breaking:** `useMapLayersCreated()` hook removed. Extension authors should use
+  `useNativeLayerLifecycle()` instead.
+- **Breaking:** `usePromiseQueueState()`, `promiseQueue`, `usePrevious()`, and `useRefState()`
+  removed — these were internal implementation details never intended as public API.
+- **Breaking:** `onMapEvent` prop renamed to `onMapUpdate`.
+- **Breaking:** `mapUpdateInterval` prop removed. Events now fire at the render thread's
+  native frame rate (~60 fps) with trailing-edge flush.
+- **Breaking:** `responseInclude` prop removed. The event shape is now fixed and simplified.
+- **Breaking:** `emitsMapEvents` prop removed — map events always emit.
+- **Breaking:** `emitsHardwareKeyUp` / `onHardwareKeyUp` props removed. Hardware key handling
+  is no longer built into the map view.
+- **Breaking:** `nativeMapModules` export removed. TurboModule specs are internal; the public
+  API is the React components, hooks, and types exported from the main entry point.
+- **Breaking:** HGT/altitude API redesigned. The old `HgtReader` with its `hgtFileInfoPurgeThreshold`
+  and `hgtInterpolation` view props is replaced by the thin `ElevationReader` + imperative
+  `getAltitudeAtPosition()` method on `useMap()`.
+- **Breaking:** `setToBounds()` moved to `useMap().fitBounds()`.
+- **Breaking:** `triggerEvent()` moved to per-layer dispatch via `useMap()`.
+- **Breaking:** Zoom level types changed from `Int32` to `Double`/`Float` throughout the
+  native layer, enabling fractional zoom support.
+- **Breaking:** `LayerPath` `simplificationTolerance` prop replaced by external `simplify`
+  library usage (apply simplification to your coordinate arrays before passing them in).
+- `LayerPath` now uses a shared `VectorLayer` architecture — many JS `LayerPath` components
+  (or paths inside a `SharedLayer`) collapse into one native layer, with per-drawable
+  priority for ordering. At the JS level the API is identical.
+- `LayerMarker` / `Marker` now use a shared `ItemizedLayer` with sorted insertion by
+  position index. The JS API is unchanged.
+- Path rendering uses `PathLayer` (custom vtm layer subclass) with per-drawable priority
+  for correct ordering within the shared layer.
+- Threading model: all layer mutations (add, remove, reorder) are serialized through
+  `MapMutationQueue.flush()` on the UI thread. `scheduleUpdate()` coalesces per-entry
+  `updateMap()` calls via `AtomicBoolean` CAS + `Handler.post`.
+- Example app completely rewritten with 10+ focused examples (basic, mapsforge, hillshading,
+  mbtiles-bitmap, scalebar, trigger, many-layers, multi-map, reanimated-overlay,
+  layer-order-verification) and a new picker-based navigation UI.
+- Build tooling: uses `bob build` for codegen + TypeScript compilation. ESLint flat config
+  (`eslint.config.mjs`). Prettier for formatting.
+- Remaining dependencies updated where compatible (see TODO.md item 1 for details).
+
+### Removed
+
+- **`LayerPathSlopeGradient`** — the slope-gradient path rendering component.
+- **GPX-file loading** — the bundled `DummyContent.java` GPX parser and example `.gpx`
+  assets. GPX parsing is an application concern; pass parsed coordinates to `LayerPath`
+  or `LayerPathJts` directly.
+- **`useMapEvents()` hook** — replaced by the `onMapUpdate` Fabric event prop and
+  `useMapPosition()` shared values.
+- **`useMapLayersCreated()` hook** — replaced by `useNativeLayerLifecycle()`.
+- **`usePromiseQueueState()` / `promiseQueue`** — internal implementation detail, no
+  longer exposed.
+- **`usePrevious()` / `useRefState()`** — internal utility hooks, no longer exposed.
+- **`nativeMapModules` export** — the old barrel export for `NativeModules` references.
+  TurboModule specs are codegen-internal.
+- **`constants.ts` / `utils.ts`** — unused after the rewrite.
+- **`HardwareKeyListener`** — volume-key event handling removed from the map view.
+- **`MapsforgeVtmPackage`** (old bridge package) — replaced by `MapsforgeVtmViewPackage`
+  (Fabric).
+- **`HandleGroupLayerZoomBounds` / `HandleLayerZoomBounds`** — replaced by
+  `LayerZoomBoundsHelper`.
+- **`Coordinate.java` / `Gradient.java`** — legacy helper classes from the old bridge
+  architecture.
+- **`mapUpdateInterval` prop** — events always fire at the render thread's native rate.
+- **`responseInclude` prop** — event shape is now fixed.
+- **`emitsMapEvents` / `emitsHardwareKeyUp` / `onHardwareKeyUp` props** — removed.
+- **`setToBounds()` ref method** — use `useMap().fitBounds()` instead.
 
 ## [0.7.0] - 2025-04-05
 This release contains love for elevation data <3
