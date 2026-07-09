@@ -25,7 +25,6 @@ const LayerPath = ({
 	responseInclude: responseIncludeParams,
 	gestureScreenDistance,
 	style,
-	simplificationTolerance,
 
 	onCreate,
 	onRemove,
@@ -79,9 +78,6 @@ const LayerPath = ({
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance && { gestureScreenDistance }),
-				...(simplificationTolerance != null && {
-					simplificationTolerance,
-				}),
 			}).then((response: LayerPathResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
 				triggerOnChange && onChange ? onChange(response) : null;
@@ -124,9 +120,6 @@ const LayerPath = ({
 				coordinates,
 				...(style && { style }),
 				...(responseInclude && { responseInclude }),
-				...(simplificationTolerance != null && {
-					simplificationTolerance,
-				}),
 			})
 				.then((response: LayerPathResponse) => {
 					onChange ? onChange(response) : null;
@@ -139,7 +132,6 @@ const LayerPath = ({
 		uuid,
 		nativeNodeHandle,
 		coordinates,
-		simplificationTolerance,
 		style,
 		responseInclude,
 		onChange,
@@ -175,7 +167,7 @@ const LayerPath = ({
 			if (triggerEvent) {
 				triggerEvent.current = (params: PathTriggerParams) => {
 					LayerPathModule.triggerEvent({
-						...(nativeNodeHandle && { nativeNodeHandle }),
+						...(nativeNodeHandle != null && { nativeNodeHandle }),
 						uuid,
 						...params,
 					});

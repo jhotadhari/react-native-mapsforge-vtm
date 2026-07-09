@@ -182,7 +182,6 @@ public class PathLayerManagerTest {
     private void configureDefaultParamBehavior(ReadableMap params) {
         when(params.hasKey("positionIndex")).thenReturn(false);
         when(params.hasKey("supportsGestures")).thenReturn(false);
-        when(params.hasKey("simplificationTolerance")).thenReturn(false);
         when(params.hasKey("gestureScreenDistance")).thenReturn(false);
         when(params.hasKey("style")).thenReturn(false);
         when(params.hasKey("responseInclude")).thenReturn(false);
@@ -279,47 +278,6 @@ public class PathLayerManagerTest {
     }
 
     @Test
-    public void createEntry_withSimplification() throws Exception {
-        PathLayerManager mgr = createManagerWithFakeLayer();
-        ContentResolver cr = mock(ContentResolver.class);
-        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
-        MapFragment mf = mock(MapFragment.class);
-
-        // Many points that are almost collinear -- simplification will thin them.
-        double[][] coords = {
-            {13.4, 52.5}, {13.401, 52.501}, {13.402, 52.502},
-            {13.403, 52.503}, {13.404, 52.504}, {13.5, 52.6}
-        };
-        ReadableMap params = mockCoordParams(coords);
-        configureDefaultParamBehavior(params);
-        // Enable simplification.
-        when(params.hasKey("simplificationTolerance")).thenReturn(true);
-        when(params.isNull("simplificationTolerance")).thenReturn(false);
-        when(params.getDouble("simplificationTolerance")).thenReturn(0.1);
-
-        String entryUuid = "path-simplified";
-        mgr.create(entryUuid, params, mf, cr, rctx);
-
-        PathLayerManager.PathEntry entry = mgr.getEntries().get(entryUuid);
-        assertNotNull("Entry must exist after create", entry);
-        // With tolerance=0.1, the intermediate near-collinear points should
-        // be simplified away, giving fewer than 6 coordinates.
-        assertTrue("Simplification must reduce coordinate count",
-                entry.jtsCoordinates.length < 6);
-        // But we still have at least 2 coords (start and end).
-        assertTrue("Simplification must keep at least 2 coordinates",
-                entry.jtsCoordinates.length >= 2);
-    }
-
-    @Test
-    public void createEntry_withStyleParams() throws Exception {
-        PathLayerManager mgr = createManagerWithFakeLayer();
-        ContentResolver cr = mock(ContentResolver.class);
-        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
-        MapFragment mf = mock(MapFragment.class);
-
-        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
-        ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
         // Build a style map mock instead of a WritableNativeMap.

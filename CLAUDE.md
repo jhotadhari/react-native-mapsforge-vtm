@@ -100,7 +100,7 @@ The library provides two path components backed by different vtm-jts implementat
 | Render ordering | Known bug (TODO.md #0) — shared-layer uuids not in `knownLayers` | Correct — per-component uuid IS the layer uuid |
 | Performance at scale | Excellent (1 GPU draw call for all paths) | Worse (1 native layer per path) |
 | Great-circle arcs | Not supported | `addGreatCircle` method |
-| Douglas-Peucker generalization | External `simplify` library | Built-in via `Style.generalization` |
+| Douglas-Peucker generalization | Not supported | Built-in via `Style.generalization` |
 | JTS `LineString` input | Not supported | `setLineString(double[])` |
 | Gesture hit-testing | Shared `VectorLayer` with per-drawable uuid resolution | Per-layer `contains()` + `onGesture()` |
 | Best for | 50–1000+ paths, route networks, trajectory data | 1–30 paths, great circles, guaranteed z-order |

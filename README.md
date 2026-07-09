@@ -156,8 +156,6 @@ This library is a React Native wrapper around [mapsforge/vtm](https://github.com
   MVT/vector tile decoding
 - [Mapbox Vector Tile — Java](https://github.com/wdtinc/mapbox-vector-tile-java) —
   MVT tile parsing
-- [simplify-java](https://github.com/hgoebl/simplify-java) — Douglas-Peucker polyline
-  simplification for path layers
 
 ### Dev dependencies
 

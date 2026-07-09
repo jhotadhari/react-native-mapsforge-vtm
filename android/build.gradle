@@ -101,9 +101,6 @@ dependencies {
   implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
-  // simplify-java - Simplification of a 2D-polyline or a 3D-polyline
-  implementation 'com.goebl:simplify:1.0.0'
-
   // vtm https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
   implementation 'com.github.mapsforge.vtm:vtm:0.28.0'
   implementation 'com.github.mapsforge.vtm:vtm-themes:0.28.0'

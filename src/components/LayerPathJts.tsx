@@ -33,7 +33,7 @@ const moduleDefaults = LayerPathJtsModule.getConstants();
  * - Fewer than ~30 paths with full JTS styling
  * - Guaranteed z-order correctness
  * - Great-circle arcs ({@code addGreatCircle})
- * - Built-in generalization (no external simplify library)
+ * - Built-in Douglas-Peucker generalization via {@code Style.generalization}
  *
  * Prefer {@code LayerPath} for bulk paths (50–1000+) where the shared-layer
  * architecture's performance advantage matters.

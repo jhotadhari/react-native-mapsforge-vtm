@@ -18,8 +18,6 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
-import com.goebl.simplify.PointExtractor;
-import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerPathSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.PathLayerManager;
@@ -88,7 +86,6 @@ public class LayerPath extends NativeLayerPathSpec {
 		responseInclude.putInt( "coordinates", 0 );
 		responseInclude.putInt( "bounds", 0 );
 		constants.put( "gestureScreenDistance", 20d );
-		constants.put( "simplificationTolerance", 0d );
 		constants.put( "responseInclude", responseInclude );
 		return constants;
 	}
@@ -163,7 +160,7 @@ public class LayerPath extends NativeLayerPathSpec {
 		return styleBuilder;
 	}
 
-	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray coordinates, float simplificationTolerance ) {
+	protected static Coordinate[] readableArrayToJtsCoordinates( ReadableArray coordinates ) {
 		Coordinate[] jtsCoordinates = new Coordinate[coordinates.size()];
 		for ( int i = 0; i < coordinates.size(); i++ ) {
 			ReadableType readableType = coordinates.getType( i );
@@ -176,22 +173,6 @@ public class LayerPath extends NativeLayerPathSpec {
 					null != alt ? alt : 0
 				);
 			}
-		}
-		if ( simplificationTolerance > 0 ) {
-			// Simplify<T>'s no-extractor constructor blindly casts each element to
-			// com.goebl.simplify.Point, which org.locationtech.jts.geom.Coordinate doesn't
-			// implement -- supply an explicit PointExtractor instead of relying on that cast.
-			Simplify<Coordinate> simplify = new Simplify<Coordinate>( new Coordinate[0], new PointExtractor<Coordinate>() {
-				@Override
-				public double getX( Coordinate point ) {
-					return point.x;
-				}
-				@Override
-				public double getY( Coordinate point ) {
-					return point.y;
-				}
-			} );
-			jtsCoordinates = simplify.simplify( jtsCoordinates, simplificationTolerance, true );
 		}
 		return jtsCoordinates;
 	}

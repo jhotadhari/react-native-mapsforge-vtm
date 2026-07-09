@@ -12,8 +12,6 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.goebl.simplify.PointExtractor;
-import com.goebl.simplify.Simplify;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -149,9 +147,6 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			throw new IllegalArgumentException("Unable to parse coordinates");
 		}
 
-		double simplificationTolerance = Utils.rMapHasKey(params, "simplificationTolerance")
-			? params.getDouble("simplificationTolerance")
-			: 0d;
 
 		boolean supportsGestures = Utils.rMapHasKey(params, "supportsGestures")
 			&& params.getBoolean("supportsGestures");
@@ -169,10 +164,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			: "__vtm_shared_path__0";
 
 		// Parse coordinates.
-		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(
-			coordinates,
-			(float) simplificationTolerance
-		);
+		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(coordinates);
 		if (jtsCoordinates == null || jtsCoordinates.length == 0) {
 			throw new IllegalArgumentException("Unable to parse coordinates");
 		}
@@ -239,9 +231,6 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getArray("coordinates")
 			: null;
 
-		double simplificationTolerance = Utils.rMapHasKey(params, "simplificationTolerance")
-			? params.getDouble("simplificationTolerance")
-			: 0d;
 
 		ReadableMap styleMap = Utils.rMapHasKey(params, "style")
 			? params.getMap("style")
@@ -257,8 +246,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		// Parse new coordinates (if provided).
 		if (coordinates != null && coordinates.size() > 0) {
 			Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(
-				coordinates,
-				(float) simplificationTolerance
+				coordinates
 			);
 			if (jtsCoordinates != null && jtsCoordinates.length > 0) {
 				entry.jtsCoordinates = jtsCoordinates;
@@ -494,11 +482,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	/**
 	 * Mirrors {@code LayerPath.readableArrayToJtsCoordinates}.
 	 */
-	@NonNull
-	private static Coordinate[] readableArrayToJtsCoordinates(
-		@NonNull ReadableArray coordinates,
-		float simplificationTolerance
-	) {
+		@NonNull
+		private static Coordinate[] readableArrayToJtsCoordinates(
+			@NonNull ReadableArray coordinates) {
 		Coordinate[] jtsCoordinates = new Coordinate[coordinates.size()];
 		for (int i = 0; i < coordinates.size(); i++) {
 			ReadableType readableType = coordinates.getType(i);
@@ -511,22 +497,6 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 					alt != null ? alt : 0
 				);
 			}
-		}
-		if (simplificationTolerance > 0) {
-			Simplify<Coordinate> simplify = new Simplify<>(
-				new Coordinate[0],
-				new PointExtractor<Coordinate>() {
-					@Override
-					public double getX(Coordinate point) { return point.x; }
-					@Override
-					public double getY(Coordinate point) { return point.y; }
-				}
-			);
-			jtsCoordinates = simplify.simplify(
-				jtsCoordinates,
-				simplificationTolerance,
-				true
-			);
 		}
 		return jtsCoordinates;
 	}

@@ -65,7 +65,6 @@ export interface ModuleParams {
 		bounds?: Int32;
 	};
 	gestureScreenDistance?: Double;
-	simplificationTolerance?: Double;
 }
 
 interface CreateLayerParams extends ModuleParams {
@@ -79,7 +78,6 @@ interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>;
-	simplificationTolerance?: Double;
 	style?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
@@ -158,7 +156,6 @@ export type LayerPathJtsProps = {
 	coordinates?: GeoJsonPosition[];
 	responseInclude?: PathJtsResponseInclude;
 	gestureScreenDistance?: number;
-	simplificationTolerance?: number;
 	style?: GeometryStyleJts;
 	onRemove?: null | ((response: ResponseBase) => void);
 	onCreate?: null | ((response: LayerPathJtsResponse) => void);

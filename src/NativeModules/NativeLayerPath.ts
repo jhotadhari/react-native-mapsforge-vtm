@@ -59,7 +59,6 @@ export interface ModuleParams {
 	};
 	// supportsGestures?: boolean;
 	gestureScreenDistance?: Double;
-	simplificationTolerance?: Double;
 }
 
 interface CreateLayerParams extends ModuleParams {
@@ -75,7 +74,6 @@ interface UpdateCoordinatesParams {
 	positionIndex?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
-	simplificationTolerance?: Double;
 	style?: {
 		// GeometryStyle
 		strokeWidth?: Double;
@@ -174,7 +172,6 @@ export type LayerPathProps = {
 	coordinates?: GeoJsonPosition[]; // e.g. a geojson LineString's `coordinates`
 	responseInclude?: PathResponseInclude;
 	gestureScreenDistance?: number;
-	simplificationTolerance?: number;
 	style?: GeometryStyle;
 	onRemove?: null | ((response: ResponseBase) => void);
 	onCreate?: null | ((response: LayerPathResponse) => void);

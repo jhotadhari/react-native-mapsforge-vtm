@@ -4,6 +4,7 @@ import {
 	LayerBitmapTile,
 	LayerPath,
 	MapContainer,
+	SharedLayer,
 	type Bbox,
 	type LayerPathResponse,
 	type Position,
@@ -34,27 +35,12 @@ const strokeColors: `#${string}`[] = [
 	'#ffffff',
 ];
 
-const simplificationTolerances: number[] = [
-	0,
-	0.001,
-	0.01,
-];
-
 const Controls: FC<{
 	mapWidth: number;
 	strokeColor: string;
-	simplificationTolerance: number;
 	firstLineBbox: Bbox | undefined;
 	onCycleColor: () => void;
-	onCycleSimplification: () => void;
-}> = ({
-	mapWidth,
-	strokeColor,
-	simplificationTolerance,
-	firstLineBbox,
-	onCycleColor,
-	onCycleSimplification,
-}) => {
+}> = ({ mapWidth, strokeColor, firstLineBbox, onCycleColor }) => {
 	return (
 		<ControlPanel width={mapWidth}>
 			<ControlSection title={'Coastline style (475 LayerPath features)'}>
@@ -62,12 +48,6 @@ const Controls: FC<{
 					<Button
 						title={`Cycle stroke color (${strokeColor})`}
 						onPress={onCycleColor}
-					/>
-				</ControlRow>
-				<ControlRow>
-					<Button
-						title={`Cycle simplification (${simplificationTolerance})`}
-						onPress={onCycleSimplification}
 					/>
 				</ControlRow>
 			</ControlSection>
@@ -93,16 +73,11 @@ const ExampleComponent: FC<{
 	const { handleMapUpdate, info } = useMapInfo();
 
 	const [colorIndex, setColorIndex] = useState(0);
-	const [simplificationIndex, setSimplificationIndex] = useState(0);
 	const [firstLineBbox, setFirstLineBbox] = useState<Bbox | undefined>(
 		undefined
 	);
 
 	const strokeColor = strokeColors[colorIndex % strokeColors.length]!;
-	const simplificationTolerance =
-		simplificationTolerances[
-			simplificationIndex % simplificationTolerances.length
-		]!;
 
 	const style = useMemo(() => ({ strokeColor }), [strokeColor]);
 
@@ -121,12 +96,8 @@ const ExampleComponent: FC<{
 			<Controls
 				mapWidth={width}
 				strokeColor={strokeColor}
-				simplificationTolerance={simplificationTolerance}
 				firstLineBbox={firstLineBbox}
 				onCycleColor={() => setColorIndex((i) => i + 1)}
-				onCycleSimplification={() =>
-					setSimplificationIndex((i) => i + 1)
-				}
 			/>
 
 			<View
@@ -147,29 +118,25 @@ const ExampleComponent: FC<{
 				>
 					<LayerBitmapTile />
 
-					{coastlineCoordinates.map((coordinates, idx) =>
-						idx === 0 ? (
-							<LayerPath
-								key={idx}
-								coordinates={coordinates}
-								style={style}
-								simplificationTolerance={
-									simplificationTolerance
-								}
-								onCreate={handleFirstLineResponse}
-								onChange={handleFirstLineResponse}
-							/>
-						) : (
-							<LayerPath
-								key={idx}
-								coordinates={coordinates}
-								style={style}
-								simplificationTolerance={
-									simplificationTolerance
-								}
-							/>
-						)
-					)}
+					<SharedLayer>
+						{coastlineCoordinates.map((coordinates, idx) =>
+							idx === 0 ? (
+								<LayerPath
+									key={idx}
+									coordinates={coordinates}
+									style={style}
+									onCreate={handleFirstLineResponse}
+									onChange={handleFirstLineResponse}
+								/>
+							) : (
+								<LayerPath
+									key={idx}
+									coordinates={coordinates}
+									style={style}
+								/>
+							)
+						)}
+					</SharedLayer>
 				</MapContainer>
 
 				<Center
