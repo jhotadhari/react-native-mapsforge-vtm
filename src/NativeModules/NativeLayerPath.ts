@@ -47,7 +47,7 @@ export type GeometryStyle = {
 	transparent?: boolean;
 };
 
-interface ModuleParams {
+export interface ModuleParams {
 	style?: {
 		strokeWidth?: Double;
 		strokeColor?: string;

@@ -193,4 +193,6 @@ const LayerPathJts = ({
 	return null;
 };
 
+LayerPathJts.defaults = moduleDefaults;
+
 export default LayerPathJts;

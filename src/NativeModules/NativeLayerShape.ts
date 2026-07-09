@@ -91,7 +91,7 @@ export type ShapeDefinition =
 
 // ── Module params ──────────────────────────────────────────────────────
 
-interface ModuleParams {
+export interface ModuleParams {
 	style?: {
 		strokeWidth?: Double;
 		strokeColor?: string;

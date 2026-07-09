@@ -55,7 +55,7 @@ export type GeometryStyleJts = {
 	generalization?: Int32;
 };
 
-interface ModuleParams {
+export interface ModuleParams {
 	style?: {
 		strokeWidth?: Double;
 		strokeColor?: string;

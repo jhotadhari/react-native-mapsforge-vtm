@@ -202,6 +202,6 @@ const LayerPath = ({
 	return null;
 };
 
-/// ??? add defaults
+LayerPath.defaults = moduleDefaults;
 
 export default LayerPath;

@@ -18,6 +18,8 @@ import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 
+const moduleDefaults = LayerShapeModule.getConstants();
+
 /**
  * Draws geometric shapes on the map using vtm-jts drawables.
  *
@@ -251,5 +253,7 @@ const LayerShape = ({
 
 	return null;
 };
+
+LayerShape.defaults = moduleDefaults;
 
 export default LayerShape;
