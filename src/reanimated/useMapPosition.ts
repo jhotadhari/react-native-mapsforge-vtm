@@ -207,6 +207,16 @@ export function useMapPosition(): MapPositionSharedValues {
 				viewportWidthSv.value = e.viewportWidth;
 			if (e.viewportHeight != null)
 				viewportHeightSv.value = e.viewportHeight;
+
+			// Dev guard: warn if vtm's Tile.SIZE changed.
+			if (__DEV__ && e.tileSize != null && e.tileSize !== 576) {
+				console.warn(
+					'[mapsforge-vtm] vtm Tile.SIZE is ' +
+						e.tileSize +
+						' (expected 576).  Update TILE_SIZE in ' +
+						'mercatorUtils.ts or overlays will be offset.'
+				);
+			}
 		},
 		[
 			centerSv,

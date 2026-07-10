@@ -1,19 +1,34 @@
 import type { SharedValue } from 'react-native-reanimated';
+import { PixelRatio } from 'react-native';
 
 /**
  * Web Mercator projection helpers for reanimated worklets.
  *
- * Geographic (lat/lng) ↔ normalised Mercator [0..1] ↔ screen pixels (dp).
- * Screen-pixel projection requires the current map zoom level because the
- * world-to-screen scale factor is 256·2^zoom.
+ * Geographic (lat/lng) → normalised Mercator [0..1] → screen dp.
+ *
+ * vtm renders at native device-pixel resolution.  The formula converts
+ * geographic offsets to dp using the actual runtime tile size and density:
+ *
+ *   dx_dp = dMx × TILE_SIZE × 2^zoom ÷ DENSITY
+ *
+ * Both constants are read once at module init time so worklets capture
+ * them as simple number values.
  */
+
+// vtm 0.28.0 Tile.SIZE is 512 at init but themes (loaded during
+// MapFragment creation) override it to 576.  MapContainer.getConstants()
+// runs BEFORE themes load, so we hardcode the post-theme value verified
+// against vtm's own viewport.toScreenPoint() output on device.
+// The onMapUpdate Fabric event also emits tileSize for debugging.
+const TILE_SIZE = 576;
+
+const DENSITY = PixelRatio.get();
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
 
 /**
  * Clamps a latitude to the Web Mercator valid range [-85.051129°, +85.051129°].
- * Values outside this range map to infinity in Mercator Y and produce NaN.
  */
 function clampLat(lat: number): number {
 	'worklet';
@@ -25,10 +40,6 @@ function clampLat(lat: number): number {
 
 /**
  * Converts a lat/lng geographic point to normalised Mercator coordinates.
- *
- * Normalised range: mx ∈ [0, 1], my ∈ [0, 1].
- * mx=0 is the antimeridian (-180°), mx=1 wraps back to the antimeridian.
- * my=0 is the north pole (~85.05°), my=1 is the south pole (~-85.05°).
  */
 function latLngToMercator(
 	lat: number,
@@ -58,8 +69,7 @@ function mercatorToLatLng(
 }
 
 /**
- * Wraps a longitude difference in Mercator-x space to [-0.5, +0.5] so the
- * shortest-path antimeridian crossing is always used.
+ * Wraps a longitude difference to [-0.5, +0.5] for antimeridian crossing.
  */
 function wrapMxDelta(dMx: number): number {
 	'worklet';
@@ -75,39 +85,8 @@ function wrapMxDelta(dMx: number): number {
 /**
  * Converts a lat/lng geographic point to screen pixel coordinates (dp).
  *
- * Reads shared values directly — callable from any worklet or the JS thread.
- * Returns `null` when the map centre is not yet known, the viewport has zero
- * dimensions, or the zoom level is not yet available.
- *
- * Bearing and tilt are fully accounted for.  When the map is north-up and
- * untilted this produces the same result as the v1 implementation.
- *
- * @param centerSv - Shared value holding `[lng, lat]` of the map centre, or
- *   `null` if no position has been received yet.
- * @param viewportWidthSv - Shared value holding the map viewport width in dp.
- * @param viewportHeightSv - Shared value holding the map viewport height in dp.
- * @param zoomSv - Shared value holding the current zoom level.
- * @param bearingSv - Shared value holding the current map bearing in degrees
- *   (0 = north-up, clockwise).
- * @param tiltSv - Shared value holding the current map tilt in degrees
- *   (0 = top-down, increasing = tilted toward horizon).
- * @param geoPoint - The geographic coordinate to project.
- * @returns `{ x, y }` in dp (the unit used for React Native `left`/`top`
- *   styles), or `null` if the projection cannot be computed.
- *
- * @example
- * ```ts
- * // Inside a useAnimatedStyle worklet:
- * const screenPos = toScreenPosition(
- *   centerSv, viewportWidthSv, viewportHeightSv, zoomSv,
- *   bearingSv, tiltSv,
- *   { lat: 51.5074, lng: -0.1278 }
- * );
- * if (screenPos) {
- *   style.left = screenPos.x;
- *   style.top = screenPos.y;
- * }
- * ```
+ * Uses the standard Web Mercator tile scheme (256 px tiles).
+ * Bearing and tilt are fully accounted for.
  */
 export function toScreenPosition(
 	centerSv: SharedValue<[number, number] | null>,
@@ -132,34 +111,30 @@ export function toScreenPosition(
 	const centerMerc = latLngToMercator(center[1], center[0]);
 	const pointMerc = latLngToMercator(geoPoint.lat, geoPoint.lng);
 
-	// dMx, dMy are in normalised Mercator units [0..1].
-	// Scale to world pixels at current zoom: 256 · 2^zoom.
 	const dMx = wrapMxDelta(pointMerc.mx - centerMerc.mx);
 	const dMy = pointMerc.my - centerMerc.my;
 
-	const worldPx = 256 * Math.pow(2, zoom);
+	// vtm renders at native device-pixel resolution.  Convert from
+	// device pixels to dp so the offset matches React Native layout.
+	// Verified against vtm's own toScreenPoint() output on device.
+	const worldPx = TILE_SIZE * Math.pow(2, zoom);
+	const scaleDp = DENSITY > 0 ? worldPx / DENSITY : worldPx;
 
-	// World-pixel offset from map centre (dx = east, dy = south).
-	const dx = dMx * worldPx;
-	const dy = dMy * worldPx;
+	const dx = dMx * scaleDp;
+	const dy = dMy * scaleDp;
 
-	// Rotate by +bearing — when the map rotates clockwise under a fixed
-	// viewport, geographic points trace counter-clockwise paths on screen.
+	// Rotate by +bearing.
 	const bearingRad = bearingSv.value * DEG_TO_RAD;
 	const cosB = Math.cos(bearingRad);
 	const sinB = Math.sin(bearingRad);
-	const rx = cosB * dx - sinB * dy; // screen-x before tilt
-	const ry = sinB * dx + cosB * dy; // screen-y before tilt
+	const rx = cosB * dx - sinB * dy;
+	const ry = sinB * dx + cosB * dy;
 
-	// Tilt foreshortening: orthographic projection of the rotated map plane.
-	// The tilt axis is the horizontal screen axis, so only y is scaled.
-	// cos(tilt) is exact for vtm's orthographic map rendering.
+	// Tilt foreshortening.
 	const tiltRad = tiltSv.value * DEG_TO_RAD;
 	const cosT = Math.cos(tiltRad);
 	const ty = ry * cosT;
 
-	// Translate to screen centre.  Mercator y and screen y increase in the
-	// same direction (southward / downward), so no sign flip is needed.
 	return {
 		x: Math.round(vpW / 2 + rx),
 		y: Math.round(vpH / 2 + ty),
@@ -169,19 +144,7 @@ export function toScreenPosition(
 /**
  * Converts screen pixel coordinates (dp) back to a lat/lng geographic point.
  *
- * The inverse of {@link toScreenPosition}.  Bearing and tilt are fully
- * accounted for.  Reads shared values directly — callable from any worklet
- * or the JS thread.
- *
- * @param centerSv - Shared value holding `[lng, lat]` of the map centre.
- * @param viewportWidthSv - Shared value holding the map viewport width in dp.
- * @param viewportHeightSv - Shared value holding the map viewport height in dp.
- * @param zoomSv - Shared value holding the current zoom level.
- * @param bearingSv - Shared value holding the current map bearing in degrees.
- * @param tiltSv - Shared value holding the current map tilt in degrees.
- * @param screenPoint - The screen coordinates in dp (same unit as React Native
- *   `left`/`top` styles).
- * @returns `{ lat, lng }`, or `null` if the projection cannot be computed.
+ * The inverse of {@link toScreenPosition}.
  */
 export function fromScreenPosition(
 	centerSv: SharedValue<[number, number] | null>,
@@ -203,28 +166,27 @@ export function fromScreenPosition(
 	const vpH = viewportHeightSv.value;
 	if (vpW <= 0 || vpH <= 0) return null;
 
-	// Screen offset from viewport centre.
 	const sx = screenPoint.x - vpW / 2;
 	const sy = screenPoint.y - vpH / 2;
 
-	// Undo tilt: reverse the orthographic y-foreshortening.
 	const tiltRad = tiltSv.value * DEG_TO_RAD;
 	const cosT = Math.cos(tiltRad);
-	const ry = cosT > 0.001 ? sy / cosT : sy; // guard div-by-zero at ~90° tilt
+	const ry = cosT > 0.001 ? sy / cosT : sy;
 
-	// Undo rotation: rotate screen offset by -bearing.
 	const bearingRad = bearingSv.value * DEG_TO_RAD;
 	const cosB = Math.cos(bearingRad);
 	const sinB = Math.sin(bearingRad);
 	const dx = cosB * sx + sinB * ry;
 	const dy = -sinB * sx + cosB * ry;
 
-	const worldPx = 256 * Math.pow(2, zoom);
+	const worldPxInverse = TILE_SIZE * Math.pow(2, zoom);
+	const scaleDpInverse =
+		DENSITY > 0 ? worldPxInverse / DENSITY : worldPxInverse;
 
 	const centerMerc = latLngToMercator(center[1], center[0]);
 
-	const dMx = dx / worldPx;
-	const dMy = dy / worldPx;
+	const dMx = dx / scaleDpInverse;
+	const dMy = dy / scaleDpInverse;
 
 	const pointMx = centerMerc.mx + dMx;
 	const pointMy = centerMerc.my + dMy;

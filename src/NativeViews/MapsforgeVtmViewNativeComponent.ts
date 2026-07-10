@@ -21,6 +21,7 @@ export interface MapEventResponse {
 	center?: Double[]; // type Position - named aliases aren't resolved for event payloads by codegen.
 	viewportWidth?: Double;
 	viewportHeight?: Double;
+	tileSize?: Double;
 }
 
 interface ErrorWithErrorMsg {

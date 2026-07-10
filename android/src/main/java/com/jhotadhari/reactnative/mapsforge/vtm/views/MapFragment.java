@@ -208,6 +208,8 @@ public class MapFragment extends Fragment {
 		if ( null != parent && null != mapView && null != mapView.map() ) {
 			payload.putDouble( "viewportWidth", parent.getWidthInDp() );
 			payload.putDouble( "viewportHeight", parent.getHeightInDp() );
+			// Emit live Tile.SIZE (post-theme) for overlay projection.
+			payload.putDouble( "tileSize", (double) org.oscim.core.Tile.SIZE );
 		}
 
 		return payload;

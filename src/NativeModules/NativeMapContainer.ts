@@ -32,6 +32,8 @@ export interface ModuleParams {
 	maxRoll: Double;
 	emitsMapUpdateEvents: null | boolean;
 	emitsHardwareKeyUp: ReadonlyArray<string>;
+	tileSize?: Double;
+	density?: Double;
 }
 
 export interface ReorderLayersParams {

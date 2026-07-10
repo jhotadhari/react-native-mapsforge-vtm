@@ -100,7 +100,10 @@ public class MapContainer extends NativeMapContainerSpec {
 		constants.put( "minRoll", -180 );
 		constants.put( "maxRoll", 180 );
 
-		constants.put( "emitsMapUpdateEvents", null );
+		constants.put( "tileSize", (double) org.oscim.core.Tile.SIZE );
+			constants.put( "density", (double) getReactApplicationContext()
+				.getResources().getDisplayMetrics().density );
+			constants.put( "emitsMapUpdateEvents", null );
 		WritableArray emitsHardwareKeyUp = new WritableNativeArray();
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_UP" );
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_DOWN" );
