@@ -34,19 +34,27 @@ yarn                  # install deps for root + example workspaces
 yarn typecheck        # tsc (no emit, just checks)
 yarn lint             # eslint over **/*.{js,ts,tsx} (flat config, eslint.config.mjs)
 yarn format           # prettier . --write
-yarn test             # jest — note: the only test file is src/__tests__/index.test.tsx and it's a stub (it.todo)
+yarn test             # jest — the only test file is src/__tests__/index.test.tsx and it's a stub (it.todo); don't trust it to catch regressions
 yarn clean            # del-cli android/build example/android/build example/android/app/build lib
 yarn prepare          # bob build — builds lib/ (codegen + module + typescript) from src/, runs on install via "prepare"
 
 yarn example start    # Metro for the example app
 yarn example android  # build & run the example app on a connected device/emulator
 
-yarn release <version>  # scripts/publish.sh — bumps version, validates CHANGELOG.md, tags, publishes to npm; requires `gh` CLI
+yarn release <version>  # release-kit — bumps version, validates CHANGELOG.md, tags, publishes to npm; requires `gh` CLI
 ```
 
 `lefthook.yml` runs `eslint` and `tsc` on staged `*.{js,ts,jsx,tsx}` files as a pre-commit hook.
 CI (`.github/workflows/ci.yml`) drives the Android build through `yarn turbo run build:android`
-(`turbo.json`'s `build:android` task), caching on `yarn.lock`'s hash.
+(`turbo.json`'s `build:android` task), caching on `yarn.lock`'s hash. **CI only triggers on `v**` tags** —
+PRs and branch pushes do not get CI; test locally before pushing.
+
+Prettier config (`.prettierrc`): **tabs** (not spaces), 80 char print width, plugins
+`prettier-plugin-embed` and `prettier-plugin-multiline-arrays`. The `multilineArraysWrapThreshold: 2`
+means arrays with 2+ elements get one-element-per-line formatting.
+
+Dependencies already dropped (don't re-add): `simplify` (commit `39c8833`) and `savitzky-golay`
+(commit `f5ade2e`). The TODO.md still lists them as "check for newer versions" — they're gone, not stale.
 
 To work on native Android code, open `example/android` in Android Studio — library Java sources show up
 under the `react-native-mapsforge-vtm` module (this repo is symlinked in via `example/`'s yarn workspace).
@@ -88,6 +96,59 @@ mechanisms preserve it: (1) `<ReindexScope>` sentinel placeholders (pushed durin
 consumed when children mount), and (2) the optional `order` prop for explicit priority. Without
 either, new layers append at the stale cursor. See TODO.md item 0 for the remaining shared-layer
 `knownLayers` sub-issue.
+
+### Central lifecycle hook: `useNativeLayerLifecycle`
+
+Every layer component (all 8 layer types + `Marker`) uses `useNativeLayerLifecycle`
+(`src/compose/useNativeLayerLifecycle.ts`). It owns the `null → false → uuid` state machine, creates
+on mount (or whenever re-enabled via the `enabled` gate), removes on unmount, and centralizes native
+error reporting through `reportNativeError`. A `mountedRef` guards against a teardown race: if the
+component unmounts while `createLayer()` is in-flight (`uuid === false`), the hook detects the
+post-unmount resolution and cleans up the just-created native resource. Callers supply
+`create`/`remove` callbacks and an `enabled` boolean — the hook handles the rest.
+
+### Shared-layer architecture: `SharedLayer` + fragments
+
+`<SharedLayer>` (`src/components/SharedLayer.tsx`) collapses many same-type JS layer components into
+one native `Layer` (a **fragment**). Without it, 1000 `<LayerPath>` components would create 1000
+native `Layer` objects + 1000 GPU draw calls; with `<SharedLayer>`, they share ~1–10 native layers.
+
+Fragment boundaries occur at:
+- **Type-run boundaries** — consecutive same-type layers share a fragment; a different type starts a new one
+- **Scope boundaries** — layers in different `<ReindexScope>` wrappers never share a fragment
+
+Fragment UUIDs follow the pattern `__vtm_shared_<type>__<index>` (e.g. `__vtm_shared_path__1`).
+
+`<ReindexScope>` (`src/components/ReindexScope.tsx`) serves two purposes:
+1. **Async children**: pushes a **sentinel** placeholder into the ordering registry during render so
+   children that mount later (async data) land at their correct tree position, not at the stale cursor
+2. **Cross-scope ordering**: the `order` prop (e.g. `order={100}`) provides explicit priority across
+   sibling scopes regardless of mount timing
+
+For full details, see `docs/advanced/layer-ordering.md`.
+
+### Marker batch creation
+
+`MarkerBatchQueue` (`src/compose/MarkerBatchQueue.ts`) collapses N individual `createMarker`/
+`removeMarker` bridge calls into 1 `createMarkers` + 1 `removeMarkers` batch call. The queue is
+per-`nativeNodeHandle`, flushed on the microtask boundary (`Promise.resolve().then()`) with a
+16ms safety max-wait `setTimeout`. JS is single-threaded so no locking is needed. Call
+`drainQueue(nativeNodeHandle)` on map destruction to reject all pending operations.
+
+### Extension points for external layer-type libraries
+
+The public API (`src/index.tsx`) exports stable hooks and contexts for building custom layer types
+outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
+
+| Export | Purpose |
+|---|---|
+| `MapHandleContext` | React context holding `nativeNodeHandle` + `LayerOrderRegistry` |
+| `createLayerOrderRegistry()` | Factory for the ordering registry (if you need a separate one) |
+| `useLayerOrder` | Register a component in the layer ordering registry |
+| `useNativeLayerLifecycle` | `null → false → uuid` state machine for native resource lifecycle |
+
+See `docs/advanced/extending.md` and the `/ext-plan` skill for guidance on the three extension
+patterns: JS-only, TurboModule, and vtm-shadowing.
 
 ### Path layers: `LayerPath` vs `LayerPathJts`
 
@@ -195,6 +256,25 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 - `LayerHelper.getLayer()` / `getLayers()` — reads from `MapMutationQueue.getKnownLayers()` (ConcurrentHashMap, safe from any thread)
 - `LayerZoomBoundsHelper.removeUpdateListener()` — calls `mapView.map().events.unbind()` (event listener management, not layer mutation)
 - Marker/Path entry creation — operates on already-registered shared `Layer` objects (adds drawables/markers to `VectorLayer`/`ItemizedLayer`), not on `map.layers()`
+
+### Reanimated sub-package (`react-native-mapsforge-vtm/reanimated`)
+
+The library has a secondary entry point (defined in `package.json`'s `exports`) that provides
+reanimated-based map utilities. Import from `react-native-mapsforge-vtm/reanimated`, not from the
+main package:
+
+| Export | Purpose |
+|---|---|
+| `useMapPosition()` | Creates reanimated shared values for map center, zoom, bearing, tilt. Returns `handleMapUpdate` callback to wire into `onMapUpdate`. With `activateNativeBridge(handle)` called, reads go direct from the render thread to C++ Synchronizable primitives — zero bridge crossings. |
+| `useMapOverlay()` | Worklet-based overlay positioning — converts lat/lng to screen coordinates on the UI thread |
+| `toScreenPosition()` / `fromScreenPosition()` | Mercator ↔ screen coordinate conversion functions callable from worklets |
+
+`useMapPosition()` is optional (gated by `peerDependenciesMeta` on `react-native-reanimated`). The
+native bridge activation flow: call `useMapPosition()`, pass the returned callback as
+`MapContainer.onMapUpdate`, then call `activateNativeBridge(handle)` with the map's
+`nativeNodeHandle`. The render thread then writes position data directly into C++ `Synchronizable`
+primitives via `MapPositionWriter.nativeSetPosition()` — no JS bridge involved. See
+`docs/advanced/performance.md` for the full setup.
 
 ### Map position consumption patterns
 
