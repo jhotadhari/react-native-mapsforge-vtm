@@ -71,7 +71,7 @@ how much native surface (NDK/vtm JNI) this touches.
 no direct usage in this repo), `com.google.protobuf:protobuf-java` `3.24.4` → `3.25.8` (stayed within
 the 3.x line deliberately — the 4.x major bump changes generated-code APIs and `vtm-mvt`/
 `vtm-android-mvt`'s own bundled MVT-parsing classes aren't verified against a 4.x runtime, so that's
-deferred, not done). `com.goebl:simplify`, `io.vacco.savitzky-golay`, `com.caverock:androidsvg`,
+deferred, not done). `com.caverock:androidsvg`,
 `org.locationtech.jts:jts-core`, `com.squareup.okhttp3:okhttp`, and `io.github.ci-cmg:mapbox-vector-tile`
 were all already at latest stable — left unchanged.
 
@@ -82,8 +82,6 @@ bump).
 Also check for newer versions of:
 
 ```
-com.goebl:simplify:1.0.0
-io.vacco.savitzky-golay:savitzky-golay:1.0.1
 androidx.documentfile:documentfile:1.0.1
 com.caverock:androidsvg:1.4
 org.locationtech.jts:jts-core:1.20.0
