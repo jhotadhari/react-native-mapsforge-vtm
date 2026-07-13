@@ -356,6 +356,50 @@ format changes from 4 shorts (x, y, dx, dy) to 5 shorts (x, y, dx, dy, value).
 Core library hooks needed: `drawSegments()` (`protected`) and `createPathLayerManager()`
 factory method — see the Java extensibility hooks table above.
 
+### Resolving DEX class conflicts
+
+Shadowed vtm classes cause a DEX merge failure at the app level because both the
+extension's modified `.class` files and the original vtm JAR's versions have the
+same fully-qualified name. The library provides a reusable Gradle script that
+strips the original class files from the vtm JAR before DEX merging.
+
+**In the extension's `android/build.gradle`**, declare which classes you shadow:
+
+```groovy
+ext.shadowedClasses = [
+    'org.oscim.renderer.bucket.LineBucket',
+    'org.oscim.renderer.bucket.RenderBuckets',
+]
+```
+
+**In the app's `android/app/build.gradle`**, apply the stripping script once:
+
+```groovy
+apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android/strip-vtm-classes.gradle"
+```
+
+The script collects `ext.shadowedClasses` from every extension in the dependency
+graph, walks the Gradle cache for the `vtm-0.28.0.jar`, and removes the matching
+`.class` entries (including inner classes like `LineBucket$Renderer`) using
+`zip -d`. A `.orig` backup is created so the operation is reversible (delete the
+backup and run `./gradlew clean --refresh-dependencies` to restore).
+
+**Multiple extensions:** Two extensions can shadow different classes without
+conflict. If two shadow the same class, pass a `prefer` map to resolve:
+
+```groovy
+apply from: "...", to: [
+    prefer: ['org.oscim.renderer.bucket.LineBucket': 'ext-b-6shorts'],
+]
+```
+
+The winning extension's class survives; the other extension's class is stripped
+from its own output. Without a `prefer` entry, the build fails with a clear
+message listing the conflict.
+
+**App with no extensions:** The `apply from:` line is optional — the script is a
+no-op when no `ext.shadowedClasses` are found.
+
 ## TurboModule spec pattern
 
 Every extension that creates native layers needs a TurboModule spec. Follow this
@@ -579,8 +623,13 @@ registerExtension({
 
 ### 7. vtm class shadowing utilities
 
-A script that diffs a shadowed class against the original vtm source and produces
-a patch file. This would make it easier to:
+**Implemented:** `android/strip-vtm-classes.gradle` handles DEX deduplication
+automatically. Declare shadowed classes via `ext.shadowedClasses` in the
+extension's `build.gradle`; apply the script once in the app's `build.gradle`.
+See "Resolving DEX class conflicts" in Pattern C above.
+
+Still open as future work: a script that diffs a shadowed class against the
+original vtm source and produces a patch file. This would make it easier to:
 - Review what changed vs upstream vtm
 - Rebase patches when upgrading vtm versions
 - Audit LGPL compliance (exactly what was modified)

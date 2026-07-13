@@ -153,6 +153,24 @@ ext-<name>/
 │           └── modules/LayerXxx.java
 ```
 
+**Extension `android/build.gradle` must declare shadowed classes:**
+
+```groovy
+ext.shadowedClasses = [
+    'org.oscim.renderer.bucket.LineBucket',
+    'org.oscim.renderer.bucket.RenderBuckets',
+]
+```
+
+**App's `android/app/build.gradle` must apply the stripping script:**
+
+```groovy
+apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android/strip-vtm-classes.gradle"
+```
+
+Without this, the shadowed classes and the original vtm JAR classes collide at DEX
+merge time with "Type X is defined multiple times" errors.
+
 Core library hooks needed: depends on which LayerManager is extended. The core library currently exposes createPathLayerManager() (in LayerPath) and drawSegments() / getStyleBuilder() (in PathLayerManager), all protected, for PathLayerManager extensions.
 
 ## After planning
@@ -556,7 +574,17 @@ Autolinking didn't find the codegen JNI. Verify:
 2. `react-native.config.js` has `cmakeListsPath: 'CMakeLists.txt'` (Phase E2)
 3. `rm -rf example/android/build/generated/autolinking` then rebuild (Phase E3)
 
-### Duplicate class errors at build time
+### "Type X is defined multiple times" (DEX merge failure)
+
+The extension shadows vtm classes but the app doesn't apply the stripping script. Two fixes needed:
+
+1. Extension's `android/build.gradle` must declare `ext.shadowedClasses` (see Pattern C above).
+2. App's `android/app/build.gradle` must apply the stripping script:
+   ```groovy
+   apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android/strip-vtm-classes.gradle"
+   ```
+
+### Duplicate class errors at build time (non-shadowed)
 
 `android/build.gradle` uses `implementation project(':react-native-mapsforge-vtm')` instead of `compileOnly`. Fix per Phase F.
 

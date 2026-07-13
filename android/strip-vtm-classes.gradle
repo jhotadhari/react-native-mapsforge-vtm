@@ -1,0 +1,199 @@
+/**
+ * strip-vtm-classes.gradle
+ *
+ * Reusable Gradle script that removes shadowed vtm classes from the vtm JAR
+ * before DEX merging, so that extensions can safely place modified copies of
+ * vtm classes in the org.oscim.* package without causing "Type X is defined
+ * multiple times" errors.
+ *
+ * ---------------------------------------------------------------------------
+ * USAGE (in the app's android/app/build.gradle):
+ *
+ *   apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android/strip-vtm-classes.gradle",
+ *       to: [
+ *           prefer: [                                                  // optional
+ *               'org/oscim/renderer/bucket/LineBucket': 'ext-name',
+ *           ],
+ *       ]
+ *
+ * ---------------------------------------------------------------------------
+ * HOW EXTENSIONS DECLARE SHADOWED CLASSES:
+ *
+ * In the extension's android/build.gradle, add:
+ *
+ *   ext.shadowedClasses = [
+ *       'org/oscim/renderer/bucket/LineBucket',
+ *       'org/oscim/renderer/bucket/RenderBuckets',
+ *   ]
+ */
+
+// ── Parameters ─────────────────────────────────────────────────────────────
+
+def appProject = project
+def preferMap = (getProperties().get('to') instanceof Map)
+    ? getProperties().get('to').get('prefer') ?: [:]
+    : [:]
+
+// ── Defer to after ALL projects have been configured ──────────────────────
+
+appProject.gradle.projectsEvaluated {
+
+    logger.lifecycle('[strip-vtm] Scanning {} projects for shadowedClasses...',
+        rootProject.allprojects.size())
+
+    def allShadowed = [:]
+    rootProject.allprojects.each { proj ->
+        if (proj.ext.has('shadowedClasses')) {
+            def classes = proj.ext.shadowedClasses
+            logger.lifecycle("[strip-vtm]   '{}' shadows: {}", proj.path, classes)
+            classes.each { className ->
+                if (allShadowed.containsKey(className)) {
+                    def existing = allShadowed[className]
+                    def preferred = preferMap[className]
+                    if (preferred == proj.name) {
+                        logger.lifecycle("[strip-vtm] '{}' wins '{}' (prefer map)", proj.name, className)
+                        allShadowed[className] = [_project: proj.name]
+                    } else if (preferred != existing._project) {
+                        def msg = "[strip-vtm] CONFLICT: '${className}' is " +
+                            "shadowed by both '${existing._project}' and " +
+                            "'${proj.name}'. Add to the `prefer` map:\n" +
+                            "  prefer: ['${className}': '<project-name>']"
+                        throw new GradleException(msg)
+                    }
+                } else {
+                    allShadowed[className] = [_project: proj.name]
+                }
+            }
+        }
+    }
+
+    if (allShadowed.isEmpty()) {
+        logger.lifecycle('[strip-vtm] No shadowed vtm classes declared — no-op')
+        return
+    }
+
+    logger.lifecycle('[strip-vtm] Shadowed classes to strip: {}', allShadowed.keySet())
+
+    // ── Build entry patterns ──────────────────────────────────────────────
+
+    def exactEntries = []
+    def dollarPrefixes = []
+    allShadowed.each { className, info ->
+        def basePath = className.replace('.', '/')
+        exactEntries.add(basePath + '.class')
+        dollarPrefixes.add(basePath + '\$')
+    }
+
+    // ── Resolve vtm JARs ─────────────────────────────────────────────────
+    // Walk the Gradle dependency cache instead of resolving AGP variant-aware
+    // configurations (which fail from standalone tasks).
+
+    def vtmJarPaths = [] as Set
+    def cacheBase = new File(appProject.gradle.gradleUserHomeDir,
+        'caches/modules-2/files-2.1/com.github.mapsforge.vtm/vtm/0.28.0')
+    if (cacheBase.exists()) {
+        cacheBase.eachFileRecurse { f ->
+            if (f.name == 'vtm-0.28.0.jar') vtmJarPaths.add(f.absolutePath)
+        }
+    }
+    // Also scan transform caches (v4 = AGP 8.x)
+    [4, 3].each { ver ->
+        def td = new File(appProject.gradle.gradleUserHomeDir, "caches/transforms-${ver}")
+        if (td.exists()) {
+            td.eachFileRecurse { f ->
+                if (f.name == 'vtm-0.28.0.jar') vtmJarPaths.add(f.absolutePath)
+            }
+        }
+    }
+    logger.lifecycle('[strip-vtm] vtm JAR paths: {}', vtmJarPaths)
+
+    // ── Create the stripping task ─────────────────────────────────────────
+
+    def stripTask = appProject.tasks.register('stripShadowedVtmClasses') {
+        description = 'Strip shadowed vtm class files from vtm JARs before DEX merge'
+        group = 'vtm'
+
+        inputs.property('exactEntries', exactEntries)
+        inputs.property('dollarPrefixes', dollarPrefixes)
+        inputs.property('jarPaths', vtmJarPaths as List)
+
+        doLast {
+            def jars = (inputs.properties['jarPaths'] as List).collect {
+                new File(it as String)
+            }.findAll { it.exists() }
+
+            if (jars.isEmpty()) {
+                logger.lifecycle('[strip-vtm] No vtm JARs found — skipping')
+                return
+            }
+
+            logger.lifecycle('[strip-vtm] Inspecting {} vtm JAR(s)', jars.size())
+
+            jars.each { jar ->
+                def entriesToRemove = []
+
+                try {
+                    new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                        zf.entries().each { entry ->
+                            def name = entry.name
+                            if (exactEntries.contains(name)) {
+                                entriesToRemove.add(name)
+                            } else {
+                                for (int i = 0; i < dollarPrefixes.size(); i++) {
+                                    if (name.startsWith(dollarPrefixes[i]) &&
+                                        name.endsWith('.class')) {
+                                        entriesToRemove.add(name)
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn('[strip-vtm] Cannot read {}: {}', jar.name, e.message)
+                    return
+                }
+
+                if (entriesToRemove.isEmpty()) {
+                    logger.lifecycle('[strip-vtm] {} — no shadowed classes', jar.name)
+                    return
+                }
+
+                def backupFile = new File(jar.parentFile, jar.name + '.orig')
+                if (backupFile.exists()) {
+                    logger.lifecycle('[strip-vtm] {} — already patched, skipping', jar.name)
+                    return
+                }
+
+                logger.lifecycle('[strip-vtm] Patching {} — removing:', jar.name)
+                entriesToRemove.each { logger.lifecycle('[strip-vtm]   - {}', it) }
+
+                java.nio.file.Files.copy(
+                    jar.toPath(), backupFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+
+                def zipCmd = ['zip', '-d', jar.absolutePath] + entriesToRemove
+                def pb = new ProcessBuilder(zipCmd as List)
+                pb.inheritIO()
+                def proc = pb.start()
+                def exitCode = proc.waitFor()
+                if (exitCode != 0) {
+                    logger.warn('[strip-vtm] zip -d returned {} for {}',
+                        exitCode, jar.name)
+                } else {
+                    logger.lifecycle('[strip-vtm] Successfully patched {}', jar.name)
+                }
+            }
+        }
+    }
+
+    // ── Wire into the build lifecycle ─────────────────────────────────────
+    // Run before any compilation to ensure vtm JARs are patched before
+    // AGP dexes them.  preBuild is the earliest lifecycle task.
+
+    appProject.tasks.named('preBuild') { preBuild ->
+        preBuild.dependsOn stripTask
+    }
+
+    logger.lifecycle('[strip-vtm] Registered stripShadowedVtmClasses — will run before preBuild')
+}
