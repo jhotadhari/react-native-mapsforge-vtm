@@ -38,6 +38,13 @@ export type LayerOrderRegistry = {
 	// layer symbol → ReindexScope's stable scope symbol.
 	// Populated by useLayerOrder when inside a ReindexContext provider.
 	layerReindexScopes: Map<symbol, symbol>;
+	// Per-scope most-recently-inserted symbol.  When a new layer inside a
+	// ReindexScope needs a sibling anchor during partial re-renders (where
+	// the global cursor is stale), this map provides it in O(1) instead of
+	// scanning registry.order backwards.  Updated by useLayerOrder
+	// alongside layerReindexScopes.
+	// reindexScopeId → last symbol tagged with that scope.
+	lastSymbolPerScope: Map<symbol, symbol>;
 	// Sentinel symbols pushed into `order` by ReindexScope wrappers whose
 	// children haven't mounted yet. These mark where the scope's block will
 	// go when children eventually mount. flush() skips them.
@@ -90,6 +97,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const fragmentUuids = new Map<symbol, string>();
 	const layerTypes = new Map<symbol, string>();
 	const layerReindexScopes = new Map<symbol, symbol>();
+	const lastSymbolPerScope = new Map<symbol, symbol>();
 	const sentinels = new Set<symbol>();
 	const sentinelScopes = new Map<symbol, symbol>();
 	const scopePriorities = new Map<symbol, number>();
@@ -204,6 +212,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		fragmentUuids,
 		layerTypes,
 		layerReindexScopes,
+		lastSymbolPerScope,
 		sentinels,
 		sentinelScopes,
 		scopePriorities,
@@ -261,6 +270,7 @@ const noopRegistry: LayerOrderRegistry = {
 	fragmentUuids: new Map(),
 	layerTypes: new Map(),
 	layerReindexScopes: new Map(),
+	lastSymbolPerScope: new Map(),
 	sentinels: new Set(),
 	sentinelScopes: new Map(),
 	scopePriorities: new Map(),

@@ -18,19 +18,28 @@ the cursor chain produces the correct order automatically.
 
 When layers mount **asynchronously** (data loaded via React Query, storage
 restore, network), the cursor from the initial render pass is stale
-(MapContainer is typically memoized and doesn't re-render). Two mechanisms
+(MapContainer is typically memoized and doesn't re-render). Three mechanisms
 preserve the invariant:
 
 1. **Sentinels** — `<ReindexScope>` wrappers push placeholder symbols into
    the registry's order array during the initial render (even with `null`
    children). When children later mount, they insert at the sentinel's
    position — their correct tree position.
-2. **`order` prop** — An explicit numeric priority on `<ReindexScope>`
+
+2. **Scope-aware insertion** — When a layer component inside a
+   `<ReindexScope>` mounts during a partial re-render (e.g. a key transition
+   triggered by async data arriving), `useLayerOrder` ignores the stale
+   global cursor and instead finds the insertion point from the scope's
+   most-recently-inserted sibling (tracked in `lastSymbolPerScope`) or the
+   scope's sentinel. This prevents the new layer from landing at a random
+   cursor position outside its scope block.
+
+3. **`order` prop** — An explicit numeric priority on `<ReindexScope>`
    (`order={100}` always before `order={200}`) that determines position
    regardless of when the scope or its children mount.
 
-Without either mechanism, layers mount at the cursor position (end of order)
-which is only correct during MapContainer's initial render pass.
+Without any of these mechanisms, layers mount at the cursor position (end of
+order) which is only correct during MapContainer's initial render pass.
 
 ## How it works
 
@@ -45,6 +54,30 @@ calls `useLayerOrder` during render. This hook:
 3. Passes the position index to the native `createLayer` call
 4. If already registered, checks whether the position changed and (if so)
    triggers a debounced `reorderLayers` call
+
+When a layer is **new** (`isNew`) and sits inside a `<ReindexScope>`,
+`useLayerOrder` uses **scope-aware insertion** instead of the global cursor
+to determine where in `registry.order` to place the new symbol:
+
+1. **Existing siblings exist** — looks up the scope's most-recently-inserted
+   symbol from `lastSymbolPerScope` (O(1)) and inserts after it. During a
+   key transition (e.g. fallback → real component), this places the new
+   symbol right after the old one (still in order during render — cleanup
+   hasn't run yet), effectively replacing it in-place after commit.
+
+2. **First child** — scans backwards for the scope's sentinel placeholder
+   (pushed by `ReindexScope` Phase 1 during a prior full render) and inserts
+   after it. The sentinel was placed at the correct tree position when the
+   cursor chain was intact.
+
+3. **Fallback** — if neither is found (should be unreachable in normal
+   operation), warns and falls back to cursor-based insertion.
+
+This mechanism handles the common async-data pattern: a scope renders during
+the initial full pass (pushing a sentinel), then children mount later in
+partial re-renders triggered by data arriving. Without it, new layers would
+land at the stale global cursor — potentially outside their scope block,
+interleaving with layers from other scopes.
 
 ### The registry
 
@@ -61,6 +94,11 @@ calls `useLayerOrder` during render. This hook:
   distinguish a full coherent render from a solo re-render
 - **`cursor`** — current position in the order (reset on each render pass)
 - **`scopePriorities`** — maps ReindexScope symbol → `order` prop value
+- **`lastSymbolPerScope`** — per-scope pointer to the most-recently-inserted
+  symbol; used by scope-aware insertion in `useLayerOrder` for O(1) sibling
+  lookup during partial re-renders
+- **`layerReindexScopes`** — maps layer symbol → its containing
+  ReindexScope's scope symbol
 
 ### Native side: `MapMutationQueue.flush()`
 

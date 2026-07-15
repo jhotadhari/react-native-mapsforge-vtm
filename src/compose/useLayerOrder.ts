@@ -62,14 +62,75 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	registry.cursor = id;
 	const isNew = !registry.order.includes(id);
 	if (isNew) {
-		const previousIndex = previousId
-			? registry.order.indexOf(previousId)
-			: -1;
-		registry.order.splice(
-			previousIndex === -1 ? registry.order.length : previousIndex + 1,
-			0,
-			id
-		);
+		let insertAtIndex: number;
+
+		// When inside a ReindexScope, prefer scope-aware positioning over
+		// the global cursor.  During partial re-renders (e.g. async data
+		// loading triggered by a Redux selector), the ReindexScope wrapper
+		// may not re-render, leaving registry.cursor stale.  We find the
+		// correct insertion point from the scope's most-recently-inserted
+		// sibling (O(1) via lastSymbolPerScope) or the scope's sentinel.
+		if (reindexScopeId !== null) {
+			let scopeInsertAfterIdx = -1;
+
+			// 1. Look for existing scope-tagged siblings via the
+			//    per-scope insertion pointer.  This is updated by every
+			//    useLayerOrder call inside the scope (see tag-with-scope
+			//    block below), so it always points to the most-recently-
+			//    rendered sibling in this scope.
+			const lastInScope = registry.lastSymbolPerScope.get(reindexScopeId);
+			if (lastInScope !== undefined) {
+				const idx = registry.order.indexOf(lastInScope);
+				if (idx !== -1) {
+					scopeInsertAfterIdx = idx;
+				}
+			}
+
+			// 2. No sibling found (first child, or stale pointer) — look
+			//    for the scope's sentinel placeholder.
+			if (scopeInsertAfterIdx === -1) {
+				for (let i = registry.order.length - 1; i >= 0; i--) {
+					const sym = registry.order[i]!;
+					if (
+						registry.sentinels.has(sym) &&
+						registry.sentinelScopes.get(sym) === reindexScopeId
+					) {
+						scopeInsertAfterIdx = i;
+						break;
+					}
+				}
+			}
+
+			if (scopeInsertAfterIdx >= 0) {
+				insertAtIndex = scopeInsertAfterIdx + 1;
+			} else {
+				// Fallback: this path should be unreachable in normal
+				// operation — a ReindexScope always pushes a sentinel
+				// when it has no children.  If we reach it, something
+				// is wrong with sentinel lifecycle management.
+				console.warn(
+					'[useLayerOrder] No scope anchor found — falling back to cursor-based insertion. ' +
+						'This may indicate a sentinel lifecycle bug.'
+				);
+				const previousIndex = previousId
+					? registry.order.indexOf(previousId)
+					: -1;
+				insertAtIndex =
+					previousIndex === -1
+						? registry.order.length
+						: previousIndex + 1;
+			}
+		} else {
+			const previousIndex = previousId
+				? registry.order.indexOf(previousId)
+				: -1;
+			insertAtIndex =
+				previousIndex === -1
+					? registry.order.length
+					: previousIndex + 1;
+		}
+
+		registry.order.splice(insertAtIndex, 0, id);
 	} else if (generationChanged) {
 		// Full render pass: reposition already-registered layers to match the
 		// current document order. The cursor tells us which sibling rendered
@@ -161,6 +222,8 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 
 	// Tag with reindex scope so the containing ReindexScope can find this
 	// layer in registry.order during its Phase 1 / Phase 2 operations.
+	// Also advance the per-scope insertion pointer so sibling useLayerOrder
+	// calls can find this layer in O(1) instead of scanning registry.order.
 	// Runs every render, not just isNew, so the scope association stays
 	// current as long as this component is inside a ReindexScope.
 	if (reindexScopeId !== null) {
@@ -168,6 +231,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			prevReindexScopeRef.current = reindexScopeId;
 			registry.layerReindexScopes.set(id, reindexScopeId);
 		}
+		registry.lastSymbolPerScope.set(reindexScopeId, id);
 	} else {
 		prevReindexScopeRef.current = null;
 		registry.layerReindexScopes.delete(id);
@@ -191,6 +255,11 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.layerTypes.delete(id);
 			registry.fragmentUuids.delete(id);
 			registry.layerReindexScopes.delete(id);
+			// lastSymbolPerScope intentionally left as-is —
+			// stale entries are handled gracefully by the
+			// indexOf check in the insertion path, and the
+			// next sibling mount in this scope will overwrite
+			// the entry anyway.
 			registry.scheduleSync(nativeNodeHandleRef.current);
 			registry.notify();
 		};
