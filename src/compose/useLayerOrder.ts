@@ -47,6 +47,20 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const generationChanged = lastGenerationRef.current !== registry.generation;
 	lastGenerationRef.current = registry.generation;
 
+	// Track per-scope generation to detect when the enclosing ReindexScope
+	// re-rendered without MapContainer re-rendering (e.g. Redux-triggered
+	// partial re-render). Scoped so only layers inside the changed scope
+	// reposition, not layers in unrelated scopes.
+	const lastScopeGenerationRef = useRef<number>(0);
+	let scopeGenerationChanged = false;
+	if (reindexScopeId !== null) {
+		const currentScopeGen =
+			registry.scopeGenerations.get(reindexScopeId) ?? 0;
+		scopeGenerationChanged =
+			lastScopeGenerationRef.current !== currentScopeGen;
+		lastScopeGenerationRef.current = currentScopeGen;
+	}
+
 	// Register during render: React calls component render functions in a deterministic
 	// depth-first, document-order sequence regardless of nesting depth. MapContainer resets
 	// registry.cursor to undefined at the start of every one of its own renders, so within any
@@ -131,7 +145,7 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 		}
 
 		registry.order.splice(insertAtIndex, 0, id);
-	} else if (generationChanged) {
+	} else if (generationChanged || scopeGenerationChanged) {
 		// Full render pass: reposition already-registered layers to match the
 		// current document order. The cursor tells us which sibling rendered
 		// immediately before this one, so this layer should sit right after it.

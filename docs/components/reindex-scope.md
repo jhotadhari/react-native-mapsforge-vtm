@@ -189,6 +189,12 @@ type ReindexScopeProps = {
 - **`order` overrides JSX tree** — When `order` is set, the JSX position of the
   `<ReindexScope>` tag is irrelevant. `order={100}` always renders before
   `order={200}`. Combine with sentinel positioning for maximum correctness.
+- **`order` changes don't move existing children** — The `order` prop affects
+  sentinel placement only. Once children mount and the sentinel is removed,
+  changing the `order` value will NOT reposition the scope's block. If you need
+  dynamic cross-scope reordering at runtime, manage layer order within a single
+  scope, or unmount/remount the scope so the sentinel is re-placed at the new
+  priority position.
 - **Safe to nest** — Nested ReindexScopes each manage their own sub-range
   independently. Outer scopes shift entire blocks; inner scopes shift within
   their parent's block.
