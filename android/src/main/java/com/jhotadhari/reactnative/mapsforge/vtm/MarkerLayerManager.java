@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.content.ContentResolver;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -52,6 +53,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * can match by either.
  */
 public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEntry> {
+
+	private static final String TAG = "MarkerLayerManager";
 
 	public static final String NAME = "markers";
 	/** Position in map.layers(): above paths (0), below any future layers. */
@@ -255,6 +258,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(entry.fragmentUuid);
 		if (layer != null) {
 			layer.removeItem(entry.markerItem);
+		} else {
+			Log.w(TAG,
+				"ZOMBIE: getSharedLayer returned null for fragmentUuid="
+					+ entry.fragmentUuid + " entry=" + entry.entryUuid
+					+ " groupUuid=" + entry.groupUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet());
 		}
 		allMarkers.remove(entry.entryUuid);
 		MarkerGroup group = groups.get(entry.groupUuid);
@@ -594,6 +603,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 					if (layer != null) {
 						layer.removeItem(entry.markerItem);
 						affectedFragments.add(entry.fragmentUuid);
+					} else {
+						Log.w(TAG,
+							"ZOMBIE (batch): getSharedLayer returned null for fragmentUuid="
+								+ entry.fragmentUuid + " entry=" + markerUuid
+								+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet());
 					}
 				}
 			} catch (Exception e) {

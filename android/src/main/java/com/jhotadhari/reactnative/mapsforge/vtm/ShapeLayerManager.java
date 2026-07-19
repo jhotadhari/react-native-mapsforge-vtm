@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.content.ContentResolver;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -48,6 +49,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * carry the correct per-component uuid.
  */
 public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry> {
+
+	private static final String TAG = "ShapeLayerManager";
 
 	public static final String NAME = "shapes";
 	/** Position in map.layers(): same tier as markers, above paths. */
@@ -198,6 +201,10 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	protected void removeEntryFromLayer(@NonNull ShapeEntry entry) {
 		VectorLayer layer = (VectorLayer) getSharedLayer(entry.fragmentUuid);
 		if (layer == null) {
+			Log.w(TAG,
+				"ZOMBIE: getSharedLayer returned null for fragmentUuid="
+					+ entry.fragmentUuid + " entry=" + entry.shapeUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet());
 			return;
 		}
 		drawableToEntry.remove(entry.drawable);

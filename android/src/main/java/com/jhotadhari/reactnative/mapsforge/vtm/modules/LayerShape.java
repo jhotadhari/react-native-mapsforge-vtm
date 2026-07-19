@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -33,6 +35,7 @@ import java.util.UUID;
 public class LayerShape extends NativeLayerShapeSpec {
 
 	public static final String NAME = "LayerShape";
+	private static final String TAG = "LayerShape";
 
 	public LayerShape(ReactApplicationContext reactContext) {
 		super(reactContext);
@@ -125,9 +128,17 @@ public class LayerShape extends NativeLayerShapeSpec {
 			String uuid = params.getString("uuid");
 
 			ShapeLayerManager manager = ShapeLayerManager.getInstance(nativeNodeHandle);
-			if (manager != null) {
-				manager.remove(uuid);
+			if (manager == null) {
+				Log.w(TAG,
+					"ZOMBIE: getInstance returned null for nativeNodeHandle="
+						+ nativeNodeHandle + " uuid=" + uuid
+						+ " — manager was destroyed before removeLayer arrived");
+				Utils.promiseReject(promise,
+					"ShapeLayerManager not found for nativeNodeHandle=" + nativeNodeHandle
+						+ " (may have been destroyed before removeLayer arrived)");
+				return;
 			}
+			manager.remove(uuid);
 			promise.resolve(uuid);
 		} catch (Exception e) {
 			e.printStackTrace();

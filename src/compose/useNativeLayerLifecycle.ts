@@ -77,6 +77,15 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 			createRef
 				.current(flags)
 				.then((newUuid) => {
+					// Update uuidRef IMMEDIATELY so the unmount
+					// cleanup (which fires before React's re-render)
+					// can see the real uuid and call removeLayer.
+					// Without this, there is a race window where:
+					// 1. Promise resolves → sees mountedRef true
+					// 2. Component unmounts before React re-renders
+					// 3. Unmount cleanup sees uuidRef=false → skips
+					// 4. Native resource is orphaned (zombie).
+					uuidRef.current = newUuid;
 					if (!mountedRef.current) {
 						// Component unmounted while create was
 						// in-flight. The component's create() callback

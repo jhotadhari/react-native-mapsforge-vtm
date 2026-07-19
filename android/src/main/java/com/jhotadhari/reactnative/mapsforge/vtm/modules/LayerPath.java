@@ -2,6 +2,7 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -42,6 +43,7 @@ import java.util.UUID;
 public class LayerPath extends NativeLayerPathSpec {
 
 	public static final String NAME = "LayerPath";
+	private static final String TAG = "LayerPath";
 
 
 
@@ -378,9 +380,17 @@ public class LayerPath extends NativeLayerPathSpec {
 			String uuid = params.getString( "uuid" );
 
 			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
-			if ( manager != null ) {
-				manager.remove( uuid );
+			if ( manager == null ) {
+				Log.w(TAG,
+					"ZOMBIE: getInstance returned null for nativeNodeHandle="
+						+ nativeNodeHandle + " uuid=" + uuid
+						+ " — manager was destroyed before removeLayer arrived");
+				Utils.promiseReject( promise,
+					"PathLayerManager not found for nativeNodeHandle=" + nativeNodeHandle
+						+ " (may have been destroyed before removeLayer arrived)" );
+				return;
 			}
+			manager.remove( uuid );
 			promise.resolve( uuid );
 		} catch ( Exception e ) {
 			e.printStackTrace();

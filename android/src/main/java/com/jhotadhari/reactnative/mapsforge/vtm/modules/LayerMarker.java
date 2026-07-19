@@ -2,6 +2,7 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.content.ContentResolver;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,6 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LayerMarker extends NativeLayerMarkerSpec {
 
 	public static final String NAME = "LayerMarker";
+	private static final String TAG = "LayerMarker";
 
 
 
@@ -744,9 +746,17 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			String groupUuid = params.getString( "uuid" );
 
 			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
-			if ( manager != null ) {
-				manager.removeGroup( groupUuid );
+			if ( manager == null ) {
+				Log.w(TAG,
+					"ZOMBIE: getInstance returned null for nativeNodeHandle="
+						+ nativeNodeHandle + " groupUuid=" + groupUuid
+						+ " — manager was destroyed before removeLayer arrived");
+				Utils.promiseReject( promise,
+					"MarkerLayerManager not found for nativeNodeHandle=" + nativeNodeHandle
+						+ " (may have been destroyed before removeLayer arrived)" );
+				return;
 			}
+			manager.removeGroup( groupUuid );
 			promise.resolve( groupUuid );
 		} catch ( Exception e ) {
 			e.printStackTrace();
