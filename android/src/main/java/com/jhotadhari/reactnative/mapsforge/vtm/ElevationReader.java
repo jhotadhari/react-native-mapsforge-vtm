@@ -10,10 +10,15 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Reads SRTM HGT files to provide point-elevation queries.
@@ -47,6 +52,28 @@ public class ElevationReader {
         return t;
     });
 
+    /** Single-thread scheduled executor for delayed (debounced) preloads. */
+    private static final ScheduledExecutorService DELAYED_PRELOAD_EXECUTOR =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "ElevationReader-delayed-preload");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
+     * At most one delayed preload is pending at a time — each new tile
+     * cancels the previous one so only the tile the user lingers on is
+     * loaded.  Calls for the <em>same</em> tile leave the existing timer
+     * running so that continuous panning within a tile doesn't perpetually
+     * reset the countdown.
+     */
+    private ScheduledFuture<?> pendingDelayedPreload;
+    private String pendingDelayedPreloadFilename;
+    private final Object pendingDelayedPreloadLock = new Object();
+
+    /** Filenames currently being read by {@link #PRELOAD_EXECUTOR}. */
+    private final Set<String> inFlightPreloads = new HashSet<>();
+
     private final DemFolder demFolder;
 
     /** Filename (lowercase) → DemFile. Built once on construction, read-only thereafter. */
@@ -70,18 +97,47 @@ public class ElevationReader {
     }
 
     /**
+     * Returns {@code true} if an HGT file exists that covers the given
+     * coordinate, regardless of whether the tile data is currently cached.
+     * A {@code false} return means no amount of waiting will produce an
+     * elevation — callers can skip retry loops.
+     *
+     * <p>This method only checks the filename index (built once at
+     * construction time) — it does no I/O and is safe to call from any
+     * thread, including the render thread at frame rate.</p>
+     */
+    public boolean hasDataFor(double lng, double lat) {
+        String filename = tileFilename(lat, lng);
+        synchronized (fileIndex) {
+            return fileIndex.containsKey(filename);
+        }
+    }
+
+    /**
+     * Returns the elevation in metres at the given coordinate, or {@code null}.
+     * Equivalent to {@code getElevation(lng, lat, 0)} — on cache miss the
+     * preload starts immediately.
+     */
+    public Short getElevation(double lng, double lat) {
+        return getElevation(lng, lat, 0);
+    }
+
+    /**
      * Returns the elevation in metres at the given coordinate, or {@code null}
      * if no data covers that position, the position falls in a void (ocean)
      * area, or the tile is not yet cached.
      *
-     * <p>On cache miss this method starts a background load and returns
-     * {@code null} immediately — it <strong>never</strong> does file I/O on
-     * the calling thread. The next call (from the next map-update event,
-     * typically 40ms later) will hit the now-warm cache.
+     * <p>On cache miss a background load is started after {@code preloadDelayMs}
+     * milliseconds.  When {@code preloadDelayMs > 0} and this method is called
+     * again for the same tile before the delay expires, the timer resets — this
+     * lets callers on the render hot-path (e.g. {@code getResponseBase}) debounce
+     * preloads so that tiles the user quickly pans over are never loaded, while
+     * the explicit JS API ({@code getAltitudeAtPosition}) passes 0 for immediate
+     * loading.
      *
      * <p>This method is thread-safe.</p>
      */
-    public Short getElevation(double lng, double lat) {
+    public Short getElevation(double lng, double lat, int preloadDelayMs) {
         try {
             String filename = tileFilename(lat, lng);
             DemFile file;
@@ -97,8 +153,12 @@ public class ElevationReader {
                 data = dataCache.get(filename);
             }
             if (data == null) {
-                // Cache miss — start a background load so the next call hits.
-                preload(filename, file);
+                // Cache miss — start a (possibly delayed) background load.
+                if (preloadDelayMs > 0) {
+                    schedulePreload(filename, file, preloadDelayMs);
+                } else {
+                    preload(filename, file);
+                }
                 return null;
             }
 
@@ -126,15 +186,22 @@ public class ElevationReader {
      * {@code filename}, unless already cached or already loading.
      */
     private void preload(String filename, DemFile file) {
-        PRELOAD_EXECUTOR.execute(() -> {
-            // Double-check — a previous preload may have finished while
-            // this task was enqueued.
-            synchronized (dataCache) {
-                if (dataCache.get(filename) != null) {
-                    return;
-                }
+        // Skip if this filename is already being loaded or already cached.
+        synchronized (inFlightPreloads) {
+            if (inFlightPreloads.contains(filename)) {
+                return;
             }
+            inFlightPreloads.add(filename);
+        }
+        PRELOAD_EXECUTOR.execute(() -> {
             try {
+                // Double-check — a previous preload may have finished while
+                // this task was enqueued.
+                synchronized (dataCache) {
+                    if (dataCache.get(filename) != null) {
+                        return;
+                    }
+                }
                 short[][] data = readHgtFile(file);
                 if (data != null) {
                     synchronized (dataCache) {
@@ -143,8 +210,47 @@ public class ElevationReader {
                 }
             } catch (IOException e) {
                 // Best-effort — tile just won't be cached.
+            } finally {
+                synchronized (inFlightPreloads) {
+                    inFlightPreloads.remove(filename);
+                }
             }
         });
+    }
+
+    /**
+     * Schedules a debounced preload: waits {@code delayMs}, then calls
+     * {@link #preload}.  At most one delayed preload is pending at a time —
+     * each call cancels the previous one so that during rapid panning only
+     * the tile the user finally stops on is ever loaded.  Tiles that the user
+     * quickly pans past are never submitted to the executor at all.
+     */
+    private void schedulePreload(
+            String filename, DemFile file, int delayMs) {
+        synchronized (pendingDelayedPreloadLock) {
+            // Same tile — leave the existing timer running.  Without this
+            // guard, every frame during continuous panning would reset the
+            // countdown and the timer would never fire.
+            if (filename.equals(pendingDelayedPreloadFilename)) {
+                return;
+            }
+
+            // Different tile — cancel the previous one.
+            if (pendingDelayedPreload != null) {
+                pendingDelayedPreload.cancel(false);
+                pendingDelayedPreload = null;
+                pendingDelayedPreloadFilename = null;
+            }
+
+            pendingDelayedPreloadFilename = filename;
+            pendingDelayedPreload = DELAYED_PRELOAD_EXECUTOR.schedule(() -> {
+                synchronized (pendingDelayedPreloadLock) {
+                    pendingDelayedPreload = null;
+                    pendingDelayedPreloadFilename = null;
+                }
+                preload(filename, file);
+            }, delayMs, TimeUnit.MILLISECONDS);
+        }
     }
 
     /**

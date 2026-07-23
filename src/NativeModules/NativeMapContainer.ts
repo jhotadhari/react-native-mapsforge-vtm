@@ -94,6 +94,16 @@ export interface GetAltitudeAtPositionResponse {
 	altitude: Double | null;
 }
 
+export interface HasDataAtPositionParams {
+	nativeNodeHandle: Int32;
+	lng: Double;
+	lat: Double;
+}
+
+export interface HasDataAtPositionResponse {
+	hasData: boolean;
+}
+
 export interface GetDebugLayerDumpParams {
 	nativeNodeHandle: Int32;
 }
@@ -125,6 +135,10 @@ export interface Spec extends TurboModule {
 	getAltitudeAtPosition(
 		params: GetAltitudeAtPositionParams
 	): Promise<GetAltitudeAtPositionResponse>;
+
+	hasDataAtPosition(
+		params: HasDataAtPositionParams
+	): Promise<HasDataAtPositionResponse>;
 
 	/**
 	 * Returns a JSON dump of all layers currently on the map, including both

@@ -197,7 +197,7 @@ public class MapFragment extends Fragment {
 				com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
 					parent.getId(), parent.getReactContext() );
 			if ( null != reader ) {
-				Short elevation = reader.getElevation( lng, lat );
+				Short elevation = reader.getElevation( lng, lat, 100 );
 				if ( null != elevation ) {
 					alt = elevation.doubleValue();
 				}

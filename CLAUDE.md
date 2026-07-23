@@ -268,6 +268,32 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   the vtm JAR before DEX merging, preventing "Type X is defined multiple times" errors for extensions
   that bundle their own vtm copy. Applied via `apply from:` in an extension's `build.gradle`.
 
+### ElevationReader
+
+`ElevationReader` provides elevation lookups from `.hgt` DEM files. It maintains a two-level cache:
+an in-memory `dataCache` (backed by `LruCache`) and a filename index (`fileIndex`, built once at
+construction). Three executors/threads interact with it:
+
+| Thread | Role |
+|---|---|
+| **Render thread** (vtm GL, 60fps) | `MapFragment.getResponseBase()` calls `getElevation(lng, lat, 100)` to include elevation in the `center` position array. Uses the **100ms debounced** overload — never blocks on I/O. |
+| **`PRELOAD_EXECUTOR`** (single-thread) | Handles immediate `preload()` calls (2.9MB `.hgt` reads). Used by the explicit JS `getAltitudeAtPosition` API (delay=0). |
+| **`DELAYED_PRELOAD_EXECUTOR`** (single-thread scheduled) | Handles debounced preloads from the render hot-path. |
+
+**Debounced preload (single-slot):** `schedulePreload()` holds at most one pending delayed preload.
+When a **different** tile is requested the previous one is cancelled — only the tile the user lingers
+on is ever loaded. Calls for the **same** tile leave the existing timer running so that continuous
+panning within a tile doesn't perpetually reset the countdown.
+
+**In-flight dedup:** `inFlightPreloads` prevents submitting duplicate `preload()` tasks for the same
+filename to `PRELOAD_EXECUTOR`. Both the render hot-path and the JS API could previously queue
+redundant reads for the same tile.
+
+**`hasDataFor(lng, lat)`:** Returns true if the tile-index contains an entry for the given coordinate.
+Fast, thread-safe, no disk I/O. Callers use this to skip retry loops when no amount of waiting would
+produce an elevation (ocean, missing tile). Exposed to JS as `hasDataAtPosition` via the
+`MapContainer` TurboModule and `useMap()` hook.
+
 ### Threading model
 
 All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow through

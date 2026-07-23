@@ -319,6 +319,29 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		};
 
 		/**
+		 * Returns {@code true} if an HGT file covers the given coordinate,
+		 * regardless of whether its data is currently cached.  When this
+		 * returns {@code false} the position is ocean, missing tile, or the
+		 * ElevationReader hasn't been configured — no amount of waiting will
+		 * produce an elevation, so callers can skip their retry loop.
+		 */
+		const hasDataAtPosition = async (
+			lng: number,
+			lat: number
+		): Promise<boolean> => {
+			try {
+				const result = await NativeMapContainer.hasDataAtPosition({
+					nativeNodeHandle: requireHandle(nativeNodeHandle),
+					lng,
+					lat,
+				});
+				return result.hasData;
+			} catch {
+				return false;
+			}
+		};
+
+		/**
 		 * Returns a comprehensive debug dump of all layers on the map, combining
 		 * native ground truth (actual vtm Layer objects, their z-indices, class
 		 * names, uuids, and enabled state) with the JS-side component registry
@@ -425,6 +448,7 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			panInsideBounds,
 			panInside,
 			getAltitudeAtPosition,
+			hasDataAtPosition,
 			getDebugLayerDump,
 		};
 	}, [nativeNodeHandle]);
