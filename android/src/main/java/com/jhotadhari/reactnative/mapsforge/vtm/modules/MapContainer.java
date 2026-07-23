@@ -431,8 +431,48 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
-	@Override
-	public void getDebugLayerDump( ReadableMap params, Promise promise ) {
+
+		@Override
+		public void isTileCached( ReadableMap params, Promise promise ) {
+			try {
+				if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "lng" ) || ! Utils.rMapHasKey( params, "lat" ) ) {
+					Utils.promiseReject( promise, "Undefined nativeNodeHandle, lng, or lat" ); return;
+				}
+				int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+				double lng = params.getDouble( "lng" );
+				double lat = params.getDouble( "lat" );
+
+				ElevationReader reader = elevationReaders.get( nativeNodeHandle );
+				WritableMap result = new WritableNativeMap();
+				result.putBoolean( "cached", reader != null && reader.isTileCached( lng, lat ) );
+				promise.resolve( result );
+			} catch ( Exception e ) {
+				Utils.promiseReject( promise, e.getMessage() );
+			}
+		}
+
+		@Override
+		public void setCacheCapacity( ReadableMap params, Promise promise ) {
+			try {
+				if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "capacity" ) ) {
+					Utils.promiseReject( promise, "Undefined nativeNodeHandle or capacity" ); return;
+				}
+				int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+				int capacity = params.getInt( "capacity" );
+
+				ElevationReader reader = elevationReaders.get( nativeNodeHandle );
+				if ( reader == null ) {
+					Utils.promiseReject( promise, "No elevation data configured" );
+					return;
+				}
+				reader.setCacheCapacity( capacity );
+				promise.resolve( null );
+			} catch ( Exception e ) {
+				Utils.promiseReject( promise, e.getMessage() );
+			}
+		}
+		@Override
+		public void getDebugLayerDump( ReadableMap params, Promise promise ) {
 		// Read knownLayers on the calling thread (ConcurrentHashMap, safe from any thread)
 		// and dispatch the map.layers() read to the UI thread, consistent with getPosition.
 		UiThreadUtil.runOnUiThread( () -> getDebugLayerDumpOnUiThread( params, promise ) );

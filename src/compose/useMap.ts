@@ -342,6 +342,43 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		};
 
 		/**
+		 * Returns {@code true} if the HGT tile covering (lng, lat) is
+		 * currently loaded in the LRU cache.  Unlike getAltitudeAtPosition
+		 * this never triggers a preload and is never fooled by void
+		 * (ocean) pixels — it only checks whether the tile data array
+		 * is present.
+		 */
+		const isTileCached = async (
+			lng: number,
+			lat: number
+		): Promise<boolean> => {
+			try {
+				const result = await NativeMapContainer.isTileCached({
+					nativeNodeHandle: requireHandle(nativeNodeHandle),
+					lng,
+					lat,
+				});
+				return result.cached;
+			} catch {
+				return false;
+			}
+		};
+
+		/**
+		 * Resizes the elevation tile LRU cache to hold at most {@code capacity}
+		 * tiles.  Use to temporarily raise the cap during batch enrichment and
+		 * restore to the compile-time default (10) afterwards.
+		 *
+		 * <p>Unlike the other elevation methods this one *does* throw on failure — the caller must know whether the cache was actually resized.</p>
+		 */
+		const setCacheCapacity = async (capacity: number): Promise<void> => {
+			await NativeMapContainer.setCacheCapacity({
+				nativeNodeHandle: requireHandle(nativeNodeHandle),
+				capacity,
+			});
+		};
+
+		/**
 		 * Returns a comprehensive debug dump of all layers on the map, combining
 		 * native ground truth (actual vtm Layer objects, their z-indices, class
 		 * names, uuids, and enabled state) with the JS-side component registry
@@ -449,6 +486,8 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			panInside,
 			getAltitudeAtPosition,
 			hasDataAtPosition,
+			isTileCached,
+			setCacheCapacity,
 			getDebugLayerDump,
 		};
 	}, [nativeNodeHandle]);

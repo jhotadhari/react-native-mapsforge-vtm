@@ -104,6 +104,21 @@ export interface HasDataAtPositionResponse {
 	hasData: boolean;
 }
 
+export interface IsTileCachedParams {
+	nativeNodeHandle: Int32;
+	lng: Double;
+	lat: Double;
+}
+
+export interface IsTileCachedResponse {
+	cached: boolean;
+}
+
+export interface SetCacheCapacityParams {
+	nativeNodeHandle: Int32;
+	capacity: Int32;
+}
+
 export interface GetDebugLayerDumpParams {
 	nativeNodeHandle: Int32;
 }
@@ -139,6 +154,10 @@ export interface Spec extends TurboModule {
 	hasDataAtPosition(
 		params: HasDataAtPositionParams
 	): Promise<HasDataAtPositionResponse>;
+
+	isTileCached(params: IsTileCachedParams): Promise<IsTileCachedResponse>;
+
+	setCacheCapacity(params: SetCacheCapacityParams): Promise<void>;
 
 	/**
 	 * Returns a JSON dump of all layers currently on the map, including both

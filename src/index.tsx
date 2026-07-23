@@ -92,6 +92,11 @@ import type {
 	RegistryDebugSnapshot,
 	RegistryLayerEntry,
 } from './compose/useMap';
+import { enrichCoordinatesWithElevation } from './enrichCoordinates';
+import type {
+	ElevationAPI,
+	EnrichCoordinatesOptions,
+} from './enrichCoordinates';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
@@ -205,6 +210,11 @@ export {
 	type FragmentSummaryEntry,
 	type RegistryDebugSnapshot,
 	type RegistryLayerEntry,
+
+	// Elevation enrichment.
+	enrichCoordinatesWithElevation,
+	type ElevationAPI,
+	type EnrichCoordinatesOptions,
 
 	// Other
 	useRenderStyleOptions,

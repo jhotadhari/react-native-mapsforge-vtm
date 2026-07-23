@@ -45,8 +45,16 @@ public class ElevationReader {
      */
     private static final short SRTM_VOID = Short.MIN_VALUE; // -32768
 
-    /** Single-thread executor for background tile loads. */
-    private static final Executor PRELOAD_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+    /**
+     * Fixed thread pool for background tile loads.
+     *
+     * <p>4 threads saturate typical mobile flash I/O without excessive
+     * memory pressure — each concurrent read allocates a ~5.8 MB
+     * short[][] (1201×1201×2 bytes × 2 for the working copy in
+     * readHgtFile).  The LruCache and inFlightPreloads accesses are
+     * already synchronized, so the elevation data stays consistent.</p>
+     */
+    private static final Executor PRELOAD_EXECUTOR = Executors.newFixedThreadPool(4, r -> {
         Thread t = new Thread(r, "ElevationReader-preload");
         t.setDaemon(true);
         return t;
@@ -114,6 +122,25 @@ public class ElevationReader {
     }
 
     /**
+     * Returns {@code true} if the HGT tile covering (lng, lat) is currently
+     * loaded in the LRU cache.  Unlike {@link #getElevation} this never
+     * triggers a preload — it only checks the cache.  Use for fence polling
+     * where you need to distinguish "tile not loaded yet" from "tile loaded
+     * but this pixel is void (ocean / data gap)".
+     */
+    public boolean isTileCached(double lng, double lat) {
+        String filename = tileFilename(lat, lng);
+        synchronized (fileIndex) {
+            if (!fileIndex.containsKey(filename)) {
+                return false;
+            }
+        }
+        synchronized (dataCache) {
+            return dataCache.get(filename) != null;
+        }
+    }
+
+    /**
      * Returns the elevation in metres at the given coordinate, or {@code null}.
      * Equivalent to {@code getElevation(lng, lat, 0)} — on cache miss the
      * preload starts immediately.
@@ -176,6 +203,22 @@ public class ElevationReader {
         }
         synchronized (fileIndex) {
             fileIndex.clear();
+        }
+    }
+
+    /**
+     * Resizes the LRU cache to hold at most {@code maxTiles} elevation grids.
+     * Use to temporarily raise capacity during batch elevation enrichment and
+     * restore to the compile-time default of {@value #CACHE_MAX_TILES} afterwards.
+     *
+     * <p>Values ≤ 0 are clamped to 1.  The resize is cheap — it only adjusts
+     * the capacity field; existing cache entries are unaffected unless the new
+     * capacity is smaller than the current entry count, in which case the
+     * least-recently-used entries are evicted until the count fits.</p>
+     */
+    public void setCacheCapacity(int maxTiles) {
+        synchronized (dataCache) {
+            dataCache.resize(Math.max(1, maxTiles));
         }
     }
 
