@@ -11,7 +11,8 @@ stubs exist (required by the New Architecture build), but there is no real iOS i
 The library was rewritten against the **React Native New Architecture** (Fabric + TurboModules) in
 commit `c9a6ace`, replacing an older bridge/`NativeModules` design. The rewrite dropped several
 features intentionally (notably `LayerPathSlopeGradient` and GPX-file loading) — don't assume
-old-architecture patterns from outside this repo apply here. `TODO.md` tracks open work, notably a post-rewrite dependency upgrade plan.
+old-architecture patterns from outside this repo apply here. `TODO.md` tracks open work: a post-rewrite dependency upgrade plan (item 1), and a
+historical record of layer-ordering bugs that were fixed (item 0, now theoretical).
 
 ## Edit Tool - Whitespace Workaround
 
@@ -54,7 +55,7 @@ Prettier config (`.prettierrc`): **tabs** (not spaces), 80 char print width, plu
 means arrays with 2+ elements get one-element-per-line formatting.
 
 Dependencies already dropped (don't re-add): `simplify` (commit `39c8833`) and `savitzky-golay`
-(commit `f5ade2e`). The TODO.md still lists them as "check for newer versions" — they're gone, not stale.
+(commit `f5ade2e`).
 
 To work on native Android code, open `example/android` in Android Studio — library Java sources show up
 under the `react-native-mapsforge-vtm` module (this repo is symlinked in via `example/`'s yarn workspace).
@@ -88,24 +89,54 @@ actually changes. This replaced the old `cloneElement`/static-`isMapLayer` walk 
 prop-injection wiring left in this repo. `LayerMarker` does its own one-level-down equivalent for
 `Marker` children.
 
+The registry has grown beyond a simple ordered-symbol list into a rich data structure with ~20 fields.
+Key additions beyond the core `order` + `uuids`:
+
+| Field | Purpose |
+|---|---|
+| `generation` | Monotonically increasing counter bumped by `MapContainer` on each render. `useLayerOrder` compares its last-seen value to detect full render passes (must reposition already-registered layers) vs. solo re-renders (must not disturb sibling order). |
+| `cursor` / `cursorLayerType` | Id of the most-recently-rendered sibling + its layer type. Reset by `MapContainer` each render pass. Used for O(1) insertion anchoring and type-run fragment-boundary detection. |
+| `fragmentIndices` / `fragmentUuids` | Per-type fragment counters and per-component fragment UUIDs (e.g. `__vtm_shared_path__1`). Computed eagerly during render so `flush()` can synthesize the ordered-UUID list without waiting for native `createLayer` resolutions. |
+| `layerTypes` | Per-symbol layer type string (`'path'`, `'marker'`, etc.), used for type-run boundary detection. |
+| `layerReindexScopes` | Maps each layer symbol to its enclosing `ReindexScope`'s stable scope symbol. |
+| `lastSymbolPerScope` | Per-scope most-recently-inserted symbol — O(1) sibling anchoring during partial re-renders (e.g. Redux-triggered), replacing the old O(n) backwards scan of `order`. |
+| `sentinels` / `sentinelScopes` | Placeholder symbols pushed by `ReindexScope` wrappers whose children haven't mounted yet. `flush()` skips them; they ensure sibling scopes see correct relative order before children exist. |
+| `scopePriorities` | Optional `order` prop values keyed by scope symbol, for explicit cross-scope z-ordering. |
+| `scopeGenerations` | Per-scope monotonic counter bumped by `ReindexScope` on each of its own renders. Enables partial re-render repositioning scoped to the affected `ReindexScope` only, without disturbing unrelated scopes (e.g. Redux updating one panel's data). |
+| `scheduleSync` / `destroy` | Debounced (16ms trailing, 250ms max-wait) native `reorderLayers` call. `destroy()` cancels pending timers on map teardown. |
+| `listeners` / `subscribe` / `notify` | Debug subscription infrastructure for `useLayerDebugInfo` (devtools). |
+
 **Invariant: native layer rendering must strictly follow React component tree order.** A layer
 declared later in JSX (e.g. a `LayerMarker` mounted after a `LayerPath`) must always render on top of
 it, same as later siblings paint on top in the DOM. Within a single render pass this holds
-automatically (React's depth-first render order drives the cursor chain). For async children, two
+automatically (React's depth-first render order drives the cursor chain). For async children, three
 mechanisms preserve it: (1) `<ReindexScope>` sentinel placeholders (pushed during initial render,
-consumed when children mount), and (2) the optional `order` prop for explicit priority. Without
-either, new layers append at the stale cursor. See TODO.md item 0 for the remaining shared-layer
-`knownLayers` sub-issue.
+consumed when children mount), (2) the optional `order` prop for explicit priority, and (3) per-scope
+`scopeGenerations` counters for partial re-render detection. Without any of these, new layers append
+at the stale cursor.
+
+The ordering bugs documented in TODO.md item 0 were fixed (commit `902fc47` and subsequent); the
+remaining theoretical concern (reorder timing vs. `lastReorderWasEffective`) has not been observed in
+practice — position-aware insertion + debounced reorder are sufficient.
 
 ### Central lifecycle hook: `useNativeLayerLifecycle`
 
-Every layer component (all 8 layer types + `Marker`) uses `useNativeLayerLifecycle`
+Every layer component (all 9 layer types + `Marker`) uses `useNativeLayerLifecycle`
 (`src/compose/useNativeLayerLifecycle.ts`). It owns the `null → false → uuid` state machine, creates
 on mount (or whenever re-enabled via the `enabled` gate), removes on unmount, and centralizes native
-error reporting through `reportNativeError`. A `mountedRef` guards against a teardown race: if the
-component unmounts while `createLayer()` is in-flight (`uuid === false`), the hook detects the
-post-unmount resolution and cleans up the just-created native resource. Callers supply
-`create`/`remove` callbacks and an `enabled` boolean — the hook handles the rest.
+error reporting through `reportNativeError`. Two refs guard against teardown races:
+
+- **`mountedRef`**: if the component unmounts while `createLayer()` is in-flight (`uuid === false`),
+  the hook detects the post-unmount resolution and cleans up the just-created native resource.
+- **`uuidRef`**: mirrors the current uuid and is updated *immediately* on promise resolution (before
+  React re-render), so the unmount cleanup effect — which fires between resolution and re-render —
+  can see the real uuid and call `removeLayer`. Without this, there is a race window where:
+  1. Promise resolves → sees `mountedRef` true → proceeds
+  2. Component unmounts before React re-renders
+  3. Unmount cleanup sees stale `uuid` (still `false`) → skips removal
+  4. Native resource is orphaned (zombie)
+
+Callers supply `create`/`remove` callbacks and an `enabled` boolean — the hook handles the rest.
 
 ### Shared-layer architecture: `SharedLayer` + fragments
 
@@ -119,11 +150,20 @@ Fragment boundaries occur at:
 
 Fragment UUIDs follow the pattern `__vtm_shared_<type>__<index>` (e.g. `__vtm_shared_path__1`).
 
-`<ReindexScope>` (`src/components/ReindexScope.tsx`) serves two purposes:
+`<ReindexScope>` (`src/components/ReindexScope.tsx`) serves three purposes:
 1. **Async children**: pushes a **sentinel** placeholder into the ordering registry during render so
    children that mount later (async data) land at their correct tree position, not at the stale cursor
 2. **Cross-scope ordering**: the `order` prop (e.g. `order={100}`) provides explicit priority across
    sibling scopes regardless of mount timing
+3. **Partial re-render detection**: bumps a per-scope `scopeGenerations` counter on each of its own
+   renders. When a `ReindexScope` re-renders without `MapContainer` re-rendering (e.g. Redux-triggered
+   data update), child `useLayerOrder` calls detect the generation change and reposition already-
+   registered layers to match the new document order — but only layers inside the changed scope are
+   affected; unrelated scopes are undisturbed.
+
+It uses a two-phase protocol: Phase 1 (render) records the scope block's position and manages
+sentinel lifecycle; Phase 2 (`useLayoutEffect`) verifies the block hasn't been shifted by a sibling
+scope in the same commit. See the source comments for the full algorithm.
 
 For full details, see `docs/advanced/layer-ordering.md`.
 
@@ -158,7 +198,7 @@ The library provides two path components backed by different vtm-jts implementat
 |---|---|---|
 | Native backend | `PathLayerManager` + shared `VectorLayer` | Dedicated `org.oscim.layers.vector.PathLayer` per component |
 | Architecture | **Shared-layer**: many JS components collapse into one native layer | **Dedicated-layer**: one native layer per JS component |
-| Render ordering | Known bug (TODO.md #0) — shared-layer uuids not in `knownLayers` | Correct — per-component uuid IS the layer uuid |
+| Render ordering | Correct (fixed `902fc47` and subsequent; shared-layer fragment UUIDs now flow through `knownLayers` correctly) | Correct — per-component uuid IS the layer uuid |
 | Performance at scale | Excellent (1 GPU draw call for all paths) | Worse (1 native layer per path) |
 | Great-circle arcs | Not supported | `addGreatCircle` method |
 | Douglas-Peucker generalization | Not supported | Built-in via `Style.generalization` |
@@ -174,9 +214,10 @@ the shared-layer performance matters.
 ### `LayerShape` — geometric shape overlays
 
 Draws JTS geometric shapes (polygons, circles, rectangles, hexagons, points) on the map using
-vtm-jts drawables. Each shape is a dedicated native `VectorLayer` with a single drawable added.
-Supports full `GeometryStyleJts` styling (fill color, stroke, transparency, stipple, etc.) and
-gesture callbacks.
+vtm-jts drawables. Uses **shared-layer** architecture via `ShapeLayerManager` (sibling to
+`PathLayerManager` and `MarkerLayerManager`): same-type shapes within a fragment share one native
+`VectorLayer`; each shape is a `Drawable` within it. Supports full `GeometryStyleJts` styling
+(fill color, stroke, transparency, stipple, etc.) and gesture callbacks.
 
 Shape types: `polygon` (with optional holes), `circle` (center + radius in km), `rectangle`
 (two corners), `hexagon` (center + radius), `point` (single position).
@@ -210,12 +251,22 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   etc.), each extending its codegen-generated `NativeXxxSpec` base class.
 - `views/` — `MapFragment` (the vtm `MapView` host), `MapsforgeVtmView`, `MapsforgeVtmViewManager`
   (implements the codegen-generated Fabric manager interface).
-- `layer/` — custom vtm layer subclasses (`PathLayer`, `VectorLayer`, `ItemizedLayer`,
-  `GestureLayer`) used by the path/marker layers and map-level gesture detection.
+- `layer/` — custom vtm layer subclasses and shared-layer infrastructure: `PathLayer`, `VectorLayer`,
+  `ItemizedLayer`, `GestureLayer` (vtm layer subclasses); `LayerManager` (base class for shared-layer
+  managers — owns `ensureSharedLayer()`, entry lifecycle, gesture delegation); `PathLayerJtsWrapper`
+  (`LayerPathJts`-specific vtm `PathLayer` wrapper).
+- Top-level shared-layer managers (one per layer type using shared architecture):
+  `PathLayerManager extends LayerManager<PathEntry>`, `MarkerLayerManager extends LayerManager<MarkerEntry>`,
+  `ShapeLayerManager extends LayerManager<ShapeEntry>`. Each manages entries (drawables/markers) within
+  shared `VectorLayer`/`ItemizedLayer` instances, handles hit-testing, ZOMBIE diagnostics, and
+  per-entry `scheduleUpdate()` coalescing.
 - Top-level helpers: `ElevationReader`/`Utils` (elevation lookups from `.hgt` DEM files), `LayerHelper`/
   `LayerZoomBoundsHelper` (zoom-based layer visibility), `RenderThemeMenuLoader` (parses
   `<stylemenu>` from render-theme XML for `useRenderStyleOptions`), `FixedWindowRateLimiter` (throttles
   native map-event emission, used by `MapFragment`).
+- `android/strip-vtm-classes.gradle` — reusable Gradle script that strips shadowed vtm classes from
+  the vtm JAR before DEX merging, preventing "Type X is defined multiple times" errors for extensions
+  that bundle their own vtm copy. Applied via `apply from:` in an extension's `build.gradle`.
 
 ### Threading model
 
@@ -235,8 +286,10 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
  getPosition()        ──dispatch──> │  3. Reorder (LIS algorithm)  │
                                     │  4. updateMap() once         │
  scheduleUpdate()     ──post─────>  │  updateMap() coalesced       │
- (LayerManager +       (AtomicBool  │  (per-entry geometry changes)│
-  MarkerLayerManager)   + Handler)  └─────────────────────────────┘
+ (LayerManager +       (AtomicBool  │  (per-entry geometry changes)  │
+  PathLayerManager +    + Handler)  └───────────────────────────────┘
+  MarkerLayerManager +
+  ShapeLayerManager)
 
  LayerManager.ensureSharedLayer() blocks with future.get()
  until the shared layer is placed on the UI thread — this is
@@ -247,15 +300,39 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 **Key rules:**
 - `MapMutationQueue.flush()` is the **only** place that calls `layers().add/remove` and the batch-level `updateMap()`. It runs on the UI thread, serialized with vtm's own rendering.
 - `MapFragment.bindUpdateListener()` runs on the **render thread** (vtm's GL thread, 60fps). It writes position data to C++ `Synchronizable` primitives via `MapPositionWriter.nativeSetPosition()` (thread-safe mutex). See `android/src/main/cpp/MapPositionWriter.cpp`.
-- `scheduleUpdate()` (in `LayerManager`) coalesces per-entry `updateMap()` calls onto the UI thread via `AtomicBoolean` CAS + `Handler.post`. Use it instead of calling `mapView.map().updateMap()` directly.
+- `scheduleUpdate()` (in `LayerManager` and its per-type subclasses: `PathLayerManager`,
+  `MarkerLayerManager`, `ShapeLayerManager`) coalesces per-entry `updateMap()` calls onto the UI
+  thread via `AtomicBoolean` CAS + `Handler.post`. Use it instead of calling
+  `mapView.map().updateMap()` directly.
 - `MapContainer.animateTo()` / `getPosition()` dispatch to the UI thread via `UiThreadUtil.runOnUiThread` (vtm's `Animator` asserts the UI thread).
-- `MapFragment.onDestroy()` must tear down `LayerManager`s **before** `mapView.onDestroy()`, or shared layers silently leak.
+- `MapFragment.onDestroy()` must tear down all `LayerManager` instances (including per-type
+  `PathLayerManager`, `MarkerLayerManager`, `ShapeLayerManager`) **before** `mapView.onDestroy()`,
+  or shared layers silently leak.
 - `LayerHelper.addLayerAsync` / `removeLayerAsync` are the preferred API — they enqueue into `MapMutationQueue`. The deprecated `addLayer`/`removeLayer` sync methods now delegate to the async path internally.
 
 **What still runs on the native-modules thread (read-only / non-layers-mutating):**
 - `LayerHelper.getLayer()` / `getLayers()` — reads from `MapMutationQueue.getKnownLayers()` (ConcurrentHashMap, safe from any thread)
 - `LayerZoomBoundsHelper.removeUpdateListener()` — calls `mapView.map().events.unbind()` (event listener management, not layer mutation)
-- Marker/Path entry creation — operates on already-registered shared `Layer` objects (adds drawables/markers to `VectorLayer`/`ItemizedLayer`), not on `map.layers()`
+- Marker/Path/Shape entry creation — operates on already-registered shared `Layer` objects (adds drawables/markers to `VectorLayer`/`ItemizedLayer`), not on `map.layers()`
+
+### ZOMBIE diagnostic system
+
+A deliberate, systematic defensive pattern across both TypeScript and Java sides detects and prevents
+"zombie" native resources — GPU objects (drawables, layers) that outlive their JS-side references,
+typically from teardown races where the map is destroyed while async operations are in-flight.
+
+**JS side:** `useNativeLayerLifecycle`'s `uuidRef` (see above) prevents zombies from being created by
+ensuring the unmount cleanup always sees the real uuid. The `destroy()` method on `LayerOrderRegistry`
+cancels pending debounced `reorderLayers` timers so they don't fire against a destroyed map.
+
+**Java side:** All three per-type managers (`PathLayerManager`, `MarkerLayerManager`,
+`ShapeLayerManager`) and their owning TurboModules (`LayerPath.java`, `LayerMarker.java`,
+`LayerShape.java`) log `"ZOMBIE: ..."` warnings when they detect operations targeting an
+already-destroyed shared layer or `MapFragment` instance. These are not errors (they're expected
+during teardown) but serve as diagnostic markers for resource-leak investigations. When a zombie is
+detected, the manager clears its drawable references so the GC can collect them, even though the
+drawables remain in the `VectorLayer`'s QuadTree and will render as zombies until the shared layer
+itself is destroyed.
 
 ### Reanimated sub-package (`react-native-mapsforge-vtm/reanimated`)
 
