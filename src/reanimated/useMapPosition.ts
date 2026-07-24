@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
 	useSharedValue,
 	runOnUI,
@@ -106,6 +106,10 @@ export function useMapPosition(): MapPositionSharedValues {
 	// One-shot: prevent double activation.
 	const bridgeActivated = useRef(false);
 
+	// Tracks stop markers for active native-bridge pollers so they can be
+	// torn down on unmount without a dangling requestAnimationFrame loop.
+	const stopMarkersRef = useRef(new Map<number, { current: boolean }>());
+
 	// --- activateNativeBridge ---
 
 	const activateNativeBridge = useMemo(
@@ -149,6 +153,13 @@ export function useMapPosition(): MapPositionSharedValues {
 					viewportHeight: vpHSync,
 				} = syncs;
 
+				// Create a stop marker for this poller so it can be torn
+				// down cleanly on unmount (or JS-thread teardown) without
+				// leaving a dangling requestAnimationFrame loop referencing
+				// freed synchronizables.
+				const stopMarker = { current: false };
+				stopMarkersRef.current.set(nativeNodeHandle, stopMarker);
+
 				// Start the worklet poller on the UI runtime.  It reads the
 				// synchronizables each frame (direct C++ access via
 				// getBlocking(), no bridge) and writes into ordinary
@@ -158,6 +169,8 @@ export function useMapPosition(): MapPositionSharedValues {
 				runOnUI(() => {
 					'worklet';
 					const frame = () => {
+						if (stopMarker.current) return;
+
 						const newLng = lngSync.getBlocking() as number;
 						const newLat = latSync.getBlocking() as number;
 						if (newLng !== 0 || newLat !== 0) {
@@ -173,11 +186,11 @@ export function useMapPosition(): MapPositionSharedValues {
 					};
 					requestAnimationFrame(frame);
 				})();
-			} catch (_e: unknown) {
-				void _e;
+			} catch {
 				// reanimated/worklets not installed — fall back to the
 				// existing Fabric-event path.
 				nativeBridgeActive.current = false;
+				bridgeActivated.current = false;
 			}
 		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,6 +240,18 @@ export function useMapPosition(): MapPositionSharedValues {
 			viewportHeightSv,
 		]
 	);
+
+	// --- Teardown: stop all active native-bridge pollers on unmount ---
+
+	useEffect(() => {
+		const markers = stopMarkersRef.current;
+		return () => {
+			for (const marker of markers.values()) {
+				marker.current = true;
+			}
+			markers.clear();
+		};
+	}, []);
 
 	return useMemo(
 		() => ({

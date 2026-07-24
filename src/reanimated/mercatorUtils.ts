@@ -15,13 +15,15 @@ import { PixelRatio } from 'react-native';
  * them as simple number values.
  */
 
-// vtm 0.28.0 Tile.SIZE is 512 at init but themes (loaded during
-// MapFragment creation) override it to 576.  MapContainer.getConstants()
-// runs BEFORE themes load, so we hardcode the post-theme value verified
-// against vtm's own viewport.toScreenPoint() output on device.
-// The onMapUpdate Fabric event also emits tileSize for debugging.
+// VTM default Tile.SIZE.  Themes can override this at runtime; the
+// onMapUpdate event emits the live tileSize for debugging.  A dev-mode
+// console.warn fires on mismatch (see useMapPosition.ts handleMapUpdate).
+// To react to runtime changes, callers should read tileSize from the map
+// event rather than relying on this constant.
 const TILE_SIZE = 576;
 
+// Captured at module init.  Multi-display devices (foldables, external
+// monitors) may need per-display density values.
 const DENSITY = PixelRatio.get();
 
 const DEG_TO_RAD = Math.PI / 180;

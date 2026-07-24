@@ -20,8 +20,10 @@ import android.util.Log;
 public class MapPositionWriter {
 
     private static final String TAG = "MapPositionWriter";
-    private static boolean libraryLoaded = false;
-    private static boolean loadAttempted = false;
+    // volatile — read from the render thread at 60fps; JMM requires
+    // visibility guarantee.
+    private static volatile boolean libraryLoaded = false;
+    private static volatile boolean loadAttempted = false;
 
     /**
      * Attempts to load the native library.  Safe to call repeatedly — the

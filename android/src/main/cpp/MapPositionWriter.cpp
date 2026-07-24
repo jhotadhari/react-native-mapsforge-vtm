@@ -86,8 +86,14 @@ Java_com_jhotadhari_reactnative_mapsforge_vtm_MapPositionWriter_nativeSetPositio
     jdouble tilt,
     jdouble viewportWidth,
     jdouble viewportHeight) {
-    std::lock_guard<std::mutex> lock(registryMutex);
-    auto writer = getWriter(handle);
+    // Copy the shared_ptr under the registry lock, then release before
+    // writing to individual synchronizables.  Each Synchronizable has its
+    // own internal mutex — we don't need the registry lock for the writes.
+    std::shared_ptr<PositionWriter> writer;
+    {
+        std::lock_guard<std::mutex> lock(registryMutex);
+        writer = getWriter(handle);
+    }
     if (!writer) {
         return;
     }
@@ -133,35 +139,43 @@ Java_com_jhotadhari_reactnative_mapsforge_vtm_MapPositionWriter_nativeInstallJSI
 
             int handle = static_cast<int>(args[0].asNumber());
 
-            std::lock_guard<std::mutex> lock(registryMutex);
-            auto writer = getWriter(handle);
-            if (!writer) {
-                // Writer not created yet (createFragment hasn't run).
-                // Create it now so synchronizables are ready when the
-                // render thread starts writing.
-                writer = std::make_shared<PositionWriter>();
-                registry[handle] = writer;
-                LOGD("Created writer lazily for handle %d (createFragment "
-                     "hasn't run yet)", handle);
-            }
+            // Hold the registry lock only for writer lookup/creation and
+            // Synchronizable allocation.  toJSValue() calls into JSI
+            // runtime internals — releasing the lock here prevents
+            // blocking the render thread (nativeSetPosition) while the
+            // JS runtime is building the return object.
+            std::shared_ptr<PositionWriter> writer;
+            {
+                std::lock_guard<std::mutex> lock(registryMutex);
+                writer = getWriter(handle);
+                if (!writer) {
+                    // Writer not created yet (createFragment hasn't run).
+                    // Create it now so synchronizables are ready when the
+                    // render thread starts writing.
+                    writer = std::make_shared<PositionWriter>();
+                    registry[handle] = writer;
+                    LOGD("Created writer lazily for handle %d (createFragment "
+                         "hasn't run yet)", handle);
+                }
 
-            // Create Synchronizable instances (one per scalar field).
-            // Each holds an initial value of 0.0 — consumers see zeroes
-            // until the first nativeSetPosition call on the render thread.
-            writer->lng = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->lat = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->zoom = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->bearing = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->tilt = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->viewportWidth = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
-            writer->viewportHeight = std::make_shared<worklets::Synchronizable>(
-                std::make_shared<worklets::SerializableScalar>(0.0));
+                // Create Synchronizable instances (one per scalar field).
+                // Each holds an initial value of 0.0 — consumers see zeroes
+                // until the first nativeSetPosition call on the render thread.
+                writer->lng = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->lat = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->zoom = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->bearing = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->tilt = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->viewportWidth = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+                writer->viewportHeight = std::make_shared<worklets::Synchronizable>(
+                    std::make_shared<worklets::SerializableScalar>(0.0));
+            } // registryMutex released — toJSValue() calls below are lock-free
 
             // Return the synchronizables as a JS object.  Each value is
             // converted via Synchronizable::toJSValue() which creates a
