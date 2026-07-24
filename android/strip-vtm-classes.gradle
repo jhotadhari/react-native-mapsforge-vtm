@@ -6,6 +6,12 @@
  * vtm classes in the org.oscim.* package without causing "Type X is defined
  * multiple times" errors.
  *
+ * **Scoping:** The vtm JAR is temporarily patched during the build via
+ * `zip -d` (with a .orig backup).  On build completion — success or failure —
+ * the original JAR is restored, so the shared Gradle cache is never left in
+ * a broken state for other projects on the same machine.  Source files in the
+ * core library are excluded via Gradle's source-set API rather than deleted.
+ *
  * ---------------------------------------------------------------------------
  * USAGE (in the app's android/app/build.gradle):
  *
@@ -170,6 +176,23 @@ appProject.gradle.projectsEvaluated {
         inputs.property('dollarPrefixes', dollarPrefixes)
         inputs.property('jarPaths', vtmJarPaths as List)
 
+        doFirst {
+            // ── Crash recovery: restore any .orig backups left by a
+            // previous build that crashed mid-strip ─────────────────
+            def jars = (inputs.properties['jarPaths'] as List).collect {
+                new File(it as String)
+            }
+            jars.each { jar ->
+                def backupFile = new File(jar.parentFile, jar.name + '.orig')
+                if (backupFile.exists()) {
+                    logger.lifecycle('[strip-vtm] Restoring original JAR from .orig (crash recovery): {}', jar.name)
+                    java.nio.file.Files.copy(
+                        backupFile.toPath(), jar.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
+        }
+
         doLast {
             def jars = (inputs.properties['jarPaths'] as List).collect {
                 new File(it as String)
@@ -292,10 +315,31 @@ appProject.gradle.projectsEvaluated {
         }
     }
 
+    // ── Restore the vtm JAR after the build completes (success or
+    // failure) so the shared Gradle cache is never left broken ─────
+    appProject.gradle.buildFinished {
+        def jars = vtmJarPaths.collect { new File(it as String) }
+        jars.each { jar ->
+            def backupFile = new File(jar.parentFile, jar.name + '.orig')
+            if (backupFile.exists()) {
+                logger.lifecycle('[strip-vtm] Restoring original JAR after build: {}', jar.name)
+                java.nio.file.Files.copy(
+                    backupFile.toPath(), jar.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                backupFile.delete()
+            }
+        }
+    }
+
     // ── Strip from project dependencies (e.g. react-native-mapsforge-vtm) ─
-    // The core library provides default implementations of classes that vtm
-    // 0.29.0 broke.  When an extension shadows those classes the core
-    // library's versions must be removed so only the extension's remain.
+    // When an extension shadows vtm classes that the core library also ships
+    // (e.g. as compatibility stubs for vtm packaging bugs), those core library
+    // versions must not reach DEX.  We use two mechanisms:
+    //
+    //   1. Source-set exclusion — prevents the core library from compiling the
+    //      shadowed .java files at all.  Non-destructive (no files deleted).
+    //   2. Build-output cleaning — the stripShadowedClassesFromProjects task
+    //      below removes stale .class/.dex artifacts from incremental builds.
     //
     // D8 / dexBuilder reads class files from three locations inside a library
     // project's build directory (in priority order):
@@ -313,26 +357,21 @@ appProject.gradle.projectsEvaluated {
         it.name == 'react-native-mapsforge-vtm'
     }
 
-    // ── Strip source files from the core library ─────────────────────────
-    // The most reliable approach: delete the .java source files from the
-    // core library in node_modules/ BEFORE compilation.  The library's own
-    // code (com.jhotadhari.*) does not reference these classes — they only
-    // exist for vtm JAR compatibility.  The extension provides modified
-    // versions at runtime.  Deleting sources prevents them from entering
-    // the build pipeline at all.
-
+    // ── Exclude shadowed source files from core library compilation ─────
+    // Uses Gradle's SourceDirectorySet.exclude() rather than deleting files
+    // from disk.  This is non-destructive (no mutations to node_modules/ or
+    // the working tree) and scoped to the current build only.
     if (coreLibProject) {
-        allShadowed.each { className, info ->
+        def excludePatterns = allShadowed.keySet().collect { className ->
             // org.oscim.renderer.bucket.LineBucket
             //  → org/oscim/renderer/bucket/LineBucket.java
-            def relPath = className.replace('.', '/') + '.java'
-            def srcFile = new File(coreLibProject.projectDir,
-                'src/main/java/' + relPath)
-            if (srcFile.exists()) {
-                System.err.println('[strip-vtm] Deleting source from core lib: ' +
-                    relPath)
-                srcFile.delete()
-            }
+            className.replace('.', '/') + '.java'
+        }
+        try {
+            coreLibProject.android.sourceSets.main.java.exclude(excludePatterns)
+            System.err.println('[strip-vtm] Excluded from core lib source set: ' + excludePatterns)
+        } catch (Exception e) {
+            logger.warn('[strip-vtm] Could not exclude from core lib source set: {}', e.message)
         }
     }
 
