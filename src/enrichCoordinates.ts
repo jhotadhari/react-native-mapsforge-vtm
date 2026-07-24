@@ -262,13 +262,24 @@ export const enrichCoordinatesWithElevation = async (
 	if (allTiles.length === 0) return coords;
 
 	// ------------------------------------------------------------------
-	// 2. Filter to tiles that have HGT data
+	// 2. Filter to tiles that have HGT data.
+	//    Process in parallel chunks of 10 to avoid overwhelming the bridge
+	//    while still being faster than fully serial for large tile sets.
 	// ------------------------------------------------------------------
 	const tilesWithData: TileGroup[] = [];
-	for (const tile of allTiles) {
+	const CHUNK_SIZE = 10;
+	for (let i = 0; i < allTiles.length; i += CHUNK_SIZE) {
 		if (options?.signal?.aborted) return coords;
-		if (await api.hasDataAtPosition(tile.lng, tile.lat)) {
-			tilesWithData.push(tile);
+		const chunk = allTiles.slice(i, i + CHUNK_SIZE);
+		const results = await Promise.all(
+			chunk.map(async (tile) => {
+				if (options?.signal?.aborted) return null;
+				const hasData = await api.hasDataAtPosition(tile.lng, tile.lat);
+				return hasData ? tile : null;
+			})
+		);
+		for (const r of results) {
+			if (r) tilesWithData.push(r);
 		}
 	}
 
@@ -284,11 +295,18 @@ export const enrichCoordinatesWithElevation = async (
 	//    evicted before Phase 3 reads them.
 	// ------------------------------------------------------------------
 	const maxCapacity = options?.maxCacheCapacity ?? 50;
+	if (maxCapacity <= 0) {
+		console.warn(
+			'enrichCoordinatesWithElevation: maxCacheCapacity must be >= 1, got ' +
+				maxCapacity +
+				'. Clamping to 1.'
+		);
+	}
 	let effectiveCacheCapacity = DEFAULT_CACHE_CAPACITY;
 
 	if (typeof api.setCacheCapacity === 'function') {
 		try {
-			await api.setCacheCapacity!(maxCapacity);
+			await api.setCacheCapacity!(Math.max(1, maxCapacity));
 			effectiveCacheCapacity = Math.max(1, maxCapacity);
 		} catch {}
 	}
@@ -304,6 +322,7 @@ export const enrichCoordinatesWithElevation = async (
 		// --------------------------------------------------------------
 		// 4. Process each window
 		// --------------------------------------------------------------
+		let enrichedCount = 0;
 		for (let w = 0; w < totalWindows; w++) {
 			if (options?.signal?.aborted) break;
 
@@ -368,16 +387,26 @@ export const enrichCoordinatesWithElevation = async (
 			// Phase 3 — collect.  The fence guarantees every tile
 			// is cached, so all calls are sub‑millisecond cache hits.
 			// findElevationInTile handles void pixels gracefully.
+			// NOTE: When isTileCached is absent from the ElevationAPI,
+			// the fence uses findElevationInTile (35 probe points) as a
+			// fallback.  For tiles with very little land (tiny atolls),
+			// all probe points can fall on ocean pixels, making the tile
+			// appear uncached.  The fence then re‑triggers preloads
+			// unnecessarily until timeout.  Wire isTileCached to avoid
+			// this — it provides an unambiguous cache‑hit signal.
 			for (const { lng, lat, coords: tileCoords } of window) {
 				const alt = await findElevationInTile(api, lng, lat);
 				if (alt !== null) {
 					for (const c of tileCoords) {
 						c[2] = alt;
+						enrichedCount += tileCoords.length;
 					}
 				}
 			}
 
-			options?.onProgress?.((w + 1) / totalWindows);
+			options?.onProgress?.(
+				Math.min(enrichedCount / Math.max(coords.length, 1), 1)
+			);
 		}
 	} finally {
 		// Restore cache capacity unless the caller explicitly opted
@@ -385,7 +414,7 @@ export const enrichCoordinatesWithElevation = async (
 		if (
 			!options?.keepCacheCapacity &&
 			typeof api.setCacheCapacity === 'function' &&
-			effectiveCacheCapacity > DEFAULT_CACHE_CAPACITY
+			effectiveCacheCapacity !== DEFAULT_CACHE_CAPACITY
 		) {
 			try {
 				await api.setCacheCapacity!(DEFAULT_CACHE_CAPACITY);

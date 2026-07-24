@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Reads SRTM HGT files to provide point-elevation queries.
@@ -54,8 +55,9 @@ public class ElevationReader {
      * readHgtFile).  The LruCache and inFlightPreloads accesses are
      * already synchronized, so the elevation data stays consistent.</p>
      */
+    private static final AtomicInteger preloadThreadNum = new AtomicInteger(0);
     private static final Executor PRELOAD_EXECUTOR = Executors.newFixedThreadPool(4, r -> {
-        Thread t = new Thread(r, "ElevationReader-preload");
+        Thread t = new Thread(r, "ElevationReader-preload-" + preloadThreadNum.incrementAndGet());
         t.setDaemon(true);
         return t;
     });
@@ -198,6 +200,21 @@ public class ElevationReader {
 
     /** Releases cached tile data and clears the file index. */
     public void close() {
+        // Cancel any pending delayed preload so a stale task doesn't fire
+        // after the reader is closed and waste I/O on a ~2.9 MB HGT file
+        // whose data would be immediately evicted.
+        synchronized (pendingDelayedPreloadLock) {
+            if (pendingDelayedPreload != null) {
+                pendingDelayedPreload.cancel(false);
+                pendingDelayedPreload = null;
+                pendingDelayedPreloadFilename = null;
+            }
+        }
+        // Clear in-flight tracking so any already-enqueued preload tasks
+        // see the empty cache below and return without redundant disk I/O.
+        synchronized (inFlightPreloads) {
+            inFlightPreloads.clear();
+        }
         synchronized (dataCache) {
             dataCache.evictAll();
         }
