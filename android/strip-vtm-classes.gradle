@@ -148,6 +148,35 @@ appProject.gradle.projectsEvaluated {
                                 }
                             }
                         }
+
+                        // ── Scan META-INF/versions/ for multi-release
+                        // JAR copies ───────────────────────────────
+
+                        zf.entries().each { entry ->
+                            def name = entry.name
+                            if (!name.startsWith('META-INF/versions/'))
+                                return
+                            // Extract class path after
+                            // META-INF/versions/N/
+                            def versionClassPath = name.replaceFirst(
+                                /^META-INF\/versions\/\d+\//, '')
+                            if (exactEntries.contains(
+                                versionClassPath)) {
+                                entriesToRemove.add(name)
+                            } else {
+                                for (int i = 0;
+                                    i < dollarPrefixes.size();
+                                    i++) {
+                                    if (versionClassPath.startsWith(
+                                            dollarPrefixes[i]) &&
+                                        versionClassPath.endsWith(
+                                            '.class')) {
+                                        entriesToRemove.add(name)
+                                        break
+                                    }
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     logger.warn('[strip-vtm] Cannot read {}: {}', jar.name, e.message)
@@ -159,11 +188,34 @@ appProject.gradle.projectsEvaluated {
                     return
                 }
 
-                def backupFile = new File(jar.parentFile, jar.name + '.orig')
-                if (backupFile.exists()) {
-                    logger.lifecycle('[strip-vtm] {} — already patched, skipping', jar.name)
+                // Check whether any exactEntries still exist in the
+                // JAR.  If none are present, stripping was already
+                // done (content-based check instead of trusting the
+                // .orig sentinel file).
+                def anyExactEntryFound = false
+                try {
+                    new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                        zf.entries().each { entry ->
+                            if (!anyExactEntryFound &&
+                                exactEntries.contains(entry.name)) {
+                                anyExactEntryFound = true
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn('[strip-vtm] Cannot verify {}: {}',
+                        jar.name, e.message)
                     return
                 }
+                if (!anyExactEntryFound) {
+                    logger.lifecycle(
+                        '[strip-vtm] {} — already stripped, skipping',
+                        jar.name)
+                    return
+                }
+
+                def backupFile = new File(jar.parentFile,
+                    jar.name + '.orig')
 
                 logger.lifecycle('[strip-vtm] Patching {} — removing:', jar.name)
                 entriesToRemove.each { logger.lifecycle('[strip-vtm]   - {}', it) }
