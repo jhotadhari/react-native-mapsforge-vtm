@@ -29,6 +29,8 @@
 
 // ── Parameters ─────────────────────────────────────────────────────────────
 
+System.err.println('[strip-vtm] SCRIPT LOADED — ' + project.name)
+
 def appProject = project
 def preferMap = (getProperties().get('to') instanceof Map)
     ? getProperties().get('to').get('prefer') ?: [:]
@@ -37,42 +39,93 @@ def preferMap = (getProperties().get('to') instanceof Map)
 // ── Defer to after ALL projects have been configured ──────────────────────
 
 appProject.gradle.projectsEvaluated {
+    try {
 
-    logger.lifecycle('[strip-vtm] Scanning {} projects for shadowedClasses...',
-        rootProject.allprojects.size())
+    System.err.println('[strip-vtm] projectsEvaluated — scanning ' +
+        rootProject.allprojects.size() + ' projects...')
+
+    // ── Collect shadowed-class declarations ────────────────────────────
+    // Try `ext.shadowedClasses` on each Gradle project first.  If none
+    // are found, fall back to scanning build.gradle files in well-known
+    // subdirectories (handles Gradle versions / React Native autolinking
+    // setups where the extension project may not appear in allprojects).
 
     def allShadowed = [:]
     rootProject.allprojects.each { proj ->
-        if (proj.ext.has('shadowedClasses')) {
-            def classes = proj.ext.shadowedClasses
-            logger.lifecycle("[strip-vtm]   '{}' shadows: {}", proj.path, classes)
-            classes.each { className ->
-                if (allShadowed.containsKey(className)) {
-                    def existing = allShadowed[className]
-                    def preferred = preferMap[className]
-                    if (preferred == proj.name) {
-                        logger.lifecycle("[strip-vtm] '{}' wins '{}' (prefer map)", proj.name, className)
+        logger.lifecycle("[strip-vtm]   project '{}' (dir: {})",
+            proj.path, proj.projectDir.name)
+        try {
+            if (proj.ext.has('shadowedClasses')) {
+                def classes = proj.ext.shadowedClasses
+                logger.lifecycle("[strip-vtm]   '{}' shadows: {}", proj.path, classes)
+                classes.each { className ->
+                    if (allShadowed.containsKey(className)) {
+                        def existing = allShadowed[className]
+                        def preferred = preferMap[className]
+                        if (preferred == proj.name) {
+                            logger.lifecycle("[strip-vtm] '{}' wins '{}' (prefer map)", proj.name, className)
+                            allShadowed[className] = [_project: proj.name]
+                        } else if (preferred != existing._project) {
+                            def msg = "[strip-vtm] CONFLICT: '${className}' is " +
+                                "shadowed by both '${existing._project}' and " +
+                                "'${proj.name}'. Add to the `prefer` map:\n" +
+                                "  prefer: ['${className}': '<project-name>']"
+                            throw new GradleException(msg)
+                        }
+                    } else {
                         allShadowed[className] = [_project: proj.name]
-                    } else if (preferred != existing._project) {
-                        def msg = "[strip-vtm] CONFLICT: '${className}' is " +
-                            "shadowed by both '${existing._project}' and " +
-                            "'${proj.name}'. Add to the `prefer` map:\n" +
-                            "  prefer: ['${className}': '<project-name>']"
-                        throw new GradleException(msg)
                     }
-                } else {
-                    allShadowed[className] = [_project: proj.name]
+                }
+            }
+        } catch (Exception e) {
+            logger.lifecycle("[strip-vtm]   '{}' ext access failed: {}",
+                proj.path, e.message)
+        }
+    }
+
+    // ── Fallback: scan node_modules for build.gradle files with
+    //   ext.shadowedClasses declarations ─────────────────────────────
+
+    if (allShadowed.isEmpty()) {
+        System.err.println('[strip-vtm] No shadowed classes found via ext — trying node_modules scan...')
+        def nodeModulesDir = new File(rootProject.projectDir, '../node_modules')
+        if (nodeModulesDir.exists()) {
+            nodeModulesDir.eachDir { pkgDir ->
+                def buildFile = new File(pkgDir, 'android/build.gradle')
+                if (!buildFile.exists()) return
+                try {
+                    def content = buildFile.text
+                    // Match: ext.shadowedClasses = [ '...', '...' ]
+                    def matcher = content =~
+                        /ext\.shadowedClasses\s*=\s*\[([^\]]*)\]/
+                    if (matcher.find()) {
+                        def listStr = matcher.group(1)
+                        def classes = listStr.findAll(/'([^']+)'/) { it[1] }
+                        if (!classes.isEmpty()) {
+                            logger.lifecycle("[strip-vtm]   '{}' (build.gradle scan) shadows: {}",
+                                pkgDir.name, classes)
+                            classes.each { className ->
+                                if (!allShadowed.containsKey(className)) {
+                                    allShadowed[className] =
+                                        [_project: pkgDir.name]
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.lifecycle("[strip-vtm]   Cannot read {}: {}",
+                        buildFile.absolutePath, e.message)
                 }
             }
         }
     }
 
     if (allShadowed.isEmpty()) {
-        logger.lifecycle('[strip-vtm] No shadowed vtm classes declared — no-op')
+        System.err.println('[strip-vtm] No shadowed classes — no-op')
         return
     }
 
-    logger.lifecycle('[strip-vtm] Shadowed classes to strip: {}', allShadowed.keySet())
+    System.err.println('[strip-vtm] Shadowed classes to strip: ' + allShadowed.keySet())
 
     // ── Build entry patterns ──────────────────────────────────────────────
 
@@ -191,51 +244,232 @@ appProject.gradle.projectsEvaluated {
     // The core library provides default implementations of classes that vtm
     // 0.28.0 broke.  When an extension shadows those classes the core
     // library's versions must be removed so only the extension's remain.
+    //
+    // D8 / dexBuilder reads class files from three locations inside a library
+    // project's build directory (in priority order):
+    //   1. intermediates/runtime_library_classes_dir/<variant>/  – extracted .class files
+    //   2. intermediates/runtime_library_classes_jar/<variant>/classes.jar
+    //   3. intermediates/javac/<variant>/classes/                – javac output (may be stale)
+    //
+    // We strip from ALL three so the library's DEX transform output no longer
+    // contains the shadowed classes.  The per-class .dex files in
+    // .transforms/.../bundleLibRuntimeToDir*_dex/ are also cleaned so stale
+    // transform caches can't resurrect them.
+
+    // Identify the core library project (react-native-mapsforge-vtm).
+    def coreLibProject = rootProject.allprojects.find {
+        it.name == 'react-native-mapsforge-vtm'
+    }
+
+    // ── Strip source files from the core library ─────────────────────────
+    // The most reliable approach: delete the .java source files from the
+    // core library in node_modules/ BEFORE compilation.  The library's own
+    // code (com.jhotadhari.*) does not reference these classes — they only
+    // exist for vtm JAR compatibility.  The extension provides modified
+    // versions at runtime.  Deleting sources prevents them from entering
+    // the build pipeline at all.
+
+    if (coreLibProject) {
+        allShadowed.each { className, info ->
+            // org.oscim.renderer.bucket.LineBucket
+            //  → org/oscim/renderer/bucket/LineBucket.java
+            def relPath = className.replace('.', '/') + '.java'
+            def srcFile = new File(coreLibProject.projectDir,
+                'src/main/java/' + relPath)
+            if (srcFile.exists()) {
+                System.err.println('[strip-vtm] Deleting source from core lib: ' +
+                    relPath)
+                srcFile.delete()
+            }
+        }
+    }
 
     def stripProjectTask = appProject.tasks.register('stripShadowedClassesFromProjects') {
-        description = 'Strip shadowed class files from project dependency build dirs before DEX merge'
+        description = 'Strip shadowed vtm class files from the core library build output before DEX merge'
         group = 'vtm'
 
         inputs.property('exactEntries', exactEntries)
+        inputs.property('dollarPrefixes', dollarPrefixes)
+        inputs.property('coreLibBuildDir',
+            coreLibProject ? coreLibProject.buildDir.absolutePath : '')
 
         doLast {
-            def classFiles = inputs.properties['exactEntries'] as List
-            rootProject.allprojects.each { proj ->
-                // Skip the app project and non-library projects
-                if (proj == appProject) return
-                if (!proj.plugins.hasPlugin('com.android.library') &&
-                    !proj.plugins.hasPlugin('com.android.application')) return
+            def buildDirPath = inputs.properties['coreLibBuildDir'] as String
+            if (buildDirPath.isEmpty()) {
+                System.err.println('[strip-vtm] Core lib project not found — skipping')
+                return
+            }
+            def libBuildDir = new File(buildDirPath)
+            if (!libBuildDir.exists()) {
+                System.err.println('[strip-vtm] Core lib build dir missing — skipping')
+                return
+            }
 
-                def buildDir = new File(proj.buildDir, 'intermediates/javac')
-                if (!buildDir.exists()) return
+            def exactEntryList = inputs.properties['exactEntries'] as List
+            def prefixList = inputs.properties['dollarPrefixes'] as List
 
-                buildDir.eachFileRecurse { f ->
-                    if (!f.name.endsWith('.class')) return
-                    def relPath = f.absolutePath.substring(buildDir.absolutePath.length() + 1)
-                    if (classFiles.contains(relPath)) {
-                        logger.lifecycle('[strip-vtm] Stripping from {}: {}', proj.name, relPath)
-                        f.delete()
+            // Simple pattern: each shadowed class FQN becomes a path prefix.
+            // "org.oscim.renderer.bucket.LineBucket" →
+            //   "org/oscim/renderer/bucket/LineBucket"
+            // We delete any file under libBuildDir whose relative path
+            // starts with one of these prefixes and ends with .class or .dex.
+            def pathPrefixes = []
+            exactEntryList.each { entry ->
+                // entry = "org/oscim/renderer/bucket/LineBucket.class"
+                pathPrefixes.add(entry.replace('.class', ''))
+            }
+            prefixList.each { prefix ->
+                // prefix = "org/oscim/renderer/bucket/LineBucket$"
+                pathPrefixes.add(prefix.replace('$', ''))
+            }
+
+            System.err.println('[strip-vtm] Stripping from ' + libBuildDir.absolutePath)
+            System.err.println('[strip-vtm] Path prefixes: ' + pathPrefixes)
+
+            // Delete only the bundleLibRuntimeToDir*_dex/ subdirectories
+            // inside .transforms/.  We must NOT delete the entire
+            // .transforms/ directory because globalSynthetics needs the
+            // classes_dex/ subdirectory produced by a separate transform.
+            //
+            // We use explicit eachDir() navigation starting from a direct
+            // File reference to .transforms (which exists).  We do NOT
+            // use eachFileRecurse/traverse on libBuildDir — those skip
+            // hidden directories.  But eachDir() on a non-hidden directory
+            // is reliable, and all children of .transforms are non-hidden
+            // (hash-named directories).
+            def deleted = 0
+            def transformsDir = new File(libBuildDir, '.transforms')
+            if (transformsDir.exists()) {
+                transformsDir.eachDir { hashDir ->
+                    // hashDir = a4303d89... (not hidden)
+                    def transformedDir = new File(hashDir, 'transformed')
+                    if (!transformedDir.exists()) return
+                    transformedDir.eachDir { variantDir ->
+                        // variantDir = bundleLibRuntimeToDirDebug
+                        variantDir.eachDir { dexDir ->
+                            // Only clean bundleLibRuntimeToDir*_dex/,
+                            // preserve classes_dex/ for globalSynthetics.
+                            if (!dexDir.name.endsWith('_dex') ||
+                                !dexDir.name.contains('bundleLibRuntimeToDir'))
+                                return
+                            // Delete individual .dex files (not the dir
+                            // itself) — mergeDexRelease expects the
+                            // directory to exist.
+                            dexDir.eachFileRecurse { dexFile ->
+                                if (!dexFile.name.endsWith('.dex')) return
+                                def fileName = dexFile.name.replace('.dex', '')
+                                for (int ei = 0;
+                                     ei < exactEntryList.size();
+                                     ei++) {
+                                    def entry =
+                                        exactEntryList[ei]
+                                            .replace('.class', '')
+                                            .tokenize('/').last()
+                                    if (fileName == entry ||
+                                        fileName.startsWith(
+                                            entry + '\$')) {
+                                        def relPath =
+                                            dexFile.absolutePath
+                                                .substring(
+                                                libBuildDir
+                                                    .absolutePath
+                                                    .length() + 1)
+                                        System.err.println(
+                                            '[strip-vtm] DELETE dex: ' +
+                                            relPath)
+                                        dexFile.delete()
+                                        deleted++
+                                        break
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
+
+            // Also delete .class files from javac and runtime dirs using
+            // a single find -delete (shell out for .class files only —
+            // these are not in hidden directories so ProcessBuilder works).
+            def findArgs = ['find', libBuildDir.absolutePath, '-type', 'f', '(']
+            def first = true
+            exactEntryList.each { entry ->
+                def base = entry.replace('.class', '').tokenize('/').last()
+                if (!first) findArgs.add('-o')
+                first = false
+                findArgs.addAll(['-name', '*' + base + '*.class',
+                                 '-o', '-name', '*' + base + '*.dex'])
+            }
+            findArgs.add(')')
+
+            // List + delete .class/.dex files
+            def listCmd = findArgs as List
+            def pbList = new ProcessBuilder(listCmd)
+            pbList.redirectErrorStream(true)
+            def listProc = pbList.start()
+            def foundFiles = listProc.inputStream.readLines()
+            listProc.waitFor()
+            foundFiles.each { f ->
+                System.err.println('[strip-vtm] DELETE ' +
+                    f.substring(libBuildDir.absolutePath.length() + 1))
+            }
+            def delArgs = findArgs + ['-delete']
+            def pbDel = new ProcessBuilder(delArgs as List)
+            pbDel.redirectErrorStream(true)
+            def delProc = pbDel.start()
+            delProc.waitFor()
+            deleted = foundFiles.size()
+
+            // Also delete the runtime library classes JAR output so
+            // AGP regenerates it from the (now clean) javac.  We must
+            // NOT use zip -d to patch JARs in-place — D8's
+            // globalSynthetics transform reads the JAR directly and
+            // needs the shadowed classes to resolve references from
+            // the vtm JAR (e.g. MapRenderer → RenderBuckets.initRenderer).
+            // Removing just the JAR directory forces a clean rebuild
+            // without breaking globalSynthetics.
+
+            def jarDirs = [
+                'intermediates/runtime_library_classes_jar',
+            ]
+            jarDirs.each { jarDirName ->
+                def jarDir = new File(libBuildDir, jarDirName)
+                if (jarDir.exists()) {
+                    System.err.println('[strip-vtm] Deleting ' + jarDirName +
+                        ' to force regeneration from clean javac')
+                    jarDir.deleteDir()
+                }
+            }
+
+            System.err.println('[strip-vtm] Deleted/patched ' + deleted + ' entries from core library build')
         }
     }
 
     // ── Wire into the build lifecycle ─────────────────────────────────────
     // Strip from vtm JARs before preBuild (JARs are read early).
-    // Strip from project dependency build dirs right before DEX merge.
 
     appProject.tasks.named('preBuild') { preBuild ->
         preBuild.dependsOn stripTask
     }
 
-    // Hook into the dex transformation: strip project classes before D8 runs.
-    // dexBuilderDebug is the AGP task that converts class files to DEX.
+    // Hook stripShadowedClassesFromProjects before the DEX merge tasks
+    // that actually fail with duplicate-class errors.  At this point the
+    // library's own DEX transform has already produced .transforms/ output,
+    // so we delete the shadowed .class and .dex files from the core
+    // library's entire build tree right before merging.
+
     appProject.tasks.configureEach { task ->
-        if (task.name.matches('dexBuilder.*')) {
+        if (task.name.matches('mergeLibDex.*') ||
+            task.name.matches('mergeDex.*')) {
             task.dependsOn stripProjectTask
         }
     }
 
     logger.lifecycle('[strip-vtm] Registered stripShadowedVtmClasses + stripShadowedClassesFromProjects')
+
+    } catch (Exception e) {
+        System.err.println('[strip-vtm] FATAL: ' + e.message)
+        e.printStackTrace(System.err)
+        throw e
+    }
 }
