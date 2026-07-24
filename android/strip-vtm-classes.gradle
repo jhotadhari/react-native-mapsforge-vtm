@@ -187,13 +187,55 @@ appProject.gradle.projectsEvaluated {
         }
     }
 
+    // ── Strip from project dependencies (e.g. react-native-mapsforge-vtm) ─
+    // The core library provides default implementations of classes that vtm
+    // 0.28.0 broke.  When an extension shadows those classes the core
+    // library's versions must be removed so only the extension's remain.
+
+    def stripProjectTask = appProject.tasks.register('stripShadowedClassesFromProjects') {
+        description = 'Strip shadowed class files from project dependency build dirs before DEX merge'
+        group = 'vtm'
+
+        inputs.property('exactEntries', exactEntries)
+
+        doLast {
+            def classFiles = inputs.properties['exactEntries'] as List
+            rootProject.allprojects.each { proj ->
+                // Skip the app project and non-library projects
+                if (proj == appProject) return
+                if (!proj.plugins.hasPlugin('com.android.library') &&
+                    !proj.plugins.hasPlugin('com.android.application')) return
+
+                def buildDir = new File(proj.buildDir, 'intermediates/javac')
+                if (!buildDir.exists()) return
+
+                buildDir.eachFileRecurse { f ->
+                    if (!f.name.endsWith('.class')) return
+                    def relPath = f.absolutePath.substring(buildDir.absolutePath.length() + 1)
+                    if (classFiles.contains(relPath)) {
+                        logger.lifecycle('[strip-vtm] Stripping from {}: {}', proj.name, relPath)
+                        f.delete()
+                    }
+                }
+            }
+        }
+    }
+
     // ── Wire into the build lifecycle ─────────────────────────────────────
-    // Run before any compilation to ensure vtm JARs are patched before
-    // AGP dexes them.  preBuild is the earliest lifecycle task.
+    // Strip from vtm JARs before preBuild (JARs are read early).
+    // Strip from project dependency build dirs right before DEX merge.
 
     appProject.tasks.named('preBuild') { preBuild ->
         preBuild.dependsOn stripTask
     }
 
-    logger.lifecycle('[strip-vtm] Registered stripShadowedVtmClasses — will run before preBuild')
+    // Hook into the dex transformation: strip project classes before D8 runs.
+    // dexBuilderDebug is the AGP task that converts class files to DEX.
+    appProject.tasks.configureEach { task ->
+        if (task.name.matches('dexBuilder.*')) {
+            task.dependsOn stripProjectTask
+        }
+    }
+
+    logger.lifecycle('[strip-vtm] Registered stripShadowedVtmClasses + stripShadowedClassesFromProjects')
 }
