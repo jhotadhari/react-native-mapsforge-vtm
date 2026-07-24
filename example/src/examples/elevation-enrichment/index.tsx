@@ -93,13 +93,20 @@ const ExampleComponent: FC<{
 }> = ({ height, width }) => {
 	const { handleMapUpdate, info } = useMapInfo();
 
+	// useMap() needs the map's nativeNodeHandle, but MapHandleContext is only provided to
+	// MapContainer's own children -- this component renders MapContainer as a sibling of
+	// Controls, not a parent of it, so the handle is lifted up via MapContainer's existing
+	// nativeNodeHandle/setNativeNodeHandle controlled props instead.
+	const [nativeNodeHandle, setNativeNodeHandle] = useState<number | null>(
+		null
+	);
 	const {
 		getAltitudeAtPosition,
 		hasDataAtPosition,
 		setCacheCapacity,
 		isTileCached,
 		flyToBounds,
-	} = useMap();
+	} = useMap(nativeNodeHandle);
 
 	const [enriching, setEnriching] = useState(false);
 	const [progress, setProgress] = useState(0);
@@ -203,14 +210,19 @@ const ExampleComponent: FC<{
 		}
 	}, [api, flyToBounds]);
 
-	// Auto-start enrichment on mount.
+	// Auto-start enrichment once the map view is ready (nativeNodeHandle
+	// transitions from null to a number). Without this guard the effect
+	// fires on the first render while nativeNodeHandle is still null,
+	// handleStart captures the stale flyToBounds/getAltitudeAtPosition from
+	// that render, and enrichment silently produces all-zero elevations
+	// followed by a "nativeNodeHandle is not set yet" error.
 	const startedRef = useRef(false);
 	useEffect(() => {
-		if (!startedRef.current) {
+		if (!startedRef.current && nativeNodeHandle) {
 			startedRef.current = true;
 			handleStart();
 		}
-	}, [handleStart]);
+	}, [handleStart, nativeNodeHandle]);
 
 	return (
 		<View style={{ width, height, gap: 16 }}>
@@ -225,6 +237,8 @@ const ExampleComponent: FC<{
 
 			<View style={{ height, width }}>
 				<MapContainer
+					nativeNodeHandle={nativeNodeHandle}
+					setNativeNodeHandle={setNativeNodeHandle}
 					width={width}
 					height={height}
 					center={defaultCenter}
