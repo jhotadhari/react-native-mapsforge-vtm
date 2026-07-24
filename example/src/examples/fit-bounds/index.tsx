@@ -1,4 +1,4 @@
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
@@ -6,6 +6,7 @@ import {
 	MapContainer,
 	useMap,
 	type Bbox,
+	type GeometryStyle,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -63,6 +64,10 @@ const bboxToRing = (bounds: Bbox): Position[] => {
 		[west!, south!],
 	];
 };
+
+const bboxStyleA: GeometryStyle = { strokeColor: '#ff0000', strokeWidth: 3 };
+const bboxStyleB: GeometryStyle = { strokeColor: '#00ff00', strokeWidth: 3 };
+const bboxStyleC: GeometryStyle = { strokeColor: '#0000ff', strokeWidth: 3 };
 
 const Controls: FC<{
 	mapWidth: number;
@@ -216,14 +221,16 @@ const ExampleComponent: FC<{
 			map.panInside([boundsA[0]!, boundsA[1]!])
 		);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				isBusy={isBusy}
@@ -236,12 +243,7 @@ const ExampleComponent: FC<{
 				onPanInsidePoint={handlePanInsidePoint}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					nativeNodeHandle={nativeNodeHandle}
 					setNativeNodeHandle={setNativeNodeHandle}
@@ -259,15 +261,15 @@ const ExampleComponent: FC<{
 					{/* Outline each hardcoded bbox so a fit/fly can be visually checked against it. */}
 					<LayerPath
 						coordinates={bboxToRing(boundsA)}
-						style={{ strokeColor: '#ff0000', strokeWidth: 3 }}
+						style={bboxStyleA}
 					/>
 					<LayerPath
 						coordinates={bboxToRing(boundsB)}
-						style={{ strokeColor: '#00ff00', strokeWidth: 3 }}
+						style={bboxStyleB}
 					/>
 					<LayerPath
 						coordinates={bboxToRing(boundsC)}
-						style={{ strokeColor: '#0000ff', strokeWidth: 3 }}
+						style={bboxStyleC}
 					/>
 				</MapContainer>
 

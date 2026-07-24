@@ -132,17 +132,17 @@ const Controls: FC<{
 
 			<ControlSection title="What to look for">
 				<Text style={sharedStyles.text}>
-					• <Text style={{ fontWeight: 'bold' }}>SharedLayer ON</Text>
-					: all 3 paths share one native layer, all 3 markers share
+					• <Text style={sharedStyles.boldText}>SharedLayer ON</Text>:
+					all 3 paths share one native layer, all 3 markers share
 					another → every marker paints on top of every path. Path
 					colors never cover marker dots.
 					{'\n\n'}•{' '}
-					<Text style={{ fontWeight: 'bold' }}>SharedLayer OFF</Text>:
+					<Text style={sharedStyles.boldText}>SharedLayer OFF</Text>:
 					each (Path, Marker) pair gets its own fragment pair,
 					interleaved in React-tree order → green path covers red
 					marker, blue path covers green marker.
 					{'\n\n'}• Toggle{' '}
-					<Text style={{ fontWeight: 'bold' }}>Swap order</Text> to
+					<Text style={sharedStyles.boldText}>Swap order</Text> to
 					reverse the Path/Marker stacking within each pair.
 				</Text>
 			</ControlSection>
@@ -201,14 +201,16 @@ const ExampleComponent: FC<{
 		renderPairs
 	);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				useSharedLayer={useSharedLayer}
@@ -217,12 +219,7 @@ const ExampleComponent: FC<{
 				onToggleSwapOrder={() => setSwapOrder((v) => !v)}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

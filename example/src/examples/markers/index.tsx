@@ -162,14 +162,16 @@ const ExampleComponent: FC<{
 		return handlers;
 	}, []);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				lastMarkerEvent={lastMarkerEvent}
@@ -177,12 +179,7 @@ const ExampleComponent: FC<{
 				onToggleExtraCity={() => setHasExtraCity((v) => !v)}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

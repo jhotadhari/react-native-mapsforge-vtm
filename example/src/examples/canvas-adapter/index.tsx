@@ -1,5 +1,5 @@
-import { useState, type FC } from 'react';
-import { Button, Text, View } from 'react-native';
+import { useMemo, useState, type FC } from 'react';
+import { Button, StyleSheet, Text, View } from 'react-native';
 import {
 	CanvasAdapterModule,
 	LayerMapsforge,
@@ -24,6 +24,17 @@ const mapFile = '/sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map';
 const renderTheme = '/sdcard/Download/test-data/mapstyles/Alti/Alti.xml';
 
 const defaultCenter: Position = [1.55, 42.55]; // Andorra
+
+const styles = StyleSheet.create({
+	scaleControlRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+	},
+	scaleControlLabel: {
+		width: 70,
+	},
+});
 
 // `CanvasAdapter`'s setters are global and only take effect for layers/themes parsed *after*
 // they're called -- there's no live re-render of an already-mounted map. So this example gates
@@ -55,8 +66,10 @@ const ExampleComponent: FC<{
 		value: number,
 		setValue: (value: number) => void
 	) => (
-		<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-			<Text style={[sharedStyles.text, { width: 70 }]}>{label}</Text>
+		<View style={styles.scaleControlRow}>
+			<Text style={[sharedStyles.text, styles.scaleControlLabel]}>
+				{label}
+			</Text>
 			<Button
 				title="-"
 				onPress={() => {
@@ -73,13 +86,10 @@ const ExampleComponent: FC<{
 		</View>
 	);
 
+	const containerStyle = useMemo(() => ({ height, width }), [height, width]);
+
 	return (
-		<View
-			style={{
-				height,
-				width,
-			}}
-		>
+		<View style={containerStyle}>
 			{started && (
 				<MapContainer
 					key={mapKey}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import {
@@ -115,8 +115,10 @@ const ExampleComponent: FC<{
 		if (nativeNodeHandle) pos.activateNativeBridge(nativeNodeHandle);
 	}, [nativeNodeHandle, pos]);
 
+	const containerStyle = useMemo(() => ({ height, width }), [height, width]);
+
 	return (
-		<View style={{ height, width }}>
+		<View style={containerStyle}>
 			<MapContainer
 				nativeNodeHandle={nativeNodeHandle}
 				setNativeNodeHandle={setNativeNodeHandle}

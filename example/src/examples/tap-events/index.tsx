@@ -136,14 +136,16 @@ const ExampleComponent: FC<{
 		[]
 	);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				lastTapInfo={lastTapInfo}
@@ -152,12 +154,7 @@ const ExampleComponent: FC<{
 				onClearMarkers={handleClearMarkers}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

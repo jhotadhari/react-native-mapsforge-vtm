@@ -98,14 +98,23 @@ const ExampleComponent: FC<{
 		};
 	}, []);
 
-	return (
-		<View
-			style={{
+	const stylesDynamic = useMemo(
+		() => ({
+			container: {
 				width,
 				height,
 				gap: 16,
-			}}
-		>
+			} as const,
+			containerMap: {
+				height,
+				width,
+			} as const,
+		}),
+		[width, height]
+	);
+
+	return (
+		<View style={stylesDynamic.container}>
 			<ControlPanel width={width}>
 				<ControlSection>
 					<StatusLine
@@ -172,12 +181,7 @@ const ExampleComponent: FC<{
 				</ControlSection>
 			</ControlPanel>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

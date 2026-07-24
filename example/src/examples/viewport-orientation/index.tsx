@@ -1,4 +1,10 @@
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import {
+	useMemo,
+	useState,
+	type Dispatch,
+	type FC,
+	type SetStateAction,
+} from 'react';
 import { View, Text, Button, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
@@ -121,14 +127,17 @@ const ExampleComponent: FC<{
 	);
 	const map = useMap(nativeNodeHandle);
 
+	const stylesDynamic = useMemo(
+		() =>
+			({
+				container: { width, height, gap: 16 } as const,
+				containerMap: { height, width } as const,
+			}) as const,
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				lastAction={lastAction}
@@ -138,12 +147,7 @@ const ExampleComponent: FC<{
 				setAnimate={setAnimate}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					nativeNodeHandle={nativeNodeHandle}
 					setNativeNodeHandle={setNativeNodeHandle}

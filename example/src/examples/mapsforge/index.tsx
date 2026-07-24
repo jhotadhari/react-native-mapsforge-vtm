@@ -1,4 +1,4 @@
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { Button, View } from 'react-native';
 import {
 	LayerMapsforge,
@@ -78,13 +78,10 @@ const ExampleComponent: FC<{
 		);
 	};
 
+	const containerStyle = useMemo(() => ({ height, width }), [height, width]);
+
 	return (
-		<View
-			style={{
-				height,
-				width,
-			}}
-		>
+		<View style={containerStyle}>
 			<MapContainer
 				width={width}
 				height={height}

@@ -1,4 +1,4 @@
-import { useState, type FC } from 'react';
+import { useState, useMemo, type FC } from 'react';
 import { View, Text, Button } from 'react-native';
 import {
 	LayerBitmapTile,
@@ -196,14 +196,16 @@ const ExampleComponent: FC<{
 		);
 	};
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				isAnimating={isAnimating}
@@ -213,12 +215,7 @@ const ExampleComponent: FC<{
 				onCompareEasing={handleCompareEasing}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					nativeNodeHandle={nativeNodeHandle}
 					setNativeNodeHandle={setNativeNodeHandle}

@@ -1,4 +1,4 @@
-import { useState, useCallback, type FC } from 'react';
+import { useState, useCallback, useMemo, type FC } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
 	LayerHillshading,
@@ -62,13 +62,10 @@ const ExampleComponent: FC<{
 		[getAltitudeAtPosition]
 	);
 
+	const containerStyle = useMemo(() => ({ height, width }), [height, width]);
+
 	return (
-		<View
-			style={{
-				height,
-				width,
-			}}
-		>
+		<View style={containerStyle}>
 			<MapContainer
 				width={width}
 				height={height}

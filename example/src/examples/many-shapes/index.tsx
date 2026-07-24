@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useMemo, useState, type FC } from 'react';
-import { View, Text } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerShape,
@@ -137,6 +137,15 @@ function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
 	}
 }
 
+const styles = StyleSheet.create({
+	countSelected: {
+		fontWeight: 'bold',
+	},
+	countNormal: {
+		fontWeight: 'normal',
+	},
+});
+
 // ── Controls ────────────────────────────────────────────────────────────
 
 const Controls: FC<{
@@ -152,7 +161,9 @@ const Controls: FC<{
 					<Text
 						style={[
 							sharedStyles.text,
-							{ fontWeight: n === count ? 'bold' : 'normal' },
+							n === count
+								? styles.countSelected
+								: styles.countNormal,
 						]}
 						onPress={() => onSetCount(n)}
 					>
@@ -211,8 +222,16 @@ const ExampleComponent: FC<{
 		return result;
 	}, [count]);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View style={{ width, height, gap: 16 }}>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				count={count}
@@ -222,7 +241,7 @@ const ExampleComponent: FC<{
 				mountTime={mountTime}
 			/>
 
-			<View style={{ height, width }}>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

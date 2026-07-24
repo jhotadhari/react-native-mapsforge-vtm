@@ -299,14 +299,17 @@ const ExampleComponent: FC<{
 		return handlers;
 	}, [formatGesture]);
 
+	const stylesDynamic = useMemo(
+		() =>
+			({
+				container: { width, height, gap: 16 } as const,
+				containerMap: { height, width } as const,
+			}) as const,
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				lastGestureInfo={lastGestureInfo}
@@ -318,12 +321,7 @@ const ExampleComponent: FC<{
 				onToggleInterleaved={() => setShowInterleaved((v) => !v)}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

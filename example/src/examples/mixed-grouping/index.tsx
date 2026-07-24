@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useMemo, useState, type FC } from 'react';
-import { View, Text, Switch } from 'react-native';
+import { StyleSheet, View, Text, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -65,6 +65,24 @@ import {
 const center: Position = [-77, -9];
 const defaultCenter: Position = center;
 
+// ── Shared/dedicated layer styles ───────────────────────────────────────
+
+const dedicatedPathStyle: GeometryStyle = {
+	strokeWidth: 20,
+	strokeColor: '#4488ff',
+};
+
+const styles = StyleSheet.create({
+	fragmentCount: {
+		fontWeight: 'bold',
+		color: '#4ec94e',
+	},
+	individualRows: {
+		fontWeight: 'bold',
+		color: '#e09040',
+	},
+});
+
 // ── Controls ────────────────────────────────────────────────────────────
 
 const Controls: FC<{
@@ -94,33 +112,29 @@ const Controls: FC<{
 
 			<ControlSection title="What to look for in the debug tree">
 				<Text style={sharedStyles.text}>
-					• <Text style={{ fontWeight: 'bold' }}>SharedLayer ON</Text>
-					: the 4 inner items collapse into{' '}
-					<Text style={{ fontWeight: 'bold', color: '#4ec94e' }}>
-						2 fragment groups
-					</Text>{' '}
+					• <Text style={sharedStyles.boldText}>SharedLayer ON</Text>:
+					the 4 inner items collapse into{' '}
+					<Text style={styles.fragmentCount}>2 fragment groups</Text>{' '}
 					(marker + path). The debug tree shows collapsible group
 					headers interleaved with individual rows.{'\n\n'}•{' '}
-					<Text style={{ fontWeight: 'bold' }}>SharedLayer OFF</Text>:
+					<Text style={sharedStyles.boldText}>SharedLayer OFF</Text>:
 					the debug tree shows{' '}
-					<Text style={{ fontWeight: 'bold', color: '#e09040' }}>
-						7 individual rows
-					</Text>{' '}
+					<Text style={styles.individualRows}>7 individual rows</Text>{' '}
 					— no fragment groups at all.{'\n\n'}• The{' '}
-					<Text style={{ fontWeight: 'bold' }}>Grouped</Text> header
+					<Text style={sharedStyles.boldText}>Grouped</Text> header
 					tells you whether a SharedLayer wrapper is present (not
 					whether any fragment happens to have {'>'}1 member).{'\n\n'}
 					•{' '}
-					<Text style={{ fontWeight: 'bold' }}>Why SharedLayer?</Text>{' '}
+					<Text style={sharedStyles.boldText}>Why SharedLayer?</Text>{' '}
 					Each native layer = 1 GPU draw call. Without SharedLayer, N
 					same-type items produce N draw calls. With it, they collapse
 					into{' '}
-					<Text style={{ fontWeight: 'bold' }}>
+					<Text style={sharedStyles.boldText}>
 						1 draw call per type
 					</Text>
 					{' — '}at 100s of items the performance difference is
 					dramatic. The{' '}
-					<Text style={{ fontWeight: 'bold' }}>many-layers</Text>{' '}
+					<Text style={sharedStyles.boldText}>many-layers</Text>{' '}
 					example demonstrates this at scale.
 				</Text>
 			</ControlSection>
@@ -239,8 +253,16 @@ const ExampleComponent: FC<{
 
 	// ── Render ───────────────────────────────────────────────────────────
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View style={{ width, height, gap: 16 }}>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				containerHeight={height}
@@ -248,7 +270,7 @@ const ExampleComponent: FC<{
 				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
 			/>
 
-			<View style={{ height, width }}>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}
@@ -264,7 +286,7 @@ const ExampleComponent: FC<{
 					{/* 1. Dedicated path (blue) — outside SharedLayer */}
 					<LayerPath
 						coordinates={dedicatedPathCoords}
-						style={{ strokeWidth: 20, strokeColor: '#4488ff' }}
+						style={dedicatedPathStyle}
 					/>
 
 					{/* 2. Dedicated marker (red) — outside SharedLayer */}

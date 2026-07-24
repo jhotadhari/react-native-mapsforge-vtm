@@ -51,6 +51,7 @@
 
 import {
 	useCallback,
+	useMemo,
 	useState,
 	type Dispatch,
 	type FC,
@@ -364,15 +365,20 @@ const ExampleComponent: FC<{
 	// Split the available height evenly with a small gap between maps.
 	const mapGap = 6;
 	const mapHeight = (height - mapGap) / 2;
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: mapGap } as const,
+			containerMap: { height, width } as const,
+		}),
+		[
+			width,
+			height,
+			mapGap,
+		]
+	);
 
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: mapGap,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				syncEnabled={syncEnabled}

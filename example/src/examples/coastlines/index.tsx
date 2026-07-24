@@ -85,14 +85,16 @@ const ExampleComponent: FC<{
 		setFirstLineBbox(response.bbox);
 	};
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				mapWidth={width}
 				strokeColor={strokeColor}
@@ -100,12 +102,7 @@ const ExampleComponent: FC<{
 				onCycleColor={() => setColorIndex((i) => i + 1)}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

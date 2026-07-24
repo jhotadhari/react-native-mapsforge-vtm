@@ -241,19 +241,19 @@ const Controls: FC<{
 			<ControlSection title="What to look for">
 				<Text style={sharedStyles.text}>
 					• Items are{' '}
-					<Text style={{ fontWeight: 'bold' }}>
+					<Text style={sharedStyles.boldText}>
 						declared bottom→top
 					</Text>{' '}
 					in JSX (1 first, 6 last).{'\n\n'}• If item 2 (orange path)
 					paints over item 4 (green circle), order is broken — 4 comes
 					after 2 in JSX.{'\n\n'}• Correct: 1 ⊂ 2 ⊂ 3 ⊂ 4 ⊂ 5 ⊂ 6
 					(each layer covers all lower-numbered ones).{'\n\n'}• With{' '}
-					<Text style={{ fontWeight: 'bold' }}>SharedLayer</Text>: all
+					<Text style={sharedStyles.boldText}>SharedLayer</Text>: all
 					shapes share 1 native layer, all paths share 1, all markers
 					share 1 — but still in the correct interleaved order.
 					{'\n\n'}• With{' '}
-					<Text style={{ fontWeight: 'bold' }}>ReindexScope</Text>:
-					the debug overlay shows scope-tagged layer blocks.
+					<Text style={sharedStyles.boldText}>ReindexScope</Text>: the
+					debug overlay shows scope-tagged layer blocks.
 				</Text>
 			</ControlSection>
 		</ControlPanel>
@@ -322,8 +322,17 @@ const ExampleComponent: FC<{
 		renderItems
 	);
 
+	const stylesDynamic = useMemo(
+		() =>
+			({
+				container: { width, height, gap: 16 } as const,
+				containerMap: { height, width } as const,
+			}) as const,
+		[width, height]
+	);
+
 	return (
-		<View style={{ width, height, gap: 16 }}>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				containerHeight={height}
@@ -334,7 +343,7 @@ const ExampleComponent: FC<{
 				onToggleReindexScope={() => setUseReindexScope((v) => !v)}
 			/>
 
-			<View style={{ height, width }}>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}

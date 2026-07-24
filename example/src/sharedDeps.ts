@@ -17,6 +17,9 @@ export const sharedStyles = StyleSheet.create({
 	text: {
 		color: '#fff',
 	},
+	boldText: {
+		fontWeight: 'bold',
+	},
 });
 
 // Native promise rejections (e.g. from useMap()'s methods) reject via Utils.promiseReject's

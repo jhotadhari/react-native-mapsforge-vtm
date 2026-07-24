@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useMemo, useState, type FC } from 'react';
-import { View, Text, Switch } from 'react-native';
+import { StyleSheet, View, Text, Switch } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -113,6 +113,23 @@ const styleArcApprox: GeometryStyle = {
 	strokeWidth: 2,
 };
 
+// ── Legend text styles ──────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+	legendRed: {
+		color: '#ff4444',
+		fontWeight: 'bold',
+	},
+	legendBlue: {
+		color: '#0000ff',
+		fontWeight: 'bold',
+	},
+	legendOrange: {
+		color: '#ffaa00',
+		fontWeight: 'bold',
+	},
+});
+
 // ── Controls ──────────────────────────────────────────────────────────────
 
 const Controls: FC<{
@@ -179,19 +196,12 @@ const Controls: FC<{
 
 		<ControlSection title="What to look for">
 			<Text style={sharedStyles.text}>
-				•{' '}
-				<Text style={{ color: '#ff4444', fontWeight: 'bold' }}>
-					Red arc
-				</Text>{' '}
-				= LayerPathJts (dedicated layer, guaranteed z-order).{'\n'}•{' '}
-				<Text style={{ color: '#0000ff', fontWeight: 'bold' }}>
-					Blue line
-				</Text>{' '}
-				= LayerPath straight line.{'\n'}•{' '}
-				<Text style={{ color: '#ffaa00', fontWeight: 'bold' }}>
-					Orange polyline
-				</Text>{' '}
-				= LayerPath arc approximation.{'\n\n'}• The great-circle arc
+				• <Text style={styles.legendRed}>Red arc</Text> = LayerPathJts
+				(dedicated layer, guaranteed z-order).{'\n'}•{' '}
+				<Text style={styles.legendBlue}>Blue line</Text> = LayerPath
+				straight line.{'\n'}•{' '}
+				<Text style={styles.legendOrange}>Orange polyline</Text> =
+				LayerPath arc approximation.{'\n\n'}• The great-circle arc
 				should curve north of the straight line.{'\n'}• With
 				generalization on, the arc uses fewer vertices (built-in
 				Douglas-Peucker).{'\n'}• LayerPathJts guarantees correct z-order
@@ -215,8 +225,26 @@ const ExampleComponent: FC<{
 
 	const arcApprox = useMemo(() => generateArcApproximation(50), []);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 },
+			containerMap: { height, width },
+		}),
+		[width, height]
+	);
+
+	const stylesGeometry = useMemo(
+		() => ({
+			jts: {
+				...styleGreatCircle,
+				generalization,
+			},
+		}),
+		[generalization]
+	);
+
 	return (
-		<View style={{ width, height, gap: 16 }}>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				showJts={showJts}
@@ -227,7 +255,7 @@ const ExampleComponent: FC<{
 				onGeneralization={setGeneralization}
 			/>
 
-			<View style={{ height, width }}>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}
@@ -256,10 +284,7 @@ const ExampleComponent: FC<{
 					{showJts && (
 						<LayerPathJts
 							coordinates={arcApprox}
-							style={{
-								...styleGreatCircle,
-								generalization,
-							}}
+							style={stylesGeometry.jts}
 						/>
 					)}
 					<LayerScalebar />

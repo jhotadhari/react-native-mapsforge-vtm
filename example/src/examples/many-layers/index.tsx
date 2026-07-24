@@ -196,14 +196,16 @@ const ExampleComponent: FC<{
 		[]
 	);
 
+	const stylesDynamic = useMemo(
+		() => ({
+			container: { width, height, gap: 16 } as const,
+			containerMap: { height, width } as const,
+		}),
+		[width, height]
+	);
+
 	return (
-		<View
-			style={{
-				width,
-				height,
-				gap: 16,
-			}}
-		>
+		<View style={stylesDynamic.container}>
 			<Controls
 				width={width}
 				containerHeight={height}
@@ -216,12 +218,7 @@ const ExampleComponent: FC<{
 				onRandomize={() => setVersion((v) => v + 1)}
 			/>
 
-			<View
-				style={{
-					height,
-					width,
-				}}
-			>
+			<View style={stylesDynamic.containerMap}>
 				<MapContainer
 					width={width}
 					height={height}
