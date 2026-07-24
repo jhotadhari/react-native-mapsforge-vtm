@@ -266,12 +266,14 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   native map-event emission, used by `MapFragment`).
 - `android/strip-vtm-classes.gradle` — reusable Gradle script that strips shadowed vtm classes
   at multiple stages to prevent "Type X is defined multiple times" errors: (1) patches the vtm
-  JAR in the Gradle cache (`zip -d` to remove matching `.class` files), and (2) cleans stale
-  `.class`/`.dex` build artifacts from the core library's build tree before DEX merging, along
-  with a configuration-time safety net that deletes `.java` source files for shadowed classes
-  from the core library in `node_modules/` (no-op for classes the core library doesn't ship).
-  Applied via `apply from:` in the consuming app's `android/app/build.gradle`; extensions
-  declare `ext.shadowedClasses` in their own `build.gradle`.
+  JAR in the Gradle cache (`zip -d` with crash recovery + automatic post-build restore so the
+  shared cache is never left broken), (2) at configuration time, excludes shadowed `.java`
+  source files from the core library's compilation via Gradle's `SourceDirectorySet.exclude()`
+  (non-destructive — no files are deleted from disk), and (3) at execution time, cleans stale
+  `.class`/`.dex` build artifacts and the `runtime_library_classes_jar` directory from the core
+  library's build tree before DEX merging. Applied via `apply from:` in the consuming app's
+  `android/app/build.gradle`; extensions declare `ext.shadowedClasses` in their own
+  `build.gradle`.
 
 ### ElevationReader
 

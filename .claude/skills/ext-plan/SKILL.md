@@ -168,7 +168,7 @@ ext.shadowedClasses = [
 apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android/strip-vtm-classes.gradle"
 ```
 
-Without this, the shadowed classes and the original vtm JAR classes collide at DEX
+Without this, the shadowed classes and the core library's copies collide at DEX
 merge time with "Type X is defined multiple times" errors.
 
 Core library hooks needed: depends on which LayerManager is extended. The core library currently exposes createPathLayerManager() (in LayerPath) and drawSegments() / getStyleBuilder() (in PathLayerManager), all protected, for PathLayerManager extensions.

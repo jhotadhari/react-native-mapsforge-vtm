@@ -382,18 +382,30 @@ apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android
 The script collects `ext.shadowedClasses` from every extension in the dependency
 graph (via Gradle's `allprojects` and a `node_modules/` fallback scan for
 setups where the extension project doesn't appear in `allprojects`).
-It uses a three-pronged approach: (1) the `stripShadowedVtmClasses` task
-patches the vtm JAR in the Gradle cache with `zip -d` to remove matching
-`.class` entries (including inner classes and multi-release JAR copies under
-`META-INF/versions/`) — this is the primary mechanism, since the vtm JAR
-always ships the original classes; (2) at configuration time, the script
-deletes `.java` source files for shadowed classes from the core library in
-`node_modules/` — a safety net that is a no-op for classes the core library
-doesn't ship; (3) at execution time, a `stripShadowedClassesFromProjects`
-task cleans stale `.class` files, `.dex` files, and the
-`runtime_library_classes_jar` directory from the core library's build tree
-before DEX merging, so incremental-build artifacts can't resurrect shadowed
-classes. The task hooks into `mergeLibDex*`/`mergeDex*` for reliable timing.
+It uses a three-pronged approach, all scoped to the current build:
+
+1. **JAR patching** — the `stripShadowedVtmClasses` task patches the vtm JAR
+   in the Gradle cache with `zip -d` to remove matching `.class` entries
+   (including inner classes and multi-release JAR copies under
+   `META-INF/versions/`). A crash-recovery step (`doFirst`) restores any
+   stale `.orig` backups before patching, and a `buildFinished` hook
+   unconditionally restores the original JAR after every build — so the
+   shared Gradle cache is never left permanently modified.
+
+2. **Configuration-time source exclusion** — the script excludes shadowed
+   `.java` source files from the core library's compilation using Gradle's
+   `SourceDirectorySet.exclude()`. This is non-destructive: no files are
+   deleted from disk, the exclusion is scoped to the current build, and it
+   survives yalc symlinks. The core library ships `LineBucket.java` and
+   `RenderBuckets.java` (from vtm 0.29.0, restored as an AGP/D8 workaround),
+   so these two classes are always excluded when an extension shadows them.
+
+3. **Execution-time artifact cleaning** — a `stripShadowedClassesFromProjects`
+   task cleans stale `.class` files, `.dex` files, and the
+   `runtime_library_classes_jar` directory from the core library's build tree
+   before DEX merging, so incremental-build artifacts can't resurrect
+   shadowed classes. The task hooks into `mergeLibDex*`/`mergeDex*` for
+   reliable timing.
 
 **Multiple extensions:** Two extensions can shadow different classes without
 conflict. If two shadow the same class, pass a `prefer` map to resolve:
