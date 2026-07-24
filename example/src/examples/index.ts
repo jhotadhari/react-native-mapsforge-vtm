@@ -1,6 +1,7 @@
 import basic from './basic';
 import canvasAdapter from './canvas-adapter';
 import coastlines from './coastlines';
+import elevationEnrichment from './elevation-enrichment';
 import fitBounds from './fit-bounds';
 import flyEase from './fly-ease';
 import hillshading from './hillshading';
@@ -25,6 +26,7 @@ export {
 	basic,
 	canvasAdapter,
 	coastlines,
+	elevationEnrichment,
 	fitBounds,
 	flyEase,
 	hillshading,

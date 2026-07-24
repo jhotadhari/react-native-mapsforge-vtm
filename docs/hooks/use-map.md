@@ -162,6 +162,42 @@ const elevation = await getAltitudeAtPosition(13.405, 52.52);
 console.log(elevation); // 34 or null
 ```
 
+#### `hasDataAtPosition(lng: number, lat: number): Promise<boolean>`
+
+Returns `true` if an HGT file covers the given coordinate, regardless of whether
+its data is currently cached. Fast — no I/O, no preload. When this returns
+`false` the position is ocean, missing tile, or the ElevationReader hasn't been
+configured — callers can skip their retry loop.
+
+```tsx
+const hasData = await hasDataAtPosition(13.405, 52.52);
+if (!hasData) {
+  console.log('No elevation data for this location');
+}
+```
+
+#### `isTileCached(lng: number, lat: number): Promise<boolean>`
+
+Returns `true` if the HGT tile covering the coordinate is currently loaded in
+the LRU cache. Never triggers a preload. Unlike `getAltitudeAtPosition` this is
+unambiguous — `false` always means "not cached", never "cached but void pixel".
+
+```tsx
+const cached = await isTileCached(13.405, 52.52);
+```
+
+#### `setCacheCapacity(capacity: number): Promise<void>`
+
+Resizes the elevation tile LRU cache. **Throws** on failure — this is a config
+command and must not fail silently. Use to temporarily raise the cap during
+batch enrichment and restore to the compile-time default (10) afterwards.
+
+```tsx
+await setCacheCapacity(50);  // raise for batch enrichment
+// ... enrichment work ...
+await setCacheCapacity(10);  // restore default
+```
+
 ## Types
 
 ### `MapPositionTarget`

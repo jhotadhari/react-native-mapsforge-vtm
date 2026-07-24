@@ -294,6 +294,44 @@ Fast, thread-safe, no disk I/O. Callers use this to skip retry loops when no amo
 produce an elevation (ocean, missing tile). Exposed to JS as `hasDataAtPosition` via the
 `MapContainer` TurboModule and `useMap()` hook.
 
+### JS-side elevation enrichment
+
+`enrichCoordinatesWithElevation()` (`src/enrichCoordinates.ts`) batch-enriches coordinate arrays
+with SRTM elevation data through a windowed three-phase flow:
+
+1. **Trigger** — fire `getAltitudeAtPosition` preloads for all unique tiles in the current window
+2. **Fence** — poll `isTileCached` until every tile is loaded (adaptive timeout); re-trigger
+   preloads for stragglers
+3. **Collect** — read all tiles from cache (sub‑ms each) and write elevation into `c[2]`
+
+Mutates the input array **in place** and returns it for chaining. Coordinates are grouped by
+1°×1° SRTM tile so each unique tile is queried once; the elevation at the tile's representative
+point is applied to all coordinates inside that tile.
+
+**`ElevationAPI` bridge interface** — the 4 methods consumers wire from `useMap()`:
+
+| Method | Throws? | Purpose |
+|---|---|---|
+| `getAltitudeAtPosition(lng, lat)` | Catches → `null` | Get elevation; triggers background preload on cache miss |
+| `hasDataAtPosition(lng, lat)` | Catches → `false` | Fast check for HGT file existence (no I/O) |
+| `isTileCached?(lng, lat)` | Catches → `false` | Direct LRU‑cache check, never triggers preload, unambiguous vs. void pixels |
+| `setCacheCapacity?(capacity)` | **Throws** | LRU cache resize — config command, must not fail silently |
+
+**`EnrichCoordinatesOptions`:**
+- `maxCacheCapacity` (default 50) — LRU cache tiles during enrichment (~2.9 MB/tile, ~145 MB at default)
+- `keepCacheCapacity` — skip cache restoration in `finally` (opt‑in, for repeated enrichments)
+- `onProgress` — fraction callback (0–1) after each window
+- `signal` — `AbortSignal`; enrichment stops at the next window boundary
+
+**Native additions** that support the feature:
+- `isTileCached(lng, lat)` — direct `LruCache.get()` check, never triggers preload, unambiguous
+  vs. void pixels
+- `setCacheCapacity(int maxTiles)` — uses `LruCache.resize()`
+
+**Threading update:** `PRELOAD_EXECUTOR` is now a **4‑thread fixed pool** (was single‑thread).
+The ElevationReader code was already thread‑safe (synchronized blocks on `dataCache` and
+`inFlightPreloads`).
+
 ### Threading model
 
 All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow through

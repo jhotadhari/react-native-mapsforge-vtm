@@ -41,7 +41,7 @@ const App = () => (
 ```
 
 **[Full documentation →](./docs/README.md)** — API reference for 13 components, 2 hooks,
-2 debug tools, and advanced topics.
+1 utility, 2 debug tools, and advanced topics.
 
 ## Installation
 
