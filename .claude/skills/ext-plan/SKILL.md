@@ -428,17 +428,17 @@ dependencies {
 
   // vtm — same versions as the parent library (android/build.gradle).
   // Declared here because compileOnly does not pull transitive deps.
-  implementation 'com.github.mapsforge.vtm:vtm:0.28.0'
-  implementation 'com.github.mapsforge.vtm:vtm-android:0.28.0'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-armeabi-v7a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-arm64-v8a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-x86'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-x86_64'
+  implementation 'com.github.mapsforge.vtm:vtm:0.29.0'
+  implementation 'com.github.mapsforge.vtm:vtm-android:0.29.0'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-armeabi-v7a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-arm64-v8a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86_64'
 
   // Conditional: only if the extension uses JTS geometry classes.
   // The parent library includes these; add them if the extension
   // directly references JTS types.
-  implementation 'com.github.mapsforge.vtm:vtm-jts:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-jts:0.29.0'
   implementation 'org.locationtech.jts:jts-core:1.20.0'
 }
 ```

@@ -361,7 +361,8 @@ factory method — see the Java extensibility hooks table above.
 Shadowed vtm classes cause a DEX merge failure at the app level because both the
 extension's modified `.class` files and the original vtm JAR's versions have the
 same fully-qualified name. The library provides a reusable Gradle script that
-strips the original class files from the vtm JAR before DEX merging.
+patches the vtm JAR (removing the original `.class` entries) and cleans stale
+build artifacts from the core library before DEX merging.
 
 **In the extension's `android/build.gradle`**, declare which classes you shadow:
 
@@ -379,10 +380,20 @@ apply from: "${projectDir}/../../node_modules/react-native-mapsforge-vtm/android
 ```
 
 The script collects `ext.shadowedClasses` from every extension in the dependency
-graph, walks the Gradle cache for the `vtm-0.28.0.jar`, and removes the matching
-`.class` entries (including inner classes like `LineBucket$Renderer`) using
-`zip -d`. A `.orig` backup is created so the operation is reversible (delete the
-backup and run `./gradlew clean --refresh-dependencies` to restore).
+graph (via Gradle's `allprojects` and a `node_modules/` fallback scan for
+setups where the extension project doesn't appear in `allprojects`).
+It uses a three-pronged approach: (1) the `stripShadowedVtmClasses` task
+patches the vtm JAR in the Gradle cache with `zip -d` to remove matching
+`.class` entries (including inner classes and multi-release JAR copies under
+`META-INF/versions/`) — this is the primary mechanism, since the vtm JAR
+always ships the original classes; (2) at configuration time, the script
+deletes `.java` source files for shadowed classes from the core library in
+`node_modules/` — a safety net that is a no-op for classes the core library
+doesn't ship; (3) at execution time, a `stripShadowedClassesFromProjects`
+task cleans stale `.class` files, `.dex` files, and the
+`runtime_library_classes_jar` directory from the core library's build tree
+before DEX merging, so incremental-build artifacts can't resurrect shadowed
+classes. The task hooks into `mergeLibDex*`/`mergeDex*` for reliable timing.
 
 **Multiple extensions:** Two extensions can shadow different classes without
 conflict. If two shadow the same class, pass a `prefer` map to resolve:

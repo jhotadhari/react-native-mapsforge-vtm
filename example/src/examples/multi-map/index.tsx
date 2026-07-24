@@ -4,7 +4,7 @@
  *
  * ## ⚠ Known limitation
  *
- * **Rendering does NOT work.**  vtm 0.28.0 — the underlying rendering engine —
+ * **Rendering does NOT work.**  vtm 0.28.0+ — the underlying rendering engine —
  * stores OpenGL VBO handles (`mQuadIndicesID`, `mQuadVerticesID`) and a buffer
  * pool (`mBufferPool`) in **static fields** inside `MapRenderer.java`.  When a
  * second `MapView` initialises, it overwrites these static fields with VBOs
@@ -411,7 +411,7 @@ const ExampleComponent: FC<{
 				zoomLevel={8}
 			/>
 
-			{/* ⚠ Persistent notice — vtm 0.28.0 limitation.  Remove when
+			{/* ⚠ Persistent notice — vtm 0.28.0+ limitation.  Remove when
 			    the upstream MapRenderer static-VBO bug is fixed. */}
 			<LimitationNotice />
 		</View>
@@ -424,7 +424,7 @@ const ExampleComponent: FC<{
 
 /**
  * Persistent overlay warning that this example doesn't render correctly due
- * to a vtm 0.28.0 bug.  See {@file docs/advanced/known-issues.md}.
+ * to a vtm 0.28.0+ bug.  See {@file docs/advanced/known-issues.md}.
  */
 const LimitationNotice: FC = () => (
 	<View
@@ -434,7 +434,7 @@ const LimitationNotice: FC = () => (
 		<Text style={styles.limitationIcon}>⚠</Text>
 		<Text style={styles.limitationTitle}>Rendering does not work</Text>
 		<Text style={styles.limitationBody}>
-			vtm 0.28.0 stores OpenGL VBO handles in static fields — two
+			vtm 0.28.0+ stores OpenGL VBO handles in static fields — two
 			simultaneous MapViews corrupt each other's rendering. This example
 			demonstrates the correct sync-source pattern, state lifting, and
 			useMap() API; it will work once the upstream vtm bug is fixed.

@@ -264,9 +264,14 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   `LayerZoomBoundsHelper` (zoom-based layer visibility), `RenderThemeMenuLoader` (parses
   `<stylemenu>` from render-theme XML for `useRenderStyleOptions`), `FixedWindowRateLimiter` (throttles
   native map-event emission, used by `MapFragment`).
-- `android/strip-vtm-classes.gradle` — reusable Gradle script that strips shadowed vtm classes from
-  the vtm JAR before DEX merging, preventing "Type X is defined multiple times" errors for extensions
-  that bundle their own vtm copy. Applied via `apply from:` in an extension's `build.gradle`.
+- `android/strip-vtm-classes.gradle` — reusable Gradle script that strips shadowed vtm classes
+  at multiple stages to prevent "Type X is defined multiple times" errors: (1) patches the vtm
+  JAR in the Gradle cache (`zip -d` to remove matching `.class` files), and (2) cleans stale
+  `.class`/`.dex` build artifacts from the core library's build tree before DEX merging, along
+  with a configuration-time safety net that deletes `.java` source files for shadowed classes
+  from the core library in `node_modules/` (no-op for classes the core library doesn't ship).
+  Applied via `apply from:` in the consuming app's `android/app/build.gradle`; extensions
+  declare `ext.shadowedClasses` in their own `build.gradle`.
 
 ### ElevationReader
 

@@ -102,45 +102,45 @@ dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
   // vtm https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
-  implementation 'com.github.mapsforge.vtm:vtm:0.28.0'
-  implementation 'com.github.mapsforge.vtm:vtm-themes:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm:0.29.0'
+  implementation 'com.github.mapsforge.vtm:vtm-themes:0.29.0'
   implementation 'androidx.documentfile:documentfile:1.1.0'
 
   // vtm Android
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-armeabi-v7a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-arm64-v8a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-x86'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.28.0:natives-x86_64'
-  implementation 'com.github.mapsforge.vtm:vtm-android:0.28.0'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-armeabi-v7a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-arm64-v8a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86_64'
+  implementation 'com.github.mapsforge.vtm:vtm-android:0.29.0'
   implementation 'com.caverock:androidsvg:1.4'
 
 //	// vtm Android (libGDX)
-//	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.28.0'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.28.0:natives-armeabi-v7a'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.28.0:natives-arm64-v8a'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.28.0:natives-x86'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.28.0:natives-x86_64'
-//	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.28.0'
+//	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.29.0'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-armeabi-v7a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-arm64-v8a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-x86'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-x86_64'
+//	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0'
 //	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
 //	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
 
   // vtm JTS overlays
-  implementation 'com.github.mapsforge.vtm:vtm-jts:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-jts:0.29.0'
   implementation 'org.locationtech.jts:jts-core:1.20.0'
   // vtm Online tiles
-  implementation 'com.github.mapsforge.vtm:vtm-http:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-http:0.29.0'
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
   implementation 'com.squareup.okio:okio:3.12.0'
   // vtm MBTiles
-  implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.28.0'
-  implementation 'com.github.mapsforge.vtm:vtm-mvt:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.29.0'
+  implementation 'com.github.mapsforge.vtm:vtm-mvt:0.29.0'
   implementation 'com.google.protobuf:protobuf-java:3.25.8'
   implementation 'io.github.ci-cmg:mapbox-vector-tile:4.0.6'
   // vtm Hillshading
-  implementation 'com.github.mapsforge.vtm:vtm-hillshading:0.28.0'
-  implementation 'com.github.mapsforge.mapsforge:mapsforge-core:0.28.0'
-  implementation 'com.github.mapsforge.mapsforge:mapsforge-map:0.28.0'
-  implementation 'com.github.mapsforge.mapsforge:mapsforge-map-android:0.28.0'
+  implementation 'com.github.mapsforge.vtm:vtm-hillshading:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-core:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-map:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-map-android:0.29.0'
 
   // Test dependencies
   testImplementation "junit:junit:4.13.2"

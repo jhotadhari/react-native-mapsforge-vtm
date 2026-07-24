@@ -143,10 +143,10 @@ appProject.gradle.projectsEvaluated {
 
     def vtmJarPaths = [] as Set
     def cacheBase = new File(appProject.gradle.gradleUserHomeDir,
-        'caches/modules-2/files-2.1/com.github.mapsforge.vtm/vtm/0.28.0')
+        'caches/modules-2/files-2.1/com.github.mapsforge.vtm/vtm/0.29.0')
     if (cacheBase.exists()) {
         cacheBase.eachFileRecurse { f ->
-            if (f.name == 'vtm-0.28.0.jar') vtmJarPaths.add(f.absolutePath)
+            if (f.name == 'vtm-0.29.0.jar') vtmJarPaths.add(f.absolutePath)
         }
     }
     // Also scan transform caches (v4 = AGP 8.x)
@@ -154,7 +154,7 @@ appProject.gradle.projectsEvaluated {
         def td = new File(appProject.gradle.gradleUserHomeDir, "caches/transforms-${ver}")
         if (td.exists()) {
             td.eachFileRecurse { f ->
-                if (f.name == 'vtm-0.28.0.jar') vtmJarPaths.add(f.absolutePath)
+                if (f.name == 'vtm-0.29.0.jar') vtmJarPaths.add(f.absolutePath)
             }
         }
     }
@@ -294,7 +294,7 @@ appProject.gradle.projectsEvaluated {
 
     // ── Strip from project dependencies (e.g. react-native-mapsforge-vtm) ─
     // The core library provides default implementations of classes that vtm
-    // 0.28.0 broke.  When an extension shadows those classes the core
+    // 0.29.0 broke.  When an extension shadows those classes the core
     // library's versions must be removed so only the extension's remain.
     //
     // D8 / dexBuilder reads class files from three locations inside a library

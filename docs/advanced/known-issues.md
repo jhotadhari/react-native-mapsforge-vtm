@@ -6,7 +6,7 @@
   vtm issue tracker for dependency bugs.
 -->
 
-## Multiple MapContainer instances (vtm 0.28.0)
+## Multiple MapContainer instances (vtm 0.28.0+)
 
 ### Symptom
 
@@ -16,7 +16,7 @@ other.
 
 ### Root cause
 
-vtm 0.28.0 — the underlying rendering engine — holds critical OpenGL
+vtm 0.28.0+ — the underlying rendering engine — holds critical OpenGL
 state in **static fields** inside `MapRenderer.java`:
 
 | Field | Type | Problem |
@@ -84,10 +84,8 @@ will work once vtm supports multiple simultaneous contexts.
 ## Pending vtm dependency upgrade
 
 The library currently pins `vtm`/`vtm-android`/`vtm-themes`/`vtm-jts`
-at version **0.28.0** (latest as of 2026-07).  The vtm project has been
-in maintenance-mode for several years with infrequent releases.  See
-`TODO.md` for the full upgrade plan (protobuf-java 4.x is the last
-remaining step).
+at version **0.29.0** (latest as of 2026-07).  See `TODO.md` for the
+remaining upgrade plan items.
 
 ---
 

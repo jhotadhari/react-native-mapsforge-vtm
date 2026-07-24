@@ -504,7 +504,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				}
 				GeoPoint center = readableArrayToGeoPoint(shapeMap.getArray("center"));
 				double radiusKm = shapeMap.getDouble("radiusKm");
-				// Use the 2-arg constructor, not the 4-arg one (Mercator bug).
+				// 2-arg constructor is sufficient; 4-arg was fixed in vtm 0.29.0.
 				HexagonDrawable hex = new HexagonDrawable(center, radiusKm);
 				hex.setStyle(style);
 				return hex;

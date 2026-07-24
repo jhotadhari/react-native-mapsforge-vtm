@@ -142,10 +142,10 @@ This library is a React Native wrapper around [mapsforge/vtm](https://github.com
 - [lodash-es](https://lodash.com) — tree-shakeable utility functions
 
 **Native (Android)** — bundled via Gradle:
-- [vtm](https://github.com/mapsforge/vtm) (0.28.0) — the rendering engine, plus
+- [vtm](https://github.com/mapsforge/vtm) (0.29.0) — the rendering engine, plus
   `vtm-android`, `vtm-themes`, `vtm-jts`, `vtm-http`, `vtm-mvt`, `vtm-android-mvt`,
   and `vtm-hillshading`
-- [mapsforge](https://github.com/mapsforge/mapsforge) (0.28.0) — map file reader (`mapsforge-core`,
+- [mapsforge](https://github.com/mapsforge/mapsforge) (0.29.0) — map file reader (`mapsforge-core`,
   `mapsforge-map`, `mapsforge-map-android`)
 - [JTS Topology Suite](https://github.com/locationtech/jts) (`jts-core:1.20.0`) —
   geometry engine for path and shape layers

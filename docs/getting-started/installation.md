@@ -104,7 +104,7 @@ Your React Native version is too old. Upgrade to ≥ 0.80.0, or if you're on a
 custom build, ensure the `target_compile_reactnative_options` CMake function is
 available.
 
-### `Could not resolve com.github.mapsforge.vtm:vtm:0.28.0`
+### `Could not resolve com.github.mapsforge.vtm:vtm:0.29.0`
 
 Ensure `mavenCentral()` is in the `repositories` block of
 `android/build.gradle` (not just `android/settings.gradle`).
