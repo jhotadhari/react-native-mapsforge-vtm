@@ -232,7 +232,15 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			};
 		},
 		notify: () => {
-			listeners.forEach((cb) => cb());
+			listeners.forEach((cb) => {
+				try {
+					cb();
+				} catch {
+					// Best-effort — don't let one listener's
+					// exception prevent remaining listeners
+					// from being notified.
+				}
+			});
 		},
 		scheduleSync: (nativeNodeHandle) => {
 			if (destroyed) {

@@ -102,6 +102,13 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 	// PHASE 1: RENDER
 	// ════════════════════════════════════════════════════════════════
 
+	// Clear the stale per-scope insertion pointer so the first child
+	// of a partial re-render (e.g. Redux-triggered, where MapContainer
+	// did not re-render) uses the sentinel/cursor fallback instead of a
+	// stale sibling pointer that may point to a now-removed or reordered
+	// sibling in a different position.  Each child's useLayerOrder will
+	// re-populate it with its own fresh Symbol during the same render.
+	registry.lastSymbolPerScope.delete(scopeSymbol);
 	// 0. Register / unregister scope priority (runs every render)
 	if (order !== undefined) {
 		registry.scopePriorities.set(scopeSymbol, order);
@@ -366,6 +373,13 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		registry.notify();
 		return () => {
 			// Remove sentinel from order and sentinels set.
+			// Prevents sentinel accumulation (leak) when a
+			// ReindexScope unmounts without its children ever
+			// having mounted — e.g. a scope gated on async data
+			// that is removed before the data resolves.
+			// Without this, sentinel symbols linger in registry.order
+			// indefinitely, inflating the ordered-uuid list and
+			// potentially causing stale cursor references.
 			if (
 				sentinelRef.current !== undefined &&
 				registry.order.includes(sentinelRef.current)

@@ -51,6 +51,17 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// re-rendered without MapContainer re-rendering (e.g. Redux-triggered
 	// partial re-render). Scoped so only layers inside the changed scope
 	// reposition, not layers in unrelated scopes.
+	//
+	// M8 (scope-migration): lastScopeGenerationRef retains a generation
+	// number from a previous ReindexScope when a component moves between
+	// scopes without remounting. This would cause an incorrect generation
+	// comparison (false positive or false negative). In practice this is
+	// highly unlikely — components moving between scopes typically
+	// remount due to key changes, which resets lastScopeGenerationRef
+	// via useRef initialization. If a component ever moves between scopes
+	// WITHOUT remounting (e.g. via React's same-key reconciliation), the
+	// generation comparison here will be incorrect and the layer may be
+	// repositioned at a stale position or incorrectly skipped.
 	const lastScopeGenerationRef = useRef<number>(0);
 	let scopeGenerationChanged = false;
 	if (reindexScopeId !== null) {
@@ -294,6 +305,16 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			// it. Subsequent flushes with the same UUID list would then
 			// be skipped (unchanged && lastReorderWasEffective guard),
 			// permanently stranding the layer at the wrong z-index.
+			//
+			// This guard is intentionally redundant with flush()'s
+			// readyFragmentUuids check inside scheduleSync. It exists
+			// purely as an optimisation to prevent scheduling a no-op
+			// flush timer (and the resulting 16ms debounce cycle) when
+			// we already know the fragment's native layer doesn't exist.
+			// Do NOT remove this guard — the readyFragmentUuids check
+			// in flush() provides correctness (it filters fragment UUIDs
+			// at call time), while this guard provides efficiency (it
+			// avoids scheduling unnecessary timers).
 			const fragmentUuid = registry.fragmentUuids.get(id);
 			if (fragmentUuid) {
 				return;
