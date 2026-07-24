@@ -54,13 +54,13 @@ Android setup, and build configuration.
 
 ## Examples
 
-The example app includes **22 runnable examples** across 3 categories:
+The example app includes **23 runnable examples** across 3 categories:
 
 | Category | Examples |
 |---|---|
 | **layers** | basic, mapsforge, mbtiles-bitmap, hillshading, canvas-adapter, layer-shapes, coastlines, path-jts, markers |
 | **mapControls** | pan-zoom, fit-bounds, fly-ease, viewport-orientation, trigger, multi-map, reanimated-overlay |
-| **gestures** | tap-events, layer-order-verification, many-layers, many-shapes, mixed-grouping, shared-layer-grouping |
+| **gestures** | tap-events, layer-order-verification, many-layers, many-shapes, mixed-grouping, shared-layer-grouping, elevation-enrichment |
 
 ```sh
 yarn example start      # start Metro

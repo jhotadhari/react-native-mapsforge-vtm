@@ -44,10 +44,11 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 
 - **[CanvasAdapterModule](./api/canvas-adapter-module.md)** — Global text/line/symbol scale
 - **[Types](./api/types.md)** — Shared TypeScript types
+- **[enrichCoordinatesWithElevation](./api/enrich-coordinates.md)** — Batch elevation enrichment for coordinate arrays
 
 ## Resources
 
 - **[Naming conventions and terminology](./NAMING_TERMINOLOGY.md)** — Inclusive language conventions used throughout the project
-- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — 21 runnable examples across 3 categories (`yarn example android`)
+- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — 23 runnable examples across 3 categories (`yarn example android`)
 
 - **[Changelog](../CHANGELOG.md)** — Version history

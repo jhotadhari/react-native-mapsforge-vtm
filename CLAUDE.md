@@ -277,7 +277,7 @@ construction). Three executors/threads interact with it:
 | Thread | Role |
 |---|---|
 | **Render thread** (vtm GL, 60fps) | `MapFragment.getResponseBase()` calls `getElevation(lng, lat, 100)` to include elevation in the `center` position array. Uses the **100ms debounced** overload — never blocks on I/O. |
-| **`PRELOAD_EXECUTOR`** (single-thread) | Handles immediate `preload()` calls (2.9MB `.hgt` reads). Used by the explicit JS `getAltitudeAtPosition` API (delay=0). |
+| **`PRELOAD_EXECUTOR`** (4-thread fixed pool) | Handles immediate `preload()` calls (2.9MB `.hgt` reads). Used by the explicit JS `getAltitudeAtPosition` API (delay=0). |
 | **`DELAYED_PRELOAD_EXECUTOR`** (single-thread scheduled) | Handles debounced preloads from the render hot-path. |
 
 **Debounced preload (single-slot):** `schedulePreload()` holds at most one pending delayed preload.
