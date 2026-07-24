@@ -37,7 +37,7 @@ interface UpdateEnabledZoomMinMaxParams {
 interface SetAlphaParams {
 	nativeNodeHandle: Int32;
 	uuid: string;
-	alpha?: Int32;
+	alpha?: Double;
 }
 
 export type LayerBitmapTileProps = {
