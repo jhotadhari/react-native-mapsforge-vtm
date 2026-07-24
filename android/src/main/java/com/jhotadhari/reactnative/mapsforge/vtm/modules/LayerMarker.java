@@ -2,7 +2,6 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.content.ContentResolver;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -747,13 +746,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
 			if ( manager == null ) {
-				Log.w(TAG,
-					"ZOMBIE: getInstance returned null for nativeNodeHandle="
-						+ nativeNodeHandle + " groupUuid=" + groupUuid
-						+ " — manager was destroyed before removeLayer arrived");
-				Utils.promiseReject( promise,
-					"MarkerLayerManager not found for nativeNodeHandle=" + nativeNodeHandle
-						+ " (may have been destroyed before removeLayer arrived)" );
+				promise.resolve( groupUuid );
 				return;
 			}
 			manager.removeGroup( groupUuid );

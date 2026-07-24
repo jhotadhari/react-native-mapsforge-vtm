@@ -199,6 +199,9 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 
 	@Override
 	protected void removeEntryFromLayer(@NonNull ShapeEntry entry) {
+		// Always clean up the drawable → entry mapping so the GC can collect,
+		// even if the shared layer is already gone (ZOMBIE path).
+		drawableToEntry.remove(entry.drawable);
 		VectorLayer layer = (VectorLayer) getSharedLayer(entry.fragmentUuid);
 		if (layer == null) {
 			Log.w(TAG,
@@ -207,7 +210,6 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet());
 			return;
 		}
-		drawableToEntry.remove(entry.drawable);
 		layer.remove(entry.drawable);
 		layer.update();
 	}

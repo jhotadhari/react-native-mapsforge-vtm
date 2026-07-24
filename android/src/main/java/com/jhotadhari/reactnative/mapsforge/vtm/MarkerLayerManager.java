@@ -670,6 +670,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return;
 		}
 		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(group.fragmentUuid);
+		if (layer == null) {
+			Log.w(TAG,
+				"ZOMBIE: getSharedLayer returned null for fragmentUuid="
+					+ group.fragmentUuid + " groupUuid=" + groupUuid
+					+ " memberCount=" + group.memberMarkerUuids.size()
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet());
+		}
 		for (String markerUuid : group.memberMarkerUuids) {
 			MarkerEntry entry = allMarkers.remove(markerUuid);
 			entries.remove(markerUuid);

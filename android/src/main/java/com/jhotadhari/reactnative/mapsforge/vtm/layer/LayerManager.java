@@ -316,7 +316,13 @@ public abstract class LayerManager<TEntry> {
 	public void remove(@NonNull String entryUuid) {
 		TEntry entry = entries.remove(entryUuid);
 		if (entry != null) {
-			removeEntryFromLayer(entry);
+			// Skip removeEntryFromLayer if destroy() is already running —
+			// its Phase 1 iteration will handle cleanup of all entries.
+			// This prevents double-processing when per-layer remove()
+			// races with the map-level destroy().
+			if (!destroying.get()) {
+				removeEntryFromLayer(entry);
+			}
 			scheduleUpdate();
 		}
 	}
@@ -372,31 +378,63 @@ public abstract class LayerManager<TEntry> {
 	 *
 	 * @param fragmentUuid unique key for this fragment (e.g. {@code "__vtm_shared_paths__1"})
 	 */
-	protected synchronized void ensureSharedLayer(@NonNull String fragmentUuid) throws Exception {
+	protected void ensureSharedLayer(@NonNull String fragmentUuid) throws Exception {
+		// Fast path: already exists (outside synchronized to avoid contention).
 		if (sharedLayerFragments.containsKey(fragmentUuid)) {
 			return;
 		}
 
-		Layer layer = createSharedLayer();
-		sharedLayerFragments.put(fragmentUuid, layer);
+		Layer layer;
+		CompletableFuture<String> future;
+		MapMutationQueue queue;
+		synchronized (this) {
+			// Double-check inside the lock — another thread may have created
+			// the fragment while we were waiting for the lock.
+			if (sharedLayerFragments.containsKey(fragmentUuid)) {
+				return;
+			}
+			layer = createSharedLayer();
+			sharedLayerFragments.put(fragmentUuid, layer);
 
-		// Register the fragment's shared layer via MapMutationQueue at
-		// basePositionIndex — actual position is determined by reorderLayers.
-		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
-		CompletableFuture<String> future = queue.enqueueAddLayer(
-			layer,
-			fragmentUuid,
-			basePositionIndex
-		);
+			queue = MapMutationQueue.get(nativeNodeHandle, mapView);
+			future = queue.enqueueAddLayer(
+				layer,
+				fragmentUuid,
+				basePositionIndex
+			);
+		}
 
-		// Block the caller until the shared layer is placed. Since the flush runs
-		// on the UI thread and create() is called from a TurboModule thread, this
-		// is a brief cross-thread wait.
+		// Block the caller until the shared layer is placed on the UI thread.
+		// IMPORTANT: future.get() is OUTSIDE synchronized(this) — otherwise
+		// destroy() (which also acquires synchronized(this) and calls
+		// removeLayerSync on the UI thread) would deadlock if the UI thread
+		// is waiting for the lock while this thread holds it waiting for the UI.
 		try {
 			future.get();
 		} catch (Exception e) {
-			sharedLayerFragments.remove(fragmentUuid);
+			// Registration failed — roll back the fragment.
+			synchronized (this) {
+				sharedLayerFragments.remove(fragmentUuid);
+			}
 			throw new RuntimeException("Failed to register shared layer fragment '" + fragmentUuid + "': " + e.getMessage(), e);
+		}
+
+		// destroy() may have run while we were blocked in future.get().
+		// If the fragment was removed during the wait, clean up and throw.
+		synchronized (this) {
+			if (!sharedLayerFragments.containsKey(fragmentUuid)) {
+				// The shared layer was added to the map by the queue flush,
+				// but destroy() already removed it from our tracking map.
+				// Remove it from the actual map layer list so it doesn't leak.
+				try {
+					queue.removeLayerSync(fragmentUuid);
+				} catch (Exception ignored) {
+					// Best-effort.
+				}
+				throw new RuntimeException(
+					"Shared layer fragment '" + fragmentUuid
+						+ "' was destroyed while waiting for registration");
+			}
 		}
 	}
 
@@ -416,6 +454,7 @@ public abstract class LayerManager<TEntry> {
 	 * all entries. Called from {@link #remove(int, String)} or {@link #removeAll(int)}.
 	 */
 	private final AtomicBoolean updatePending = new AtomicBoolean(false);
+	private final AtomicBoolean destroying = new AtomicBoolean(false);
 	private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
 	protected void scheduleUpdate() {
@@ -433,6 +472,10 @@ public abstract class LayerManager<TEntry> {
 	}
 
 	protected void destroy() {
+		// Signal that we're tearing down so concurrent remove() calls
+		// skip their own removeEntryFromLayer — Phase 1 handles it all.
+		destroying.set(true);
+
 		// Remove all entries' geometry from their fragment layers.
 		for (TEntry entry : entries.values()) {
 			try {

@@ -197,6 +197,8 @@ public class MapMutationQueue {
 				((AddLayer) m).future.completeExceptionally(e);
 			} else if (m instanceof RemoveLayer) {
 				((RemoveLayer) m).future.completeExceptionally(e);
+			} else if (m instanceof ReorderLayers) {
+				((ReorderLayers) m).future.completeExceptionally(e);
 			}
 		}
 		pending.clear();
@@ -216,6 +218,21 @@ public class MapMutationQueue {
 		return future;
 	}
 
+	/**
+	 * Enqueues removal of a layer from the map.
+	 *
+	 * <p>Called from {@link LayerHelper#removeLayerAsync} which serves two paths:
+	 * <ol>
+	 *   <li>Teardown of dedicated layers (e.g. {@code LayerPathJts}) — one native
+	 *       layer per JS component, not shared-layer managed.</li>
+	 *   <li>The deprecated synchronous {@code LayerHelper.removeLayer} (now
+	 *       delegates to this async path).</li>
+	 * </ol>
+	 *
+	 * <p>Shared-layer managers ({@code LayerManager} subclasses) do NOT use this
+	 * method for per-entry removal; they call {@link #removeLayerSync} only during
+	 * full manager teardown.
+	 */
 	public CompletableFuture<Void> enqueueRemoveLayer(String uuid) {
 		CompletableFuture<Void> future = new CompletableFuture<>();
 		pending.add(new RemoveLayer(uuid, future));
