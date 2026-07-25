@@ -309,11 +309,13 @@ with SRTM elevation data through a windowed three-phase flow:
 1. **Trigger** — fire `getAltitudeAtPosition` preloads for all unique tiles in the current window
 2. **Fence** — poll `isTileCached` until every tile is loaded (adaptive timeout); re-trigger
    preloads for stragglers
-3. **Collect** — read all tiles from cache (sub‑ms each) and write elevation into `c[2]`
+3. **Collect** — with all tiles cached, iterate every coordinate individually via
+   `getAltitudeAtPosition` for full per‑coordinate bilinear interpolation; each call is a
+   sub‑millisecond cache hit
 
 Mutates the input array **in place** and returns it for chaining. Coordinates are grouped by
-1°×1° SRTM tile so each unique tile is queried once; the elevation at the tile's representative
-point is applied to all coordinates inside that tile.
+1°×1° SRTM tile for efficient I/O; after the fence proves every tile is cached, each coordinate
+gets its own bilinearly‑interpolated elevation rather than a single tile‑representative value.
 
 **`ElevationAPI` bridge interface** — the 4 methods consumers wire from `useMap()`:
 

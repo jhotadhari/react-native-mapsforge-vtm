@@ -107,8 +107,9 @@ even when the native LRU cache is smaller than the tile set:
      throughput (~500 ms/tile).
    - **Phase 3 — Collect:** all tiles are guaranteed cached — every
      `getAltitudeAtPosition` call is a sub‑millisecond cache hit.
-     `findElevationInTile` handles void pixels gracefully by probing a
-     3×3 grid (then a 5×5 sweep for tiles with very little land).
+     Each coordinate gets its own bilinearly‑interpolated elevation
+     rather than a single per‑tile representative value. Void pixels
+     return `null` and leave the coordinate unchanged.
 4. **Teardown** — the LRU cache capacity is restored to its compile-time
    default (10) in `finally`, unless `keepCacheCapacity` was set.
 
