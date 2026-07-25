@@ -97,6 +97,19 @@ import type {
 	ElevationAPI,
 	EnrichCoordinatesOptions,
 } from './enrichCoordinates';
+import {
+	clampLat,
+	latLngToMercator,
+	mercatorToLatLng,
+	wrapLngDelta,
+	toScreenPosition as geoToScreenPosition,
+	fromScreenPosition as screenToGeoPosition,
+	computeViewportBbox,
+	lngLatToTile,
+	tileToBbox,
+	snapBboxToTiles,
+} from './mercatorMath';
+import type { MercatorMathOptions, ViewportBbox } from './mercatorMath';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
@@ -215,6 +228,21 @@ export {
 	enrichCoordinatesWithElevation,
 	type ElevationAPI,
 	type EnrichCoordinatesOptions,
+
+	// Mercator / tile math (non-worklet — for worklet versions see
+	// react-native-mapsforge-vtm/reanimated).
+	clampLat,
+	latLngToMercator,
+	mercatorToLatLng,
+	wrapLngDelta,
+	geoToScreenPosition,
+	screenToGeoPosition,
+	computeViewportBbox,
+	lngLatToTile,
+	tileToBbox,
+	snapBboxToTiles,
+	type MercatorMathOptions,
+	type ViewportBbox,
 
 	// Other
 	useRenderStyleOptions,
