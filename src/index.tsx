@@ -131,6 +131,7 @@ import MapHandleContext, {
 	type MapHandleContextValue,
 } from './context/MapHandleContext';
 import useLayerOrder from './compose/useLayerOrder';
+import { createMapHandle } from './compose/createMapHandle';
 import { useMapEventInterval } from './compose/useMapEventInterval';
 import useNativeLayerLifecycle, {
 	type CreateFlags,
@@ -213,8 +214,9 @@ export {
 	type LayerMapsforgeResponse,
 	type LayerMapsforgeProps,
 
-	// useMap.
+	// useMap and createMapHandle.
 	useMap,
+	createMapHandle,
 	type EasingType,
 	type MapPositionTarget,
 	type AnimationOptions,
