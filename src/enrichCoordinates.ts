@@ -17,10 +17,10 @@
  *      c. Phase 3 — collect: read all tiles from cache (sub‑ms each).
  *   5. Restore the LRU cache capacity (unless keepCacheCapacity is set).
  *
- * Each unique tile is queried once; the elevation is applied to every
- * coordinate that falls inside that tile.  For straight lines crossing
- * a 1° tile the elevation can vary — this is a simplification that
- * trades per‑coordinate accuracy for performance.
+ * Coordinates are grouped by tile for efficient I/O; after the fence
+ * proves every tile is cached, each coordinate gets its own bilinearly-
+ * interpolated elevation via getAltitudeAtPosition — all sub‑millisecond
+ * cache hits.
  */
 
 // ---------------------------------------------------------------------------
@@ -211,9 +211,9 @@ interface TileGroup {
  *
  * Coordinates are grouped by 1°×1° tile so each unique tile is queried
  * only once.  Tiles without HGT coverage (ocean, missing data) are
- * skipped.  The elevation at the tile's representative point is applied
- * to **all** coordinates inside that tile — per‑coordinate accuracy is
- * traded for performance.
+ * skipped.  After the fence proves every tile is cached, each coordinate
+ * gets its own bilinearly‑interpolated elevation via per‑coordinate
+ * {@link ElevationAPI.getAltitudeAtPosition} calls (all cache hits).
  *
  * Uses a windowed three‑phase flow so the operation works correctly
  * even when the native LRU cache is smaller than the tile set.  Each
@@ -385,23 +385,18 @@ export const enrichCoordinatesWithElevation = async (
 			}
 
 			// Phase 3 — collect.  The fence guarantees every tile
-			// is cached, so all calls are sub‑millisecond cache hits.
-			// findElevationInTile handles void pixels gracefully.
-			// NOTE: When isTileCached is absent from the ElevationAPI,
-			// the fence uses findElevationInTile (35 probe points) as a
-			// fallback.  For tiles with very little land (tiny atolls),
-			// all probe points can fall on ocean pixels, making the tile
-			// appear uncached.  The fence then re‑triggers preloads
-			// unnecessarily until timeout.  Wire isTileCached to avoid
-			// this — it provides an unambiguous cache‑hit signal.
-			for (const { lng, lat, coords: tileCoords } of window) {
-				const alt = await findElevationInTile(api, lng, lat);
-				if (alt !== null) {
-					for (const c of tileCoords) {
+			// is cached, so all getAltitudeAtPosition calls are
+			// sub‑millisecond cache hits with full bilinear
+			// interpolation.  Each coordinate gets its own elevation
+			// rather than sharing a single tile‑representative value.
+			for (const { coords: tileCoords } of window) {
+				for (const c of tileCoords) {
+					const alt = await api.getAltitudeAtPosition(c[0]!, c[1]!);
+					if (alt !== null) {
 						c[2] = alt;
-						enrichedCount += tileCoords.length;
 					}
 				}
+				enrichedCount += tileCoords.length;
 			}
 
 			options?.onProgress?.(
