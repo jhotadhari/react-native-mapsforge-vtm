@@ -379,6 +379,51 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		};
 
 		/**
+		 * Exponential backoff delay for cache-miss retries.
+		 * `clamp(10 x 2^attempt, 100, 500)` ms.
+		 */
+		const getRetryDelay = (attempt: number): number =>
+			Math.min(500, Math.max(100, 10 * Math.pow(2, attempt)));
+
+		/**
+		 * Returns the elevation in metres at (lng, lat), retrying on
+		 * cache-miss with exponential backoff.
+		 *
+		 * Checks {@link hasDataAtPosition} first - when no HGT file
+		 * covers the coordinate, resolves to {@code null} immediately
+		 * instead of wasting retry cycles on ocean or missing tiles.
+		 *
+		 * Retries up to {@code maxRetries} times (default 10, ~3 s total).
+		 * Each attempt triggers a preload in the native ElevationReader
+		 * if the HGT tile is not cached yet, so subsequent attempts
+		 * become cache hits once the tile loads (~300-500 ms).
+		 *
+		 * For zero-retry behaviour (the raw native call), use
+		 * {@link getAltitudeAtPosition} directly.
+		 */
+		const getAltitudeAtPositionRetry = async (
+			lng: number,
+			lat: number,
+			opts?: { maxRetries?: number }
+		): Promise<number | null> => {
+			const maxRetries = opts?.maxRetries ?? 10;
+
+			const hasData = await hasDataAtPosition(lng, lat);
+			if (!hasData) return null;
+
+			for (let attempt = 0; attempt <= maxRetries; attempt++) {
+				const result = await getAltitudeAtPosition(lng, lat);
+				if (result !== null) return result;
+				if (attempt < maxRetries) {
+					await new Promise<void>((r) =>
+						setTimeout(r, getRetryDelay(attempt))
+					);
+				}
+			}
+			return null;
+		};
+
+		/**
 		 * Returns a comprehensive debug dump of all layers on the map, combining
 		 * native ground truth (actual vtm Layer objects, their z-indices, class
 		 * names, uuids, and enabled state) with the JS-side component registry
@@ -485,6 +530,7 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			panInsideBounds,
 			panInside,
 			getAltitudeAtPosition,
+			getAltitudeAtPositionRetry,
 			hasDataAtPosition,
 			isTileCached,
 			setCacheCapacity,
