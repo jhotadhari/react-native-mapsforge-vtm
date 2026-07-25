@@ -186,9 +186,56 @@ outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
 | `createLayerOrderRegistry()` | Factory for the ordering registry (if you need a separate one) |
 | `useLayerOrder` | Register a component in the layer ordering registry |
 | `useNativeLayerLifecycle` | `null → false → uuid` state machine for native resource lifecycle |
+| `createMapHandle` | Non-hook factory — creates the imperative map-control + elevation API |
+| `createMapHandleRegistry` | Singleton `wire`/`unwire` pattern for non-React code to access a map handle |
+| `useMapEventInterval` | Poll a map-event ref at a fixed interval, callback-ref stable |
+| `useViewportBbox` | Tile-snapped viewport bbox from map events, stable-key dedup |
 
 See `docs/advanced/extending.md` and the `/ext-plan` skill for guidance on the three extension
-patterns: JS-only, TurboModule, and vtm-shadowing.
+patterns: JS-only, TurboModule, and vtm-shadowing.  Companion types extension authors also need:
+`CreateFlags`, `RemoveFlags`, `MapHandleContextValue`, `LayerOrderRegistry` (all exported
+from `src/index.tsx`).
+
+### Imperative map API: `createMapHandle` / `useMap` / `createMapHandleRegistry`
+
+`createMapHandle(nativeNodeHandle)` (`src/compose/createMapHandle.ts`) is a **non-hook factory**
+that builds the full imperative map-control + elevation API object from a concrete view tag. It was
+extracted from `useMap` in commit `33e3983` so non-React code (Redux thunks, services, background
+tasks) can control the map without a component tree:
+
+```
+createMapHandle(handle)
+  ├── Camera: getPosition, jumpTo, panTo, panBy, setZoom/zoomTo, zoomOut,
+  │            setBearing/rotateTo, resetNorth, resetNorthPitch, setRoll
+  ├── Animation: animateTo, easeTo, flyTo
+  ├── Bounds:   fitBounds/setBounds, flyToBounds, panInsideBounds, panInside
+  └── Elevation: getAltitudeAtPosition, hasDataAtPosition, isTileCached,
+                 setCacheCapacity, getAltitudeAtPositionRetry
+```
+
+`useMap` (still the React hook — `src/compose/useMap.ts`) now delegates to `createMapHandle` for
+the base API and adds only `getDebugLayerDump()` (which needs the JS-side `LayerOrderRegistry`
+from React context to build the registry snapshot).
+
+`createMapHandleRegistry()` returns a `{ wire, unwire, getHandle, requireHandle }` singleton.
+The React side calls `wire(handle)` in a `useEffect`; non-React code calls `requireHandle()` to
+get the imperative API or `getHandle()` for a nullable variant.  The registry is intentionally
+simple — no event emitter, no multi-subscriber — to keep the wire/unwire pattern predictable.
+
+```typescript
+// Shared singleton:
+export const mapRegistry = createMapHandleRegistry();
+
+// In AppView (React):
+useEffect(() => {
+    if (handle) mapRegistry.wire(handle);
+    return () => mapRegistry.unwire();
+}, [handle]);
+
+// In a thunk:
+const h = mapRegistry.requireHandle();
+await enrichCoordinatesWithElevation(coords, h);
+```
 
 ### Path layers: `LayerPath` vs `LayerPathJts`
 
@@ -255,6 +302,9 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   `ItemizedLayer`, `GestureLayer` (vtm layer subclasses); `LayerManager` (base class for shared-layer
   managers — owns `ensureSharedLayer()`, entry lifecycle, gesture delegation); `PathLayerJtsWrapper`
   (`LayerPathJts`-specific vtm `PathLayer` wrapper).
+- `gnss/` — `GnssManager` (Android `LocationListener` wrapper with accuracy guard, DEM altitude
+  resolution, and `altitudeSource`-based altitude selection; controlled via the `gnssFilter` prop
+  on `MapContainer`).
 - Top-level shared-layer managers (one per layer type using shared architecture):
   `PathLayerManager extends LayerManager<PathEntry>`, `MarkerLayerManager extends LayerManager<MarkerEntry>`,
   `ShapeLayerManager extends LayerManager<ShapeEntry>`. Each manages entries (drawables/markers) within
@@ -341,6 +391,46 @@ gets its own bilinearly‑interpolated elevation rather than a single tile‑rep
 The ElevationReader code was already thread‑safe (synchronized blocks on `dataCache` and
 `inFlightPreloads`).
 
+**`getAltitudeAtPositionRetry(lng, lat, opts?)`:** Exponential-backoff retry wrapper (10–500ms,
+default 10 retries). Checks `hasDataAtPosition` first — returns `null` immediately if no HGT data
+covers the position (ocean, missing tile), avoiding pointless retries. Suitable for one-shot
+elevation lookups where the tile may not yet be cached.
+
+### GNSS track-recording filter
+
+`GnssManager` (`android/…/gnss/GnssManager.java`, added in `9360abb`) wraps Android's
+`LocationManager` to record GNSS positions through a configurable filter pipeline. Controlled
+via two `MapContainer` props:
+
+| Prop | Type | Description |
+|---|---|---|
+| `gnssFilter` | `GnssFilterNativeProps \| null` | Configures the filter; setting it starts recording, clearing it stops |
+| `onGnssPosition` | `(e) => void` | Called on each qualifying position with `GnssPosition` payload |
+
+**Filter config (`gnssFilter`):**
+- `minDistanceMeters` — passed directly to `LocationManager.requestLocationUpdates` (~5m default)
+- `minTimeSec` — minimum interval between updates (~2s default)
+- `minAccuracyMeters` — accuracy guard; positions coarser than this are dropped (~20m default)
+- `provider` — `'satellite'` (Android `GPS_PROVIDER`) or `'network'` (Android `NETWORK_PROVIDER`)
+- `altitudeSource` — `'dem-only'`, `'gnss-only'`, `'dem-preferred'` (default), or `'gnss-preferred'`
+
+**Altitude resolution:** When the source is not `'gnss-only'`, `GnssManager` calls
+`ElevationReader.getElevation(lng, lat)` for DEM altitude. This is a fast-path cache hit — on miss
+it returns null and triggers a background preload so the next update (~1s) gets the cached value.
+No blocking retry loop on the main thread.
+
+**Lifecycle:** `MapFragment.updateGnssFilter()` creates/starts/stops the manager in response to
+prop changes. `onDestroy()` stops the listener. The `GnssManager.start()` method is idempotent and
+handles `SecurityException` (missing location permission) by emitting an error through the callback.
+
+**Data flow:**
+```
+Android LocationManager ──LocationListener──> GnssManager
+  → accuracy guard → DEM altitude resolve (fast cache hit) →
+  → callback.onGnssPosition(WritableMap) → MapsforgeVtmView.emitGnssPosition() →
+  → Fabric event → JS onGnssPosition(e.nativeEvent)
+```
+
 ### Threading model
 
 All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow through
@@ -379,8 +469,9 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
   `mapView.map().updateMap()` directly.
 - `MapContainer.animateTo()` / `getPosition()` dispatch to the UI thread via `UiThreadUtil.runOnUiThread` (vtm's `Animator` asserts the UI thread).
 - `MapFragment.onDestroy()` must tear down all `LayerManager` instances (including per-type
-  `PathLayerManager`, `MarkerLayerManager`, `ShapeLayerManager`) **before** `mapView.onDestroy()`,
-  or shared layers silently leak.
+  `PathLayerManager`, `MarkerLayerManager`, `ShapeLayerManager`) **and** `GnssManager`
+  (`gnssManager.stop()`) **before** `mapView.onDestroy()`, or shared layers silently leak and
+  the GNSS listener continues firing into a dead map.
 - `LayerHelper.addLayerAsync` / `removeLayerAsync` are the preferred API — they enqueue into `MapMutationQueue`. The deprecated `addLayer`/`removeLayer` sync methods now delegate to the async path internally.
 
 **What still runs on the native-modules thread (read-only / non-layers-mutating):**
@@ -457,3 +548,57 @@ zero bridge crossings at every stage.
 throttling. The `onMapUpdate` callback path is rate-limited by Fabric's event dispatch.
 The native shared-value bridge bypasses this entirely — writes go directly from the
 render thread to C++ primitives.
+
+### Mercator math utilities (non-worklet)
+
+`src/mercatorMath.ts` (added in `6083538`) provides plain-JS Mercator projection utilities as the
+non-worklet counterpart to the reanimated Mercator functions in `react-native-mapsforge-vtm/reanimated`.
+Same math, same tile size (576), same density handling — callable from React hooks, event handlers,
+and any non-worklet JS context.
+
+| Export | Purpose |
+|---|---|
+| `clampLat(lat)` | Clamp latitude to Web Mercator valid range `[-85.05°, +85.05°]` |
+| `latLngToMercator(lat, lng)` | Geographic → normalised Mercator `{ mx, my }` (mx ∈ [0,1]) |
+| `mercatorToLatLng(mx, my)` | Normalised Mercator → geographic `{ lat, lng }` |
+| `wrapLngDelta(dLng)` | Wrap a longitude delta to `[-180°, +180°]` |
+| `wrapMxDelta(dMx)` | Wrap a normalised mx delta to `[-0.5, +0.5]` |
+| `toScreenPosition(center, zoom, vpW, vpH, bearing, tilt, point, opts?)` | Geographic → screen pixel (dp), bearing+tilt-aware |
+| `fromScreenPosition(center, zoom, vpW, vpH, bearing, tilt, point, opts?)` | Screen pixel (dp) → geographic, bearing+tilt-aware |
+| `computeViewportBbox(center, zoom, vpW, vpH, bearing, tilt, opts?)` | Visible-viewport AABB as `[west, south, east, north]` |
+| `lngLatToTile(lng, lat, zoom)` | Web Mercator tile `{ x, y }` for OSM tile scheme |
+| `tileToBbox(tx, ty, zoom)` | Tile coordinate → geographic bbox |
+| `snapBboxToTiles(bbox, tileZoom)` | Snap a bbox to tile boundaries at `tileZoom` |
+
+The Mercator fix commits (`f25e1ad`) added `wrapLngDelta`/`wrapMxDelta`/`clampLat` — these handle
+antimeridian-crossing and pole-adjacent edge cases that the reanimated worklet versions also handle.
+
+### Spatial query hooks
+
+`useMapEventInterval(eventRef, intervalMs, callback)` (`src/compose/useMapEventInterval.ts`,
+`71467fc`): polls a map-event ref at a fixed interval, calling `callback` with the latest
+`MapEventResponse` (or `null`). Uses a callback-ref internally so the interval isn't re-registered
+when the callback identity changes — only `intervalMs` changes restart the timer. Designed as the
+building block for spatial-query hooks that need periodic map-state reads.
+
+`useViewportBbox(eventRef, intervalMs, opts?)` (`src/compose/useViewportBbox.ts`, `5024de2`):
+computes a **tile-snapped** viewport bounding box from map events. Projects the four screen
+corners to geographic coordinates via `computeViewportBbox`, snaps the result to coarse Web
+Mercator tile boundaries via `snapBboxToTiles`, and only updates React state when the snapped
+bbox key differs from the previous one. Small same-tile pans produce no re-render, so spatial
+queries and DB fetches stay stable.
+
+Options: `snapZoomOffset` (default 4 — zoom 12 snaps at tile-zoom 8, ~150 km tiles),
+`minSnapZoom`/`maxSnapZoom` (default 0/8).
+
+Returns `null` initially (before the first map event arrives) but retains the last valid bbox
+during transient invalid states (zero-size viewport during layout transitions).
+
+**Usage pattern** — wire the map-event ref from `onMapUpdate`, pick a polling interval:
+```typescript
+const eventRef = useRef<MapEventResponse | null>(null);
+const bbox = useViewportBbox(eventRef, 250);
+// bbox is null initially, then [west, south, east, north] snapped to coarse tiles
+// Fetch spatial data only when bbox changes:
+useEffect(() => { if (bbox) fetchDataForBbox(bbox); }, [bbox]);
+```

@@ -143,6 +143,53 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 	registryRef.current = registry;
 
 	return useMemo(() => {
+		// Guard: requireHandle was called lazily (inside each method
+		// closure) before the createMapHandle extraction.  Now that
+		// createMapHandle is called eagerly in the memo, we must
+		// return a stub when the handle isn't ready yet — otherwise
+		// the eager requireHandle(null) throws during render, crashing
+		// every component that calls useMap() before the map mounts.
+		if (!nativeNodeHandle) {
+			const fail = () => {
+				throw new Error(
+					'useMap: nativeNodeHandle is not set yet -- the map view has not been created.'
+				);
+			};
+			const stub: Record<string, (...args: any[]) => any> = {};
+			const methodNames = [
+				'getPosition',
+				'jumpTo',
+				'panTo',
+				'panBy',
+				'setZoom',
+				'zoomTo',
+				'zoomOut',
+				'setBearing',
+				'rotateTo',
+				'resetNorth',
+				'resetNorthPitch',
+				'setRoll',
+				'easeTo',
+				'flyTo',
+				'fitBounds',
+				'setBounds',
+				'flyToBounds',
+				'panInsideBounds',
+				'panInside',
+				'getAltitudeAtPosition',
+				'hasDataAtPosition',
+				'isTileCached',
+				'setCacheCapacity',
+				'getAltitudeAtPositionRetry',
+				'getDebugLayerDump',
+			];
+			for (const name of methodNames) {
+				stub[name] = fail;
+			}
+			return stub as ReturnType<typeof createMapHandle> & {
+				getDebugLayerDump: () => Promise<DebugLayerDump>;
+			};
+		}
 		const handle = requireHandle(nativeNodeHandle);
 		const base = createMapHandle(handle);
 

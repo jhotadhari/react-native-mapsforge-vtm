@@ -17,9 +17,15 @@ import type { Example } from '../../types';
 import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
-// Same test data as the `mapsforge` example -- see that example for how to push it onto the
-// emulator/device. A render theme with text labels, lines (roads) and symbols (POI icons) is
-// needed to actually see textScale/lineScale/symbolScale make a visible difference.
+// Same test data as the `mapsforge` example.
+// Vector map (.map) and render theme from:
+//   https://www.openandromaps.org/en/downloads/countrys-and-regions
+// Push to the device via adb:
+//   adb push Andorra_oam.osm.map /sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map
+//   adb push Alti/            /sdcard/Download/test-data/mapstyles/Alti/
+// A render theme with text labels, lines (roads) and symbols (POI icons)
+// is needed to actually see textScale/lineScale/symbolScale make a visible
+// difference.
 const mapFile = '/sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map';
 const renderTheme = '/sdcard/Download/test-data/mapstyles/Alti/Alti.xml';
 
@@ -129,6 +135,18 @@ const ExampleComponent: FC<{
 						onPress={restart}
 					/>
 				</ControlRow>
+			</ControlPanel>
+
+			<ControlPanel width={width}>
+				<ControlSection>
+					<Text style={sharedStyles.text}>
+						Same data as mapsforge example. Vector map (.map) and
+						render theme from
+						https://www.openandromaps.org/en/downloads/countrys-and-regions
+						→ /sdcard/Download/test-data/mapfiles/ →
+						/sdcard/Download/test-data/mapstyles/
+					</Text>
+				</ControlSection>
 			</ControlPanel>
 
 			{started && <MapInfo info={info} />}

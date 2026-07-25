@@ -4,6 +4,7 @@
     <!-- Dev-only: lets example/src/examples/mbtiles-bitmap read an adb-pushed .mbtiles test file
          from outside the app's own sandboxed external dir. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
       android:name=".MainApplication"

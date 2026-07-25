@@ -198,6 +198,20 @@ await setCacheCapacity(50);  // raise for batch enrichment
 await setCacheCapacity(10);  // restore default
 ```
 
+#### `getAltitudeAtPositionRetry(lng: number, lat: number, opts?: { maxRetries?: number }): Promise<number | null>`
+
+Exponential-backoff retry wrapper around `getAltitudeAtPosition`. Checks
+`hasDataAtPosition` first — returns `null` immediately if no HGT data covers
+the position (ocean, missing tile), avoiding pointless retries.
+
+```tsx
+const elevation = await getAltitudeAtPositionRetry(13.405, 52.52);
+// Retries up to 10 times with backoff: 10ms → 20ms → 40ms → ... → 500ms
+// Returns null if all retries exhausted or no data at position.
+
+const quick = await getAltitudeAtPositionRetry(13.405, 52.52, { maxRetries: 3 });
+```
+
 ## Types
 
 ### `MapPositionTarget`
@@ -277,8 +291,30 @@ console.log(JSON.stringify(dump, null, 2));
 See **[getDebugLayerDump()](../debug/get-debug-layer-dump.md)** for the
 full return-type reference and interpretation guide.
 
+## createMapHandle() — non-React usage
+
+`useMap` is a React hook — it needs context. For non-React code (Redux
+thunks, services, background tasks), use `createMapHandle()` or the
+`createMapHandleRegistry()` singleton pattern:
+
+```tsx
+import { createMapHandle, createMapHandleRegistry } from 'react-native-mapsforge-vtm';
+
+// Direct usage — callable from anywhere with a view tag:
+const handle = createMapHandle(viewTag);
+await handle.flyTo({ center: [13.405, 52.52] });
+
+// Singleton pattern — wire from React, consume from non-React:
+const registry = createMapHandleRegistry();
+// ... in a useEffect: registry.wire(handle)
+// ... in a thunk: registry.requireHandle().panTo([lng, lat])
+```
+
+See **[createMapHandle()](../api/create-map-handle.md)** for the full API reference.
+
 ## See also
 
 - **[MapContainer](../components/map-container.md)** — Root map view
+- **[createMapHandle()](../api/create-map-handle.md)** — Non-hook factory for imperative map control
 - **[Performance](../advanced/performance.md)** — Reanimated `useMapPosition()` for 60fps tracking
 - **[Debug tools](../debug/get-debug-layer-dump.md)** — Layer introspection and debugging

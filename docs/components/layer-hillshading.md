@@ -17,6 +17,13 @@ format. Uses vtm's `HillshadingTileSource` and configurable shading algorithms.
 | `onChange` | `(response: ResponseBase) => void` | — | Fires on prop changes |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
 
+## Test data
+
+The example app and development workflow use SRTM3 data from **SE19.zip**
+(southern Peru / western Bolivia, lat [-21, -17], lng [-72, -67]).
+Download from [viewfinderpanoramas.org](https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm)
+and extract the `.hgt` files to `/sdcard/Download/test-data/hgt` on the device.
+
 ## Shading algorithms
 
 Available algorithms (from vtm's `ShadingAlgorithm`):

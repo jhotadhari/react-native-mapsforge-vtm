@@ -115,6 +115,14 @@ export interface EnrichCoordinatesOptions {
 	 * at roughly 145 MB on top of the app's baseline.
 	 */
 	maxCacheCapacity?: number;
+
+	/**
+	 * Elevation value assigned to coordinates whose tile has no HGT data
+	 * (ocean, missing tile, outside the configured coverage).
+	 *
+	 * Default: `0`.  Set to `null` to leave those coordinates unchanged.
+	 */
+	fallbackElevation?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +275,9 @@ export const enrichCoordinatesWithElevation = async (
 	//    while still being faster than fully serial for large tile sets.
 	// ------------------------------------------------------------------
 	const tilesWithData: TileGroup[] = [];
+	const tilesWithoutData: TileGroup[] = [];
 	const CHUNK_SIZE = 10;
+	const fallback = options?.fallbackElevation ?? 0;
 	for (let i = 0; i < allTiles.length; i += CHUNK_SIZE) {
 		if (options?.signal?.aborted) return coords;
 		const chunk = allTiles.slice(i, i + CHUNK_SIZE);
@@ -275,11 +285,25 @@ export const enrichCoordinatesWithElevation = async (
 			chunk.map(async (tile) => {
 				if (options?.signal?.aborted) return null;
 				const hasData = await api.hasDataAtPosition(tile.lng, tile.lat);
-				return hasData ? tile : null;
+				return { tile, hasData };
 			})
 		);
 		for (const r of results) {
-			if (r) tilesWithData.push(r);
+			if (!r) continue;
+			if (r.hasData) {
+				tilesWithData.push(r.tile);
+			} else {
+				tilesWithoutData.push(r.tile);
+			}
+		}
+	}
+
+	// Apply fallback to coordinates in tiles without HGT data.
+	for (const tile of tilesWithoutData) {
+		for (const c of tile.coords) {
+			if (fallback !== null) {
+				c[2] = fallback;
+			}
 		}
 	}
 
@@ -394,13 +418,25 @@ export const enrichCoordinatesWithElevation = async (
 					const alt = await api.getAltitudeAtPosition(c[0]!, c[1]!);
 					if (alt !== null) {
 						c[2] = alt;
+					} else if (fallback !== null) {
+						c[2] = fallback;
 					}
 				}
 				enrichedCount += tileCoords.length;
 			}
 
+			// Count coords already assigned fallback in tiles without
+			// data so progress reaches 1.0 even with partial coverage.
+			const fallbackCount = tilesWithoutData.reduce(
+				(sum, t) => sum + t.coords.length,
+				0
+			);
 			options?.onProgress?.(
-				Math.min(enrichedCount / Math.max(coords.length, 1), 1)
+				Math.min(
+					(enrichedCount + fallbackCount) /
+						Math.max(coords.length, 1),
+					1
+				)
 			);
 		}
 	} finally {

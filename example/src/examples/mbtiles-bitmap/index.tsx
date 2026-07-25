@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import {
 	LayerMBTilesBitmap,
 	LayerScalebar,
@@ -14,13 +14,16 @@ import {
 	StatusLine,
 } from '../../components/ControlPanel';
 import type { Example } from '../../types';
-import { handleMapEvent } from '../../sharedDeps';
+import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
-// Pushed onto the emulator/device via:
+// Raster MBTiles overview maps from openandromaps.org:
+//   https://www.openandromaps.org/en/downloads/general-maps
+// Push to the device via adb:
 //   adb push OAM-World-1-8-J80.mbtiles /sdcard/Download/test-data/mbtiles/OAM-World-1-8-J80.mbtiles
-// Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example app's manifest --
-// the app's own sandboxed external files dir can't see files it didn't create itself.
+// Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example
+// app's manifest — the app's sandboxed external files dir can't see files
+// it didn't create itself.
 const mapFile = '/sdcard/Download/test-data/mbtiles/OAM-World-1-8-J80.mbtiles';
 
 const defaultCenter: Position = [0, 0]; // [ lng, lat ]
@@ -99,6 +102,16 @@ const ExampleComponent: FC<{
 					</ControlSection>
 				</ControlPanel>
 			)}
+
+			<ControlPanel width={width}>
+				<ControlSection>
+					<Text style={sharedStyles.text}>
+						Raster MBTiles overview map from
+						https://www.openandromaps.org/en/downloads/general-maps
+						→ /sdcard/Download/test-data/mbtiles/
+					</Text>
+				</ControlSection>
+			</ControlPanel>
 
 			<MapInfo info={info} />
 		</View>

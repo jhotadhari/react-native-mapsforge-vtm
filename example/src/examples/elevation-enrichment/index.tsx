@@ -1,15 +1,8 @@
 /**
  * External dependencies
  */
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-	type FC,
-} from 'react';
-import { View, Button, Text } from 'react-native';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { ScrollView, StyleSheet, View, Button, Text } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -32,11 +25,18 @@ import {
 	ControlSection,
 	StatusLine,
 } from '../../components/ControlPanel';
-import lineGeoJSON from '../../assets/longLineAndes.geo.json';
+// SRTM3 elevation data from SE19.zip, downloaded from:
+// https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm
+// Coverage: lat [-21, -17], lng [-72, -67] — southern Peru / western Bolivia
+// (Lake Titicaca, Cordillera Occidental, Altiplano).
+// The HGT files are extracted to /sdcard/Download/test-data/hgt on the device.
+import lineGeoJSON from '../../assets/andes_se19.geo.json';
 
 const hgtDirPath = '/sdcard/Download/test-data/hgt';
 
-const defaultCenter: Position = [-70, -35]; // Mid-Andes
+// Centered on Sajama volcano (~6500m), Bolivia — well inside the SE19 HGT
+// coverage so the hillshading and elevation queries have terrain data.
+const defaultCenter: Position = [-68.88, -18.11];
 
 const Controls: FC<{
 	width: number;
@@ -44,8 +44,17 @@ const Controls: FC<{
 	progress: number;
 	coordCount: number;
 	enrichedCount: number;
+	enrichedCoords: number[][] | null;
 	onStart: () => void;
-}> = ({ width, enriching, progress, coordCount, enrichedCount, onStart }) => {
+}> = ({
+	width,
+	enriching,
+	progress,
+	coordCount,
+	enrichedCount,
+	enrichedCoords,
+	onStart,
+}) => {
 	return (
 		<ControlPanel width={width}>
 			<ControlSection title="Elevation enrichment">
@@ -75,14 +84,44 @@ const Controls: FC<{
 			</ControlSection>
 			<ControlSection>
 				<Text style={sharedStyles.text}>
-					Loads a ~3000-coordinate GeoJSON line along the Andes,
-					enriches it with SRTM elevation data via{' '}
-					enrichCoordinatesWithElevation(), and renders the result as
-					a path. The native ElevationReader preloads HGT tiles in
-					windows — each window triggers preloads, waits for them to
-					land in the LRU cache, then collects elevations.
+					200-coordinate line through the Bolivian Altiplano (lat
+					[-20.8,-17.8], lng [-70.3,-67.8]), enriched with SRTM3
+					elevation data from SE19.zip.
+				</Text>
+				<Text style={sharedStyles.text}>
+					The southern ~28 % of the line falls outside the HGT
+					coverage — those coordinates receive fallbackElevation
+					(default 0) instead of real elevation.
+				</Text>
+				<Text style={sharedStyles.text}>
+					The native ElevationReader preloads HGT tiles in windows —
+					each window triggers preloads, waits for them to land in the
+					LRU cache, then collects elevations.
+				</Text>
+				<Text style={sharedStyles.text}>
+					Download SE19.zip from
+					https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm
+					and extract the .hgt files to /sdcard/Download/test-data/hgt
+					on the device.
 				</Text>
 			</ControlSection>
+			{enrichedCoords && enrichedCoords.length > 0 && (
+				<ControlSection title="Enriched coordinates (scrollable)">
+					<ScrollView
+						style={styles.coordScroll}
+						nestedScrollEnabled
+					>
+						<Text style={styles.coordMono}>
+							{enrichedCoords
+								.map(
+									(c) =>
+										`${c[0]?.toFixed(4) ?? '—'}	${c[1]?.toFixed(4) ?? '—'}	→ ${c[2]?.toFixed(0) ?? '—'} m`
+								)
+								.join('\n')}
+						</Text>
+					</ScrollView>
+				</ControlSection>
+			)}
 		</ControlPanel>
 	);
 };
@@ -210,20 +249,6 @@ const ExampleComponent: FC<{
 		}
 	}, [api, flyToBounds]);
 
-	// Auto-start enrichment once the map view is ready (nativeNodeHandle
-	// transitions from null to a number). Without this guard the effect
-	// fires on the first render while nativeNodeHandle is still null,
-	// handleStart captures the stale flyToBounds/getAltitudeAtPosition from
-	// that render, and enrichment silently produces all-zero elevations
-	// followed by a "nativeNodeHandle is not set yet" error.
-	const startedRef = useRef(false);
-	useEffect(() => {
-		if (!startedRef.current && nativeNodeHandle) {
-			startedRef.current = true;
-			handleStart();
-		}
-	}, [handleStart, nativeNodeHandle]);
-
 	const stylesDynamic = useMemo(
 		() =>
 			({
@@ -241,6 +266,7 @@ const ExampleComponent: FC<{
 				progress={progress}
 				coordCount={coordCount}
 				enrichedCount={enrichedCount}
+				enrichedCoords={enrichedCoords}
 				onStart={handleStart}
 			/>
 
@@ -284,6 +310,21 @@ const stylePath: GeometryStyle = {
 	strokeColor: '#ff6600',
 	strokeWidth: 2.5,
 };
+
+const styles = StyleSheet.create({
+	coordScroll: {
+		maxHeight: 200,
+		backgroundColor: 'rgba(0, 0, 0, 0.3)',
+		borderRadius: 4,
+		padding: 8,
+	},
+	coordMono: {
+		fontFamily: 'monospace',
+		fontSize: 10,
+		color: '#aaa',
+		lineHeight: 14,
+	},
+});
 
 export default {
 	ExampleComponent,

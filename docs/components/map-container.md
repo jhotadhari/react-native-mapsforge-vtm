@@ -55,6 +55,7 @@ event itself.
 | `onError` | `(e: NativeSyntheticEvent<{ errorMsg: string }>) => void` | Native error occurred |
 | `onTap` | `(e: NativeSyntheticEvent<TapEventResponse>) => void` | Single tap on the map (not on a marker/path) |
 | `onLongPress` | `(e: NativeSyntheticEvent<LongPressEventResponse>) => void` | Long press on the map |
+| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | GNSS position from the track-recording filter |
 | `onMapCreated` | `() => void` | Internal — fires when the native `MapView` is ready |
 | `emitsMapUpdateEvents` | `boolean` | `true` if `onMapUpdate` set | Enable/disable position events. When `false`, the native side stops emitting `onMapUpdate` entirely, saving bridge bandwidth when no consumer is listening. |
 
@@ -89,6 +90,18 @@ return (
 
 This is separate from `LayerHillshading`'s `hgtDirPath`.
 
+### GNSS track-recording
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `gnssFilter` | `GnssFilterNativeProps \| null` | `null` | Configures the native GNSS position filter. Setting starts recording; clearing (`null`) stops. |
+| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | — | Called on each qualifying position (after accuracy guard and altitude resolution). |
+
+The `gnssFilter` config fields: `minDistanceMeters`, `minTimeSec`,
+`minAccuracyMeters`, `provider` (`'satellite'` / `'network'`),
+`altitudeSource` (`'dem-only'` / `'gnss-only'` / `'dem-preferred'` /
+`'gnss-preferred'`). See **[GNSS filter](../api/gnss.md)** for full details.
+
 ## Example
 
 ```tsx
@@ -119,5 +132,7 @@ const App = () => (
 ## See also
 
 - **[useMap()](../hooks/use-map.md)** — Imperative map control
+- **[createMapHandle()](../api/create-map-handle.md)** — Non-hook factory for imperative map control
+- **[GNSS filter](../api/gnss.md)** — GNSS track-recording configuration
 - **[Layer Ordering](../advanced/layer-ordering.md)** — How z-order works
 - **[Quick Start](../getting-started/quick-start.md)** — First-map walkthrough

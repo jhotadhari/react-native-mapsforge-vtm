@@ -4,6 +4,12 @@ Batch elevation enrichment for coordinate arrays using SRTM HGT data.
 Groups coordinates by 1°×1° tile, preloads tiles in windows, and writes
 elevation into every coordinate's third element (`c[2]`).
 
+> **Prerequisite:** HGT elevation data must be present on the device.
+> The example app uses SRTM3 data from **SE19.zip** (southern Peru /
+> western Bolivia, lat [-21, -17], lng [-72, -67]). Download from
+> [viewfinderpanoramas.org](https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm)
+> and extract to `/sdcard/Download/test-data/hgt`.
+
 ```tsx
 import { enrichCoordinatesWithElevation } from 'react-native-mapsforge-vtm';
 import type { ElevationAPI } from 'react-native-mapsforge-vtm';
@@ -80,6 +86,7 @@ function, with the error-handling strategy described below.
 | `keepCacheCapacity` | `false` | When `true` the elevated cache capacity is NOT restored to the compile-time default (10) after enrichment. Use when you expect to run enrichment again soon — keeping tiles warm avoids redundant disk reads. |
 | `onProgress` | — | Called after each window completes with the overall fraction (0–1). Suitable for driving a progress bar. |
 | `signal` | — | `AbortSignal`. When aborted, enrichment stops at the next window boundary. Coordinates enriched so far are preserved — it does not roll back. |
+| `fallbackElevation` | `0` | Elevation value assigned to coordinates whose tile has no HGT data (ocean, missing coverage). Set to `null` to leave those coordinates untouched. |
 
 ## Return value
 

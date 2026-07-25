@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
 	section: {
 		alignItems: 'center',
 		justifyContent: 'space-evenly',
+		gap: 8,
 	},
 	// `flexWrap` matters here in a way it didn't for the old full-width panel -- rows with 3-4
 	// buttons (e.g. fly-ease's easing comparisons) need to wrap onto multiple lines now that

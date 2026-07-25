@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Button, View } from 'react-native';
+import { Button, Text, View } from 'react-native';
 import {
 	LayerMapsforge,
 	LayerScalebar,
@@ -16,19 +16,22 @@ import {
 	StatusLine,
 } from '../../components/ControlPanel';
 import type { Example } from '../../types';
-import { handleMapEvent } from '../../sharedDeps';
+import { handleMapEvent, sharedStyles } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
-// Pushed onto the emulator/device via, e.g.:
-//   adb push Andorra_oam.osm.map /sdcard/Download/Andorra_oam.osm.map
-//   adb push Alti /sdcard/Download/Alti
-// Any mapsforge .map file / vtm-compatible render theme xml works -- both can be downloaded from
-// openandromaps.org/en/downloads. A theme with a <stylemenu> (like openandromaps' "Alti"/"Elevate")
-// is needed to see the render style/overlay picker below do anything; built-in themes (DEFAULT
-// etc.) have no selectable styles. The whole theme directory (not just the xml) needs pushing,
-// since its <stylemenu> styles reference icon resources by path relative to the xml file.
-// Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example app's manifest -- the
-// app's own sandboxed external files dir can't see files it didn't create itself.
+// Vector map (.map) and render theme from openandromaps.org:
+//   https://www.openandromaps.org/en/downloads/countrys-and-regions
+// Download a country/region .map file and its accompanying render theme
+// (e.g. "Alti"/"Elevate").  Push to the device via adb:
+//   adb push Andorra_oam.osm.map /sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map
+//   adb push Alti/            /sdcard/Download/test-data/mapstyles/Alti/
+// The whole theme directory (not just the .xml) must be pushed since
+// <stylemenu> styles reference icon resources by path relative to the xml.
+// A theme with a <stylemenu> is needed for the render style/overlay picker
+// below; built-in themes (DEFAULT etc.) have no selectable styles.
+// Requires the MANAGE_EXTERNAL_STORAGE permission declared in the example
+// app's manifest — the app's sandboxed external files dir can't see files
+// it didn't create itself.
 const mapFile = '/sdcard/Download/test-data/mapfiles/Andorra_oam.osm.map';
 const renderTheme = '/sdcard/Download/test-data/mapstyles/Alti/Alti.xml';
 
@@ -174,6 +177,17 @@ const ExampleComponent: FC<{
 						))}
 					</ControlSection>
 				)}
+			</ControlPanel>
+
+			<ControlPanel width={width}>
+				<ControlSection>
+					<Text style={sharedStyles.text}>
+						Vector map (.map) and render theme from
+						https://www.openandromaps.org/en/downloads/countrys-and-regions
+						→ /sdcard/Download/test-data/mapfiles/ →
+						/sdcard/Download/test-data/mapstyles/
+					</Text>
+				</ControlSection>
 			</ControlPanel>
 
 			<MapInfo info={info} />

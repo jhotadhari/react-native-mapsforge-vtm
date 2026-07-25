@@ -17,6 +17,7 @@ const categories: { key: ExampleCategory; label: string }[] = [
 	{ key: 'layers', label: 'Layers' },
 	{ key: 'mapControls', label: 'Map controls (useMap)' },
 	{ key: 'gestures', label: 'Gestures & performance' },
+	{ key: 'api', label: 'API & utilities' },
 ];
 
 const allExamples = Object.values(examples) as Example[];

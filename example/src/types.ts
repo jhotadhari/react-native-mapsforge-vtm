@@ -1,6 +1,6 @@
 import type { ElementType } from 'react';
 
-export type ExampleCategory = 'layers' | 'mapControls' | 'gestures';
+export type ExampleCategory = 'layers' | 'mapControls' | 'gestures' | 'api';
 
 export interface Example {
 	key: string;

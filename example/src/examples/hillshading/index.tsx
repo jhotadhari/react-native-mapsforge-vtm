@@ -12,9 +12,11 @@ import type { Example } from '../../types';
 import { handleMapEvent } from '../../sharedDeps';
 import MapInfo, { useMapInfo } from '../../components/MapInfo';
 
-// Centered on Sajama volcano (~6500m), inside the downloaded SRTM3 tile coverage
-// (S17W067..S20W071, Bolivia/Peru border) -- there's no terrain data outside this area in the
-// test set, and this spot's dramatic relief makes the effect obvious at a glance.
+// SRTM3 elevation data from SE19.zip, downloaded from:
+// https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm
+// Coverage: lat [-21, -17], lng [-72, -67] — southern Peru / western Bolivia.
+// The HGT files are extracted to /sdcard/Download/test-data/hgt on the device.
+// Centered on Sajama volcano (~6500m) — dramatic relief makes the effect obvious.
 const defaultCenter: Position = [-68.88, -18.11];
 
 const hgtDirPath = '/sdcard/Download/test-data/hgt';
@@ -23,7 +25,23 @@ const ElevationOverlay: FC<{
 	elevation: number | null;
 	point: { lng: number; lat: number } | null;
 }> = ({ elevation, point }) => {
-	if (elevation == null || point == null) return null;
+	if (elevation == null || point == null) {
+		// Show data-source hint when no elevation has been queried yet.
+		return (
+			<View style={styles.elevationOverlay}>
+				<Text style={styles.elevationText}>
+					Tap map to query elevation.
+				</Text>
+				<Text style={styles.elevationText}>Data: SE19.zip from</Text>
+				<Text style={styles.elevationText}>
+					viewfinderpanoramas.org
+				</Text>
+				<Text style={styles.elevationText}>
+					→ /sdcard/Download/test-data/hgt
+				</Text>
+			</View>
+		);
+	}
 	return (
 		<View style={styles.elevationOverlay}>
 			<Text style={styles.elevationText}>
@@ -41,7 +59,13 @@ const ExampleComponent: FC<{
 	width: number;
 }> = ({ height, width }) => {
 	const { handleMapUpdate, info } = useMapInfo();
-	const { getAltitudeAtPosition } = useMap();
+
+	// useMap() needs the map's nativeNodeHandle, but MapHandleContext is only provided to
+	// MapContainer's own children -- use the state-lifting pattern instead.
+	const [nativeNodeHandle, setNativeNodeHandle] = useState<number | null>(
+		null
+	);
+	const { getAltitudeAtPosition } = useMap(nativeNodeHandle);
 
 	const [
 		elevation,
@@ -67,6 +91,8 @@ const ExampleComponent: FC<{
 	return (
 		<View style={containerStyle}>
 			<MapContainer
+				nativeNodeHandle={nativeNodeHandle}
+				setNativeNodeHandle={setNativeNodeHandle}
 				width={width}
 				height={height}
 				center={defaultCenter}
@@ -78,9 +104,7 @@ const ExampleComponent: FC<{
 				onTap={handleTap}
 				hgtDirPath={hgtDirPath}
 			>
-				<LayerHillshading
-					hgtDirPath={'/sdcard/Download/test-data/hgt'}
-				/>
+				<LayerHillshading hgtDirPath={hgtDirPath} />
 				<LayerScalebar />
 			</MapContainer>
 

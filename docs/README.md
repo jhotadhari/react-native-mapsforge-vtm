@@ -26,6 +26,8 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 ## Hooks
 
 - **[useMap](./hooks/use-map.md)** — Imperative map control (pan, zoom, animate, fly, fitBounds)
+- **[useMapEventInterval](./hooks/use-map-event-interval.md)** — Poll map events at a fixed interval
+- **[useViewportBbox](./hooks/use-viewport-bbox.md)** — Tile-snapped viewport bounding box with dedup
 - **[useRenderStyleOptions](./hooks/use-render-style-options.md)** — Read render-theme style menu
 
 ## Advanced
@@ -44,11 +46,14 @@ Android offline vector map rendering for React Native, built on [mapsforge/vtm](
 
 - **[CanvasAdapterModule](./api/canvas-adapter-module.md)** — Global text/line/symbol scale
 - **[Types](./api/types.md)** — Shared TypeScript types
+- **[createMapHandle / createMapHandleRegistry](./api/create-map-handle.md)** — Non-React factories for imperative map control
+- **[Mercator Math](./api/mercator-math.md)** — Non-worklet Mercator projection & tile utilities
 - **[enrichCoordinatesWithElevation](./api/enrich-coordinates.md)** — Batch elevation enrichment for coordinate arrays
+- **[GNSS Track-Recording Filter](./api/gnss.md)** — Native GNSS position recording with DEM altitude
 
 ## Resources
 
 - **[Naming conventions and terminology](./NAMING_TERMINOLOGY.md)** — Inclusive language conventions used throughout the project
-- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — 23 runnable examples across 3 categories (`yarn example android`)
+- **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** — **runnable examples** covering layers, map controls, gestures, and API utilities (`yarn example android`)
 
 - **[Changelog](../CHANGELOG.md)** — Version history
