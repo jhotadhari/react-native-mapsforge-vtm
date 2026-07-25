@@ -1,40 +1,4 @@
 /**
- * Non-React factory that returns the same imperative map-control and
- * elevation API as {@link useMap}, but without requiring a React component
- * or context.  Accepts a concrete {@code nativeNodeHandle} (the native
- * view tag of an already-mounted MapContainer) so thunks, non-React
- * services, and other plain-JS code can control the map and query
- * elevation.
- *
- * Callers must obtain the nativeNodeHandle, e.g. via
- * {@code MapContainer}'s {@code nativeNodeHandle / setNativeNodeHandle}
- * lifted-state props or from
- * {@code findNodeHandle(refTo<NativeMapContainer>)}, and pass it here.
- *
- * The returned object is a plain JS object — no hooks, no memoization.
- * Re-create it whenever the handle changes (typically once, on mount).
- *
- * @example
- * ```typescript
- * import { createMapHandle } from 'react-native-mapsforge-vtm';
- *
- * let mapHandle: ReturnType<typeof createMapHandle> | null = null;
- *
- * // In a component:
- * <MapContainer
- *   nativeNodeHandle={nativeNodeHandle}
- *   setNativeNodeHandle={(h) => {
- *     setNativeNodeHandle(h);
- *     if (h) mapHandle = createMapHandle(h);
- *   }}
- * />
- *
- * // In a thunk:
- * const altitude = await mapHandle?.getAltitudeAtPositionRetry(lng, lat);
- * ```
- */
-
-/**
  * Internal dependencies
  */
 import NativeMapContainer, {
@@ -48,12 +12,16 @@ import type {
 	MapPositionTarget,
 } from './useMap';
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 const requireBbox = (
 	bounds: Bbox
 ): { west: number; south: number; east: number; north: number } => {
 	if (bounds.length !== 4) {
 		throw new Error(
-			`createMapHandle: bounds must be [ west, south, east, north ] (length 4), got length ${bounds.length}.`
+			`bounds must be [ west, south, east, north ] (length 4), got length ${bounds.length}.`
 		);
 	}
 	const [
@@ -68,15 +36,23 @@ const requireBbox = (
 const getRetryDelay = (attempt: number): number =>
 	Math.min(500, Math.max(100, 10 * Math.pow(2, attempt)));
 
+// ---------------------------------------------------------------------------
+// Public
+// ---------------------------------------------------------------------------
+
 /**
- * Creates an imperative map handle from a resolved native node handle.
+ * Creates the full imperative map-control + elevation API object from a
+ * concrete (non-null) {@code nativeNodeHandle}.
  *
- * Returns the same API surface as {@link useMap} but callable from
- * non-React contexts (thunks, services, etc.).  Omits
- * {@code getDebugLayerDump} — that requires the React-side layer
- * registry context.
+ * This is the shared foundation used by both {@link useMap} (the React
+ * hook) and {@link createMapHandle} (the non-hook factory).  It contains
+ * every method that doesn't need React context (i.e. everything except
+ * {@code getDebugLayerDump}, which requires the JS-side layer registry).
+ *
+ * @param nativeNodeHandle A resolved native view tag (already validated
+ *   non-null by the caller).
  */
-export const createMapHandle = (nativeNodeHandle: number) => {
+export function createMapHandle(nativeNodeHandle: number) {
 	const animateTo = (
 		target: MapPositionTarget,
 		options?: AnimationOptions
@@ -201,10 +177,7 @@ export const createMapHandle = (nativeNodeHandle: number) => {
 			return result.altitude ?? null;
 		} catch (e) {
 			if (__DEV__) {
-				console.warn(
-					'[createMapHandle] getAltitudeAtPosition failed:',
-					e
-				);
+				console.warn('[mapHandle] getAltitudeAtPosition failed:', e);
 			}
 			return null;
 		}
@@ -294,4 +267,4 @@ export const createMapHandle = (nativeNodeHandle: number) => {
 		setCacheCapacity,
 		getAltitudeAtPositionRetry,
 	};
-};
+}

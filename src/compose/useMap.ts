@@ -7,13 +7,11 @@ import { useContext, useMemo, useRef } from 'react';
  * Internal dependencies
  */
 import MapHandleContext from '../context/MapHandleContext';
+import { createMapHandle } from './createMapHandle';
 import NativeMapContainer, {
 	type GetPositionResponse,
 	type GetDebugLayerDumpResponse,
 } from '../NativeModules/NativeMapContainer';
-// `Bbox` already exists as a public type (LayerPath's response shape) -- same GeoJSON
-// [ west, south, east, north ] convention, so reused here rather than duplicated.
-import type { Bbox } from '../NativeModules/NativeLayerPath';
 import type { Position } from '../types';
 
 /**
@@ -114,28 +112,6 @@ const requireHandle = (nativeNodeHandle: null | number): number => {
 	return nativeNodeHandle;
 };
 
-// Bbox is ReadonlyArray<Double> (not a fixed-length tuple -- see NativeLayerPath.ts's comment on
-// why codegen spec types can't be tuples here), so nothing at the type level stops a caller from
-// passing a malformed array. Validating length up front turns that into a clear, synchronous
-// error instead of a native index-out-of-bounds exception (fitBounds) or NaN coordinates silently
-// reaching panTo (panInsideBounds).
-const requireBbox = (
-	bounds: Bbox
-): { west: number; south: number; east: number; north: number } => {
-	if (bounds.length !== 4) {
-		throw new Error(
-			`useMap: bounds must be [ west, south, east, north ] (length 4), got length ${bounds.length}.`
-		);
-	}
-	const [
-		west,
-		south,
-		east,
-		north,
-	] = bounds;
-	return { west: west!, south: south!, east: east!, north: north! };
-};
-
 /**
  * Imperative map control -- panning, zooming, rotating/tilting, animated camera moves and
  * bounds-fitting -- all implemented as thin wrappers around two native primitives,
@@ -167,261 +143,8 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 	registryRef.current = registry;
 
 	return useMemo(() => {
-		const animateTo = (
-			target: MapPositionTarget,
-			options?: AnimationOptions
-		): Promise<void> =>
-			NativeMapContainer.animateTo({
-				nativeNodeHandle: requireHandle(nativeNodeHandle),
-				...target,
-				duration: options?.duration ?? 0,
-				easing: options?.easing ?? 'linear',
-			});
-
-		const getPosition = (): Promise<GetPositionResponse> =>
-			NativeMapContainer.getPosition({
-				nativeNodeHandle: requireHandle(nativeNodeHandle),
-			});
-
-		const jumpTo = (target: MapPositionTarget): Promise<void> =>
-			animateTo(target);
-
-		const panTo = (center: Position): Promise<void> =>
-			animateTo({ center });
-
-		const panBy = async (
-			deltaLngLat: readonly [number, number]
-		): Promise<void> => {
-			const [
-				lng,
-				lat,
-				alt,
-			] = await getPosition().then((p) => p.center);
-			return panTo(
-				alt !== undefined
-					? [
-							lng! + deltaLngLat[0],
-							lat! + deltaLngLat[1],
-							alt,
-						]
-					: [lng! + deltaLngLat[0], lat! + deltaLngLat[1]]
-			);
-		};
-
-		const setZoom = (zoomLevel: number): Promise<void> =>
-			animateTo({ zoomLevel });
-
-		const zoomOut = async (by: number = 1): Promise<void> => {
-			const current = await getPosition();
-			return setZoom(current.zoomLevel - by);
-		};
-
-		const setBearing = (bearing: number): Promise<void> =>
-			animateTo({ bearing });
-
-		const resetNorth = (): Promise<void> => setBearing(0);
-
-		const resetNorthPitch = (): Promise<void> =>
-			animateTo({ bearing: 0, tilt: 0 });
-
-		const setRoll = (roll: number): Promise<void> => animateTo({ roll });
-
-		const easeTo = (
-			target: MapPositionTarget,
-			options?: AnimationOptions
-		): Promise<void> =>
-			animateTo(target, {
-				duration: options?.duration ?? 300,
-				easing: options?.easing ?? 'sine_inout',
-			});
-
-		const flyTo = (
-			target: MapPositionTarget,
-			options?: AnimationOptions
-		): Promise<void> =>
-			animateTo(target, {
-				duration: options?.duration ?? 1200,
-				easing: options?.easing ?? 'expo_out',
-			});
-
-		const fitBounds = (
-			bounds: Bbox,
-			options?: FitBoundsOptions
-		): Promise<void> => {
-			requireBbox(bounds);
-			return NativeMapContainer.animateTo({
-				nativeNodeHandle: requireHandle(nativeNodeHandle),
-				bounds,
-				boundsPaddingPx: options?.paddingPx ?? 0,
-				duration: options?.duration ?? 0,
-				easing: options?.easing ?? 'linear',
-			});
-		};
-
-		const flyToBounds = (
-			bounds: Bbox,
-			options?: FitBoundsOptions
-		): Promise<void> =>
-			fitBounds(bounds, {
-				paddingPx: options?.paddingPx ?? 0,
-				duration: options?.duration ?? 1200,
-				easing: options?.easing ?? 'expo_out',
-			});
-
-		// Approximate: clamps the current center into `bounds` along each axis independently.
-		// This is not Leaflet's minimal-pan-to-reveal-the-bounds algorithm (that needs the current
-		// on-screen viewport's own geographic extent, which isn't exposed natively yet) -- it's a
-		// simpler "keep the camera over this area" behaviour.
-		const panInsideBounds = async (bounds: Bbox): Promise<void> => {
-			const { west, south, east, north } = requireBbox(bounds);
-			const [lng, lat] = await getPosition().then((p) => p.center);
-			const clampedLng = Math.min(Math.max(lng!, west), east);
-			const clampedLat = Math.min(Math.max(lat!, south), north);
-			if (clampedLng === lng && clampedLat === lat) {
-				return;
-			}
-			return panTo([clampedLng, clampedLat]);
-		};
-
-		// Approximate, same caveat as panInsideBounds: treats `point` as the new center if it
-		// isn't already one, rather than doing a true minimal on-screen reveal.
-		const panInside = (point: Position): Promise<void> => panTo(point);
-
-		/**
-		 * Returns the elevation in metres at the given coordinate, or `null` if no
-		 * HGT data covers that position or no hgtDirPath has been configured on the
-		 * MapContainer.
-		 *
-		 * Requires a hgtDirPath to be set on MapContainer. The hillshading layer's
-		 * hgtDirPath is independent — this queries the MapContainer's own elevation
-		 * data source.
-		 */
-		const getAltitudeAtPosition = async (
-			lng: number,
-			lat: number
-		): Promise<number | null> => {
-			try {
-				const result = await NativeMapContainer.getAltitudeAtPosition({
-					nativeNodeHandle: requireHandle(nativeNodeHandle),
-					lng,
-					lat,
-				});
-				return result.altitude ?? null;
-			} catch (e) {
-				// Elevation is best-effort — resolve to null on any error.
-				// Log the raw rejection so configuration problems
-				// (e.g. "no elevation data configured") are visible during development.
-				if (__DEV__) {
-					console.warn('[useMap] getAltitudeAtPosition failed:', e);
-				}
-				return null;
-			}
-		};
-
-		/**
-		 * Returns {@code true} if an HGT file covers the given coordinate,
-		 * regardless of whether its data is currently cached.  When this
-		 * returns {@code false} the position is ocean, missing tile, or the
-		 * ElevationReader hasn't been configured — no amount of waiting will
-		 * produce an elevation, so callers can skip their retry loop.
-		 */
-		const hasDataAtPosition = async (
-			lng: number,
-			lat: number
-		): Promise<boolean> => {
-			try {
-				const result = await NativeMapContainer.hasDataAtPosition({
-					nativeNodeHandle: requireHandle(nativeNodeHandle),
-					lng,
-					lat,
-				});
-				return result.hasData;
-			} catch {
-				return false;
-			}
-		};
-
-		/**
-		 * Returns {@code true} if the HGT tile covering (lng, lat) is
-		 * currently loaded in the LRU cache.  Unlike getAltitudeAtPosition
-		 * this never triggers a preload and is never fooled by void
-		 * (ocean) pixels — it only checks whether the tile data array
-		 * is present.
-		 */
-		const isTileCached = async (
-			lng: number,
-			lat: number
-		): Promise<boolean> => {
-			try {
-				const result = await NativeMapContainer.isTileCached({
-					nativeNodeHandle: requireHandle(nativeNodeHandle),
-					lng,
-					lat,
-				});
-				return result.cached;
-			} catch {
-				return false;
-			}
-		};
-
-		/**
-		 * Resizes the elevation tile LRU cache to hold at most {@code capacity}
-		 * tiles.  Use to temporarily raise the cap during batch enrichment and
-		 * restore to the compile-time default (10) afterwards.
-		 *
-		 * <p>Unlike the other elevation methods this one *does* throw on failure — the caller must know whether the cache was actually resized.</p>
-		 */
-		const setCacheCapacity = async (capacity: number): Promise<void> => {
-			await NativeMapContainer.setCacheCapacity({
-				nativeNodeHandle: requireHandle(nativeNodeHandle),
-				capacity,
-			});
-		};
-
-		/**
-		 * Exponential backoff delay for cache-miss retries.
-		 * `clamp(10 x 2^attempt, 100, 500)` ms.
-		 */
-		const getRetryDelay = (attempt: number): number =>
-			Math.min(500, Math.max(100, 10 * Math.pow(2, attempt)));
-
-		/**
-		 * Returns the elevation in metres at (lng, lat), retrying on
-		 * cache-miss with exponential backoff.
-		 *
-		 * Checks {@link hasDataAtPosition} first - when no HGT file
-		 * covers the coordinate, resolves to {@code null} immediately
-		 * instead of wasting retry cycles on ocean or missing tiles.
-		 *
-		 * Retries up to {@code maxRetries} times (default 10, ~3 s total).
-		 * Each attempt triggers a preload in the native ElevationReader
-		 * if the HGT tile is not cached yet, so subsequent attempts
-		 * become cache hits once the tile loads (~300-500 ms).
-		 *
-		 * For zero-retry behaviour (the raw native call), use
-		 * {@link getAltitudeAtPosition} directly.
-		 */
-		const getAltitudeAtPositionRetry = async (
-			lng: number,
-			lat: number,
-			opts?: { maxRetries?: number }
-		): Promise<number | null> => {
-			const maxRetries = opts?.maxRetries ?? 10;
-
-			const hasData = await hasDataAtPosition(lng, lat);
-			if (!hasData) return null;
-
-			for (let attempt = 0; attempt <= maxRetries; attempt++) {
-				const result = await getAltitudeAtPosition(lng, lat);
-				if (result !== null) return result;
-				if (attempt < maxRetries) {
-					await new Promise<void>((r) =>
-						setTimeout(r, getRetryDelay(attempt))
-					);
-				}
-			}
-			return null;
-		};
+		const handle = requireHandle(nativeNodeHandle);
+		const base = createMapHandle(handle);
 
 		/**
 		 * Returns a comprehensive debug dump of all layers on the map, combining
@@ -434,7 +157,6 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		 * on the native map.
 		 */
 		const getDebugLayerDump = async (): Promise<DebugLayerDump> => {
-			const handle = requireHandle(nativeNodeHandle);
 			const nativeDump = await NativeMapContainer.getDebugLayerDump({
 				nativeNodeHandle: handle,
 			});
@@ -510,30 +232,7 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 		};
 
 		return {
-			getPosition,
-			jumpTo,
-			panTo,
-			panBy,
-			setZoom,
-			zoomTo: setZoom,
-			zoomOut,
-			setBearing,
-			rotateTo: setBearing,
-			resetNorth,
-			resetNorthPitch,
-			setRoll,
-			easeTo,
-			flyTo,
-			fitBounds,
-			setBounds: fitBounds,
-			flyToBounds,
-			panInsideBounds,
-			panInside,
-			getAltitudeAtPosition,
-			getAltitudeAtPositionRetry,
-			hasDataAtPosition,
-			isTileCached,
-			setCacheCapacity,
+			...base,
 			getDebugLayerDump,
 		};
 	}, [nativeNodeHandle]);
