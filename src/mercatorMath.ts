@@ -54,7 +54,9 @@ export function latLngToMercator(
 	lat: number,
 	lng: number
 ): { mx: number; my: number } {
-	const mx = (lng + 180) / 360;
+	// Wrap lng so mx stays in [0, 1] for any input (e.g. 190° → -170°).
+	let mx = (lng + 180) / 360;
+	mx -= Math.floor(mx);
 	const latRad = clampLat(lat) * DEG_TO_RAD;
 	const mercY = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
 	const my = 0.5 - mercY / (2 * Math.PI);
@@ -91,7 +93,7 @@ export function wrapLngDelta(dLng: number): number {
 /**
  * Wraps a normalised Mercator mx delta to [-0.5, +0.5].
  */
-function wrapMxDelta(dMx: number): number {
+export function wrapMxDelta(dMx: number): number {
 	if (dMx > 0.5) return dMx - 1;
 	if (dMx < -0.5) return dMx + 1;
 	return dMx;
@@ -311,8 +313,13 @@ export function lngLatToTile(
 	zoom: number
 ): { x: number; y: number } {
 	const n = Math.pow(2, zoom);
-	const x = ((lng + 180) / 360) * n;
-	const latRad = (lat * Math.PI) / 180;
+	// Wrap lng so tile x stays in [0, n) for any input.
+	let mx = (lng + 180) / 360;
+	mx -= Math.floor(mx);
+	const x = mx * n;
+	// Clamp to valid Web Mercator range — tan() / 1/cos() diverge
+	// beyond ±85.05°, producing NaN tile coordinates.
+	const latRad = (clampLat(lat) * Math.PI) / 180;
 	const y =
 		((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) /
 			2) *

@@ -35,5 +35,8 @@ export function useMapEventInterval(
 			callbackRef.current(eventRef.current ?? null);
 		}, intervalMs);
 		return () => clearInterval(id);
-	}, [intervalMs, eventRef]);
+		// eventRef is a MutableRefObject — its identity is stable across
+		// renders, so it doesn't need to be in the dependency array.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [intervalMs]);
 }

@@ -38,8 +38,11 @@ const bboxKey = (bbox: ViewportBbox | null): string =>
  * @param opts.minSnapZoom    - Floor for tile-zoom.  Default 0.
  * @param opts.maxSnapZoom    - Ceiling for tile-zoom.  Default 8.
  *
- * @returns The tile-snapped {@link ViewportBbox}, or `null` when the
- *          map position / viewport dimensions are not yet available.
+ * @returns The tile-snapped {@link ViewportBbox}.  Returns {@code null}
+ *          initially (before the first map event arrives) but retains the
+ *          last valid bbox during transient invalid states (e.g. zero-size
+ *          viewport during layout transitions) to avoid flickering spatial
+ *          queries.
  */
 export function useViewportBbox(
 	eventRef: React.MutableRefObject<MapEventResponse | null | undefined>,
