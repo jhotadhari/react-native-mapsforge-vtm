@@ -131,6 +131,7 @@ import MapHandleContext, {
 	type MapHandleContextValue,
 } from './context/MapHandleContext';
 import useLayerOrder from './compose/useLayerOrder';
+import { useMapEventInterval } from './compose/useMapEventInterval';
 import useNativeLayerLifecycle, {
 	type CreateFlags,
 	type RemoveFlags,
@@ -269,6 +270,7 @@ export {
 	useNativeLayerLifecycle,
 	type CreateFlags,
 	type RemoveFlags,
+	useMapEventInterval,
 };
 
 // Shared path response type — union of both PathResponseInclude variants.
