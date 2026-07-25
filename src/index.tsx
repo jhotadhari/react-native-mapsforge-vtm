@@ -133,6 +133,7 @@ import MapHandleContext, {
 import useLayerOrder from './compose/useLayerOrder';
 import { createMapHandle } from './compose/createMapHandle';
 import { useMapEventInterval } from './compose/useMapEventInterval';
+import { useViewportBbox } from './compose/useViewportBbox';
 import useNativeLayerLifecycle, {
 	type CreateFlags,
 	type RemoveFlags,
@@ -273,6 +274,7 @@ export {
 	type CreateFlags,
 	type RemoveFlags,
 	useMapEventInterval,
+	useViewportBbox,
 };
 
 // Shared path response type — union of both PathResponseInclude variants.
