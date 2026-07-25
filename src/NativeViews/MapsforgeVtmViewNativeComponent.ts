@@ -51,7 +51,7 @@ export interface GnssFilterNativeProps {
 	minDistanceMeters: Double;
 	minTimeSec: Double;
 	minAccuracyMeters: Double;
-	provider: string; // 'gps' | 'network'
+	provider: string; // 'satellite' | 'network'
 	altitudeSource: string; // 'dem-only' | 'gnss-only' | 'dem-preferred' | 'gnss-preferred'
 }
 

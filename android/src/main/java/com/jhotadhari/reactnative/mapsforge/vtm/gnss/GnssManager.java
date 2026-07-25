@@ -81,7 +81,7 @@ public class GnssManager {
 
 		String provider = gnssFilter.hasKey("provider")
 			? gnssFilter.getString("provider")
-			: "gps";
+			: "satellite";
 		// Map JS provider names to Android constants.
 		if ("network".equals(provider)) {
 			provider = LocationManager.NETWORK_PROVIDER;
