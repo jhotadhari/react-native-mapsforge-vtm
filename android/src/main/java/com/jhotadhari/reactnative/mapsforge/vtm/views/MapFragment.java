@@ -375,6 +375,10 @@ public class MapFragment extends Fragment {
 	@Override
 	public void onDestroy() {
 		unbindUpdateListener();
+		if ( null != gnssManager ) {
+			gnssManager.stop();
+			gnssManager = null;
+		}
 		// Tear down LayerManagers FIRST — they need a live mapView to remove
 		// their shared layers from mapView.map().layers(). Then tear down the
 		// MapMutationQueue so pending layer mutations don't hang. Only then

@@ -53,7 +53,6 @@ export interface GnssFilterNativeProps {
 	minAccuracyMeters: Double;
 	provider: string; // 'gps' | 'network'
 	altitudeSource: string; // 'dem-only' | 'gnss-only' | 'dem-preferred' | 'gnss-preferred'
-	demRetryMs: Double;
 }
 
 export interface GnssPosition {
