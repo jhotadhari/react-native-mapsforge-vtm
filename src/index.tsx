@@ -4,6 +4,8 @@ import type {
 	MapContainerProps,
 	TapEventResponse,
 	LongPressEventResponse,
+	GnssFilterNativeProps,
+	GnssPosition,
 } from './NativeViews/MapsforgeVtmViewNativeComponent';
 
 import LayerMarker from './components/LayerMarker';
@@ -247,6 +249,13 @@ export {
 	snapBboxToTiles,
 	type MercatorMathOptions,
 	type ViewportBbox,
+
+	// GNSS track-recording filter types.
+	type GnssFilterNativeProps,
+	type GnssPosition,
+	// Public convenience types re-exported from the native spec.
+	// AltitudeSource is the string union accepted by GnssFilterOptions.altitude.source.
+	// GnssFilterOptions is the user-facing config (matches GnssFilterNativeProps shape).
 
 	// Other
 	useRenderStyleOptions,

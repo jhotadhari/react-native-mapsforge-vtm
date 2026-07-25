@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
+import android.content.Context;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,6 +16,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.GestureLayer;
+import com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager;
 
 import org.oscim.android.MapView;
 import org.oscim.core.MapPosition;
@@ -31,6 +34,8 @@ public class MapFragment extends Fragment {
 	private Map.UpdateListener updateListener;
 
 	private GestureLayer gestureLayer;
+
+	private GnssManager gnssManager;
 
 
 
@@ -288,6 +293,43 @@ public class MapFragment extends Fragment {
 			mapView.map().getEventLayer().enableZoom( getMapsforgeVtmView().getInteractionEnabled( "zoom" ) );
 		}
 
+	}
+
+	/**
+	 * Start or stop the GNSS position filter based on the current
+	 * {@code gnssFilter} prop on the parent {@link MapsforgeVtmView}.
+	 */
+	public void updateGnssFilter() {
+		MapsforgeVtmView parent = getMapsforgeVtmView();
+		if ( null == parent ) return;
+
+		// Stop any existing listener first.
+		if ( null != gnssManager ) {
+			gnssManager.stop();
+			gnssManager = null;
+		}
+
+		ReadableMap filter = parent.getGnssFilter();
+		if ( null == filter ) return;
+
+		Context ctx = getContext();
+		if ( null == ctx ) return;
+
+		LocationManager lm = (LocationManager) ctx.getSystemService( Context.LOCATION_SERVICE );
+		if ( null == lm ) return;
+
+		com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
+			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
+				parent.getId(), parent.getReactContext() );
+
+		gnssManager = GnssManager.create(
+			lm, filter, reader,
+			payload -> parent.emitGnssPosition( payload )
+		);
+
+		if ( null != gnssManager ) {
+			gnssManager.start();
+		}
 	}
 
 	@Override

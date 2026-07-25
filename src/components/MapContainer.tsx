@@ -72,6 +72,8 @@ const MapContainer = ({
 	onError,
 	onTap,
 	onLongPress,
+	gnssFilter,
+	onGnssPosition,
 }: MapContainerProps & {
 	hgtDirPath?: string | null;
 	triggerEvent?: MutableRefObject<null | ((params: TriggerParams) => void)>;
@@ -243,6 +245,8 @@ const MapContainer = ({
 				onError={onError ? onError : null}
 				onTap={onTap ? onTap : null}
 				onLongPress={onLongPress ? onLongPress : null}
+				gnssFilter={gnssFilter ? gnssFilter : null}
+				onGnssPosition={onGnssPosition ? onGnssPosition : null}
 			/>
 			{mapCreated && (
 				<MarkerLayerContext.Provider value={{ markerLayerUuid: null }}>

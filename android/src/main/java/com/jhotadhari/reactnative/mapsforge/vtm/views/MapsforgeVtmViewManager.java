@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -197,6 +198,14 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 	public void setEmitsMapUpdateEvents( MapsforgeVtmView view, boolean value ) {
 		if ( view != null ) {
 			view.setEmitsMapUpdateEvents( value );
+		}
+	}
+
+	@ReactProp( name = "gnssFilter" )
+	@Override
+	public void setGnssFilter( MapsforgeVtmView view, @Nullable ReadableMap value ) {
+		if ( view != null ) {
+			view.setGnssFilter( value );
 		}
 	}
 
