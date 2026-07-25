@@ -134,7 +134,11 @@ import MapHandleContext, {
 	type MapHandleContextValue,
 } from './context/MapHandleContext';
 import useLayerOrder from './compose/useLayerOrder';
-import { createMapHandle } from './compose/createMapHandle';
+import {
+	createMapHandle,
+	createMapHandleRegistry,
+} from './compose/createMapHandle';
+import type { MapHandleRegistry } from './compose/createMapHandle';
 import { useMapEventInterval } from './compose/useMapEventInterval';
 import { useViewportBbox } from './compose/useViewportBbox';
 import useNativeLayerLifecycle, {
@@ -218,9 +222,11 @@ export {
 	type LayerMapsforgeResponse,
 	type LayerMapsforgeProps,
 
-	// useMap and createMapHandle.
+	// useMap, createMapHandle, and MapHandleRegistry.
 	useMap,
 	createMapHandle,
+	createMapHandleRegistry,
+	type MapHandleRegistry,
 	type EasingType,
 	type MapPositionTarget,
 	type AnimationOptions,

@@ -268,3 +268,69 @@ export function createMapHandle(nativeNodeHandle: number) {
 		getAltitudeAtPositionRetry,
 	};
 }
+
+// ---------------------------------------------------------------------------
+// Registry — simple wire/unwire bridge for non-React code
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a registry that holds a {@link createMapHandle} result, wired
+ * from a React component (via {@code wire}) and consumed from non-React
+ * code (thunks, services) via {@code requireHandle} or
+ * {@code getHandle}.
+ *
+ * @example
+ * ```typescript
+ * // Shared singleton:
+ * export const mapRegistry = createMapHandleRegistry();
+ *
+ * // In AppView (React):
+ * useEffect(() => {
+ *     if (handle) mapRegistry.wire(handle);
+ *     return () => mapRegistry.unwire();
+ * }, [handle]);
+ *
+ * // In a thunk:
+ * const h = mapRegistry.requireHandle();
+ * await enrichCoordinatesWithElevation(coords, h);
+ * ```
+ */
+export function createMapHandleRegistry() {
+	let _handle: ReturnType<typeof createMapHandle> | null = null;
+
+	return {
+		/** Wire (or re-wire) the registry with a new native node handle. */
+		wire(nativeNodeHandle: number) {
+			_handle = createMapHandle(nativeNodeHandle);
+		},
+
+		/** Unwire and release the handle. */
+		unwire() {
+			_handle = null;
+		},
+
+		/**
+		 * Returns the current handle, or {@code null} if not yet wired.
+		 * Use when the caller can degrade gracefully.
+		 */
+		getHandle() {
+			return _handle;
+		},
+
+		/**
+		 * Returns the current handle, or throws if not yet wired.
+		 * Use when a handle is required to proceed.
+		 */
+		requireHandle() {
+			if (!_handle) {
+				throw new Error(
+					'MapHandleRegistry: handle not wired — the map may not have mounted yet.'
+				);
+			}
+			return _handle;
+		},
+	};
+}
+
+/** Type of the object returned by {@link createMapHandleRegistry}. */
+export type MapHandleRegistry = ReturnType<typeof createMapHandleRegistry>;
