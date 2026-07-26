@@ -59,6 +59,11 @@ export type LayerOrderRegistry = {
 	// re-renders (e.g. Redux-triggered partial re-renders where MapContainer
 	// did not bump the global generation). scope symbol → counter.
 	scopeGenerations: Map<symbol, number>;
+	layerScopeGenerations: Map<symbol, number>;
+	// Per-layer generation stamp. Set by useLayerOrder on every render
+	// so repositioning can detect stale cursor (when previousId points
+	// to a symbol that didn't participate in the current render pass).
+	layerGenerations: Map<symbol, number>;
 	// Maps each sentinel symbol to its owning ReindexScope's scope symbol,
 	// so sentinel placement can check scope priorities even when no real
 	// children exist in the scope.
@@ -106,6 +111,8 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const sentinels = new Set<symbol>();
 	const sentinelScopes = new Map<symbol, symbol>();
 	const scopePriorities = new Map<symbol, number>();
+	const layerScopeGenerations = new Map<symbol, number>();
+	const layerGenerations = new Map<symbol, number>();
 	const scopeGenerations = new Map<symbol, number>();
 	let lastAppliedUuids: string[] = [];
 	let lastReorderWasEffective = false;
@@ -223,6 +230,8 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 		sentinelScopes,
 		scopePriorities,
 		scopeGenerations,
+		layerScopeGenerations,
+		layerGenerations,
 		listeners,
 		sharedLayerActive: false,
 		subscribe: (callback: () => void) => {
@@ -292,6 +301,8 @@ const noopRegistry: LayerOrderRegistry = {
 	sharedLayerActive: false,
 	listeners: new Set(),
 	scopeGenerations: new Map(),
+	layerScopeGenerations: new Map(),
+	layerGenerations: new Map(),
 	subscribe: () => () => {},
 	notify: () => {},
 	scheduleSync: () => {},

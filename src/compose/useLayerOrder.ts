@@ -85,6 +85,9 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	// never disturb sibling order.
 	const previousId = registry.cursor;
 	registry.cursor = id;
+	// Stamp this symbol with the current generation so repositioning
+	// can verify that previousId participated in this render pass.
+	registry.layerGenerations.set(id, registry.generation);
 	const isNew = !registry.order.includes(id);
 	if (isNew) {
 		let insertAtIndex: number;
@@ -180,7 +183,29 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 				previousId !== undefined
 					? registry.order.indexOf(previousId) + 1
 					: 0;
-			if (currentIndex !== expectedIndex) {
+			// When generation changed, verify the cursor chain is intact.
+			// If any symbol between previousId and the current position
+			// was not stamped in this render pass (e.g. useMemo prevented
+			// re-render), the cursor is stale and repositioning would
+			// corrupt the order. Skip the move — the symbol is already
+			// at its correct position from the last full render pass.
+			let chainIntact = true;
+			if (generationChanged && previousId !== undefined) {
+				const prevIdx = registry.order.indexOf(previousId);
+				if (prevIdx !== -1 && currentIndex > prevIdx + 1) {
+					for (let i = prevIdx + 1; i < currentIndex; i++) {
+						if (
+							registry.layerGenerations.get(
+								registry.order[i]!
+							) !== registry.generation
+						) {
+							chainIntact = false;
+							break;
+						}
+					}
+				}
+			}
+			if (chainIntact && currentIndex !== expectedIndex) {
 				registry.order.splice(currentIndex, 1);
 				registry.order.splice(
 					currentIndex < expectedIndex
@@ -257,6 +282,9 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.layerReindexScopes.set(id, reindexScopeId);
 		}
 		registry.lastSymbolPerScope.set(reindexScopeId, id);
+		const currentScopeGen =
+			registry.scopeGenerations.get(reindexScopeId) ?? 0;
+		registry.layerScopeGenerations.set(id, currentScopeGen);
 	} else {
 		prevReindexScopeRef.current = null;
 		registry.layerReindexScopes.delete(id);

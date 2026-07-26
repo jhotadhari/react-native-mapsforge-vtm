@@ -109,6 +109,18 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 	// sibling in a different position.  Each child's useLayerOrder will
 	// re-populate it with its own fresh Symbol during the same render.
 	registry.lastSymbolPerScope.delete(scopeSymbol);
+
+	// 0b. Bump per-scope generation BEFORE the symbol scan so
+	// Phase 1 can distinguish symbols touched in the current
+	// render pass (live) from symbols left over from the
+	// previous render that await useLayoutEffect cleanup (stale).
+	// useLayerOrder stamps each symbol with the current generation
+	// during render — stale symbols have an older generation.
+	registry.scopeGenerations.set(
+		scopeSymbol,
+		(registry.scopeGenerations.get(scopeSymbol) ?? 0) + 1
+	);
+	const currentGen = registry.scopeGenerations.get(scopeSymbol)!;
 	// 0. Register / unregister scope priority (runs every render)
 	if (order !== undefined) {
 		registry.scopePriorities.set(scopeSymbol, order);
@@ -121,15 +133,31 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		sentinelRef.current !== undefined &&
 		registry.order.includes(sentinelRef.current);
 
-	// 1. Collect existing scope-tagged layers from LIVE order
+	// 1. Collect LIVE scope-tagged layers (current generation only).
+	// Stale symbols from the previous render that haven't been
+	// cleaned up yet (useLayoutEffect cleanup hasn't fired) have
+	// an older generation and are ignored for hasChildren.
 	const scopeSymbols: symbol[] = [];
-	for (const id of registry.order) {
+	let firstScopeTaggedIdx = -1;
+	for (let i = 0; i < registry.order.length; i++) {
+		const id = registry.order[i]!;
 		if (registry.layerReindexScopes.get(id) === scopeSymbol) {
-			scopeSymbols.push(id);
+			if (firstScopeTaggedIdx === -1) firstScopeTaggedIdx = i;
+			if (registry.layerScopeGenerations.get(id) === currentGen) {
+				scopeSymbols.push(id);
+			}
 		}
 	}
 
 	const hasChildren = scopeSymbols.length > 0;
+
+	// If there are no live children but there ARE stale scope-tagged
+	// symbols, record their position as rangeStart so the sentinel
+	// (created below) and Phase 2's re-creation guard can place
+	// the scope block at the correct position.
+	if (!hasChildren && firstScopeTaggedIdx >= 0) {
+		rangeStartRef.current = firstScopeTaggedIdx;
+	}
 
 	if (hasChildren && hasSentinel) {
 		// Children just mounted — remove the sentinel placeholder.
@@ -264,7 +292,11 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		}
 	} else {
 		// ── No children (cursor already positioned at sentinel) ────
-		rangeStartRef.current = -1;
+		// Preserve rangeStart from stale-symbol detection above;
+		// otherwise reset to -1.
+		if (firstScopeTaggedIdx === -1) {
+			rangeStartRef.current = -1;
+		}
 
 		if (parentScopeId !== null) {
 			// Inside an outer ReindexScope: leave cursor alone.
@@ -297,17 +329,6 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		}
 	}
 
-	// 4. Bump per-scope generation so children's useLayerOrder can
-	// detect scope-internal re-renders (Redux-triggered partial
-	// re-renders where MapContainer does not bump the global
-	// generation) and reposition existing layers to match the current
-	// document order. Scoped to this ReindexScope so unrelated scopes
-	// are unaffected, unlike bumping the global registry.generation
-	// which would corrupt other scopes' cursor chains.
-	registry.scopeGenerations.set(
-		scopeSymbol,
-		(registry.scopeGenerations.get(scopeSymbol) ?? 0) + 1
-	);
 	// ════════════════════════════════════════════════════════════════
 	// PHASE 2: useLayoutEffect
 	// Runs synchronously after commit, before paint — within the
@@ -332,7 +353,33 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 		}
 
 		if (currentScopeSymbols.length === 0) {
-			return; // All children unmounted (sentinel still in place)
+			// All children unmounted.  If the sentinel was consumed
+			// when children first mounted (sentinelRef.current ===
+			// undefined), re-create it so future children can find
+			// their scope anchor and sibling scopes see the correct
+			// relative order.
+			//
+			// Phase 1 may have skipped sentinel creation because it
+			// saw stale symbols from the previous render that hadn't
+			// been cleaned up yet (useLayoutEffect cleanup runs after
+			// all render functions, so registry.order still contained
+			// the old symbols during Phase 1's hasChildren check).
+			if (
+				sentinelRef.current === undefined ||
+				!registry.order.includes(sentinelRef.current)
+			) {
+				sentinelRef.current = Symbol('reindex-sentinel');
+				const insertIdx =
+					rangeStartRef.current >= 0 &&
+					rangeStartRef.current <= registry.order.length
+						? rangeStartRef.current
+						: registry.order.length;
+				registry.order.splice(insertIdx, 0, sentinelRef.current);
+				registry.sentinels.add(sentinelRef.current);
+				registry.sentinelScopes.set(sentinelRef.current, scopeSymbol);
+				registry.scheduleSync(nativeNodeHandle);
+			}
+			return;
 		}
 
 		// Remove sentinel if children mounted in this same render
