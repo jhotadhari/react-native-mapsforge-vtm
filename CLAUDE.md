@@ -103,6 +103,9 @@ Key additions beyond the core `order` + `uuids`:
 | `sentinels` / `sentinelScopes` | Placeholder symbols pushed by `ReindexScope` wrappers whose children haven't mounted yet. `flush()` skips them; they ensure sibling scopes see correct relative order before children exist. |
 | `scopePriorities` | Optional `order` prop values keyed by scope symbol, for explicit cross-scope z-ordering. |
 | `scopeGenerations` | Per-scope monotonic counter bumped by `ReindexScope` on each of its own renders. Enables partial re-render repositioning scoped to the affected `ReindexScope` only, without disturbing unrelated scopes (e.g. Redux updating one panel's data). |
+| `layerScopeGenerations` | Per-symbol scope-generation stamp. Set by `useLayerOrder` on every render when inside a `ReindexScope`. Read by `ReindexScope` Phase 1 to distinguish symbols touched in the current render pass (live) from stale symbols awaiting `useLayoutEffect` cleanup — fixes the sentinel lifecycle bug where Phase 1 saw stale symbols as live children.
+| `layerGenerations` | Per-symbol global-generation stamp. Set by `useLayerOrder` on every render regardless of scope. Used by the repositioning logic to verify the cursor chain is intact: if any symbol between `previousId` and the current position was not stamped in this render pass (e.g. `useMemo` prevented re-render), the cursor is stale and the move is skipped.
+
 | `scheduleSync` / `destroy` | Debounced (16ms trailing, 250ms max-wait) native `reorderLayers` call. `destroy()` cancels pending timers on map teardown. |
 | `listeners` / `subscribe` / `notify` | Debug subscription infrastructure for `useLayerDebugInfo` (devtools). |
 
@@ -174,6 +177,19 @@ For full details, see `docs/advanced/layer-ordering.md`.
 per-`nativeNodeHandle`, flushed on the microtask boundary (`Promise.resolve().then()`) with a
 16ms safety max-wait `setTimeout`. JS is single-threaded so no locking is needed. Call
 `drainQueue(nativeNodeHandle)` on map destruction to reject all pending operations.
+
+### MarkerLayerManager sort direction
+
+Within a shared `ItemizedLayer` fragment, markers are sorted by **descending** `positionIndex`
+before insertion. This is deliberate: vtm's `Inlist.push()` inserts at the **front** of the
+linked list, reversing insertion order. The first marker pushed ends up at the tail of the
+render list and draws last (on top). Sorting descending before insertion compensates for this
+reversal — the marker with the highest `positionIndex` goes into the item list first, gets
+pushed first, ends up at the render list tail, and draws on top.
+
+Other shared-layer managers (`PathLayerManager`, `ShapeLayerManager`) use `VectorLayer` which
+sorts by `getPriority()` ascending via a `Comparator` — no reversal applies there.
+
 
 ### Extension points for external layer-type libraries
 

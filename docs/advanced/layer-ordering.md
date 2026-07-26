@@ -92,6 +92,16 @@ interleaving with layers from other scopes.
   `SharedLayer`)
 - **`generation`** — bumped each render pass so `useLayerOrder` can
   distinguish a full coherent render from a solo re-render
+	- **`layerGenerations`** — maps layer symbol → global generation when
+	  last touched. Used during `generationChanged` repositioning to verify
+	  the cursor chain is intact: if any symbol between `previousId` and the
+	  current position wasn't stamped in this pass (e.g. `useMemo` prevented
+	  re-render), the cursor is stale and the move is skipped.
+	- **`layerScopeGenerations`** — maps layer symbol → scope generation when
+	  last touched. Used by `ReindexScope` Phase 1 to distinguish live symbols
+	  from stale ones awaiting `useLayoutEffect` cleanup, preventing the
+	  sentinel lifecycle bug.
+
 - **`cursor`** — current position in the order (reset on each render pass)
 - **`scopePriorities`** — maps ReindexScope symbol → `order` prop value
 - **`lastSymbolPerScope`** — per-scope pointer to the most-recently-inserted

@@ -457,16 +457,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 
-		// Sort successfully-validated markers by positionIndex for correct
-		// z-order insertion.
-		List<Integer> sortedLocalIndices = new ArrayList<>(itemsToAdd.size());
-		for (int li = 0; li < itemsToAdd.size(); li++) {
+			// Sort markers by descending positionIndex so higher z-order
+			// markers go into the item list first.  vtm's Inlist.push()
+			// inserts at the front of the render list, reversing insertion
+			// order — the first item pushed ends up at the tail and draws last.
+			List<Integer> sortedLocalIndices = new ArrayList<>(itemsToAdd.size());
+			for (int li = 0; li < itemsToAdd.size(); li++) {
 			sortedLocalIndices.add(li);
 		}
 		sortedLocalIndices.sort((a, b) -> {
 			int pa = positionIndices.get(a);
 			int pb = positionIndices.get(b);
-			if (pa != pb) return Integer.compare(pa, pb);
+			if (pa != pb) return Integer.compare(pb, pa);
 			return Integer.compare(a, b); // stable: preserve source order for ties
 		});
 
