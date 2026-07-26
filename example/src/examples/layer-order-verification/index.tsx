@@ -40,12 +40,11 @@ import {
  * visible — a bottom-layer item should never paint over a top-layer one.
  *
  * Toggle SharedLayer to see how same-type layers collapse into shared
- * native fragments. Toggle ReindexScope to test the scope-based reindex
- * component — each toggle forces a re-render, and the debug overlay shows
- * the resulting fragment layout.
- *
- * The 6 items, bottom → top:
- *   1. LayerShape  (red polygon)       — largest, should be covered by all
+ * native fragments — with SharedLayer ON, strict interleaving is lost:
+ * all markers paint on top of all paths, which paint on top of all shapes.
+ * Relative order within each fragment is preserved. Toggle ReindexScope
+ * to test the scope-based reindex component.
+ * The 6 items, bottom → top (expected order with SharedLayer OFF):
  *   2. LayerPath   (orange line)
  *   3. Marker      (yellow dot)
  *   4. LayerShape  (green circle)      — covers yellow marker if order wrong
@@ -250,7 +249,10 @@ const Controls: FC<{
 					(each layer covers all lower-numbered ones).{'\n\n'}• With{' '}
 					<Text style={sharedStyles.boldText}>SharedLayer</Text>: all
 					shapes share 1 native layer, all paths share 1, all markers
-					share 1 — but still in the correct interleaved order.
+					share 1. Same-type layers collapse into one fragment —
+					markers paint on top of paths, which paint on top of shapes.
+					Strict interleaving (1 ⊂ 2 ⊂ 3 ⊂ 4 ⊂ 5 ⊂ 6) is lost; within
+					each fragment, relative JSX order is preserved.
 					{'\n\n'}• With{' '}
 					<Text style={sharedStyles.boldText}>ReindexScope</Text>: the
 					debug overlay shows scope-tagged layer blocks.
