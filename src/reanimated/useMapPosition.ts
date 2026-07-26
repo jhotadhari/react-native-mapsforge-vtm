@@ -108,7 +108,10 @@ export function useMapPosition(): MapPositionSharedValues {
 
 	// Tracks stop markers for active native-bridge pollers so they can be
 	// torn down on unmount without a dangling requestAnimationFrame loop.
-	const stopMarkersRef = useRef(new Map<number, { current: boolean }>());
+	// SharedValue (not plain { current }) — reanimated warns when a plain
+	// object's .current is mutated on JS after being passed to a worklet.
+	const stopMarkersRef = useRef(new Map<number, SharedValue<boolean>>());
+	const stopMarkerSv = useSharedValue(false);
 
 	// --- activateNativeBridge ---
 
@@ -127,7 +130,7 @@ export function useMapPosition(): MapPositionSharedValues {
 				// them in the writer for this handle, and returns them as
 				// a JS object.  Each value has getBlocking() / setBlocking()
 				// methods that worklets can read on the UI thread.
-				const getSyncFn = (global as any)
+				const getSyncFn = (globalThis as any)
 					.__getMapPositionSynchronizables as
 					| ((handle: number) => any)
 					| undefined;
@@ -157,8 +160,8 @@ export function useMapPosition(): MapPositionSharedValues {
 				// down cleanly on unmount (or JS-thread teardown) without
 				// leaving a dangling requestAnimationFrame loop referencing
 				// freed synchronizables.
-				const stopMarker = { current: false };
-				stopMarkersRef.current.set(nativeNodeHandle, stopMarker);
+				stopMarkerSv.value = false;
+				stopMarkersRef.current.set(nativeNodeHandle, stopMarkerSv);
 
 				// Start the worklet poller on the UI runtime.  It reads the
 				// synchronizables each frame (direct C++ access via
@@ -169,7 +172,7 @@ export function useMapPosition(): MapPositionSharedValues {
 				runOnUI(() => {
 					'worklet';
 					const frame = () => {
-						if (stopMarker.current) return;
+						if (stopMarkerSv.value) return;
 
 						const newLng = lngSync.getBlocking() as number;
 						const newLat = latSync.getBlocking() as number;
@@ -247,7 +250,7 @@ export function useMapPosition(): MapPositionSharedValues {
 		const markers = stopMarkersRef.current;
 		return () => {
 			for (const marker of markers.values()) {
-				marker.current = true;
+				marker.value = true;
 			}
 			markers.clear();
 		};
