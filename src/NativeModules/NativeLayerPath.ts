@@ -26,7 +26,7 @@ export interface PathResponseInclude {
 	bounds?: Int32;
 }
 
-export type GeometryStyle = {
+export type PathPaint = {
 	strokeWidth?: Double;
 	strokeColor?: `#${string}`;
 	fillColor?: `#${string}`;
@@ -48,7 +48,7 @@ export type GeometryStyle = {
 };
 
 export interface ModuleParams {
-	style?: {
+	paint?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
 	};
@@ -74,8 +74,8 @@ interface UpdateCoordinatesParams {
 	positionIndex?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
-	style?: {
-		// GeometryStyle
+	paint?: {
+		// PathPaint
 		strokeWidth?: Double;
 		strokeColor?: string;
 		fillColor?: string;
@@ -172,7 +172,7 @@ export type LayerPathProps = {
 	coordinates?: GeoJsonPosition[]; // e.g. a geojson LineString's `coordinates`
 	responseInclude?: PathResponseInclude;
 	gestureScreenDistance?: number;
-	style?: GeometryStyle;
+	paint?: PathPaint;
 	onRemove?: null | ((response: ResponseBase) => void);
 	onCreate?: null | ((response: LayerPathResponse) => void);
 	onChange?: null | ((response: LayerPathResponse) => void);

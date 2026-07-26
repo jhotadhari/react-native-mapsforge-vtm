@@ -17,11 +17,11 @@ import type { ErrorBase } from '../types';
 type Position = ReadonlyArray<Double>;
 
 /**
- * Reuses the same GeometryStyle shape as LayerPath — all 18 properties
+ * Reuses the same PathPaint shape as LayerPath — all 18 properties
  * plus JTS generalization. fillColor and fillAlpha control fill for
  * polygon/circle/rectangle/hexagon shapes.
  */
-export type ShapeStyle = {
+export type ShapePaint = {
 	strokeWidth?: Double;
 	strokeColor?: `#${string}`;
 	fillColor?: `#${string}`;
@@ -92,7 +92,7 @@ export type ShapeDefinition =
 // ── Module params ──────────────────────────────────────────────────────
 
 export interface ModuleParams {
-	style?: {
+	paint?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
 	};
@@ -131,7 +131,7 @@ interface UpdateShapeParams {
 		max?: Position;
 		position?: Position;
 	};
-	style?: {
+	paint?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
 		fillColor?: string;
@@ -197,7 +197,7 @@ export interface LayerShapeGestureResponse extends ResponseBase {
 
 export type LayerShapeProps = {
 	shape?: ShapeDefinition;
-	style?: ShapeStyle;
+	paint?: ShapePaint;
 	gestureScreenDistance?: number;
 	onRemove?: null | ((response: ResponseBase) => void);
 	onCreate?: null | ((response: LayerShapeResponse) => void);

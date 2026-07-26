@@ -35,7 +35,7 @@ import MapHandleContext from '../context/MapHandleContext';
  */
 const LayerShape = ({
 	shape,
-	style,
+	paint,
 	gestureScreenDistance,
 
 	onCreate,
@@ -118,7 +118,7 @@ const LayerShape = ({
 					position?: ReadonlyArray<number>;
 				},
 				supportsGestures,
-				...(style && { style }),
+				...(paint && { paint }),
 				...(gestureScreenDistance != null && { gestureScreenDistance }),
 			}).then((response: LayerShapeResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
@@ -196,7 +196,7 @@ const LayerShape = ({
 					max?: ReadonlyArray<number>;
 					position?: ReadonlyArray<number>;
 				},
-				...(style && { style }),
+				...(paint && { paint }),
 			})
 				.then((response: LayerShapeResponse) => {
 					onChange ? onChange(response) : null;
@@ -209,7 +209,7 @@ const LayerShape = ({
 		uuid,
 		nativeNodeHandle,
 		shape,
-		style,
+		paint,
 		onChange,
 		onError,
 	]);

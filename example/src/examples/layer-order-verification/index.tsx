@@ -11,11 +11,11 @@ import {
 	Marker,
 	ReindexScope,
 	SharedLayer,
-	type GeometryStyle,
+	type PathPaint,
 	type Position,
 	type ShapeDefinition,
-	type ShapeStyle,
-	type SymbolParams,
+	type ShapePaint,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 
 import type { Example } from '../../types';
@@ -64,11 +64,11 @@ interface LayerItem {
 	id: string;
 	label: string;
 	shape: ShapeDefinition | undefined;
-	shapeStyle: ShapeStyle | undefined;
+	shapePaint: ShapePaint | undefined;
 	pathCoords: Position[] | undefined;
-	pathStyle: GeometryStyle | undefined;
+	pathPaint: PathPaint | undefined;
 	markerPos: Position | undefined;
-	markerSym: SymbolParams | undefined;
+	markerPaint: MarkerPaint | undefined;
 }
 
 const items: LayerItem[] = [
@@ -84,21 +84,21 @@ const items: LayerItem[] = [
 				[-77.06, -8.94],
 			],
 		} as ShapeDefinition,
-		shapeStyle: {
+		shapePaint: {
 			fillColor: '#ff000066',
 			strokeColor: '#ff0000',
 			strokeWidth: 2,
-		} as ShapeStyle,
+		} as ShapePaint,
 		pathCoords: undefined,
-		pathStyle: undefined,
+		pathPaint: undefined,
 		markerPos: undefined,
-		markerSym: undefined,
+		markerPaint: undefined,
 	},
 	{
 		id: '2-path-orange',
 		label: '2. Path (orange)',
 		shape: undefined,
-		shapeStyle: undefined,
+		shapePaint: undefined,
 		pathCoords: [
 			[-77.04, -9.04],
 			[-76.96, -9.04],
@@ -106,26 +106,26 @@ const items: LayerItem[] = [
 			[-77.04, -8.96],
 			[-77.04, -9.04],
 		] as Position[],
-		pathStyle: {
+		pathPaint: {
 			strokeColor: '#ff8800',
 			strokeWidth: 8,
-		} as GeometryStyle,
+		} as PathPaint,
 		markerPos: undefined,
-		markerSym: undefined,
+		markerPaint: undefined,
 	},
 	{
 		id: '3-marker-yellow',
 		label: '3. Marker (yellow)',
 		shape: undefined,
-		shapeStyle: undefined,
+		shapePaint: undefined,
 		pathCoords: undefined,
-		pathStyle: undefined,
+		pathPaint: undefined,
 		markerPos: [-77, -9] as Position,
-		markerSym: {
+		markerPaint: {
 			text: '⬤',
 			textSize: 28,
 			fillColor: '#ffcc00',
-		} as SymbolParams,
+		} as MarkerPaint,
 	},
 	{
 		id: '4-shape-green',
@@ -135,21 +135,21 @@ const items: LayerItem[] = [
 			center: [-77, -9],
 			radiusKm: 1.2,
 		} as ShapeDefinition,
-		shapeStyle: {
+		shapePaint: {
 			fillColor: '#00ff0066',
 			strokeColor: '#00ff00',
 			strokeWidth: 2,
-		} as ShapeStyle,
+		} as ShapePaint,
 		pathCoords: undefined,
-		pathStyle: undefined,
+		pathPaint: undefined,
 		markerPos: undefined,
-		markerSym: undefined,
+		markerPaint: undefined,
 	},
 	{
 		id: '5-path-blue',
 		label: '5. Path (blue)',
 		shape: undefined,
-		shapeStyle: undefined,
+		shapePaint: undefined,
 		pathCoords: [
 			[-77.02, -9.02],
 			[-76.98, -9.02],
@@ -157,26 +157,26 @@ const items: LayerItem[] = [
 			[-77.02, -8.98],
 			[-77.02, -9.02],
 		] as Position[],
-		pathStyle: {
+		pathPaint: {
 			strokeColor: '#0088ff',
 			strokeWidth: 6,
-		} as GeometryStyle,
+		} as PathPaint,
 		markerPos: undefined,
-		markerSym: undefined,
+		markerPaint: undefined,
 	},
 	{
 		id: '6-marker-purple',
 		label: '6. Marker (purple)',
 		shape: undefined,
-		shapeStyle: undefined,
+		shapePaint: undefined,
 		pathCoords: undefined,
-		pathStyle: undefined,
+		pathPaint: undefined,
 		markerPos: [-77, -9] as Position,
-		markerSym: {
+		markerPaint: {
 			text: '●',
 			textSize: 18,
 			fillColor: '#cc00ff',
-		} as SymbolParams,
+		} as MarkerPaint,
 	},
 ];
 
@@ -282,7 +282,7 @@ const ExampleComponent: FC<{
 					<LayerShape
 						key={item.id}
 						shape={item.shape}
-						style={item.shapeStyle}
+						paint={item.shapePaint}
 					/>
 				);
 			}
@@ -291,7 +291,7 @@ const ExampleComponent: FC<{
 					<LayerPath
 						key={item.id}
 						coordinates={item.pathCoords}
-						style={item.pathStyle}
+						paint={item.pathPaint}
 					/>
 				);
 			}
@@ -300,7 +300,7 @@ const ExampleComponent: FC<{
 					<Marker
 						key={item.id}
 						position={item.markerPos}
-						symbol={item.markerSym}
+						paint={item.markerPaint}
 					/>
 				);
 			}

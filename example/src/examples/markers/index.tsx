@@ -7,7 +7,7 @@ import {
 	MapContainer,
 	type MarkerEvent,
 	type Position,
-	type SymbolParams,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import {
@@ -99,10 +99,10 @@ const extraCity = {
 	fillColor: '#ffffff' as `#${string}`,
 };
 
-const symbolForCity = (city: {
+const paintForCity = (city: {
 	name: string;
 	fillColor: `#${string}`;
-}): SymbolParams => ({
+}): MarkerPaint => ({
 	text: city.name.charAt(0),
 	fillColor: city.fillColor,
 });
@@ -198,7 +198,7 @@ const ExampleComponent: FC<{
 								key={city.key}
 								position={city.position}
 								title={city.name}
-								symbol={symbolForCity(city)}
+								paint={paintForCity(city)}
 								onEvent={handleMarkerEvent[city.key]}
 							/>
 						))}
@@ -207,7 +207,7 @@ const ExampleComponent: FC<{
 								key={extraCity.key}
 								position={extraCity.position}
 								title={extraCity.name}
-								symbol={symbolForCity(extraCity)}
+								paint={paintForCity(extraCity)}
 								onEvent={handleMarkerEvent[extraCity.key]}
 							/>
 						)}

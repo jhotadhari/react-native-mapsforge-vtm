@@ -61,8 +61,8 @@ export const FontStyle = [
 export type LayerMarkerTriggerEvent = (params: MarkerTriggerParams) => void;
 
 interface ModuleLayerParams {
-	symbol?: {
-		// SymbolParams
+	paint?: {
+		// MarkerPaint
 		width?: Double;
 		height?: Double;
 		filePath?: null | string; // `/${string}` | `content://${string}`;
@@ -183,7 +183,7 @@ interface TriggerParamsCG extends TriggerParamsBase {
 	strategy?: string;
 }
 
-export interface SymbolParams {
+export interface MarkerPaint {
 	width?: Double;
 	height?: Double;
 	filePath?: `/${string}` | `content://${string}`;
@@ -203,7 +203,7 @@ export interface SymbolParams {
 
 export type LayerMarkerProps = {
 	children?: React.ReactNode;
-	symbol?: SymbolParams;
+	paint?: MarkerPaint;
 	onCreate?: null | ((response: ResponseBase) => void);
 	onRemove?: null | ((response: ResponseBase) => void);
 	onChange?: null | ((response: ResponseBase) => void);
@@ -219,7 +219,7 @@ export type MarkerProps = {
 	position: CreateMarkerParams['position'];
 	title?: CreateMarkerParams['title'];
 	description?: CreateMarkerParams['description'];
-	symbol?: SymbolParams;
+	paint?: MarkerPaint;
 	onCreate?: null | ((response: MarkerResponse) => void);
 	onRemove?: null | ((response: ResponseBase) => void);
 	onChange?: null | ((response: MarkerResponse) => void);

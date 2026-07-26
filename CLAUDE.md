@@ -253,7 +253,7 @@ The library provides two path components backed by different vtm-jts implementat
 | Gesture hit-testing | Shared `VectorLayer` with per-drawable uuid resolution | Per-layer `contains()` + `onGesture()` |
 | Best for | 50–1000+ paths, route networks, trajectory data | 1–30 paths, great circles, guaranteed z-order |
 
-Both share the same `GeometryStyle` interface (stroke, fill, stipple, etc.) and the same gesture
+Both share the same `PathPaint` interface (stroke, fill, stipple, etc.) and the same gesture
 callback pattern (`onPress`/`onLongPress`/`onDoubleTap`). Choose `LayerPathJts` when you need
 correct render order or JTS-specific features; choose `LayerPath` when you have many paths and
 the shared-layer performance matters.
@@ -263,7 +263,7 @@ the shared-layer performance matters.
 Draws JTS geometric shapes (polygons, circles, rectangles, hexagons, points) on the map using
 vtm-jts drawables. Uses **shared-layer** architecture via `ShapeLayerManager` (sibling to
 `PathLayerManager` and `MarkerLayerManager`): same-type shapes within a fragment share one native
-`VectorLayer`; each shape is a `Drawable` within it. Supports full `GeometryStyleJts` styling
+`VectorLayer`; each shape is a `Drawable` within it. Supports full `PathPaintJts` styling
 (fill color, stroke, transparency, stipple, etc.) and gesture callbacks.
 
 Shape types: `polygon` (with optional holes), `circle` (center + radius in km), `rectangle`

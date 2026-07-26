@@ -16,7 +16,7 @@ import type {
 	MarkerEvent,
 	MarkerProps,
 	MarkerResponse,
-	SymbolParams,
+	MarkerPaint,
 	MarkerTriggerParams,
 } from './NativeModules/NativeLayerMarker';
 
@@ -26,7 +26,7 @@ import type { LayerBitmapTileProps } from './NativeModules/NativeLayerBitmapTile
 import LayerPath from './components/LayerPath';
 import type {
 	Bbox,
-	GeometryStyle,
+	PathPaint,
 	LayerPathGestureResponse,
 	LayerPathProps,
 	LayerPathResponse,
@@ -37,7 +37,7 @@ import type {
 
 import LayerPathJts from './components/LayerPathJts';
 import type {
-	GeometryStyleJts,
+	PathJtsPaint,
 	LayerPathJtsGestureResponse,
 	LayerPathJtsProps,
 	LayerPathJtsResponse,
@@ -55,7 +55,7 @@ import type {
 	LayerShapeProps,
 	LayerShapeResponse,
 	ShapeDefinition,
-	ShapeStyle,
+	ShapePaint,
 	ShapeTriggerEvent,
 	ShapeTriggerParams,
 } from './NativeModules/NativeLayerShape';
@@ -161,7 +161,7 @@ export {
 	type LayerMarkerTriggerEvent,
 	type MarkerEvent,
 	type MarkerTriggerParams as TriggerParams,
-	type SymbolParams,
+	type MarkerPaint,
 	type LayerMarkerProps,
 	type MarkerProps,
 
@@ -172,7 +172,7 @@ export {
 	// LayerPath and NativeLayerPath.
 	LayerPath,
 	type PathResponseInclude,
-	type GeometryStyle,
+	type PathPaint,
 	type PathTriggerEvent,
 	type PathTriggerParams,
 	type Bbox,
@@ -183,7 +183,7 @@ export {
 	// LayerPathJts and NativeLayerPathJts.
 	LayerPathJts,
 	type PathJtsResponseInclude,
-	type GeometryStyleJts,
+	type PathJtsPaint,
 	type PathJtsTriggerEvent,
 	type PathJtsTriggerParams,
 	type LayerPathJtsResponse,
@@ -196,7 +196,7 @@ export {
 
 	// LayerShape and NativeLayerShape.
 	LayerShape,
-	type ShapeStyle,
+	type ShapePaint,
 	type ShapeDefinition,
 	type ShapeTriggerEvent,
 	type ShapeTriggerParams,

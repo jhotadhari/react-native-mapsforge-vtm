@@ -8,7 +8,7 @@ An individual map marker rendered as a native drawable. Must be a child of
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `position` | `Position` (`[lng, lat, alt?]`) | — | Marker position |
-| `symbol` | `SymbolParams` | — | Marker appearance |
+| `paint` | `MarkerPaint` | — | Marker appearance |
 | `onPress` | `(e: MarkerEvent) => void` | — | Tap on this marker |
 | `onLongPress` | `(e: MarkerEvent) => void` | — | Long press on this marker |
 | `onDoubleTap` | `(e: MarkerEvent) => void` | — | Double-tap on this marker |
@@ -17,10 +17,10 @@ An individual map marker rendered as a native drawable. Must be a child of
 | `onChange` | `(response: MarkerResponse) => void` | — | Fires on prop changes |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
 
-## SymbolParams
+## MarkerPaint
 
 ```tsx
-type SymbolParams = {
+type MarkerPaint = {
   type?: 'circle' | 'square' | 'diamond' | 'triangle' | 'star';
   size?: number;            // radius in dp
   fillColor?: string;       // hex color, e.g. '#FF0000'
@@ -68,7 +68,7 @@ single native bridge call via `MarkerBatchQueue`. This avoids N bridge calls
 <LayerMarker>
   <Marker
     position={[13.405, 52.52]}
-    symbol={{
+    paint={{
       type: 'circle',
       size: 10,
       fillColor: '#FF0000',

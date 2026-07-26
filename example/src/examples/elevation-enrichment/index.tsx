@@ -12,7 +12,7 @@ import {
 	useMap,
 	type Bbox,
 	type ElevationAPI,
-	type GeometryStyle,
+	type PathPaint,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -289,7 +289,7 @@ const ExampleComponent: FC<{
 					{enrichedCoords ? (
 						<LayerPath
 							coordinates={enrichedCoords}
-							style={stylePath}
+							paint={paintPath}
 						/>
 					) : null}
 
@@ -306,7 +306,7 @@ const ExampleComponent: FC<{
 	);
 };
 
-const stylePath: GeometryStyle = {
+const paintPath: PathPaint = {
 	strokeColor: '#ff6600',
 	strokeWidth: 2.5,
 };

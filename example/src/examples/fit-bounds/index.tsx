@@ -6,7 +6,7 @@ import {
 	MapContainer,
 	useMap,
 	type Bbox,
-	type GeometryStyle,
+	type PathPaint,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
@@ -65,9 +65,9 @@ const bboxToRing = (bounds: Bbox): Position[] => {
 	];
 };
 
-const bboxStyleA: GeometryStyle = { strokeColor: '#ff0000', strokeWidth: 3 };
-const bboxStyleB: GeometryStyle = { strokeColor: '#00ff00', strokeWidth: 3 };
-const bboxStyleC: GeometryStyle = { strokeColor: '#0000ff', strokeWidth: 3 };
+const bboxPaintA: PathPaint = { strokeColor: '#ff0000', strokeWidth: 3 };
+const bboxPaintB: PathPaint = { strokeColor: '#00ff00', strokeWidth: 3 };
+const bboxPaintC: PathPaint = { strokeColor: '#0000ff', strokeWidth: 3 };
 
 const Controls: FC<{
 	mapWidth: number;
@@ -261,15 +261,15 @@ const ExampleComponent: FC<{
 					{/* Outline each hardcoded bbox so a fit/fly can be visually checked against it. */}
 					<LayerPath
 						coordinates={bboxToRing(boundsA)}
-						style={bboxStyleA}
+						paint={bboxPaintA}
 					/>
 					<LayerPath
 						coordinates={bboxToRing(boundsB)}
-						style={bboxStyleB}
+						paint={bboxPaintB}
 					/>
 					<LayerPath
 						coordinates={bboxToRing(boundsC)}
-						style={bboxStyleC}
+						paint={bboxPaintC}
 					/>
 				</MapContainer>
 

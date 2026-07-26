@@ -36,7 +36,7 @@ The Java class name **exactly matches** the TurboModule registration string — 
 | `*Params` | Input to a native method call |
 | `*TriggerEvent` | `RefObject` for programmatic gesture simulation |
 | `*ResponseInclude` | Bitmask flags for response field inclusion |
-| `*Style` | Visual style (fill, stroke, stipple) |
+| `*Paint` | Visual paint properties (fill, stroke, stipple) — renamed from `*Style` (v2.0) |
 | `Spec extends TurboModule` | Codegen-read interface (one per `Native*.ts`) |
 | `ModuleParams` | Return type of `getConstants()` |
 

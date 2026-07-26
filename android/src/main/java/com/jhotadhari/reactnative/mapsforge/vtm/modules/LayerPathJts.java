@@ -88,7 +88,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 		WritableMap style = new WritableNativeMap();
 		style.putDouble("strokeWidth", 4);
 		style.putString("strokeColor", "#ff0000");
-		constants.put("style", style);
+		constants.put("paint", style);
 		WritableMap responseInclude = new WritableNativeMap();
 		responseInclude.putInt("coordinates", 0);
 		responseInclude.putInt("bounds", 0);
@@ -101,7 +101,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 
 	@NonNull
 	private Style.Builder getStyleBuilderFromMap(@Nullable ReadableMap styleMap) {
-		ReadableMap styleConstants = (ReadableMap) getConstants().get("style");
+		ReadableMap styleConstants = (ReadableMap) getConstants().get("paint");
 		double strokeWidth = (styleMap != null && Utils.rMapHasKey(styleMap, "strokeWidth"))
 			? styleMap.getDouble("strokeWidth")
 			: styleConstants.getDouble("strokeWidth");
@@ -260,8 +260,8 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 			}
 
 			// Parse style.
-			ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-				? params.getMap("style")
+			ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+				? params.getMap("paint")
 				: null;
 			Style style = getStyleBuilderFromMap(styleMap).build();
 
@@ -387,8 +387,8 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 				: null;
 
 			// Update style if provided.
-			ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-				? params.getMap("style")
+			ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+				? params.getMap("paint")
 				: null;
 			if (styleMap != null) {
 				Style style = getStyleBuilderFromMap(styleMap).build();

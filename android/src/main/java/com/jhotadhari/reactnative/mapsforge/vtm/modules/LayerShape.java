@@ -51,7 +51,7 @@ public class LayerShape extends NativeLayerShapeSpec {
 		WritableMap style = new WritableNativeMap();
 		style.putDouble("strokeWidth", 2);
 		style.putString("strokeColor", "#4488ff");
-		constants.put("style", style);
+		constants.put("paint", style);
 		constants.put("gestureScreenDistance", 20d);
 		return constants;
 	}

@@ -15,7 +15,7 @@ import {
 	SharedLayer,
 	useMap,
 	type Position,
-	type SymbolParams,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import type { Example } from '../../types';
@@ -191,7 +191,7 @@ const ExampleComponent: FC<{
 		[count, version]
 	);
 
-	const symbol: SymbolParams = useMemo(
+	const paint: MarkerPaint = useMemo(
 		() => ({ text: '•', fillColor: '#00ff00' }),
 		[]
 	);
@@ -240,7 +240,7 @@ const ExampleComponent: FC<{
 									/>
 									<Marker
 										position={pair.markerPosition}
-										symbol={symbol}
+										paint={paint}
 									/>
 								</Fragment>
 							))}
@@ -253,7 +253,7 @@ const ExampleComponent: FC<{
 								<LayerPath coordinates={pair.pathCoordinates} />
 								<Marker
 									position={pair.markerPosition}
-									symbol={symbol}
+									paint={paint}
 								/>
 							</Fragment>
 						))}

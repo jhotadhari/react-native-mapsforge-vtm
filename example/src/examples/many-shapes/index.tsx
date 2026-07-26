@@ -10,7 +10,7 @@ import {
 	SharedLayer,
 	type Position,
 	type ShapeDefinition,
-	type ShapeStyle,
+	type ShapePaint,
 } from 'react-native-mapsforge-vtm';
 
 import type { Example } from '../../types';
@@ -80,13 +80,13 @@ function randomColor(): `#${string}` {
 	] as `#${string}`;
 }
 
-function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
+function randomShape(): { shape: ShapeDefinition; paint: ShapePaint } {
 	const lng = defaultCenter[0]! + (Math.random() - 0.5) * 3;
 	const lat = defaultCenter[1]! + (Math.random() - 0.5) * 3;
 	const color = randomColor();
 	const type = pickWeightedType();
 
-	const style: ShapeStyle = {
+	const paint: ShapePaint = {
 		strokeWidth: 1,
 		strokeColor: color,
 		fillColor: color,
@@ -101,7 +101,7 @@ function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
 					center: [lng, lat],
 					radiusKm: 5 + Math.random() * 30,
 				},
-				style,
+				paint,
 			};
 		case 'rectangle':
 			return {
@@ -110,7 +110,7 @@ function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
 					min: [lng, lat],
 					max: [lng + Math.random() * 0.3, lat + Math.random() * 0.3],
 				},
-				style,
+				paint,
 			};
 		case 'hexagon':
 			return {
@@ -119,7 +119,7 @@ function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
 					center: [lng, lat],
 					radiusKm: 5 + Math.random() * 25,
 				},
-				style,
+				paint,
 			};
 		case 'polygon': {
 			const sides = 3 + Math.floor(Math.random() * 4); // 3–6 sides
@@ -132,7 +132,7 @@ function randomShape(): { shape: ShapeDefinition; style: ShapeStyle } {
 					lat + Math.sin(angle) * radius,
 				]);
 			}
-			return { shape: { type: 'polygon', rings }, style };
+			return { shape: { type: 'polygon', rings }, paint };
 		}
 	}
 }
@@ -254,11 +254,11 @@ const ExampleComponent: FC<{
 				>
 					<LayerBitmapTile />
 					<SharedLayer>
-						{shapes.map(({ key, shape, style }) => (
+						{shapes.map(({ key, shape, paint }) => (
 							<LayerShape
 								key={key}
 								shape={shape}
-								style={style}
+								paint={paint}
 							/>
 						))}
 					</SharedLayer>

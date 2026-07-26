@@ -42,7 +42,7 @@ const LayerPathJts = ({
 	coordinates,
 	responseInclude: responseIncludeParams,
 	gestureScreenDistance,
-	style,
+	paint,
 
 	onCreate,
 	onRemove,
@@ -88,7 +88,7 @@ const LayerPathJts = ({
 				positionIndex: positionIndexRef.current,
 				coordinates,
 				supportsGestures,
-				...(style && { style }),
+				...(paint && { paint }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance != null && { gestureScreenDistance }),
 			}).then((response: LayerPathJtsResponse) => {
@@ -126,7 +126,7 @@ const LayerPathJts = ({
 	const { positionIndex } = useLayerOrder(uuid);
 	positionIndexRef.current = positionIndex;
 
-	// Redraw the existing native layer in place when the line or its style
+	// Redraw the existing native layer in place when the line or its paint
 	// changes, instead of tearing down and recreating the layer.
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
@@ -134,7 +134,7 @@ const LayerPathJts = ({
 				nativeNodeHandle,
 				uuid,
 				coordinates,
-				...(style && { style }),
+				...(paint && { paint }),
 				...(responseInclude && { responseInclude }),
 			})
 				.then((response: LayerPathJtsResponse) => {
@@ -149,7 +149,7 @@ const LayerPathJts = ({
 		nativeNodeHandle,
 		coordinates,
 
-		style,
+		paint,
 		responseInclude,
 		onChange,
 		onError,

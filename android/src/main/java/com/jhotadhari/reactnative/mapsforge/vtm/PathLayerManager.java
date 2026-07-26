@@ -173,8 +173,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		}
 
 		// Parse style.
-		ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-			? params.getMap("style")
+		ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+			? params.getMap("paint")
 			: null;
 		Style.Builder styleBuilder = getStyleBuilder(styleMap);
 
@@ -244,8 +244,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			: null;
 
 
-		ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-			? params.getMap("style")
+		ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+			? params.getMap("paint")
 			: null;
 
 		// Remove old drawables.

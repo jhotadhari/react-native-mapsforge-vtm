@@ -33,7 +33,7 @@ const Marker = ({
 	title,
 	description,
 	position,
-	symbol,
+	paint,
 	onCreate,
 	onRemove,
 	onChange,
@@ -49,7 +49,7 @@ const Marker = ({
 	const indexRef = useRef<number>(-1);
 	const justCreatedRef = useRef(false);
 	const createdPositionRef = useRef(position);
-	const createdSymbolRef = useRef(symbol);
+	const createdPaintRef = useRef(paint);
 	const positionIndexRef = useRef<number>(-1);
 	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
@@ -68,14 +68,14 @@ const Marker = ({
 			// below can detect a change that landed between enqueue and
 			// uuid resolution.
 			createdPositionRef.current = position;
-			createdSymbolRef.current = symbol;
+			createdPaintRef.current = paint;
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
 				...(title && { title }),
 				...(description && { description }),
 				...(position && { position }),
-				...(symbol && { symbol }),
+				...(paint && { paint }),
 				positionIndex: positionIndexRef.current,
 				...(fragmentUuidRef.current && {
 					fragmentUuid: fragmentUuidRef.current,
@@ -111,14 +111,14 @@ const Marker = ({
 	positionIndexRef.current = positionIndex;
 	fragmentUuidRef.current = fragmentUuid;
 
-	// Update the existing native marker in place when its position or symbol
+	// Update the existing native marker in place when its position or paint
 	// changes, instead of tearing down and recreating it.
 	useEffect(() => {
 		if (justCreatedRef.current) {
 			justCreatedRef.current = false;
 			if (
 				createdPositionRef.current === position &&
-				createdSymbolRef.current === symbol
+				createdPaintRef.current === paint
 			) {
 				// Props unchanged since creation — nothing to update.
 				return;
@@ -132,7 +132,7 @@ const Marker = ({
 				markerLayerUuid,
 				uuid,
 				...(position && { position }),
-				...(symbol && { symbol }),
+				...(paint && { paint }),
 			})
 				.then((updatedUuid: string) => {
 					onChange
@@ -152,7 +152,7 @@ const Marker = ({
 		markerLayerUuid,
 		nativeNodeHandle,
 		position,
-		symbol,
+		paint,
 		onChange,
 		onError,
 	]);

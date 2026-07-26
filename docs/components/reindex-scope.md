@@ -87,7 +87,7 @@ const LayerList = ({ paths }) => (
       <LayerPath
         key={path.id}
         coordinates={path.coordinates}
-        style={path.style}
+        paint={path.paint}
       />
     ))}
   </ReindexScope>

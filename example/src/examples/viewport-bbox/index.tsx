@@ -8,7 +8,7 @@ import {
 	LayerPath,
 	MapContainer,
 	useViewportBbox,
-	type GeometryStyle,
+	type PathPaint,
 	type MapEventResponse,
 	type ViewportBbox,
 } from 'react-native-mapsforge-vtm';
@@ -23,7 +23,7 @@ import {
 
 const INTERVAL_MS = 250;
 
-const rectStyle: GeometryStyle = {
+const rectPaint: PathPaint = {
 	strokeColor: '#00ff88',
 	strokeWidth: 2,
 	fillColor: '#00ff8820',
@@ -105,7 +105,7 @@ const ExampleComponent: FC<{
 	}, [bbox]);
 
 	const handleMapEventWired = useMemo(
-		() => (e: { nativeEvent: MapEventResponse }) => {
+		() => (e: any) => {
 			eventRef.current = e.nativeEvent;
 			handleMapUpdate(e);
 		},
@@ -144,7 +144,7 @@ const ExampleComponent: FC<{
 					{bboxRing && (
 						<LayerPath
 							coordinates={bboxRing}
-							style={rectStyle}
+							paint={rectPaint}
 						/>
 					)}
 				</MapContainer>

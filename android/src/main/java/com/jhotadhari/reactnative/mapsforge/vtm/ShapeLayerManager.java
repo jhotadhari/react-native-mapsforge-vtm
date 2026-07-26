@@ -151,8 +151,8 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 		ReadableMap shapeMap = params.getMap("shape");
 
 		// Parse style.
-		ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-			? params.getMap("style")
+		ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+			? params.getMap("paint")
 			: null;
 		Style style = getStyleBuilderFromMap(styleMap).build();
 
@@ -230,8 +230,8 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 		// If a new shape is provided, clear and redraw.
 		if (Utils.rMapHasKey(params, "shape")) {
 			ReadableMap shapeMap = params.getMap("shape");
-			ReadableMap styleMap = Utils.rMapHasKey(params, "style")
-				? params.getMap("style")
+			ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
+				? params.getMap("paint")
 				: null;
 			Style style = getStyleBuilderFromMap(styleMap).build();
 			JtsDrawable newDrawable = createDrawable(shapeMap, style);

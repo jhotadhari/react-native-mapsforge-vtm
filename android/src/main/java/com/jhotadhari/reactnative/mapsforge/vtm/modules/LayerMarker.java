@@ -166,7 +166,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		symbol.putInt( "textSize", 30 );
 		symbol.putString( "fontFamily", "DEFAULT" );
 		symbol.putString( "fontStyle", "NORMAL" );
-		constants.put( "symbol", symbol );
+		constants.put( "paint", symbol );
 		// For marker.
 		constants.put( "title", "" );
 		constants.put( "description", "" );
@@ -216,7 +216,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			}
 
 			// Resolve the default marker symbol for this group (may be null).
-			ReadableMap symbolMap = Utils.rMapHasKey( params, "symbol" ) ? params.getMap( "symbol" ) : (ReadableMap) getConstants().get( "symbol" );
+			ReadableMap symbolMap = Utils.rMapHasKey( params, "paint" ) ? params.getMap( "paint" ) : (ReadableMap) getConstants().get( "paint" );
 			MarkerSymbol defaultSymbol = getMarkerSymbol( symbolMap, mapFragment.getActivity().getContentResolver() );
 
 			// Delegate group creation to MarkerLayerManager.
@@ -260,8 +260,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			});
 
 			// Resolve the marker's symbol.
-			MarkerSymbol symbol = Utils.rMapHasKey( params, "symbol" )
-				? getMarkerSymbol( params.getMap( "symbol" ), mapFragment.getActivity().getContentResolver() )
+			MarkerSymbol symbol = Utils.rMapHasKey( params, "paint" )
+				? getMarkerSymbol( params.getMap( "paint" ), mapFragment.getActivity().getContentResolver() )
 				: null;
 
 			// Resolve fragment uuid for this marker.
@@ -336,9 +336,9 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 			for ( int i = 0; i < count; i++ ) {
 				ReadableMap markerParams = markersArray.getMap( i );
-				if ( Utils.rMapHasKey( markerParams, "symbol" ) ) {
+				if ( Utils.rMapHasKey( markerParams, "paint" ) ) {
 					MarkerSymbol symbol = getMarkerSymbol(
-						markerParams.getMap( "symbol" ),
+						markerParams.getMap( "paint" ),
 						mapFragment.getActivity().getContentResolver()
 					);
 					resolvedSymbols.put( i, symbol );
@@ -439,8 +439,8 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			String groupUuid = params.getString( "uuid" );
 
 			// Resolve the new default symbol.
-			MarkerSymbol newDefault = Utils.rMapHasKey( params, "symbol" )
-				? getMarkerSymbol( params.getMap( "symbol" ), mapFragment.getActivity().getContentResolver() )
+			MarkerSymbol newDefault = Utils.rMapHasKey( params, "paint" )
+				? getMarkerSymbol( params.getMap( "paint" ), mapFragment.getActivity().getContentResolver() )
 				: null;
 
 			MarkerLayerManager manager = MarkerLayerManager.get( nativeNodeHandle, mapView );
@@ -473,9 +473,9 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MarkerLayerManager manager = MarkerLayerManager.get( nativeNodeHandle, mapView );
 
 			// If symbol changed, resolve and set it.
-			if ( Utils.rMapHasKey( params, "symbol" ) ) {
+			if ( Utils.rMapHasKey( params, "paint" ) ) {
 				MarkerSymbol symbol = getMarkerSymbol(
-					params.getMap( "symbol" ),
+					params.getMap( "paint" ),
 					mapFragment.getActivity().getContentResolver()
 				);
 				manager.setMarkerSymbol( uuid, symbol );
@@ -495,7 +495,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 	protected MarkerSymbol getMarkerSymbol( ReadableMap symbolMap, ContentResolver contentResolver ) {
 		// Get hotspotPlace.
-		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "symbol" );
+		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "paint" );
 		String hotspotPlaceString = Utils.rMapHasKey( symbolMap, "hotspotPlace" ) ? symbolMap.getString( "hotspotPlace" ) : symbolConstants.getString( "hotspotPlace" );
 		MarkerSymbol.HotspotPlace hotspotPlace = switch ( hotspotPlaceString ) {
 			case "NONE" -> MarkerSymbol.HotspotPlace.NONE;
@@ -523,7 +523,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 	}
 
 	protected MarkerBitmapParams resolveMarkerBitmapParams( ReadableMap symbolMap ) {
-		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "symbol" );
+		ReadableMap symbolConstants = (ReadableMap) getConstants().get( "paint" );
 		int width = Utils.rMapHasKey( symbolMap, "width" ) ? symbolMap.getInt( "width" ) : symbolConstants.getInt( "width" );
 		int height = Utils.rMapHasKey( symbolMap, "height" ) ? symbolMap.getInt( "height" ) : symbolConstants.getInt( "height" );
 		String fillColor = Utils.rMapHasKey( symbolMap, "fillColor" ) ? symbolMap.getString( "fillColor" ) : symbolConstants.getString( "fillColor" );

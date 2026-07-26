@@ -20,7 +20,7 @@ native fragments:
 ```tsx
 <SharedLayer>
   {routes.map((r) => (
-    <LayerPath key={r.id} coordinates={r.coords} style={r.style} />
+    <LayerPath key={r.id} coordinates={r.coords} paint={r.paint} />
   ))}
 </SharedLayer>
 ```

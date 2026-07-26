@@ -19,7 +19,7 @@ component. Uses vtm's JTS integration for advanced geometry features.
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `lineString` | `Double[]` | — | JTS LineString as flattened `[lng, lat, lng, lat, …]` |
-| `style` | `GeometryStyleJts` | defaults | Stroke/fill styling with built-in generalization |
+| `paint` | `PathJtsPaint` | defaults | Stroke/fill styling with built-in generalization |
 | `responseInclude` | `PathJtsResponseInclude` | — | Fields to include in gesture events |
 | `onPress` | `(e: PathJtsTriggerEvent) => void` | — | Tap on this path's geometry |
 | `onLongPress` | `(e: PathJtsTriggerEvent) => void` | — | Long press on this path's geometry |
@@ -29,12 +29,12 @@ component. Uses vtm's JTS integration for advanced geometry features.
 | `onChange` | `(response: LayerPathJtsResponse) => void` | — | Fires when a prop change triggers recreation |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
 
-## GeometryStyleJts
+## PathJtsPaint
 
-Same fields as `GeometryStyle` plus built-in Douglas-Peucker generalization:
+Same fields as `PathPaint` plus built-in Douglas-Peucker generalization:
 
 ```tsx
-type GeometryStyleJts = GeometryStyle & {
+type PathJtsPaint = PathPaint & {
   generalization?: number;   // pixel distance tolerance (0 = disabled)
 };
 ```
@@ -64,7 +64,7 @@ const App = () => (
   <MapContainer center={[13.41, 52.53]} zoomLevel={13}>
     <LayerPathJts
       lineString={lineString}
-      style={{
+      paint={{
         strokeColor: '#00AAFF',
         strokeWidth: 3,
         generalization: 1.0,

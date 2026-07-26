@@ -24,7 +24,7 @@ const LayerPath = ({
 	coordinates,
 	responseInclude: responseIncludeParams,
 	gestureScreenDistance,
-	style,
+	paint,
 
 	onCreate,
 	onRemove,
@@ -75,7 +75,7 @@ const LayerPath = ({
 				fragmentUuid: fragmentUuidRef.current,
 				supportsGestures,
 				coordinates,
-				...(style && { style }),
+				...(paint && { paint }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance && { gestureScreenDistance }),
 			}).then((response: LayerPathResponse) => {
@@ -110,7 +110,7 @@ const LayerPath = ({
 	positionIndexRef.current = positionIndex;
 	fragmentUuidRef.current = fragmentUuid;
 
-	// Redraw the existing native layer in place when the line or its style
+	// Redraw the existing native layer in place when the line or its paint
 	// changes, instead of tearing down and recreating the layer.
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
@@ -118,7 +118,7 @@ const LayerPath = ({
 				nativeNodeHandle,
 				uuid,
 				coordinates,
-				...(style && { style }),
+				...(paint && { paint }),
 				...(responseInclude && { responseInclude }),
 			})
 				.then((response: LayerPathResponse) => {
@@ -132,7 +132,7 @@ const LayerPath = ({
 		uuid,
 		nativeNodeHandle,
 		coordinates,
-		style,
+		paint,
 		responseInclude,
 		onChange,
 		onError,

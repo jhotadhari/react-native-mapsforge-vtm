@@ -8,7 +8,7 @@ import {
 	MapContainer,
 	Marker,
 	type Position,
-	type SymbolParams,
+	type MarkerPaint,
 	type TapEventResponse,
 	type LongPressEventResponse,
 } from 'react-native-mapsforge-vtm';
@@ -131,7 +131,7 @@ const ExampleComponent: FC<{
 		nextMarkerKey.current = 0;
 	}, []);
 
-	const tapSymbol: SymbolParams = useMemo(
+	const tapPaint: MarkerPaint = useMemo(
 		() => ({ text: '✕', fillColor: '#ff4444', fontSize: 18 }),
 		[]
 	);
@@ -173,7 +173,7 @@ const ExampleComponent: FC<{
 						<Marker
 							key={m.key}
 							position={m.position}
-							symbol={tapSymbol}
+							paint={tapPaint}
 						/>
 					))}
 				</MapContainer>

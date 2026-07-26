@@ -53,10 +53,10 @@ codegen spec file and re-exported as a namespace from `src/index.tsx`:
 | Type namespace | Source file |
 |---|---|
 | `LayerMapsforgeProps` / `LayerMapsforgeResponse` | `NativeLayerMapsforge.ts` |
-| `LayerPathProps` / `LayerPathResponse` / `GeometryStyle` / `PathTriggerEvent` | `NativeLayerPath.ts` |
-| `LayerPathJtsProps` / `LayerPathJtsResponse` / `GeometryStyleJts` | `NativeLayerPathJts.ts` |
-| `LayerShapeProps` / `ShapeDefinition` / `ShapeStyle` | `NativeLayerShape.ts` |
-| `LayerMarkerProps` / `MarkerProps` / `SymbolParams` / `MarkerEvent` | `NativeLayerMarker.ts` |
+| `LayerPathProps` / `LayerPathResponse` / `PathPaint` / `PathTriggerEvent` | `NativeLayerPath.ts` |
+| `LayerPathJtsProps` / `LayerPathJtsResponse` / `PathJtsPaint` | `NativeLayerPathJts.ts` |
+| `LayerShapeProps` / `ShapeDefinition` / `ShapePaint` | `NativeLayerShape.ts` |
+| `LayerMarkerProps` / `MarkerProps` / `MarkerPaint` / `MarkerEvent` | `NativeLayerMarker.ts` |
 | `LayerBitmapTileProps` | `NativeLayerBitmapTile.ts` |
 | `LayerMBTilesBitmapProps` | `NativeLayerMBTilesBitmap.ts` |
 | `LayerHillshadingProps` / `ShadingAlgorithm` | `NativeLayerHillshading.ts` |
@@ -68,8 +68,8 @@ Import them directly:
 import type {
   Position,
   Bbox,
-  GeometryStyle,
-  SymbolParams,
+  PathPaint,
+  MarkerPaint,
   ShapeDefinition,
 } from 'react-native-mapsforge-vtm';
 ```

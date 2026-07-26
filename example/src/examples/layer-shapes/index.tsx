@@ -10,12 +10,12 @@ import {
 	LayerShape,
 	MapContainer,
 	Marker,
-	type GeometryStyle,
+	type PathPaint,
 	type LayerShapeGestureResponse,
 	type Position,
 	type ShapeDefinition,
-	type ShapeStyle,
-	type SymbolParams,
+	type ShapePaint,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import type { Example } from '../../types';
@@ -32,35 +32,35 @@ const defaultCenter: Position = [10, 35]; // [ lng, lat ] — Mediterranean
 
 // ── Style presets ─────────────────────────────────────────────────────────
 
-const polygonStyle: ShapeStyle = {
+const polygonPaint: ShapePaint = {
 	strokeWidth: 3,
 	strokeColor: '#ff4444',
 	fillColor: '#ff4444',
 	fillAlpha: 0.3,
 };
 
-const circleStyle: ShapeStyle = {
+const circlePaint: ShapePaint = {
 	strokeWidth: 2,
 	strokeColor: '#4488ff',
 	fillColor: '#4488ff',
 	fillAlpha: 0.25,
 };
 
-const rectangleStyle: ShapeStyle = {
+const rectanglePaint: ShapePaint = {
 	strokeWidth: 2,
 	strokeColor: '#44cc44',
 	fillColor: '#44cc44',
 	fillAlpha: 0.25,
 };
 
-const hexagonStyle: ShapeStyle = {
+const hexagonPaint: ShapePaint = {
 	strokeWidth: 2,
 	strokeColor: '#ffaa00',
 	fillColor: '#ffaa00',
 	fillAlpha: 0.45,
 };
 
-const pointStyle: ShapeStyle = {
+const pointPaint: ShapePaint = {
 	strokeWidth: 5,
 	strokeColor: '#cc44cc',
 	fillColor: '#cc44cc',
@@ -104,13 +104,13 @@ const pointShape: ShapeDefinition = {
 // All shapes keyed by display name for the toggle UI.
 const allShapes: Record<
 	string,
-	{ definition: ShapeDefinition; style: ShapeStyle }
+	{ definition: ShapeDefinition; paint: ShapePaint }
 > = {
-	Polygon: { definition: trianglePolygon, style: polygonStyle },
-	Circle: { definition: circleShape, style: circleStyle },
-	Rectangle: { definition: rectangleShape, style: rectangleStyle },
-	Hexagon: { definition: hexagonShape, style: hexagonStyle },
-	Point: { definition: pointShape, style: pointStyle },
+	Polygon: { definition: trianglePolygon, paint: polygonPaint },
+	Circle: { definition: circleShape, paint: circlePaint },
+	Rectangle: { definition: rectangleShape, paint: rectanglePaint },
+	Hexagon: { definition: hexagonShape, paint: hexagonPaint },
+	Point: { definition: pointShape, paint: pointPaint },
 };
 
 // ── Interleaved overlay geometry ──────────────────────────────────────────
@@ -123,13 +123,13 @@ const interleavedPathCoords: Position[] = [
 	[10.5, 33],
 ];
 
-const interleavedPathStyle: GeometryStyle = {
+const interleavedPathPaint: PathPaint = {
 	strokeWidth: 6,
 	strokeColor: '#ffffff',
 };
 
 const interleavedMarkerPos: Position = [10, 36];
-const interleavedMarkerSymbol: SymbolParams = {
+const interleavedMarkerPaint: MarkerPaint = {
 	text: '✚',
 	textSize: 22,
 	fillColor: '#ffffff',
@@ -335,12 +335,12 @@ const ExampleComponent: FC<{
 					<LayerBitmapTile />
 
 					{Object.entries(allShapes).map(
-						([name, { definition, style }]) =>
+						([name, { definition, paint }]) =>
 							visibleShapes[name] ? (
 								<LayerShape
 									key={name}
 									shape={definition}
-									style={style}
+									paint={paint}
 									gestureScreenDistance={40}
 									onPress={gestureHandlers[name]?.onPress}
 									onLongPress={
@@ -356,14 +356,14 @@ const ExampleComponent: FC<{
 						<LayerPath
 							key="interleaved-path"
 							coordinates={interleavedPathCoords}
-							style={interleavedPathStyle}
+							paint={interleavedPathPaint}
 						/>
 					)}
 					{showInterleaved && (
 						<Marker
 							key="interleaved-marker"
 							position={interleavedMarkerPos}
-							symbol={interleavedMarkerSymbol}
+							paint={interleavedMarkerPaint}
 						/>
 					)}
 				</MapContainer>

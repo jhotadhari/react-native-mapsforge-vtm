@@ -9,9 +9,9 @@ import {
 	MapContainer,
 	Marker,
 	SharedLayer,
-	type GeometryStyle,
+	type PathPaint,
 	type Position,
-	type SymbolParams,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 import Center from '../../components/Center';
 import type { Example } from '../../types';
@@ -72,11 +72,11 @@ const pairs: ColoredPair[] = [
 	},
 ];
 
-const pathStyle: GeometryStyle = {
+const pathPaint: PathPaint = {
 	strokeWidth: 14,
 };
 
-const markerSymbol: SymbolParams = {
+const markerPaint: MarkerPaint = {
 	text: '●',
 	textSize: 24,
 };
@@ -165,9 +165,9 @@ const ExampleComponent: FC<{
 
 	const renderPairs = useMemo(() => {
 		return pairs.map((pair) => {
-			const pathColor = { ...pathStyle, strokeColor: pair.strokeColor };
-			const symbolColor = {
-				...markerSymbol,
+			const pathColor = { ...pathPaint, strokeColor: pair.strokeColor };
+			const markerColor = {
+				...markerPaint,
 				fillColor: pair.color,
 			};
 
@@ -175,14 +175,14 @@ const ExampleComponent: FC<{
 				<LayerPath
 					key={`${pair.id}-path`}
 					coordinates={pair.pathCoordinates}
-					style={pathColor}
+					paint={pathColor}
 				/>
 			);
 			const markerElement = (
 				<Marker
 					key={`${pair.id}-marker`}
 					position={pair.markerPosition}
-					symbol={symbolColor}
+					paint={markerColor}
 				/>
 			);
 

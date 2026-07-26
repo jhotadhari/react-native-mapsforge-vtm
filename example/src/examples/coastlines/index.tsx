@@ -79,7 +79,7 @@ const ExampleComponent: FC<{
 
 	const strokeColor = strokeColors[colorIndex % strokeColors.length]!;
 
-	const style = useMemo(() => ({ strokeColor }), [strokeColor]);
+	const paint = useMemo(() => ({ strokeColor }), [strokeColor]);
 
 	const handleFirstLineResponse = (response: LayerPathResponse) => {
 		setFirstLineBbox(response.bbox);
@@ -121,7 +121,7 @@ const ExampleComponent: FC<{
 								<LayerPath
 									key={idx}
 									coordinates={coordinates}
-									style={style}
+									paint={paint}
 									onCreate={handleFirstLineResponse}
 									onChange={handleFirstLineResponse}
 								/>
@@ -129,7 +129,7 @@ const ExampleComponent: FC<{
 								<LayerPath
 									key={idx}
 									coordinates={coordinates}
-									style={style}
+									paint={paint}
 								/>
 							)
 						)}

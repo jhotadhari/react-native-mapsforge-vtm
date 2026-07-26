@@ -27,7 +27,7 @@ instances that don't override them.
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `position` | `Position` (`[lng, lat, alt?]`) | — | Marker position |
-| `symbol` | `SymbolParams` | — | Marker appearance (color, size, shape) |
+| `paint` | `MarkerPaint` | — | Marker appearance (color, size, shape) |
 | `onPress` | `(e: MarkerEvent) => void` | — | Tap on this marker |
 | `onLongPress` | `(e: MarkerEvent) => void` | — | Long press on this marker |
 | `onDoubleTap` | `(e: MarkerEvent) => void` | — | Double-tap on this marker |
@@ -36,10 +36,10 @@ instances that don't override them.
 | `onChange` | `(response: MarkerResponse) => void` | — | Fires on prop changes |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
 
-### SymbolParams
+### MarkerPaint
 
 ```tsx
-type SymbolParams = {
+type MarkerPaint = {
   type?: 'circle' | 'square' | 'diamond' | 'triangle' | 'star';
   size?: number;            // radius in dp
   fillColor?: string;       // hex color
@@ -69,12 +69,12 @@ const App = () => (
     <LayerMarker>
       <Marker
         position={[13.405, 52.52]}
-        symbol={{ type: 'circle', size: 12, fillColor: '#FF0000' }}
+        paint={{ type: 'circle', size: 12, fillColor: '#FF0000' }}
         onPress={(e) => console.log('Tapped marker at', e.nativeEvent.position)}
       />
       <Marker
         position={[13.410, 52.53]}
-        symbol={{ type: 'star', size: 16, fillColor: '#0000FF' }}
+        paint={{ type: 'star', size: 16, fillColor: '#0000FF' }}
       />
     </LayerMarker>
   </MapContainer>

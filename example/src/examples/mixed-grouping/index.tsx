@@ -10,11 +10,11 @@ import {
 	MapContainer,
 	Marker,
 	SharedLayer,
-	type GeometryStyle,
+	type PathPaint,
 	type Position,
 	type ShapeDefinition,
-	type ShapeStyle,
-	type SymbolParams,
+	type ShapePaint,
+	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
 
 import type { Example } from '../../types';
@@ -67,7 +67,7 @@ const defaultCenter: Position = center;
 
 // ── Shared/dedicated layer styles ───────────────────────────────────────
 
-const dedicatedPathStyle: GeometryStyle = {
+const dedicatedPathPaint: PathPaint = {
 	strokeWidth: 20,
 	strokeColor: '#4488ff',
 };
@@ -163,7 +163,7 @@ const ExampleComponent: FC<{
 	);
 
 	const dedicatedMarkerPos: Position = useMemo(() => [-77, -9], []);
-	const dedicatedMarkerSymbol: SymbolParams = useMemo(
+	const dedicatedMarkerPaint: MarkerPaint = useMemo(
 		() => ({ text: '●', textSize: 32, fillColor: '#ff3333' }),
 		[]
 	);
@@ -176,7 +176,7 @@ const ExampleComponent: FC<{
 		}),
 		[]
 	);
-	const dedicatedShapeStyle: ShapeStyle = useMemo(
+	const dedicatedShapePaint: ShapePaint = useMemo(
 		() => ({
 			strokeWidth: 1.5,
 			strokeColor: '#ffffff',
@@ -189,7 +189,7 @@ const ExampleComponent: FC<{
 	// ── SharedLayer children (Marker → Path → Marker → Path) ─────────────
 
 	const sharedMarker1Pos: Position = useMemo(() => [-77, -9], []);
-	const sharedMarker1Symbol: SymbolParams = useMemo(
+	const sharedMarker1Paint: MarkerPaint = useMemo(
 		() => ({ text: '●', textSize: 22, fillColor: '#00ff44' }),
 		[]
 	);
@@ -201,13 +201,13 @@ const ExampleComponent: FC<{
 		],
 		[]
 	);
-	const sharedPath1Style: GeometryStyle = useMemo(
+	const sharedPath1Paint: PathPaint = useMemo(
 		() => ({ strokeWidth: 12, strokeColor: '#ff8800' }),
 		[]
 	);
 
 	const sharedMarker2Pos: Position = useMemo(() => [-77, -9], []);
-	const sharedMarker2Symbol: SymbolParams = useMemo(
+	const sharedMarker2Paint: MarkerPaint = useMemo(
 		() => ({ text: '●', textSize: 14, fillColor: '#ffdd00' }),
 		[]
 	);
@@ -219,7 +219,7 @@ const ExampleComponent: FC<{
 		],
 		[]
 	);
-	const sharedPath2Style: GeometryStyle = useMemo(
+	const sharedPath2Paint: PathPaint = useMemo(
 		() => ({ strokeWidth: 6, strokeColor: '#ff44ff' }),
 		[]
 	);
@@ -231,22 +231,22 @@ const ExampleComponent: FC<{
 			{/* 3. Shared marker 1 (green) */}
 			<Marker
 				position={sharedMarker1Pos}
-				symbol={sharedMarker1Symbol}
+				paint={sharedMarker1Paint}
 			/>
 			{/* 4. Shared path 1 (orange) */}
 			<LayerPath
 				coordinates={sharedPath1Coords}
-				style={sharedPath1Style}
+				paint={sharedPath1Paint}
 			/>
 			{/* 5. Shared marker 2 (yellow) */}
 			<Marker
 				position={sharedMarker2Pos}
-				symbol={sharedMarker2Symbol}
+				paint={sharedMarker2Paint}
 			/>
 			{/* 6. Shared path 2 (pink) */}
 			<LayerPath
 				coordinates={sharedPath2Coords}
-				style={sharedPath2Style}
+				paint={sharedPath2Paint}
 			/>
 		</>
 	);
@@ -286,13 +286,13 @@ const ExampleComponent: FC<{
 					{/* 1. Dedicated path (blue) — outside SharedLayer */}
 					<LayerPath
 						coordinates={dedicatedPathCoords}
-						style={dedicatedPathStyle}
+						paint={dedicatedPathPaint}
 					/>
 
 					{/* 2. Dedicated marker (red) — outside SharedLayer */}
 					<Marker
 						position={dedicatedMarkerPos}
-						symbol={dedicatedMarkerSymbol}
+						paint={dedicatedMarkerPaint}
 					/>
 
 					{/* 3-6. Inner items — inside SharedLayer (or flat) */}
@@ -305,7 +305,7 @@ const ExampleComponent: FC<{
 					{/* 7. Dedicated shape (white circle) — outside SharedLayer */}
 					<LayerShape
 						shape={dedicatedShape}
-						style={dedicatedShapeStyle}
+						paint={dedicatedShapePaint}
 					/>
 
 					{__DEV__ && <LayerDebugOverlay />}

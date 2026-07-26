@@ -74,14 +74,14 @@ const App = () => (
         <LayerPath
           key={i}
           coordinates={coords}
-          style={{ strokeColor: '#FF0000', strokeWidth: 3 }}
+          paint={{ strokeColor: '#FF0000', strokeWidth: 3 }}
         />
       ))}
     </SharedLayer>
     {/* This LayerPath is outside SharedLayer — independent native layer */}
     <LayerPath
       coordinates={[[13.40, 52.50], [13.44, 52.56]]}
-      style={{ strokeColor: '#0000FF', strokeWidth: 5 }}
+      paint={{ strokeColor: '#0000FF', strokeWidth: 5 }}
     />
   </MapContainer>
 );

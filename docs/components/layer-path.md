@@ -20,7 +20,7 @@ excellent performance for large path counts (50–1000+).
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `coordinates` | `Position[]` | — | Array of `[lng, lat, alt?]` tuples defining the polyline |
-| `style` | `GeometryStyle` | defaults | Stroke/fill/stipple styling |
+| `paint` | `PathPaint` | defaults | Stroke/fill/stipple styling |
 | `responseInclude` | `PathResponseInclude` | — | Fields to include in gesture events |
 | `onPress` | `(e: PathTriggerEvent) => void` | — | Tap on this path's geometry |
 | `onLongPress` | `(e: PathTriggerEvent) => void` | — | Long press on this path's geometry |
@@ -30,10 +30,10 @@ excellent performance for large path counts (50–1000+).
 | `onChange` | `(response: LayerPathResponse) => void` | — | Fires when a prop change triggers recreation |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
 
-## GeometryStyle
+## PathPaint
 
 ```tsx
-type GeometryStyle = {
+type PathPaint = {
   strokeColor?: string;       // hex color, e.g. '#FF0000'
   strokeWidth?: number;       // pixels
   fillColor?: string;
@@ -78,7 +78,7 @@ const App = () => (
   <MapContainer center={[13.41, 52.53]} zoomLevel={13}>
     <LayerPath
       coordinates={route}
-      style={{ strokeColor: '#FF0000', strokeWidth: 4 }}
+      paint={{ strokeColor: '#FF0000', strokeWidth: 4 }}
       onPress={(e) => console.log('Tapped path at', e.nativeEvent.lng, e.nativeEvent.lat)}
     />
   </MapContainer>

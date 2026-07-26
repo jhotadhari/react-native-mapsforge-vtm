@@ -183,7 +183,7 @@ public class PathLayerManagerTest {
         when(params.hasKey("positionIndex")).thenReturn(false);
         when(params.hasKey("supportsGestures")).thenReturn(false);
         when(params.hasKey("gestureScreenDistance")).thenReturn(false);
-        when(params.hasKey("style")).thenReturn(false);
+        when(params.hasKey("paint")).thenReturn(false);
         when(params.hasKey("responseInclude")).thenReturn(false);
     }
 
@@ -301,9 +301,9 @@ public class PathLayerManagerTest {
         when(styleMap.isNull("scalingZoomLevel")).thenReturn(false);
         when(styleMap.getInt("scalingZoomLevel")).thenReturn(14);
 
-        when(params.hasKey("style")).thenReturn(true);
-        when(params.isNull("style")).thenReturn(false);
-        when(params.getMap("style")).thenReturn(styleMap);
+        when(params.hasKey("paint")).thenReturn(true);
+        when(params.isNull("paint")).thenReturn(false);
+        when(params.getMap("paint")).thenReturn(styleMap);
 
         String entryUuid = "path-styled";
         mgr.create(entryUuid, params, mf, cr, rctx);

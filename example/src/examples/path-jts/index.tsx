@@ -9,8 +9,8 @@ import {
 	LayerPathJts,
 	LayerScalebar,
 	MapContainer,
-	type GeometryStyle,
-	type GeometryStyleJts,
+	type PathPaint,
+	type PathJtsPaint,
 	type Position,
 } from 'react-native-mapsforge-vtm';
 
@@ -97,18 +97,18 @@ const generateArcApproximation = (numPoints: number): Position[] => {
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const styleStraight: GeometryStyle = {
+const paintStraight: PathPaint = {
 	strokeColor: '#0000ff',
 	strokeWidth: 3,
 };
 
-const styleGreatCircle: GeometryStyleJts = {
+const paintGreatCircle: PathJtsPaint = {
 	strokeColor: '#ff4444',
 	strokeWidth: 4,
 	generalization: 1, // SMALL — built-in Douglas-Peucker
 };
 
-const styleArcApprox: GeometryStyle = {
+const paintArcApprox: PathPaint = {
 	strokeColor: '#ffaa00',
 	strokeWidth: 2,
 };
@@ -233,10 +233,10 @@ const ExampleComponent: FC<{
 		[width, height]
 	);
 
-	const stylesGeometry = useMemo(
+	const paintJts = useMemo(
 		() => ({
 			jts: {
-				...styleGreatCircle,
+				...paintGreatCircle,
 				generalization,
 			},
 		}),
@@ -272,19 +272,19 @@ const ExampleComponent: FC<{
 					{showPath && (
 						<LayerPath
 							coordinates={straightLine}
-							style={styleStraight}
+							paint={paintStraight}
 						/>
 					)}
 					{showPath && (
 						<LayerPath
 							coordinates={arcApprox}
-							style={styleArcApprox}
+							paint={paintArcApprox}
 						/>
 					)}
 					{showJts && (
 						<LayerPathJts
 							coordinates={arcApprox}
-							style={stylesGeometry.jts}
+							paint={paintJts.jts}
 						/>
 					)}
 					<LayerScalebar />

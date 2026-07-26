@@ -14,7 +14,7 @@ import {
 	computeViewportBbox,
 	lngLatToTile,
 	snapBboxToTiles,
-	type GeometryStyle,
+	type PathPaint,
 	type MapEventResponse,
 	type Position,
 } from 'react-native-mapsforge-vtm';
@@ -31,12 +31,12 @@ const center: Position = [13.405, 52.52]; // Berlin
 const testPoint = { lat: 52.53, lng: 13.42 }; // ~1.4 km north-east of center
 const testPointCoord = [testPoint.lng, testPoint.lat];
 
-const crosshairStyle: GeometryStyle = {
+const crosshairPaint: PathPaint = {
 	strokeColor: '#00ff33',
 	strokeWidth: 2,
 };
 
-const markerSymbol = {
+const markerPaint = {
 	text: '●',
 	fillColor: '#ff3300',
 	textColor: '#ffffff',
@@ -277,14 +277,14 @@ const ExampleComponent: FC<{
 				>
 					<LayerBitmapTile />
 
-					<LayerMarker symbol={markerSymbol}>
+					<LayerMarker paint={markerPaint}>
 						<Marker position={testPointCoord} />
 					</LayerMarker>
 
 					{crosshairCoords && (
 						<LayerPath
 							coordinates={crosshairCoords}
-							style={crosshairStyle}
+							paint={crosshairPaint}
 						/>
 					)}
 				</MapContainer>

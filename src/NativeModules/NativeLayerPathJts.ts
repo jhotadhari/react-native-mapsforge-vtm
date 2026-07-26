@@ -28,11 +28,11 @@ export interface PathJtsResponseInclude {
 /**
  * Style properties for the JTS PathLayer.
  *
- * Extends the existing GeometryStyle with JTS-specific additions:
+ * Extends the existing PathPaint with JTS-specific additions:
  * - `generalization`: Douglas-Peucker simplification level
  *   (1 = NONE, 2 = SMALL, 4 = MEDIUM, 8 = HIGH)
  */
-export type GeometryStyleJts = {
+export type PathJtsPaint = {
 	strokeWidth?: Double;
 	strokeColor?: `#${string}`;
 	fillColor?: `#${string}`;
@@ -56,7 +56,7 @@ export type GeometryStyleJts = {
 };
 
 export interface ModuleParams {
-	style?: {
+	paint?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
 	};
@@ -78,7 +78,7 @@ interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>;
-	style?: {
+	paint?: {
 		strokeWidth?: Double;
 		strokeColor?: string;
 		fillColor?: string;
@@ -156,7 +156,7 @@ export type LayerPathJtsProps = {
 	coordinates?: GeoJsonPosition[];
 	responseInclude?: PathJtsResponseInclude;
 	gestureScreenDistance?: number;
-	style?: GeometryStyleJts;
+	paint?: PathJtsPaint;
 	onRemove?: null | ((response: ResponseBase) => void);
 	onCreate?: null | ((response: LayerPathJtsResponse) => void);
 	onChange?: null | ((response: LayerPathJtsResponse) => void);

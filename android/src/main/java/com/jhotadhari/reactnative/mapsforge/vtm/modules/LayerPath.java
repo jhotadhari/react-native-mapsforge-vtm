@@ -82,7 +82,7 @@ public class LayerPath extends NativeLayerPathSpec {
 		WritableMap style = new WritableNativeMap();
 		style.putDouble( "strokeWidth", 4 );
 		style.putString( "strokeColor", "#ff0000" );
-		constants.put( "style", style );
+		constants.put( "paint", style );
 		WritableMap responseInclude = new WritableNativeMap();
 		responseInclude.putInt( "coordinates", 0 );
 		responseInclude.putInt( "bounds", 0 );
@@ -93,8 +93,8 @@ public class LayerPath extends NativeLayerPathSpec {
 
 	protected Style.Builder getStyleBuilderFromMap( ReadableMap styleMap ) {
 		// Get params, assign defaults. "strokeWidth"/"strokeColor" live nested under the
-		// "style" constant (see getTypedExportedConstants below), not as top-level constants.
-		ReadableMap styleConstants = (ReadableMap) getConstants().get( "style" );
+		// "paint" constant (see getTypedExportedConstants below), not as top-level constants.
+		ReadableMap styleConstants = (ReadableMap) getConstants().get( "paint" );
 		double strokeWidth = Utils.rMapHasKey( styleMap, "strokeWidth" ) ? styleMap.getDouble( "strokeWidth" ) : styleConstants.getDouble( "strokeWidth" );
 		String strokeColor = Utils.rMapHasKey( styleMap, "strokeColor" ) ? styleMap.getString( "strokeColor" ) : styleConstants.getString( "strokeColor" );
 

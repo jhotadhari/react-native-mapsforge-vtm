@@ -48,7 +48,7 @@ const gnssFilter: GnssFilterNativeProps = {
 	altitudeSource: 'dem-preferred',
 };
 
-const gnssDotSymbol = {
+const gnssDotPaint = {
 	text: '●',
 	fillColor: '#00aaff',
 	textColor: '#ffffff',
@@ -76,7 +76,7 @@ const GnssOverlay: FC<{
 	if (!position) return null;
 
 	return (
-		<LayerMarker symbol={gnssDotSymbol}>
+		<LayerMarker paint={gnssDotPaint}>
 			<Marker position={position} />
 		</LayerMarker>
 	);

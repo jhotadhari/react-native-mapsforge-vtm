@@ -92,7 +92,7 @@ const ExampleComponent: FC<{
 		};
 	}, []);
 
-	const symbol = useMemo(() => {
+	const paint = useMemo(() => {
 		return {
 			text: 'o',
 		};
@@ -209,7 +209,7 @@ const ExampleComponent: FC<{
 							key={idx}
 							position={position}
 							onEvent={handleMarkerEvent.onEvent}
-							symbol={symbol}
+							paint={paint}
 						/>
 					))}
 				</MapContainer>

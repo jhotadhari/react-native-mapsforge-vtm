@@ -25,7 +25,7 @@ const defaultsTrigger = pick(LayerMarkerModule.getConstants(), ['strategy']);
 
 const LayerMarker = ({
 	children,
-	symbol,
+	paint,
 	onCreate,
 	onRemove,
 	onChange,
@@ -70,7 +70,7 @@ const LayerMarker = ({
 				nativeNodeHandle,
 				positionIndex: positionIndexRef.current,
 				fragmentUuid: fragmentUuidRef.current,
-				...(symbol && { symbol }),
+				...(paint && { paint }),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })
@@ -142,7 +142,7 @@ const LayerMarker = ({
 		onTrigger: onMarkerTrigger,
 	});
 
-	// Update the layer's default marker symbol in place when it changes,
+	// Update the layer's default marker paint in place when it changes,
 	// instead of tearing down and recreating the layer (which would also
 	// orphan any markers already created under it).
 	useEffect(() => {
@@ -150,7 +150,7 @@ const LayerMarker = ({
 			LayerMarkerModule.updateLayer({
 				nativeNodeHandle,
 				uuid,
-				...(symbol && { symbol }),
+				...(paint && { paint }),
 			})
 				.then((updatedUuid: string) => {
 					onChange
@@ -164,7 +164,7 @@ const LayerMarker = ({
 	}, [
 		uuid,
 		nativeNodeHandle,
-		symbol,
+		paint,
 		onChange,
 		onError,
 	]);

@@ -454,7 +454,7 @@ export default TurboModuleRegistry.getEnforcing<Spec>('LayerXxx');
 
 **Important:** Types used in `Spec` must be declared inline — react-native-codegen's
 TypeScript parser cannot follow cross-file imports. If you need to mirror types
-from the core library (e.g., `GeometryStyle`), copy them inline and add a comment
+from the core library (e.g., `PathPaint`), copy them inline and add a comment
 referencing the canonical source to keep them in sync.
 
 The `package.json` must include:
