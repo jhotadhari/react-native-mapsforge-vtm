@@ -14,16 +14,29 @@ features intentionally (notably `LayerPathSlopeGradient` and GPX-file loading) �
 old-architecture patterns from outside this repo apply here. `TODO.md` tracks open work: a post-rewrite dependency upgrade plan (item 1), and a
 historical record of layer-ordering bugs that were fixed (item 0, now theoretical).
 
-## Edit Tool - Whitespace Workaround
+## Edit Tool
 
-For `.ts`/`.tsx`/`.js`/`.jsx` files: match `old_string` in Edit calls **without** leading
-whitespace (to avoid the tab-vs-space ambiguity described in
-[claude-code/#26996](https://github.com/anthropics/claude-code/issues/26996)). Accumulate all
-touched files, then run one `npx prettier --write <file1> <file2> ...` at the end to fix
-indentation. Only include leading whitespace when needed to disambiguate non-unique matches.
+[claude-tab-fix](https://github.com/WithHolm/claude-tab-fix) is installed as a
+PreToolUse hook (Edit/Bash/Write) and PostToolUse hook (Read). **Include actual
+tab indentation in `old_string`** — the hook normalizes tabs so they match
+reliably.
 
-For `.java` files, `yarn format` doesn't cover them — fall back to `sed` with explicit `\t`
-escapes after a single failed Edit attempt.
+- **Prefer single-line unique matches** — near 100% reliable.
+- Multi-line at the same indent level works well.
+- Multi-line at mixed indent levels can be finicky — split into separate
+  single-line edits instead.
+- After two failed Edit attempts, fall back to `sed`.
+- For `.ts`/`.tsx`/`.js`/`.jsx`: don't sweat whitespace in `new_string` —
+  `yarn format` (Prettier) fixes it. Accumulate touched files and run
+  `yarn format` at the end.
+
+### Without claude-tab-fix
+
+If you're on a different machine without the hook, the Edit tool will see a
+tab-vs-space mismatch ([claude-code/#26996](https://github.com/anthropics/claude-code/issues/26996)).
+Workaround: match `old_string` without leading whitespace, then `yarn format`
+afterward. For `.java` files (not covered by `yarn format`), fall back to
+`sed` with explicit `\t` escapes.
 
 ## Common commands
 
