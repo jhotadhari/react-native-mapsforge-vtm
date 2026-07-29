@@ -112,4 +112,4 @@ across spec files.
 ## See also
 
 - Each component's doc page for its specific types
-- [CLAUDE.md: codegen spec types must be inline](../../CLAUDE.md) — project rule about type duplication
+- [AGENTS.md: codegen spec types must be inline](../../AGENTS.md) — project rule about type duplication

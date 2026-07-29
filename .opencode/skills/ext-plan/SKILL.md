@@ -532,8 +532,8 @@ file" errors.
 
 ### Phase I — Documentation and commit
 
-1. Write the plan to `/home/jhotadhari/.claude/plans/<slug>.md`
-2. Init CLAUDE.md via `/init`
+1. Write the plan to `./plans/<slug>.md`
+2. Init AGENTS.md via `/init`
 3. Create ROADMAP.md with phased implementation plan
 4. `git add -A && git commit -m "Initial scaffold"` on `main`
 5. `git checkout -b development` for ongoing work

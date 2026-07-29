@@ -12,15 +12,15 @@ handles all boilerplate: bob build setup, example app, Android configuration,
 prettier/eslint/release-kit tooling, and the verbose hierarchical Java namespace
 (`com.jhotadhari.reactnative.mapsforge.vtm.ext.<name>`).
 
-The skill lives at [`.claude/skills/ext-plan/SKILL.md`](../../.claude/skills/ext-plan/SKILL.md).
-It is **auto-discovered** by Claude Code — no manual registration needed. Claude
-Code scans `.claude/skills/` for subdirectories containing a `SKILL.md` file (with
+The skill lives at [`.opencode/skills/ext-plan/SKILL.md`](../../.opencode/skills/ext-plan/SKILL.md).
+It is **auto-discovered** by OpenCode — no manual registration needed. OpenCode
+scans `.opencode/skills/` for subdirectories containing a `SKILL.md` file (with
 YAML frontmatter declaring `name` and `description`). Because the file follows this
 convention, `/ext-plan` is available as a slash command in any session opened in
 this repo.
 
 If you're reading this from an extension repo (not the core library), copy the
-`ext-plan/` skill directory into your own `.claude/skills/` to make `/ext-plan`
+`ext-plan/` skill directory into your own `.opencode/skills/` to make `/ext-plan`
 available there too.
 
 ## Architecture of an extension
@@ -659,9 +659,9 @@ original vtm source and produces a patch file. This would make it easier to:
 
 ### 8. Extension template repo
 
-The `/ext-plan` skill (at `.claude/skills/ext-plan/SKILL.md`) scaffolds extensions
+The `/ext-plan` skill (at `.opencode/skills/ext-plan/SKILL.md`) scaffolds extensions
 using `create-react-native-library`, eliminating manual boilerplate. The scaffolded
 output already has bob builder, prettier, eslint, lefthook, release-kit, example
 app, and stub TurboModule files — no manual copying needed. The skill is
-auto-discovered by Claude Code from the directory-based skill format (see
+auto-discovered by OpenCode from the directory-based skill format (see
 Quick start above).

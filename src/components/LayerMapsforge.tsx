@@ -20,7 +20,7 @@ import MapHandleContext from '../context/MapHandleContext';
 /**
  * Buildings and labels each get their own real native layer (and uuid), registered via
  * useLayerOrder alongside the main tile layer rather than bundled into one
- * org.oscim.layers.GroupLayer (see CLAUDE.md). Calling useLayerOrder for all three -- main, then
+ * org.oscim.layers.GroupLayer (see AGENTS.md). Calling useLayerOrder for all three -- main, then
  * buildings, then labels, in that fixed order every render -- keeps them contiguous in the shared
  * ordering registry the same way any other set of sibling layers would be. This internal component
  * isn't part of the public API; LayerMapsforge below renders it conditionally as a child for
