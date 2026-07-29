@@ -53,7 +53,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 
 	// Main vector tile layer, buildings sub-layer, and labels sub-layer are each their own
 	// independent native Layer with their own uuid -- not bundled into an org.oscim.layers.GroupLayer
-	// (see CLAUDE.md). Each needs its own LayerZoomBoundsHelper, since that helper only tracks a
+	// (see AGENTS.md). Each needs its own LayerZoomBoundsHelper, since that helper only tracks a
 	// single zoom-change listener per instance.
 	private final LayerZoomBoundsHelper layerHelper;
 	private final LayerZoomBoundsHelper buildingLayerHelper;
