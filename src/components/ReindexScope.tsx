@@ -369,11 +369,39 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				!registry.order.includes(sentinelRef.current)
 			) {
 				sentinelRef.current = Symbol('reindex-sentinel');
-				const insertIdx =
-					rangeStartRef.current >= 0 &&
-					rangeStartRef.current <= registry.order.length
-						? rangeStartRef.current
-						: registry.order.length;
+				// Compute the insert position from the current order,
+				// not the bare numeric index stored in Phase 1 (which
+				// sibling scopes may have shifted via their own
+				// useLayoutEffect splices).
+				let insertIdx = registry.order.length;
+				// Forward scan: find the first scope-tagged symbol
+				// (stale or sentinel) in the current order and insert
+				// the sentinel right before it.
+				for (let i = 0; i < registry.order.length; i++) {
+					const sym = registry.order[i]!;
+					const isScopeSymbol =
+						registry.layerReindexScopes.get(sym) === scopeSymbol;
+					const isScopeSentinel =
+						registry.sentinels.has(sym) &&
+						registry.sentinelScopes.get(sym) === scopeSymbol;
+					if (isScopeSymbol || isScopeSentinel) {
+						insertIdx = i;
+						break;
+					}
+				}
+				if (
+					insertIdx === registry.order.length &&
+					rangeStartRef.current >= 0
+				) {
+					// No scope-tagged symbols found — all were cleaned
+					// up by sibling effects.  Fall back to the stored
+					// index (may be off by a few positions; next render
+					// corrects it).
+					insertIdx = Math.min(
+						rangeStartRef.current,
+						registry.order.length
+					);
+				}
 				registry.order.splice(insertIdx, 0, sentinelRef.current);
 				registry.sentinels.add(sentinelRef.current);
 				registry.sentinelScopes.set(sentinelRef.current, scopeSymbol);

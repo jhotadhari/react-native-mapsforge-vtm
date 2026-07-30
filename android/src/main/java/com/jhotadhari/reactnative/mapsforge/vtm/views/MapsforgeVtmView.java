@@ -367,10 +367,11 @@ public class MapsforgeVtmView extends LinearLayout {
 	}
 
 	/**
-	 * Tear down the MapFragment and clean up all singleton registries
-	 * (LayerManagers, MapMutationQueue, ElevationReader, MapPositionWriter,
-	 * fragmentRegistry).  Called when React Native permanently removes
-	 * this native view, e.g. when MapContainer is unmounted.
+	 * Tear down the MapFragment (which cleans up LayerManagers,
+	 * MapMutationQueue, ElevationReader, and MapPositionWriter)
+	 * and remove it from the FragmentManager.  Called when React
+	 * Native permanently removes this native view, e.g. when
+	 * MapContainer is unmounted.
 	 */
 	public void destroy() {
 		if ( null != mapFragment ) {

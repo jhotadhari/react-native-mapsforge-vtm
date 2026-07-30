@@ -86,7 +86,8 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 	const previousId = registry.cursor;
 	registry.cursor = id;
 	// Stamp this symbol with the current generation so repositioning
-	// can verify that previousId participated in this render pass.
+	// can verify that the cursor chain between previousId and this
+	// position is intact (no symbols in the gap were skipped by useMemo).
 	registry.layerGenerations.set(id, registry.generation);
 	const isNew = !registry.order.includes(id);
 	if (isNew) {
