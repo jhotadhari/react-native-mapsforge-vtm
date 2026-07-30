@@ -363,7 +363,32 @@ public class MapsforgeVtmView extends LinearLayout {
 				// before any layer tries to load tiles.
 				post( () -> manuallyLayoutChildren( MapsforgeVtmView.this ) );
 			}
+		}
 	}
+
+	/**
+	 * Tear down the MapFragment and clean up all singleton registries
+	 * (LayerManagers, MapMutationQueue, ElevationReader, MapPositionWriter,
+	 * fragmentRegistry).  Called when React Native permanently removes
+	 * this native view, e.g. when MapContainer is unmounted.
+	 */
+	public void destroy() {
+		if ( null != mapFragment ) {
+			int handle = this.getId();
+			mapFragment.onDestroy();
+			mapFragment = null;
+
+			FragmentActivity activity = (FragmentActivity) getReactContext().getCurrentActivity();
+			if ( activity != null ) {
+				androidx.fragment.app.Fragment frag =
+					activity.getSupportFragmentManager().findFragmentByTag( String.valueOf( handle ) );
+				if ( frag != null ) {
+					activity.getSupportFragmentManager().beginTransaction()
+						.remove( frag )
+						.commitNowAllowingStateLoss();
+				}
+			}
+		}
 	}
 
 	public void setupLayout(ViewGroup view) {

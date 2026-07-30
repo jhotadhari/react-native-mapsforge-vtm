@@ -209,4 +209,17 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 		}
 	}
 
+	/**
+	 * Called when React Native permanently removes this native view
+	 * (e.g. MapContainer is unmounted).  Tear down the MapFragment
+	 * and all singleton registries so the old nativeNodeHandle's
+	 * resources are released — prevents Fragment leaks and orphaned
+	 * LayerManager / MapMutationQueue / ElevationReader instances.
+	 */
+	@Override
+	public void onDropViewInstance( @NonNull MapsforgeVtmView view ) {
+		view.destroy();
+		super.onDropViewInstance( view );
+	}
+
 }
