@@ -83,7 +83,14 @@ const MapContainer = ({
 	const [nativeNodeHandle_, setNativeNodeHandle_] = useState<number | null>(
 		null
 	);
-	nativeNodeHandle = nativeNodeHandle ? nativeNodeHandle : nativeNodeHandle_;
+	const [hasMounted, setHasMounted] = useState(false);
+	// On remount the prop may hold a stale handle from a previous MapContainer
+	// instance that was torn down.  Ignore the prop until the first useEffect
+	// has discovered the real nativeNodeHandle for *this* map view, so layers
+	// never try to register with a destroyed handle (which fails and never
+	// retries because the enabled boolean doesn't change).
+	nativeNodeHandle =
+		hasMounted && nativeNodeHandle ? nativeNodeHandle : nativeNodeHandle_;
 	setNativeNodeHandle = setNativeNodeHandle
 		? setNativeNodeHandle
 		: setNativeNodeHandle_;
@@ -101,6 +108,10 @@ const MapContainer = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ref?.current, setNativeNodeHandle]);
+
+	useEffect(() => {
+		setHasMounted(true);
+	}, []);
 
 	const nativeNodeHandleRef = useRef(nativeNodeHandle);
 	nativeNodeHandleRef.current = nativeNodeHandle;
