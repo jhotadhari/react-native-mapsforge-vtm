@@ -191,7 +191,7 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 					}
 					if (symScope !== undefined) {
 						const symOrder = registry.scopePriorities.get(symScope);
-						if (symOrder !== undefined && symOrder < order) {
+						if (symOrder !== undefined && symOrder <= order) {
 							lastLowerIdx = i;
 						}
 					}
@@ -374,39 +374,82 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 				// sibling scopes may have shifted via their own
 				// useLayoutEffect splices).
 				let insertIdx = registry.order.length;
-				// Forward scan: find the first scope-tagged symbol
-				// (stale or sentinel) in the current order and insert
-				// the sentinel right before it.
-				for (let i = 0; i < registry.order.length; i++) {
-					const sym = registry.order[i]!;
-					const isScopeSymbol =
-						registry.layerReindexScopes.get(sym) === scopeSymbol;
-					const isScopeSentinel =
-						registry.sentinels.has(sym) &&
-						registry.sentinelScopes.get(sym) === scopeSymbol;
-					if (isScopeSymbol || isScopeSentinel) {
-						insertIdx = i;
-						break;
+
+				// When an order prop is set, use priority-based
+				// positioning (scan for lower-priority scopes) —
+				// matching Phase 1's behavior.  This handles the
+				// case where sibling scopes changed priority or
+				// were removed in the same commit.
+				const scopeOrder = registry.scopePriorities.get(scopeSymbol);
+				if (scopeOrder !== undefined) {
+					let lastLowerIdx = -1;
+					for (let i = 0; i < registry.order.length; i++) {
+						const sym = registry.order[i]!;
+						let symScope = registry.layerReindexScopes.get(sym);
+						if (
+							symScope === undefined &&
+							registry.sentinels.has(sym)
+						) {
+							symScope = registry.sentinelScopes.get(sym);
+						}
+						if (symScope !== undefined) {
+							const symOrder =
+								registry.scopePriorities.get(symScope);
+							if (
+								symOrder !== undefined &&
+								symOrder <= scopeOrder
+							) {
+								lastLowerIdx = i;
+							}
+						}
+					}
+					insertIdx = lastLowerIdx === -1 ? 0 : lastLowerIdx + 1;
+				} else {
+					// No order prop: forward scan for the first
+					// scope-tagged symbol (stale or sentinel) in the
+					// current order and insert the sentinel right
+					// before it.
+					for (let i = 0; i < registry.order.length; i++) {
+						const sym = registry.order[i]!;
+						const isScopeSymbol =
+							registry.layerReindexScopes.get(sym) ===
+							scopeSymbol;
+						const isScopeSentinel =
+							registry.sentinels.has(sym) &&
+							registry.sentinelScopes.get(sym) === scopeSymbol;
+						if (isScopeSymbol || isScopeSentinel) {
+							insertIdx = i;
+							break;
+						}
+					}
+					if (
+						insertIdx === registry.order.length &&
+						rangeStartRef.current >= 0
+					) {
+						// No scope-tagged symbols found — all
+						// were cleaned up by sibling effects.
+						// Fall back to the stored index (may
+						// be off by a few positions; next
+						// render corrects it).
+						insertIdx = Math.min(
+							rangeStartRef.current,
+							registry.order.length
+						);
 					}
 				}
-				if (
-					insertIdx === registry.order.length &&
-					rangeStartRef.current >= 0
-				) {
-					// No scope-tagged symbols found — all were cleaned
-					// up by sibling effects.  Fall back to the stored
-					// index (may be off by a few positions; next render
-					// corrects it).
-					insertIdx = Math.min(
-						rangeStartRef.current,
-						registry.order.length
-					);
-				}
+
 				registry.order.splice(insertIdx, 0, sentinelRef.current);
 				registry.sentinels.add(sentinelRef.current);
 				registry.sentinelScopes.set(sentinelRef.current, scopeSymbol);
-				registry.scheduleSync(nativeNodeHandle);
 			}
+
+			// Always sync after a children → sentinel-only transition.
+			// When multiple scopes transition simultaneously (e.g. one
+			// scope loses children while another scope gains children),
+			// the old children's useLayoutEffect cleanup may have shifted
+			// the order and the sentinel needs to be flushed to native
+			// at its correct post-cleanup position.
+			registry.scheduleSync(nativeNodeHandle);
 			return;
 		}
 
