@@ -10,7 +10,7 @@ excellent performance for large path counts (50–1000+).
 |---|---|---|
 | Native backend | Shared `VectorLayer` | Dedicated `PathLayer` per component |
 | Performance at scale | Excellent (1 GPU draw call) | Worse (1 native layer per path) |
-| Render ordering | Known bug (TODO.md #0) | Correct |
+| Render ordering | Should work correctly, sometimes doesn't | Correct |
 | Great-circle arcs | Not supported | `addGreatCircle` |
 | Douglas-Peucker | External `simplify` library | Built-in via `Style.generalization` |
 | Best for | 50–1000+ paths, route networks | 1–30 paths, guaranteed z-order |
@@ -84,12 +84,6 @@ const App = () => (
   </MapContainer>
 );
 ```
-
-## Known bug
-
-**Render ordering does not strictly follow React tree order** for shared-layer
-components. See `TODO.md` item 0. If you need guaranteed z-order, use
-`LayerPathJts` instead.
 
 ## See also
 

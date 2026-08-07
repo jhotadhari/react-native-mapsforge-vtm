@@ -8,7 +8,7 @@ component. Uses vtm's JTS integration for advanced geometry features.
 | Aspect | LayerPathJts | LayerPath |
 |---|---|---|
 | Native backend | Dedicated `PathLayer` per component | Shared `VectorLayer` |
-| Render ordering | Correct — per-component uuid | Known bug (TODO.md #0) |
+| Render ordering | Correct — per-component uuid | Should work correctly, sometimes doesn't |
 | Great-circle arcs | `addGreatCircle` | Not supported |
 | Douglas-Peucker | Built-in `Style.generalization` | External library |
 | Performance at scale | Worse (1 native layer per path) | Excellent (1 GPU draw call) |

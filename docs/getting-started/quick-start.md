@@ -139,4 +139,4 @@ const App = () => {
 - **[LayerMapsforge docs](../components/layer-mapsforge.md)** — offline vector
   maps with render themes and style overlays
 - **[Example App](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)** —
-  21 runnable examples covering every layer type and feature
+   runnable examples covering every layer type and feature

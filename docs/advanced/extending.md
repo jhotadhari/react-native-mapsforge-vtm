@@ -6,7 +6,7 @@ native rendering pipeline.
 
 ## Quick start
 
-An interactive planning skill (`/ext-plan`) walks through 7 architectural questions
+The `ext-plan` OpenCode skill walks through architectural questions
 and scaffolds a complete extension repo using `create-react-native-library`. It
 handles all boilerplate: bob build setup, example app, Android configuration,
 prettier/eslint/release-kit tooling, and the verbose hierarchical Java namespace
@@ -16,11 +16,11 @@ The skill lives at [`.opencode/skills/ext-plan/SKILL.md`](../../.opencode/skills
 It is **auto-discovered** by OpenCode — no manual registration needed. OpenCode
 scans `.opencode/skills/` for subdirectories containing a `SKILL.md` file (with
 YAML frontmatter declaring `name` and `description`). Because the file follows this
-convention, `/ext-plan` is available as a slash command in any session opened in
-this repo.
+convention, you can trigger it by mentioning `ext-plan` in an OpenCode chat prompt
+in this repo.
 
 If you're reading this from an extension repo (not the core library), copy the
-`ext-plan/` skill directory into your own `.opencode/skills/` to make `/ext-plan`
+`ext-plan/` skill directory into your own `.opencode/skills/` to make it
 available there too.
 
 ## Architecture of an extension
@@ -37,7 +37,7 @@ components that render custom content on the map.
 | vtm classes shadowed? | No | No | Yes (LineBucket, RenderBuckets, etc.) |
 | Custom GLSL shaders? | No | No | Yes |
 | Complexity | Low | Medium | High |
-| Example | `useSlopeColoring` hook | Custom tile source (ext-grib) | Color-ramp paths (ext-path-color-ramp) |
+| Example | `useSlopeColoring` hook | Custom tile source (ext-grib, not finished but functional) | Color-ramp paths (ext-path-color-ramp) |
 | Best for | Calculations, color mapping, data transforms | New layer types using existing vtm rendering | New GPU rendering effects |
 
 ### Extension API (public)
@@ -258,7 +258,7 @@ public class MyTileDataSource implements ITileDataSource {
 }
 ```
 
-Reference: `LayerHillshading.java` in this repo, `WeatherTileSource.java` in ext-grib.
+Reference: `LayerHillshading.java` in this repo.
 
 #### Strategy B2: Custom vtm Layer (more control, more complex)
 
@@ -570,98 +570,23 @@ north-up and untilted.
 
 | Extension | Pattern | What it demonstrates |
 |---|---|---|
-| [`ext-grib`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-grib) | B1 (TileSource) | Custom `TileSource` + `ITileDataSource` for weather GRIB overlays |
 | [`ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp) | C (vtm-shadowing) | `LineBucket` shadowing + custom GLSL shaders + per-vertex attributes |
 
 ---
 
-## Potential architectural improvements
+## OpenCode skill: ext-plan
 
-These are ideas for making the library more extensible. Not implemented — open for
-discussion.
+The `ext-plan` skill (at `.opencode/skills/ext-plan/SKILL.md`) walks through
+architectural decisions and scaffolds a new extension repo using
+`create-react-native-library`. The scaffolding is somewhat experimental.
 
-### 1. Dedicated `createCustomLayer` API
+The scaffolded output already has bob builder, prettier, eslint, lefthook,
+release-kit, example app, and stub TurboModule files — no manual copying needed.
 
-Currently extensions must write their own TurboModule from scratch, following the
-codegen pattern. A generic `createCustomLayer` TurboModule could allow extensions
-to register custom vtm `Layer` or `TileSource` implementations without writing
-boilerplate Java/JS bridge code.
+This is an **OpenCode skill**, not a CLI command. To use it, mention `ext-plan`
+in an OpenCode chat prompt — for example: "build an extension for heatmap
+overlays using ext-plan" or "use the ext-plan skill to scaffold a new layer
+type."
 
-```typescript
-// Hypothetical API
-const uuid = await MapContainer.createCustomLayer({
-  type: 'tileSource',
-  implementation: 'com.example.WeatherTileSource',
-  params: { dataUrl: '...', colorMap: 'wind' },
-});
-```
-
-### 2. Pre-built extension base classes
-
-Provide abstract Java classes that extensions extend, reducing the amount of
-boilerplate needed:
-
-```java
-// Hypothetical
-public abstract class BaseTileSourceExtension extends TileSource {
-    protected abstract Bitmap renderTile(MapTile tile);
-    // Handles ITileDataSource, caching, disposal automatically
-}
-```
-
-### 3. `useLayerOrder` without native layer
-
-Allow registering a React component's position in the render tree even when it
-doesn't create a native layer — e.g., for reanimated overlays that need correct
-z-ordering relative to native layers.
-
-### 4. Public `MapMutationQueue` access for extensions
-
-Currently extensions go through `LayerHelper` which is a parent-library class.
-Making `MapMutationQueue` public (or providing an extension-facing façade) would
-give extensions more control over batching and ordering.
-
-### 5. Type-only extensions for reanimated overlays
-
-A pure-JS extension pattern that doesn't require any native Java code.
-Extensions would be npm packages that only export React components using
-`useMapOverlay` + `useMapPosition`. No TurboModule, no Android build.
-
-### 6. Extension registry / plugin system
-
-A registry where extensions declare capabilities, and the map container queries
-them. Enables features like "show a list of available overlays" or "toggle all
-weather layers."
-
-```typescript
-// Hypothetical
-import { registerExtension } from 'react-native-mapsforge-vtm';
-registerExtension({
-  name: 'ext-grib',
-  version: '0.1.0',
-  components: { WeatherOverlay, WeatherParticles },
-  capabilities: ['weather-overlay'],
-});
-```
-
-### 7. vtm class shadowing utilities
-
-**Implemented:** `android/strip-vtm-classes.gradle` handles DEX deduplication
-automatically. Declare shadowed classes via `ext.shadowedClasses` in the
-extension's `build.gradle`; apply the script once in the app's `build.gradle`.
-See "Resolving DEX class conflicts" in Pattern C above.
-
-Still open as future work: a script that diffs a shadowed class against the
-original vtm source and produces a patch file. This would make it easier to:
-- Review what changed vs upstream vtm
-- Rebase patches when upgrading vtm versions
-- Audit LGPL compliance (exactly what was modified)
-
-### 8. Extension template repo
-
-The `/ext-plan` skill (at `.opencode/skills/ext-plan/SKILL.md`) scaffolds extensions
-using `create-react-native-library`, eliminating manual boilerplate. The scaffolded
-output already has bob builder, prettier, eslint, lefthook, release-kit, example
-app, and stub TurboModule files — no manual copying needed. The skill is
-auto-discovered by OpenCode from the directory-based skill format (see
-Quick start above).
+The [`ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp)
+extension is the tested reference implementation.

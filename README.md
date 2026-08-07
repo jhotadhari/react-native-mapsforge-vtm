@@ -6,6 +6,10 @@ and geometric overlays — all without a network connection (except tile/bitmap 
 
 **Android only** · **React Native New Architecture (Fabric + TurboModules)** · **RN ≥ 0.80.0**
 
+## Roadmap
+
+**[ROADMAP.md](./ROADMAP.md)** — Upcoming work prioritizes better markers.
+
 ## Requirements
 
 - **React Native ≥ 0.80.0** with the **New Architecture** enabled. The library ships
@@ -40,8 +44,8 @@ const App = () => (
 );
 ```
 
-**[Full documentation →](./docs/README.md)** — API reference for 13 components, 2 hooks,
-1 utility, 2 debug tools, and advanced topics.
+**[Full documentation →](./docs/README.md)** — API reference covering components, hooks,
+utilities, debug tools, and advanced topics.
 
 ## Installation
 
@@ -63,8 +67,11 @@ The example app includes **runnable examples** across several categories:
 | **gestures** | tap-events, layer-order-verification, many-layers, many-shapes, mixed-grouping, shared-layer-grouping, elevation-enrichment |
 | **api** | mercator-math, viewport-bbox, map-handle-registry, gnss-track-recording |
 
+To run the example app:
+
 ```sh
-yarn example start      # start Metro
+yarn install
+yarn example start      # start Metro (keep running in a separate terminal)
 yarn example android    # build & run on device/emulator
 ```
 
@@ -95,8 +102,34 @@ yarn example android    # build & run on device/emulator
 
 | Hook | Description |
 |---|---|
-| [`useMap()`](./docs/hooks/use-map.md) | Imperative map control (pan, zoom, animate, fly, fitBounds, altitude queries) |
+| [`useMap()`](./docs/hooks/use-map.md) | Imperative map control (pan, zoom, animate, fly, fitBounds, altitude/elevation queries) |
+| [`useMapEventInterval()`](./docs/hooks/use-map-event-interval.md) | Poll map events at a fixed interval |
+| [`useViewportBbox()`](./docs/hooks/use-viewport-bbox.md) | Tile-snapped viewport bounding box with dedup |
 | [`useRenderStyleOptions()`](./docs/hooks/use-render-style-options.md) | Read render-theme style menu options |
+
+## Reanimated
+
+Import from `react-native-mapsforge-vtm/reanimated` for worklet-based map utilities. Requires
+`react-native-reanimated >= 3.0.0` (optional peer dependency).
+
+| Export | Description |
+|---|---|
+| [`useMapPosition()`](./docs/advanced/performance.md#map-position-consumption-patterns) | Reanimated shared values for map center, zoom, bearing, tilt — zero bridge crossings with native bridge activated |
+| [`useMapOverlay()`](./docs/advanced/performance.md) | Worklet-based overlay positioning (lat/lng → screen coordinates) |
+| `toScreenPosition()` / `fromScreenPosition()` | Mercator ↔ screen coordinate conversion callable from worklets |
+
+See **[Performance](./docs/advanced/performance.md#map-position-consumption-patterns)** for the
+four-tier consumption pattern guide and native bridge activation setup.
+
+## Utilities
+
+| Export | Description |
+|---|---|
+| [`enrichCoordinatesWithElevation()`](./docs/api/enrich-coordinates.md) | Batch-enrich coordinate arrays with SRTM elevation data |
+| [`createMapHandle()` / `createMapHandleRegistry()`](./docs/api/create-map-handle.md) | Non-React imperative map control factories (for Redux thunks, services, etc.) |
+| [Mercator math](./docs/api/mercator-math.md) | Non-worklet projection, tile, and screen-coordinate utilities |
+| [GNSS filter](./docs/api/gnss.md) | Native GNSS track-recording with DEM altitude resolution |
+| [`CanvasAdapterModule`](./docs/api/canvas-adapter-module.md) | Global text/line/symbol scale configuration |
 
 ## Debug tools
 
@@ -108,12 +141,10 @@ yarn example android    # build & run on device/emulator
 ## Resources
 
 - **[Documentation](./docs/README.md)** — Full API reference, guides, and advanced topics
-- **[Extending the library](./docs/advanced/extending.md)** — Build custom layer-type extensions (JS-only, TurboModule, or vtm-shadowing). Start with `/ext-plan`.
+- **[Extending the library](./docs/advanced/extending.md)** — Build custom layer-type extensions (JS-only, TurboModule, or vtm-shadowing). Use the "ext-plan" OpenCode skill to scaffold new extensions.
+- **[Performance](./docs/advanced/performance.md)** — Scaling guidance, map position consumption patterns, and reanimated native bridge setup
 - **[Naming conventions and terminology](./docs/NAMING_TERMINOLOGY.md)** — Inclusive language conventions used in this project
-
 - **[Known Issues](./docs/advanced/known-issues.md)** — Current bugs, limitations, and workarounds
-- **[CHANGELOG.md](./CHANGELOG.md)** — Version history
-- **[TODO.md](./TODO.md)** — Open work and planned improvements
 
 ## Contributing
 
@@ -129,8 +160,15 @@ MIT
 
 ## Apps using react-native-mapsforge-vtm
 
-- The [example app](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example), included in this repository
-- [straymap](https://github.com/jhotadhari/straymap)
+This library was built as part of **[straymap](https://github.com/jhotadhari/straymap)**
+and later extracted as a standalone, reusable package so anyone can pick it up
+and use it in their own projects.
+
+Another running app is the [example app](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example), included in this repository.
+
+## Working extensions
+
+- [`react-native-mapsforge-vtm-ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp) — Color-ramp path rendering via vtm-shadowing
 
 ## Credits
 

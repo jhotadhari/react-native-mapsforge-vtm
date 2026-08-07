@@ -196,7 +196,7 @@ outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
 | `useMapEventInterval` | Poll a map-event ref at a fixed interval, callback-ref stable |
 | `useViewportBbox` | Tile-snapped viewport bbox from map events, stable-key dedup |
 
-See `docs/advanced/extending.md` and the `/ext-plan` skill for guidance on the three extension
+See `docs/advanced/extending.md` and the `ext-plan` skill for guidance on the three extension
 patterns: JS-only, TurboModule, and vtm-shadowing.  Companion types extension authors also need:
 `CreateFlags`, `RemoveFlags`, `MapHandleContextValue`, `LayerOrderRegistry` (all exported
 from `src/index.tsx`).

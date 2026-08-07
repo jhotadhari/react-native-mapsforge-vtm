@@ -1,18 +1,19 @@
 ---
 name: ext-plan
-description: This skill should be used when the user wants to create a new extension for react-native-mapsforge-vtm. Trigger phrases include "build an extension", "create a heatmap overlay", "extend the map", "I want to build a...", "create an extension for", "/ext-plan". Walks through architectural decisions (JS-only, TurboModule, or vtm-shadowing patterns) and generates a plan file plus scaffolded repo.
+description: This skill should be used when the user wants to create a new extension for react-native-mapsforge-vtm. Trigger phrases include "build an extension", "create a heatmap overlay", "extend the map", "I want to build a...", "create an extension for", "use ext-plan". Walks through architectural decisions (JS-only, TurboModule, or vtm-shadowing patterns) and generates a plan file plus scaffolded repo.
 ---
 
-# /ext-plan
+# ext-plan
 
-Interactive planning command for creating new `react-native-mapsforge-vtm` extensions.
-Walks through architectural decisions and generates a plan file plus scaffolded repo.
+This is an **OpenCode skill** (not a CLI command). Mention `ext-plan` in an OpenCode chat
+prompt to invoke it — for example: "use the ext-plan skill" or "I want to build an extension."
+The skill walks through architectural decisions and generates a plan file plus scaffolded repo.
 
 ## When to use
 
 Invoke when the user wants to create a new extension for `react-native-mapsforge-vtm`.
 Examples: "I want to build a heatmap overlay", "create an extension for animated markers",
-"/ext-plan".
+"use ext-plan".
 
 ## What it does
 

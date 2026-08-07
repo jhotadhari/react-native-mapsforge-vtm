@@ -1,11 +1,5 @@
 # Known Issues & Limitations
 
-<!--
-  Keep this page up to date as bugs are found and fixed.  Link to the
-  repo's TODO.md for implementation-tracked items and to the upstream
-  vtm issue tracker for dependency bugs.
--->
-
 ## Multiple MapContainer instances (vtm 0.28.0+)
 
 ### Symptom
@@ -52,57 +46,3 @@ The fix must happen inside vtm's rendering engine — the static fields in
 `MapRenderer` must become per-instance fields (or use a thread-safe
 per-context lookup).  This requires forking / patching
 [mapsforge/vtm](https://github.com/mapsforge/vtm) itself.
-
-Until then, a single `MapContainer` may be used with layer-based
-comparison (e.g. toggling between different `LayerMapsforge` /
-`LayerBitmapTile` configurations at runtime) to achieve a similar
-side-by-side effect without creating a second `MapView`.
-
-### Workaround: single-map comparison
-
-Instead of two `MapContainer`s:
-
-```
-MapContainer A            MapContainer B
-   LayerMapsforge A          LayerMapsforge B
-```
-
-Use one `MapContainer` with layers that can be toggled:
-
-```
-MapContainer
-   LayerMapsforge A    (visible={showA})
-   LayerMapsforge B    (visible={showB})
-```
-
-The `useMap()` sync API (e.g. `jumpTo`, `fitBounds`) is unaffected —
-the multi-map example's position-synchronisation logic is correct and
-will work once vtm supports multiple simultaneous contexts.
-
----
-
-## Pending vtm dependency upgrade
-
-The library currently pins `vtm`/`vtm-android`/`vtm-themes`/`vtm-jts`
-at version **0.29.0** (latest as of 2026-07).  See `TODO.md` for the
-remaining upgrade plan items.
-
----
-
-## Other known issues
-
-See `TODO.md` in the repository root for implementation-tracked bugs,
-including:
-
-- **Layer render order at scale** (item 0) — partially addressed by sentinel
-  mechanism + `order` prop on `<ReindexScope>` (branch
-  `fix/reindexscope-first-mount-ordering`). Shared-layer drawable UUID
-  resolution in `knownLayers` remains the remaining sub-issue
-- **Thread-safety during layer creation** (item 2) — `animateTo` now
-  dispatches to the UI thread, layer create/remove on native modules
-  thread
-- **Marker coordinate bugs** (item 4)
-
-The `TODO.md` file is the authoritative source for implementation bugs;
-this page only documents architectural limitations (like the multi-map
-issue) that cannot be fixed within the current dependency versions.
