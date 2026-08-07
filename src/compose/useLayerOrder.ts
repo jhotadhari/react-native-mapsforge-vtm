@@ -1,0 +1,366 @@
+/**
+ * External dependencies
+ */
+import { useContext, useEffect, useLayoutEffect, useRef } from 'react';
+
+/**
+ * Internal dependencies
+ */
+import MapHandleContext from '../context/MapHandleContext';
+import ReindexContext from '../context/ReindexContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+
+/**
+ * Registers a layer component into the shared, map-wide layer ordering registry, and keeps
+ * the native layer stack's order in sync with where this component sits in the render tree --
+ * across arbitrary nesting depth, and continuously across mount/unmount/reorder, not just at
+ * creation time. Returns the current nativeNodeHandle and this layer's positionIndex among
+ * all JS-managed layers, so callers can pass it to the native createLayer call for
+ * position-aware insertion (the native side inserts at that position immediately, eliminating
+ * the need for a follow-up reorderLayers pass).
+ */
+const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
+	const { nativeNodeHandle, registry } = useContext(MapHandleContext);
+	const sharedScopeId = useContext(SharedLayerContext);
+	const isGrouped = sharedScopeId !== null;
+	const reindexScopeId = useContext(ReindexContext);
+
+	const idRef = useRef<undefined | symbol>(undefined);
+	if (!idRef.current) {
+		idRef.current = Symbol();
+	}
+	const id = idRef.current;
+
+	// Always holds the latest nativeNodeHandle, so the unmount effect below can resync with an
+	// up to date value without having to re-run (and thus re-register) on every handle change.
+	const nativeNodeHandleRef = useRef(nativeNodeHandle);
+	nativeNodeHandleRef.current = nativeNodeHandle;
+
+	// Guard to skip redundant Map write when reindex scope hasn't changed.
+	const prevReindexScopeRef = useRef<symbol | null>(null);
+
+	// Track the generation to detect new full render passes. MapContainer bumps
+	// this on every one of its own renders, so a change means the entire subtree
+	// is rendering in document order and already-registered layers must be
+	// repositioned to match.
+	const lastGenerationRef = useRef<number>(registry.generation);
+	const generationChanged = lastGenerationRef.current !== registry.generation;
+	lastGenerationRef.current = registry.generation;
+
+	// Track per-scope generation to detect when the enclosing ReindexScope
+	// re-rendered without MapContainer re-rendering (e.g. Redux-triggered
+	// partial re-render). Scoped so only layers inside the changed scope
+	// reposition, not layers in unrelated scopes.
+	//
+	// M8 (scope-migration): lastScopeGenerationRef retains a generation
+	// number from a previous ReindexScope when a component moves between
+	// scopes without remounting. This would cause an incorrect generation
+	// comparison (false positive or false negative). In practice this is
+	// highly unlikely — components moving between scopes typically
+	// remount due to key changes, which resets lastScopeGenerationRef
+	// via useRef initialization. If a component ever moves between scopes
+	// WITHOUT remounting (e.g. via React's same-key reconciliation), the
+	// generation comparison here will be incorrect and the layer may be
+	// repositioned at a stale position or incorrectly skipped.
+	const lastScopeGenerationRef = useRef<number>(0);
+	let scopeGenerationChanged = false;
+	if (reindexScopeId !== null) {
+		const currentScopeGen =
+			registry.scopeGenerations.get(reindexScopeId) ?? 0;
+		scopeGenerationChanged =
+			lastScopeGenerationRef.current !== currentScopeGen;
+		lastScopeGenerationRef.current = currentScopeGen;
+	}
+
+	// Register during render: React calls component render functions in a deterministic
+	// depth-first, document-order sequence regardless of nesting depth. MapContainer resets
+	// registry.cursor to undefined at the start of every one of its own renders, so within any
+	// single coherent render pass (adding/removing/toggling a layer always re-renders its
+	// siblings too, since none of them are memoized), each not-yet-registered instance can
+	// insert itself right after whichever sibling rendered immediately before it — giving it
+	// the correct position even when it's a fresh remount, not just on first-ever mount.
+	// Already-registered instances are repositioned when the generation changed (full render
+	// pass) but never on a solo re-render (e.g. this component's own uuid resolving
+	// asynchronously), preserving the key invariant that a single layer's state change can
+	// never disturb sibling order.
+	const previousId = registry.cursor;
+	registry.cursor = id;
+	// Stamp this symbol with the current generation so repositioning
+	// can verify that the cursor chain between previousId and this
+	// position is intact (no symbols in the gap were skipped by useMemo).
+	registry.layerGenerations.set(id, registry.generation);
+	const isNew = !registry.order.includes(id);
+	if (isNew) {
+		let insertAtIndex: number;
+
+		// When inside a ReindexScope, prefer scope-aware positioning over
+		// the global cursor.  During partial re-renders (e.g. async data
+		// loading triggered by a Redux selector), the ReindexScope wrapper
+		// may not re-render, leaving registry.cursor stale.  We find the
+		// correct insertion point from the scope's most-recently-inserted
+		// sibling (O(1) via lastSymbolPerScope) or the scope's sentinel.
+		if (reindexScopeId !== null) {
+			let scopeInsertAfterIdx = -1;
+
+			// 1. Look for existing scope-tagged siblings via the
+			//    per-scope insertion pointer.  This is updated by every
+			//    useLayerOrder call inside the scope (see tag-with-scope
+			//    block below), so it always points to the most-recently-
+			//    rendered sibling in this scope.
+			const lastInScope = registry.lastSymbolPerScope.get(reindexScopeId);
+			if (lastInScope !== undefined) {
+				const idx = registry.order.indexOf(lastInScope);
+				if (idx !== -1) {
+					scopeInsertAfterIdx = idx;
+				}
+			}
+
+			// 2. No sibling found (first child, or stale pointer) — look
+			//    for the scope's sentinel placeholder.
+			if (scopeInsertAfterIdx === -1) {
+				for (let i = registry.order.length - 1; i >= 0; i--) {
+					const sym = registry.order[i]!;
+					if (
+						registry.sentinels.has(sym) &&
+						registry.sentinelScopes.get(sym) === reindexScopeId
+					) {
+						scopeInsertAfterIdx = i;
+						break;
+					}
+				}
+			}
+
+			if (scopeInsertAfterIdx >= 0) {
+				insertAtIndex = scopeInsertAfterIdx + 1;
+			} else {
+				// Fallback: this path should be unreachable in normal
+				// operation — a ReindexScope always pushes a sentinel
+				// when it has no children.  If we reach it, something
+				// is wrong with sentinel lifecycle management.
+				console.warn(
+					'[useLayerOrder] No scope anchor found — falling back to cursor-based insertion. ' +
+						'This may indicate a sentinel lifecycle bug.'
+				);
+				const previousIndex = previousId
+					? registry.order.indexOf(previousId)
+					: -1;
+				insertAtIndex =
+					previousIndex === -1
+						? registry.order.length
+						: previousIndex + 1;
+			}
+		} else {
+			const previousIndex = previousId
+				? registry.order.indexOf(previousId)
+				: -1;
+			insertAtIndex =
+				previousIndex === -1
+					? registry.order.length
+					: previousIndex + 1;
+		}
+
+		registry.order.splice(insertAtIndex, 0, id);
+	} else if (generationChanged || scopeGenerationChanged) {
+		// Full render pass: reposition already-registered layers to match the
+		// current document order. The cursor tells us which sibling rendered
+		// immediately before this one, so this layer should sit right after it.
+		const currentIndex = registry.order.indexOf(id);
+		// Defensive: if the id is somehow not in order despite isNew===false
+		// (e.g. Concurrent Mode discarded a partial render), treat as new
+		// registration instead of corrupting the array with splice(-1, 1).
+		if (currentIndex === -1) {
+			const previousIndex = previousId
+				? registry.order.indexOf(previousId)
+				: -1;
+			registry.order.splice(
+				previousIndex === -1
+					? registry.order.length
+					: previousIndex + 1,
+				0,
+				id
+			);
+		} else {
+			const expectedIndex =
+				previousId !== undefined
+					? registry.order.indexOf(previousId) + 1
+					: 0;
+			// When generation changed, verify the cursor chain is intact.
+			// If any symbol between previousId and the current position
+			// was not stamped in this render pass (e.g. useMemo prevented
+			// re-render), the cursor is stale and repositioning would
+			// corrupt the order. Skip the move — the symbol is already
+			// at its correct position from the last full render pass.
+			let chainIntact = true;
+			if (generationChanged && previousId !== undefined) {
+				const prevIdx = registry.order.indexOf(previousId);
+				if (prevIdx !== -1 && currentIndex > prevIdx + 1) {
+					for (let i = prevIdx + 1; i < currentIndex; i++) {
+						if (
+							registry.layerGenerations.get(
+								registry.order[i]!
+							) !== registry.generation
+						) {
+							chainIntact = false;
+							break;
+						}
+					}
+				}
+			}
+			if (chainIntact && currentIndex !== expectedIndex) {
+				registry.order.splice(currentIndex, 1);
+				registry.order.splice(
+					currentIndex < expectedIndex
+						? expectedIndex - 1
+						: expectedIndex,
+					0,
+					id
+				);
+				// The uuid-mapping useEffect won't re-fire on generation
+				// change (its deps don't include generation), so the native
+				// reorder would never be triggered. Schedule it here directly
+				// whenever a layer actually moved. The debounce coalesces
+				// multiple calls from sibling layers into one native call.
+				registry.scheduleSync(nativeNodeHandle);
+			}
+		}
+	}
+
+	// Store layer type for type-run boundary detection. For first-time renders,
+	// compute a fragment uuid eagerly so callers can use it immediately. On
+	// re-renders, just advance the cursor so subsequent siblings see the correct
+	// previous type.
+	//
+	// Inside a SharedLayer (sharedScopeId non-null): use the scope ID as the
+	// fragment UUID suffix, so all same-type children within a single SharedLayer
+	// wrapper share one native fragment, and sibling SharedLayers each get their
+	// own independent fragments.
+	//
+	// Outside SharedLayer (sharedScopeId null): use an incrementing per-type
+	// fragment index that advances on type-run boundaries (same as before).
+	if (layerType) {
+		if (isNew) {
+			registry.layerTypes.set(id, layerType);
+
+			if (isGrouped) {
+				// Inside SharedLayer: fragment UUID = __vtm_shared_<type>__<scopeId>
+				const fragmentUuid = `__vtm_shared_${layerType}__${sharedScopeId}`;
+				registry.fragmentUuids.set(id, fragmentUuid);
+			} else {
+				// Outside SharedLayer: use incrementing per-type fragment index.
+				// Consecutive same-type layers share a fragment (index doesn't
+				// change on type-match), alternating types get new fragments.
+				const cursorType = registry.cursorLayerType;
+				if (cursorType !== layerType) {
+					const currentIdx =
+						registry.fragmentIndices.get(layerType) ?? 0;
+					registry.fragmentIndices.set(layerType, currentIdx + 1);
+				}
+				const fragIdx = registry.fragmentIndices.get(layerType) ?? 1;
+				const fragmentUuid = `__vtm_shared_${layerType}__${fragIdx}`;
+				registry.fragmentUuids.set(id, fragmentUuid);
+			}
+		}
+		// Advance the cursor for non-grouped type-run detection only. Inside a
+		// SharedLayer, fragment assignment uses the scope ID as suffix (not
+		// fragment indices), so cursorLayerType is irrelevant — and advancing
+		// it would leak the type across the SharedLayer boundary, causing the
+		// next layer outside the wrapper to falsely see a type-match and skip
+		// the fragment index increment.
+		if (!isGrouped) {
+			registry.cursorLayerType = layerType;
+		}
+	}
+
+	// Tag with reindex scope so the containing ReindexScope can find this
+	// layer in registry.order during its Phase 1 / Phase 2 operations.
+	// Also advance the per-scope insertion pointer so sibling useLayerOrder
+	// calls can find this layer in O(1) instead of scanning registry.order.
+	// Runs every render, not just isNew, so the scope association stays
+	// current as long as this component is inside a ReindexScope.
+	if (reindexScopeId !== null) {
+		if (prevReindexScopeRef.current !== reindexScopeId) {
+			prevReindexScopeRef.current = reindexScopeId;
+			registry.layerReindexScopes.set(id, reindexScopeId);
+		}
+		registry.lastSymbolPerScope.set(reindexScopeId, id);
+		const currentScopeGen =
+			registry.scopeGenerations.get(reindexScopeId) ?? 0;
+		registry.layerScopeGenerations.set(id, currentScopeGen);
+	} else {
+		prevReindexScopeRef.current = null;
+		registry.layerReindexScopes.delete(id);
+	}
+
+	// Compute the current position index among JS-managed layers. This is called during
+	// render, so `order` already reflects the correct document-order position for this
+	// component, even if it was just registered above.
+	const positionIndex = registry.order.indexOf(id);
+
+	// Unregister exactly once, on actual unmount -- not on every uuid change.
+	// Uses useLayoutEffect so cleanup runs during commit (before ReindexScope's
+	// Phase 2 useLayoutEffect), preventing zombie symbols in Phase 2.
+	useLayoutEffect(() => {
+		return () => {
+			const index = registry.order.indexOf(id);
+			if (index !== -1) {
+				registry.order.splice(index, 1);
+			}
+			registry.uuids.delete(id);
+			registry.layerTypes.delete(id);
+			registry.fragmentUuids.delete(id);
+			registry.layerReindexScopes.delete(id);
+			// lastSymbolPerScope intentionally left as-is —
+			// stale entries are handled gracefully by the
+			// indexOf check in the insertion path, and the
+			// next sibling mount in this scope will overwrite
+			// the entry anyway.
+			registry.scheduleSync(nativeNodeHandleRef.current);
+			registry.notify();
+		};
+	}, [id, registry]);
+
+	// uuid resolves asynchronously after creation; keep the mapping (and a resync) up to date
+	// whenever it changes, including going back to null/false right before removal.
+	useEffect(() => {
+		if (uuid) {
+			registry.uuids.set(id, uuid);
+		} else {
+			registry.uuids.delete(id);
+			// If this layer has a fragmentUuid (inside SharedLayer or
+			// same-type run) but no native UUID yet, the shared native
+			// layer hasn't been created. Skip scheduleSync — including
+			// the fragment UUID in orderedUuids before the native layer
+			// exists would cause the first reorderLayers to silently drop
+			// it. Subsequent flushes with the same UUID list would then
+			// be skipped (unchanged && lastReorderWasEffective guard),
+			// permanently stranding the layer at the wrong z-index.
+			//
+			// This guard is intentionally redundant with flush()'s
+			// readyFragmentUuids check inside scheduleSync. It exists
+			// purely as an optimisation to prevent scheduling a no-op
+			// flush timer (and the resulting 16ms debounce cycle) when
+			// we already know the fragment's native layer doesn't exist.
+			// Do NOT remove this guard — the readyFragmentUuids check
+			// in flush() provides correctness (it filters fragment UUIDs
+			// at call time), while this guard provides efficiency (it
+			// avoids scheduling unnecessary timers).
+			const fragmentUuid = registry.fragmentUuids.get(id);
+			if (fragmentUuid) {
+				return;
+			}
+		}
+		registry.scheduleSync(nativeNodeHandle);
+		registry.notify();
+	}, [
+		id,
+		registry,
+		uuid,
+		nativeNodeHandle,
+	]);
+
+	const fragmentUuid = layerType ? registry.fragmentUuids.get(id) : undefined;
+
+	return { nativeNodeHandle, positionIndex, fragmentUuid };
+};
+
+export default useLayerOrder;

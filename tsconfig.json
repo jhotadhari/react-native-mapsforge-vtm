@@ -2,7 +2,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-mapsforge-vtm": ["./src/index"]
+      "react-native-mapsforge-vtm": ["./src/index"],
+      "react-native-mapsforge-vtm/reanimated": ["./src/reanimated/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
@@ -11,7 +12,7 @@
     "jsx": "react-jsx",
     "lib": ["ESNext"],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
@@ -24,6 +25,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
+    "types": ["jest", "node"],
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": [".yalc", "scripts", "lib", "example"]
 }

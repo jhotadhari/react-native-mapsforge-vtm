@@ -1,41 +1,300 @@
-/**
- * Internal dependencies
- */
 import MapContainer from './components/MapContainer';
-import LayerMapsforge from './components/LayerMapsforge';
-import LayerBitmapTile from './components/LayerBitmapTile';
-import LayerHillshading from './components/LayerHillshading';
-import LayerMBTilesBitmap from './components/LayerMBTilesBitmap';
-import LayerScalebar from './components/LayerScalebar';
-import LayerPath from './components/LayerPath';
-import LayerPathSlopeGradient from './components/LayerPathSlopeGradient';
+import type {
+	MapEventResponse,
+	MapContainerProps,
+	TapEventResponse,
+	LongPressEventResponse,
+	GnssFilterNativeProps,
+	GnssPosition,
+} from './NativeViews/MapsforgeVtmViewNativeComponent';
+
 import LayerMarker from './components/LayerMarker';
 import Marker from './components/Marker';
+import type {
+	LayerMarkerProps,
+	LayerMarkerTriggerEvent,
+	MarkerEvent,
+	MarkerProps,
+	MarkerResponse,
+	MarkerPaint,
+	MarkerTriggerParams,
+} from './NativeModules/NativeLayerMarker';
+
+import LayerBitmapTile from './components/LayerBitmapTile';
+import type { LayerBitmapTileProps } from './NativeModules/NativeLayerBitmapTile';
+
+import LayerPath from './components/LayerPath';
+import type {
+	Bbox,
+	PathPaint,
+	LayerPathGestureResponse,
+	LayerPathProps,
+	LayerPathResponse,
+	PathResponseInclude,
+	PathTriggerEvent,
+	PathTriggerParams,
+} from './NativeModules/NativeLayerPath';
+
+import LayerPathJts from './components/LayerPathJts';
+import type {
+	PathJtsPaint,
+	LayerPathJtsGestureResponse,
+	LayerPathJtsProps,
+	LayerPathJtsResponse,
+	PathJtsResponseInclude,
+	PathJtsTriggerEvent,
+	PathJtsTriggerParams,
+} from './NativeModules/NativeLayerPathJts';
+
+import LayerScalebar from './components/LayerScalebar';
+import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
+
+import LayerShape from './components/LayerShape';
+import type {
+	LayerShapeGestureResponse,
+	LayerShapeProps,
+	LayerShapeResponse,
+	ShapeDefinition,
+	ShapePaint,
+	ShapeTriggerEvent,
+	ShapeTriggerParams,
+} from './NativeModules/NativeLayerShape';
+
+import LayerMBTilesBitmap from './components/LayerMBTilesBitmap';
+import type {
+	LayerMBTilesBitmapResponse,
+	LayerMBTilesBitmapProps,
+} from './NativeModules/NativeLayerMBTilesBitmap';
+
+import LayerHillshading from './components/LayerHillshading';
+import type {
+	ShadingAlgorithm,
+	ShadingAlgorithmOptions,
+	LayerHillshadingProps,
+} from './NativeModules/NativeLayerHillshading';
+
+import LayerMapsforge from './components/LayerMapsforge';
+import type {
+	RenderStyleOverlay,
+	RenderStyleOption,
+	LayerMapsforgeResponse,
+	LayerMapsforgeProps,
+} from './NativeModules/NativeLayerMapsforge';
+
 import useRenderStyleOptions from './compose/useRenderStyleOptions';
-import usePromiseQueueState from './compose/usePromiseQueueState';
-import useMapEvents from './compose/useMapEvents';
-import useMapLayersCreated from './compose/useMapLayersCreated';
-import promiseQueue from './promiseQueue';
-// import * as utils from './utils';
+import useMap from './compose/useMap';
+import type {
+	EasingType,
+	MapPositionTarget,
+	AnimationOptions,
+	FitBoundsOptions,
+	GetPositionResponse,
+	DebugLayerDump,
+	FragmentSummaryEntry,
+	RegistryDebugSnapshot,
+	RegistryLayerEntry,
+} from './compose/useMap';
+import { enrichCoordinatesWithElevation } from './enrichCoordinates';
+import type {
+	ElevationAPI,
+	EnrichCoordinatesOptions,
+} from './enrichCoordinates';
+import {
+	clampLat,
+	latLngToMercator,
+	mercatorToLatLng,
+	wrapLngDelta,
+	wrapMxDelta,
+	toScreenPosition as geoToScreenPosition,
+	fromScreenPosition as screenToGeoPosition,
+	computeViewportBbox,
+	lngLatToTile,
+	tileToBbox,
+	snapBboxToTiles,
+} from './mercatorMath';
+import type { MercatorMathOptions, ViewportBbox } from './mercatorMath';
+import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
+import type { ErrorWithErrorMsg } from './types';
+import SharedLayer from './components/SharedLayer';
+import ReindexScope from './components/ReindexScope';
+import type { ReindexScopeProps } from './components/ReindexScope';
+import { useLayerDebugInfo } from './debug/useLayerDebugInfo';
+import type {
+	LayerDebugEntry,
+	LayerDebugInfo,
+} from './debug/useLayerDebugInfo';
+import LayerDebugTree from './debug/LayerDebugTree';
+import type { LayerDebugTreeProps } from './debug/LayerDebugTree';
+
+// Extension points — stable hooks/contexts that extension libraries
+// (e.g. react-native-mapsforge-vtm-ext-grib) use to create custom layer types.
+import MapHandleContext, {
+	createLayerOrderRegistry,
+	type LayerOrderRegistry,
+	type MapHandleContextValue,
+} from './context/MapHandleContext';
+import useLayerOrder from './compose/useLayerOrder';
+import {
+	createMapHandle,
+	createMapHandleRegistry,
+} from './compose/createMapHandle';
+import type { MapHandleRegistry } from './compose/createMapHandle';
+import { useMapEventInterval } from './compose/useMapEventInterval';
+import { useViewportBbox } from './compose/useViewportBbox';
+import useNativeLayerLifecycle, {
+	type CreateFlags,
+	type RemoveFlags,
+} from './compose/useNativeLayerLifecycle';
 
 export {
+	// MapContainer and MapsforgeVtmViewNativeComponent.
 	MapContainer,
-	LayerMapsforge,
-	LayerBitmapTile,
-	LayerHillshading,
-	LayerMBTilesBitmap,
-	LayerScalebar,
-	LayerPath,
-	LayerPathSlopeGradient,
+	type MapEventResponse,
+	type MapContainerProps,
+	type TapEventResponse,
+	type LongPressEventResponse,
+
+	// LayerMarker, Marker and NativeLayerMarker.
 	LayerMarker,
 	Marker,
-	useRenderStyleOptions,
-	usePromiseQueueState,
-	useMapEvents,
-	useMapLayersCreated,
-	promiseQueue,
-	// utils,
-};
-export * from './nativeMapModules';
-export type * from './types';
+	type MarkerResponse,
+	type LayerMarkerTriggerEvent,
+	type MarkerEvent,
+	type MarkerTriggerParams as TriggerParams,
+	type MarkerPaint,
+	type LayerMarkerProps,
+	type MarkerProps,
 
+	// LayerBitmapTile and NativeLayerBitmapTile.
+	LayerBitmapTile,
+	type LayerBitmapTileProps,
+
+	// LayerPath and NativeLayerPath.
+	LayerPath,
+	type PathResponseInclude,
+	type PathPaint,
+	type PathTriggerEvent,
+	type PathTriggerParams,
+	type Bbox,
+	type LayerPathResponse,
+	type LayerPathGestureResponse,
+	type LayerPathProps,
+
+	// LayerPathJts and NativeLayerPathJts.
+	LayerPathJts,
+	type PathJtsResponseInclude,
+	type PathJtsPaint,
+	type PathJtsTriggerEvent,
+	type PathJtsTriggerParams,
+	type LayerPathJtsResponse,
+	type LayerPathJtsGestureResponse,
+	type LayerPathJtsProps,
+
+	// LayerScalebar and NativeLayerScalebar.
+	LayerScalebar,
+	type LayerScalebarProps,
+
+	// LayerShape and NativeLayerShape.
+	LayerShape,
+	type ShapePaint,
+	type ShapeDefinition,
+	type ShapeTriggerEvent,
+	type ShapeTriggerParams,
+	type LayerShapeResponse,
+	type LayerShapeGestureResponse,
+	type LayerShapeProps,
+
+	// LayerMBTilesBitmap and NativeLayerMBTilesBitmap.
+	LayerMBTilesBitmap,
+	type LayerMBTilesBitmapResponse,
+	type LayerMBTilesBitmapProps,
+
+	// LayerHillshading and NativeLayerHillshading.
+	LayerHillshading,
+	type ShadingAlgorithm,
+	type ShadingAlgorithmOptions,
+	type LayerHillshadingProps,
+
+	// LayerMapsforge and NativeLayerMapsforge.
+	LayerMapsforge,
+	type RenderStyleOverlay,
+	type RenderStyleOption,
+	type LayerMapsforgeResponse,
+	type LayerMapsforgeProps,
+
+	// useMap, createMapHandle, and MapHandleRegistry.
+	useMap,
+	createMapHandle,
+	createMapHandleRegistry,
+	type MapHandleRegistry,
+	type EasingType,
+	type MapPositionTarget,
+	type AnimationOptions,
+	type FitBoundsOptions,
+	type GetPositionResponse,
+	type DebugLayerDump,
+	type FragmentSummaryEntry,
+	type RegistryDebugSnapshot,
+	type RegistryLayerEntry,
+
+	// Elevation enrichment.
+	enrichCoordinatesWithElevation,
+	type ElevationAPI,
+	type EnrichCoordinatesOptions,
+
+	// Mercator / tile math (non-worklet — for worklet versions see
+	// react-native-mapsforge-vtm/reanimated).
+	clampLat,
+	latLngToMercator,
+	mercatorToLatLng,
+	wrapLngDelta,
+	wrapMxDelta,
+	geoToScreenPosition,
+	screenToGeoPosition,
+	computeViewportBbox,
+	lngLatToTile,
+	tileToBbox,
+	snapBboxToTiles,
+	type MercatorMathOptions,
+	type ViewportBbox,
+
+	// GNSS track-recording filter types.
+	type GnssFilterNativeProps,
+	type GnssPosition,
+	// Public convenience types re-exported from the native spec.
+	// AltitudeSource is the string union accepted by GnssFilterOptions.altitude.source.
+	// GnssFilterOptions is the user-facing config (matches GnssFilterNativeProps shape).
+
+	// Other
+	useRenderStyleOptions,
+	CanvasAdapterModule,
+	SharedLayer,
+	ReindexScope,
+	type ReindexScopeProps,
+	type ErrorWithErrorMsg,
+
+	// Debug tools
+	useLayerDebugInfo,
+	LayerDebugTree,
+	type LayerDebugEntry,
+	type LayerDebugInfo,
+	type LayerDebugTreeProps,
+
+	// Extension points for external layer-type libraries
+	// (e.g. react-native-mapsforge-vtm-ext-grib).
+	MapHandleContext,
+	createLayerOrderRegistry,
+	type LayerOrderRegistry,
+	type MapHandleContextValue,
+	useLayerOrder,
+	useNativeLayerLifecycle,
+	type CreateFlags,
+	type RemoveFlags,
+	useMapEventInterval,
+	useViewportBbox,
+};
+
+// Shared path response type — union of both PathResponseInclude variants.
+export type ResponseInclude = PathResponseInclude | PathJtsResponseInclude;
+
+export type * from './types';

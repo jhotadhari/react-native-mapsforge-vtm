@@ -55,7 +55,7 @@ yarn test
 
 ### Linting and tests
 
-We use [TypeScript](https://www.typescriptlang.org/) for type checking and in future [Jest](https://jestjs.io/) for testing.
+We use [TypeScript](https://www.typescriptlang.org/) for type checking and [Jest](https://jestjs.io/) for testing.
 
 ### Publishing to npm
 
@@ -64,7 +64,7 @@ We use a script to publish new versions. It handles common tasks like bumping ve
 To publish new versions, run the following:
 
 ```sh
-yarn run publish <version> && npm publish
+yarn run release <version>
 ```
 
 ### Scripts
@@ -74,7 +74,9 @@ The `package.json` file contains various scripts for common tasks:
 - `yarn`: setup project by installing dependencies.
 - `yarn typecheck`: type-check files with TypeScript.
 - `yarn lint`: lint files with ESLint.
+- `yarn format`: format files with Prettier.
 - `yarn test`: run unit tests with Jest.
+- `yarn clean`: remove build artifacts.
 - `yarn example start`: start the Metro server for the example app.
 - `yarn example android`: run the example app on Android.
 
@@ -85,6 +87,7 @@ The `package.json` file contains various scripts for common tasks:
 When you're sending a pull request:
 
 - The development branch is called `development`. This should be the pull request base.
+- The `main` branch contains only versioned releases. Do not open pull requests against `main`.
 - Prefer small pull requests focused on one change.
 - Verify that linters and tests are passing.
 - Review the documentation to make sure it looks good.

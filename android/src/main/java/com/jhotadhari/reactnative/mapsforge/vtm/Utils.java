@@ -1,18 +1,35 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.UriPermission;
+import android.content.res.Resources;
+import android.net.Uri;
+import android.util.DisplayMetrics;
 
 import androidx.annotation.Nullable;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.FragmentActivity;
 
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.modules.core.DeviceEventManagerModule;
-import com.jhotadhari.reactnative.mapsforge.vtm.react.views.MapFragment;
+import com.facebook.react.bridge.WritableNativeArray;
+import com.facebook.react.bridge.WritableNativeMap;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.MapsforgeVtmView;
+
+import org.mapsforge.map.android.hills.DemFolderAndroidContent;
+import org.mapsforge.map.layer.hills.DemFolder;
+import org.mapsforge.map.layer.hills.DemFolderFS;
 
 import org.oscim.android.MapView;
+import org.oscim.android.cache.TileCache;
+import org.oscim.tiling.ITileCache;
 
 import java.io.File;
 import java.lang.reflect.Array;
@@ -23,43 +40,67 @@ import java.text.Normalizer;
 import java.util.List;
 
 public class Utils {
+	public static MapFragment getMapFragment( ReactContext reactContext, int nativeNodeHandle ) {
+		// Check the explicit registry first — this is populated synchronously
+		// by MapsforgeVtmView.createFragment() before the FragmentManager
+		// transaction commits, which makes multi-map setups reliable: layer
+		// creation on a second map can find its fragment immediately without
+		// racing the async commit.
+		MapFragment registered = MapsforgeVtmView.getFragment( nativeNodeHandle );
+		if ( registered != null ) {
+			return registered;
+		}
+		// Fallback: FragmentManager lookup (backward compat, single-map).
+		try {
+			FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
+			if ( null == activity ) {
+				return null;
+			}
+			return (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) nativeNodeHandle );
+		} catch(Exception e) {
+			return null;
+		}
+	}
 
-    public static MapFragment getMapFragment(ReactContext reactContext, int nativeNodeHandle ) {
-        try {
-            FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
-            if ( null == activity ) {
-                return null;
-            }
-            MapFragment mapFragment = (MapFragment) activity.getSupportFragmentManager().findFragmentById( (int) nativeNodeHandle );
-            return mapFragment;
-        } catch(Exception e) {
-            return null;
-        }
-    }
+	public static MapView getMapView( ReactContext reactContext, int nativeNodeHandle ) {
+		try {
+			MapFragment mapFragment = getMapFragment( reactContext, nativeNodeHandle );
+			if ( null == mapFragment ) {
+				return null;
+			}
+			return (MapView) mapFragment.getMapView();
+		} catch(Exception e) {
+			return null;
+		}
+	}
 
-    public static MapView getMapView(ReactContext reactContext, int nativeNodeHandle ) {
-        try {
-            MapFragment mapFragment = getMapFragment( reactContext, nativeNodeHandle );
-            if ( null == mapFragment ) {
-                return null;
-            }
-            MapView mapView = (MapView) mapFragment.getMapView();
-            return mapView;
-        } catch(Exception e) {
-            return null;
-        }
-    }
+	/**
+	 * This method converts dp unit to equivalent pixels, depending on device density.
+	 * Source https://gist.github.com/brandhill/9c947a3e2881dff66bd3
+	 *
+	 * @param dp A value in dp (density independent pixels) unit. Which we need to convert into pixels
+	 * @param context Context to get resources and device specific display metrics
+	 * @return A float value to represent px equivalent to dp depending on device density
+	 */
+	public static float convertDpToPixel(float dp, Context context){
+		Resources resources = context.getResources();
+		DisplayMetrics metrics = resources.getDisplayMetrics();
+		return dp * (metrics.densityDpi / 160f);
+	}
 
-//    public static double convertPixelsToDp(ReactContext reactContext, double pixels) {
-//        double screenPixelDensity = reactContext.getApplicationContext().getResources().getDisplayMetrics().density;
-//        return pixels / screenPixelDensity;
-//    }
-
-    public static void sendEvent( ReactContext reactContext, String eventName, @Nullable WritableMap params ) {
-        reactContext.getJSModule(
-                DeviceEventManagerModule.RCTDeviceEventEmitter.class
-        ).emit( eventName, params );
-    }
+	/**
+	 * This method converts device specific pixels to density independent pixels.
+	 * Source https://gist.github.com/brandhill/9c947a3e2881dff66bd3
+	 *
+	 * @param px A value in px (pixels) unit. Which we need to convert into db
+	 * @param context Context to get resources and device specific display metrics
+	 * @return A float value to represent dp equivalent to px value
+	 */
+	public static float convertPixelsToDp(float px, Context context){
+		Resources resources = context.getResources();
+		DisplayMetrics metrics = resources.getDisplayMetrics();
+		return px / (metrics.densityDpi / 160f);
+	}
 
 	public static boolean hasScopedStoragePermission( Context context, String string, boolean checkWritePermission ) {
 		// list of all persisted permissions for our app
@@ -111,6 +152,137 @@ public class Utils {
 		return null == cacheDirParent
 			? context.getCacheDir()
 			: cacheDirParent;
+	}
+
+	/**
+	 * Shared by LayerHillshading and LayerMBTilesBitmap, the only two layers that support an
+	 * on-disk tile cache. vtm requires the cache to be set on a TileSource before that source is
+	 * attached to a TileLayer.
+	 *
+	 * @param activity      Current Activity, needed by vtm's TileCache constructor. Null is a real,
+	 *                      reachable case (e.g. an Activity recreation/destruction race) -- callers
+	 *                      already catch exceptions generically and reject the promise with the
+	 *                      message, so this throws rather than silently skipping the cache or NPEing
+	 *                      inside TileCache's own constructor.
+	 * @param cacheSize     Cache size in mb. 0 or less disables caching (returns null).
+	 * @param cacheDirBase  Empty string is handled by getCacheDirParent.
+	 * @param cacheDirChild Empty string falls back to dbname.
+	 * @param dbname        Unique name for this cache's contents (e.g. derived from the algorithm/
+	 *                      params for hillshading, or the source file for MBTiles).
+	 * @return ITileCache to pass to TileSource.setCache(), or null if cacheSize <= 0.
+	 */
+	public static ITileCache buildTileCache(
+		Activity activity,
+		ReactApplicationContext reactContext,
+		int cacheSize,
+		String cacheDirBase,
+		String cacheDirChild,
+		String dbname
+	) {
+		if ( cacheSize <= 0 ) {
+			return null;
+		}
+		if ( null == activity ) {
+			throw new IllegalStateException( "Unable to set up tile cache: no current Activity" );
+		}
+		File cacheDirParent = getCacheDirParent( cacheDirBase, reactContext );
+		String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
+		File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
+		ITileCache tileCache = new TileCache( activity, cacheDirectory.toString(), dbname );
+		tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+		return tileCache;
+	}
+
+	/**
+	 * Rejects the given promise with an error. If WritableNativeMap (JNI-backed)
+	 * is unavailable (e.g., in test environments), falls back to a simpler reject.
+	 */
+	public static void promiseReject( Promise promise, String errorMsg ) {
+		try {
+			WritableMap error = new WritableNativeMap();
+			error.putString( "errorMsg", errorMsg != null ? errorMsg : "Unknown error" );
+			promise.reject( "error", error );
+		} catch ( Throwable t ) {
+			// Graceful fallback when WritableNativeMap is unavailable
+			// (e.g., in Robolectric tests without native library support).
+			promise.reject( "error", errorMsg != null ? errorMsg : "Unknown error" );
+		}
+	}
+
+	/**
+	 * Check if the map has an entry for this key that is not null.
+	 *
+	 * @param args	ReadableMap or WritableMap
+	 * @param key	The key to check for
+	 * @return boolean
+	 */
+	public static boolean rMapHasKey( ReadableMap args, String key ) {
+		return args.hasKey( key ) && ! args.isNull( key );
+	}
+
+	/**
+	 * Build a geojson style `Position`, ie `[ lng, lat, alt? ]`.
+	 *
+	 * @param lng	Longitude
+	 * @param lat	Latitude
+	 * @param alt	Altitude. Omitted from the array when null.
+	 * @return WritableArray
+	 */
+	public static WritableArray positionToWritableArray( double lng, double lat, Double alt ) {
+		WritableArray position = new WritableNativeArray();
+		position.pushDouble( lng );
+		position.pushDouble( lat );
+		if ( null != alt ) {
+			position.pushDouble( alt );
+		}
+		return position;
+	}
+
+	public static double lngFromPosition( ReadableArray position ) {
+		return position.getDouble( 0 );
+	}
+
+	public static double latFromPosition( ReadableArray position ) {
+		return position.getDouble( 1 );
+	}
+
+	@Nullable
+	public static Double altFromPosition( ReadableArray position ) {
+		return position.size() > 2 ? position.getDouble( 2 ) : null;
+	}
+
+	/**
+	 * Constructs a DemFolder from a path string. Handles both absolute filesystem
+	 * paths ({@code /sdcard/...}) and Android content URIs ({@code content://...}).
+	 *
+	 * Shared by MapContainer (altitude queries) and LayerHillshading (visual shading).
+	 *
+	 * @return the DemFolder, or {@code null} if the path is invalid, doesn't exist,
+	 *         or lacks read permissions.
+	 */
+	@Nullable
+	public static DemFolder buildDemFolder( String hgtDirPath, Context context ) {
+		if ( hgtDirPath == null || hgtDirPath.isEmpty() ) {
+			return null;
+		}
+		if ( hgtDirPath.startsWith( "content://" ) ) {
+			Uri uri = Uri.parse( hgtDirPath );
+			DocumentFile dir = DocumentFile.fromSingleUri( context, uri );
+			if ( dir != null && dir.exists() && dir.isDirectory() ) {
+				if ( hasScopedStoragePermission( context, hgtDirPath, false ) ) {
+					return new DemFolderAndroidContent( uri, context, context.getContentResolver() );
+				}
+			}
+			return null;
+		}
+		if ( hgtDirPath.startsWith( "/" ) ) {
+			File demFolderFile = new File( hgtDirPath );
+			if ( demFolderFile.exists() && demFolderFile.isDirectory() && demFolderFile.canRead() ) {
+				return new DemFolderFS( demFolderFile );
+			}
+			return null;
+		}
+		return null;
 	}
 
 }

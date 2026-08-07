@@ -1,245 +1,155 @@
 # react-native-mapsforge-vtm
 
-React Native components to build vector maps using [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). Offline rendering of OpenStreetMap data. Android only
+React Native components for offline vector maps, built on [mapsforge/vtm](https://github.com/mapsforge/vtm).
+Renders OpenStreetMap data from `.map` files, online raster tiles, MBTiles, hillshading from DEM data,
+and geometric overlays — all without a network connection (except tile/bitmap layers).
 
-**Just some ideas in early development state. Do not use this for production!** ... Well, you can use it, but things are changing!
+**Android only** · **React Native New Architecture (Fabric + TurboModules)** · **RN ≥ 0.80.0**
 
 ## Roadmap
 
-Some things will change sometime soonish:
+**[ROADMAP.md](./ROADMAP.md)** — Upcoming work prioritizes better markers.
 
-- Marker improvements: clustering and support for drag and drop.
-- Changing the `LayerPathSlopeGradient` props, to be able to control the order of simplification and smoothing, and to apply those steps multiple times.
-- Changing the `LayerPathSlopeGradient` component to support gradients as well for speed, elevation or any kind of data.
-- Maybe merging the path components: `LayerPathSlopeGradient` and `LayerPath`.
-- Gesture events for `MapContainer`.
-- New components for geometry like polygons and circles.
-- New component `LayerGroup`.
-- ...
+## Requirements
+
+- **React Native ≥ 0.80.0** with the **New Architecture** enabled. The library ships
+  pre-generated native code that requires `target_compile_reactnative_options` (introduced in
+  React Native 0.80.0).
+- **Android only** — `ios/generated` codegen stubs exist so the New Architecture build
+  doesn't fail, but there is no real iOS implementation.
+- `newArchEnabled=true` in your app's `gradle.properties`.
+
+## Quick Example
+
+```tsx
+import {
+  MapContainer,
+  LayerBitmapTile,
+  LayerScalebar,
+} from 'react-native-mapsforge-vtm';
+
+const App = () => (
+  <MapContainer
+    center={[-77.6, -9.1]}
+    zoomLevel={12}
+    width={400}
+    height={600}
+  >
+    <LayerBitmapTile
+      url="https://tile.openstreetmap.org/{Z}/{X}/{Y}.png"
+      zoomMax={18}
+    />
+    <LayerScalebar />
+  </MapContainer>
+);
+```
+
+**[Full documentation →](./docs/README.md)** — API reference covering components, hooks,
+utilities, debug tools, and advanced topics.
 
 ## Installation
 
 ```sh
-# using npm
-npm install react-native-mapsforge-vtm
-
-# OR using Yarn
 yarn add react-native-mapsforge-vtm
-
 ```
 
-## Usage
+See the **[Installation Guide](./docs/getting-started/installation.md)** for prerequisites,
+Android setup, and build configuration.
 
-```js
-import React, {
-  useEffect,
-  useState,
-} from 'react';
-import {
-  useWindowDimensions,
-  SafeAreaView,
-  ToastAndroid,
-} from 'react-native';
-import {
-  MapContainer,
-  LayerMapsforge,
-  LayerBitmapTile,
-  LayerMBTilesBitmap,
-  LayerHillshading,
-  LayerPathSlopeGradient,
-  LayerScalebar,
-  LayerMarker,
-  Marker,
-  useRenderStyleOptions,
-} from 'react-native-mapsforge-vtm';
+## Examples
 
-const App = () => {
+The example app includes **runnable examples** across several categories:
 
-  const { width, height } = useWindowDimensions();
+| Category | Examples |
+|---|---|
+| **layers** | basic, mapsforge, mbtiles-bitmap, hillshading, canvas-adapter, layer-shapes, coastlines, path-jts, markers |
+| **mapControls** | pan-zoom, fit-bounds, fly-ease, viewport-orientation, trigger, multi-map, reanimated-overlay |
+| **gestures** | tap-events, layer-order-verification, many-layers, many-shapes, mixed-grouping, shared-layer-grouping, elevation-enrichment |
+| **api** | mercator-math, viewport-bbox, map-handle-registry, gnss-track-recording |
 
-  const [mapViewNativeNodeHandle, setMapViewNativeNodeHandle] = useState( null );     // To lift the mapViewNativeNodeHandle state into the app
+To run the example app:
 
-  const [renderOverlayOptions, setRenderOverlayOptions] = useState( [] );
-
-  const [renderOverlays, setRenderOverlays] = useState( [] );
-
-  const [renderThemeOptions,setRenderThemeOptions] = useState( [
-    ...[LayerMapsforge.BUILT_IN_THEMES].map( value => ( {
-      label: value,
-      value: value,
-    } ) ),
-
-    { label: 'Custom', value: '/storage/emulated/0/...' },  // Absolute path to xml render theme. Doesn't work with content uri.
-  ] );
-
-  const renderTheme = renderThemeOptions[renderThemeOptions.length-1];
-
-  const {
-    renderStyleDefaultId,
-    renderStyleOptions,
-  } = useRenderStyleOptions( ( {
-    renderTheme,
-    nativeNodeHandle: mapViewNativeNodeHandle,
-  } ) );
-
-  const [renderStyle, setRenderStyle] = useState( renderStyleDefaultId );
-
-  useEffect( () => {
-    if ( ! renderStyle && renderStyleDefaultId ) {
-      setRenderStyle( renderStyleDefaultId );
-    }
-
-    if ( ! renderOverlayOptions.length ) {
-      const renderStyleOptions_ = renderStyleOptions.find( opt => opt.value === renderStyle );
-      if ( undefined !== renderStyleOptions_ ) {
-        const newItems = Object.keys( renderStyleOptions_.options ).map( value => {
-          return {
-            value,
-            label: renderStyleOptions_.options[value],
-          };
-        } );
-        setRenderOverlayOptions( newItems );
-      }
-    }
-  }, [renderStyle, renderStyleDefaultId] );
-
-  return <SafeAreaView>
-
-    <MapContainer
-      nativeNodeHandle={ mapViewNativeNodeHandle /* Not possible to control this prop, it's just to lift the state up */ }
-      setNativeNodeHandle={ setMapViewNativeNodeHandle }
-      height={ height }
-      width={ width /* defaults to full width */ }
-      center={ {
-        lng: -70.239,
-        lat: -10.65,
-      } }
-      zoomLevel={ 12 }
-      zoomMin={ 2 }
-      zoomMax={ 20 }
-      moveEnabled={ true }
-      tiltEnabled={ false }
-      rotationEnabled={ false }
-      zoomEnabled={ true }
-      hgtDirPath={ '/storage/emulated/0/...' /* If you need altitude data of map center in MapEvents. Absolute path or content uri to dem directory. Bad performance with content uri */ }
-      responseInclude={ { center: 2, zoomLevel: 2 } }
-      onPause={ response => console.log( 'lifecycle event', response ) }
-      onResume={ response => console.log( 'lifecycle event', response ) }
-      onMapEvent={ response => console.log( 'map move event', response ) }
-    >
-
-      <LayerBitmapTile
-        url={ 'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png' }
-        cacheSize={ 10 * 1024 * 1024 }
-      />
-
-      <LayerMapsforge
-        mapFile={ mapFile /* Absolute path or content uri to map file */ }
-        renderTheme={ renderTheme }
-        renderStyle={ renderStyle }
-        renderOverlays={ renderOverlays }
-      />
-
-      <LayerMBTilesBitmap
-        mapFile={ '/storage/emulated/0/...' /* Absolute path to bitmap mbtiles file. Doesn't work with content uri. */ }
-      />
-
-      <LayerHillshading
-        hgtDirPath={ '/storage/emulated/0/...' /* Absolute path or content uri to dem directory. Bad performance with content uri */ }
-        cacheSize={ 512 }
-        zoomMin={ 2 }
-        zoomMax={ 20 }
-        shadingAlgorithm={ LayerHillshading.shadingAlgorithms.SIMPLE }
-        magnitude={ 90 }
-        shadingAlgorithmOptions={ {
-            linearity: -1,
-            scale: 1,
-        } }
-      />
-
-      <LayerPathSlopeGradient
-        responseInclude={ {
-          coordinates: 1,             // include in response only on create.
-          coordinatesSimplified: 2,   // include in response on create and on change.
-        } }
-        onCreate={ response => console.log( 'response', response ) }
-        onRemove={ response => console.log( 'response', response ) }
-        onChange={ response => console.log( 'response', response ) }
-        slopeSimplificationTolerance={ 7 }
-        flattenWindowSize={ 9 }
-        strokeWidth={ 5 }
-        slopeColors={ [
-          [-25, '#000a70'],
-          [-10, '#0000ff'],
-          [-5, '#01c2ff'],
-          [0, '#35fd2d'],
-          [5, '#f9ff00'],
-          [10, '#ff0000'],
-          [25, '#810500'],
-        ] }
-        // positions={ [
-        //     { lng: -76.813, lat: -11.813, alt: 4309 }
-        //     // ...
-        // ] }
-        filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to gpx file */ }
-      />
-
-      <LayerMarker>
-        <Marker
-          position={ lng: -76.813, lat: -11.813 }
-          onPress={ response => {
-            ToastAndroid.show( 'Marker pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
-          } }
-          symbol={ {
-            height: 100,
-            textMargin: 20,
-            textPositionY: 0,
-            textStrokeWidth: 3,
-            filePath={ '/storage/emulated/0/...' /* Absolute path or content uri to raster image or svg file */ }
-            hotspotPlace: 'BOTTOM_CENTER',
-            text: 'hello',
-          } }
-        />
-        <Marker
-          position={ lng: -75.814, lat: -12.274 }
-          onLongPress={ response => {
-            ToastAndroid.show( 'Marker long pressed. index: ' + response.index + ' uuid: ' + response.uuid, ToastAndroid.SHORT );
-          } }
-          symbol={ {
-            width: 80,
-            height: 80,
-            textMargin: 20,
-            textStrokeWidth: 3,
-            textPositionY: 7,
-            strokeColor: '#ff0000',
-            fillColor: '#eeeeee',
-            strokeWidth: 5,
-            hotspotPlace: 'CENTER',
-            text: 'hello',
-          } }
-        />
-      </LayerMarker>
-
-      <LayerScalebar/>
-
-    </MapContainer>
-
-  </SafeAreaView>;
-};
-
+```sh
+yarn install
+yarn example start      # start Metro (keep running in a separate terminal)
+yarn example android    # build & run on device/emulator
 ```
 
-### Where to get maps?
+## Where to get maps
 
-Vector maps in mapsforge V5 format and xml render styles [https://www.openandromaps.org/en/downloads](https://www.openandromaps.org/en/downloads).
+- Vector maps (mapsforge V5 `.map`): [openandromaps.org](https://www.openandromaps.org/en/downloads)
+- Raster overview maps (MBTiles): [openandromaps.org — general maps](https://www.openandromaps.org/en/downloads/general-maps)
+- Digital elevation models (`.hgt` at 3 arc-second): [viewfinderpanoramas.org](https://viewfinderpanoramas.org/dem3.html)
 
-Raster overview maps in MBtiles format [https://www.openandromaps.org/en/downloads/general-maps](https://www.openandromaps.org/en/downloads/general-maps).
+## Components
 
-Digital elevation Models, elevation data in hgt format at 3 arc second resolution [https://viewfinderpanoramas.org/dem3.html](https://viewfinderpanoramas.org/Coverage%20map%20viewfinderpanoramas_org3.htm)
+| Component | Description |
+|---|---|
+| [`MapContainer`](./docs/components/map-container.md) | Root map view (Fabric component) |
+| [`LayerMapsforge`](./docs/components/layer-mapsforge.md) | Offline vector maps from `.map` files |
+| [`LayerBitmapTile`](./docs/components/layer-bitmap-tile.md) | Online raster tiles (OSM, custom) |
+| [`LayerMBTilesBitmap`](./docs/components/layer-mbtiles-bitmap.md) | Offline raster from MBTiles |
+| [`LayerHillshading`](./docs/components/layer-hillshading.md) | Shaded relief from DEM (`.hgt`) data |
+| [`LayerPath`](./docs/components/layer-path.md) | Shared-layer paths for bulk rendering (50–1000+) |
+| [`LayerPathJts`](./docs/components/layer-path-jts.md) | Dedicated paths with JTS features and guaranteed z-order |
+| [`LayerShape`](./docs/components/layer-shape.md) | Geometric shapes (polygons, circles, rectangles, etc.) |
+| [`LayerScalebar`](./docs/components/layer-scalebar.md) | Map scale bar |
+| [`LayerMarker` / `Marker`](./docs/components/layer-marker.md) | Marker container + individual markers |
+| [`SharedLayer`](./docs/components/shared-layer.md) | Collapse same-type children into shared native layer fragments |
+| [`ReindexScope`](./docs/components/reindex-scope.md) | Signal layer reorder to the native stack |
 
-## Contribution
+## Hooks
 
-Contributions welcome. You can report [issues or suggest features](https://github.com/jhotadhari/react-native-mapsforge-vtm/issues). Help me coding, [fork the repository and make pull requests](./CONTRIBUTING.md).
+| Hook | Description |
+|---|---|
+| [`useMap()`](./docs/hooks/use-map.md) | Imperative map control (pan, zoom, animate, fly, fitBounds, altitude/elevation queries) |
+| [`useMapEventInterval()`](./docs/hooks/use-map-event-interval.md) | Poll map events at a fixed interval |
+| [`useViewportBbox()`](./docs/hooks/use-viewport-bbox.md) | Tile-snapped viewport bounding box with dedup |
+| [`useRenderStyleOptions()`](./docs/hooks/use-render-style-options.md) | Read render-theme style menu options |
+
+## Reanimated
+
+Import from `react-native-mapsforge-vtm/reanimated` for worklet-based map utilities. Requires
+`react-native-reanimated >= 3.0.0` (optional peer dependency).
+
+| Export | Description |
+|---|---|
+| [`useMapPosition()`](./docs/advanced/performance.md#map-position-consumption-patterns) | Reanimated shared values for map center, zoom, bearing, tilt — zero bridge crossings with native bridge activated |
+| [`useMapOverlay()`](./docs/advanced/performance.md) | Worklet-based overlay positioning (lat/lng → screen coordinates) |
+| `toScreenPosition()` / `fromScreenPosition()` | Mercator ↔ screen coordinate conversion callable from worklets |
+
+See **[Performance](./docs/advanced/performance.md#map-position-consumption-patterns)** for the
+four-tier consumption pattern guide and native bridge activation setup.
+
+## Utilities
+
+| Export | Description |
+|---|---|
+| [`enrichCoordinatesWithElevation()`](./docs/api/enrich-coordinates.md) | Batch-enrich coordinate arrays with SRTM elevation data |
+| [`createMapHandle()` / `createMapHandleRegistry()`](./docs/api/create-map-handle.md) | Non-React imperative map control factories (for Redux thunks, services, etc.) |
+| [Mercator math](./docs/api/mercator-math.md) | Non-worklet projection, tile, and screen-coordinate utilities |
+| [GNSS filter](./docs/api/gnss.md) | Native GNSS track-recording with DEM altitude resolution |
+| [`CanvasAdapterModule`](./docs/api/canvas-adapter-module.md) | Global text/line/symbol scale configuration |
+
+## Debug tools
+
+| Tool | Description |
+|---|---|
+| [`useLayerDebugInfo()`](./docs/debug/use-layer-debug-info.md) | Live layer-tree introspection hook |
+| [`LayerDebugTree`](./docs/debug/layer-debug-tree.md) | Visual debug overlay component |
+
+## Resources
+
+- **[Documentation](./docs/README.md)** — Full API reference, guides, and advanced topics
+- **[Extending the library](./docs/advanced/extending.md)** — Build custom layer-type extensions (JS-only, TurboModule, or vtm-shadowing). Use the "ext-plan" OpenCode skill to scaffold new extensions.
+- **[Performance](./docs/advanced/performance.md)** — Scaling guidance, map position consumption patterns, and reanimated native bridge setup
+- **[Naming conventions and terminology](./docs/NAMING_TERMINOLOGY.md)** — Inclusive language conventions used in this project
+- **[Known Issues](./docs/advanced/known-issues.md)** — Current bugs, limitations, and workarounds
+
+## Contributing
+
+Contributions welcome. Report [issues or suggest features](https://github.com/jhotadhari/react-native-mapsforge-vtm/issues),
+or [fork the repository and make pull requests](./CONTRIBUTING.md).
 
 [![liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/jhotadhari/donate)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H3162PAG)
@@ -248,27 +158,46 @@ Contributions welcome. You can report [issues or suggest features](https://githu
 
 MIT
 
-## Apps using `react-native-mapsforge-vtm`
+## Apps using react-native-mapsforge-vtm
 
-- The example app, included in the [repository](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example)
-- [straymap](https://github.com/jhotadhari/straymap)
+This library was built as part of **[straymap](https://github.com/jhotadhari/straymap)**
+and later extracted as a standalone, reusable package so anyone can pick it up
+and use it in their own projects.
+
+Another running app is the [example app](https://github.com/jhotadhari/react-native-mapsforge-vtm/tree/main/example), included in this repository.
+
+## Working extensions
+
+- [`react-native-mapsforge-vtm-ext-path-color-ramp`](https://github.com/jhotadhari/react-native-mapsforge-vtm-ext-path-color-ramp) — Color-ramp path rendering via vtm-shadowing
 
 ## Credits
 
-- It's just a wrapper with limited features around [Mapsforges fork of vtm](https://github.com/mapsforge/vtm). **All credits to mapsforge and vtm!!!**
-- Dependencies of [vtm](https://github.com/mapsforge/vtm):
-[AndroidSVG](https://bigbadaboom.github.io/androidsvg/);
-[Simple Logging Facade for Java](https://www.slf4j.org/);
-[OkHttp](https://square.github.io/okhttp/);
-[Okio](https://github.com/square/okio);
-[Protocol Buffers - Google's data interchange format](https://github.com/protocolbuffers/protobuf);
-[MapBox Vector Tile - Java](https://github.com/wdtinc/mapbox-vector-tile-java)
-- [JTS Topology Suite](https://github.com/locationtech/jts)
-- To retrieve the elevation for certain coordinates, most code is copied from [mapsforge](https://github.com/mapsforge/mapsforge) and [JOSM-Elevation-Plugin by Harald Hetzner](https://github.com/hhtznr/JOSM-Elevation-Plugin) and [Java OpenStreetMap Editor - Plugins - ElevationProfile by Oliver Wieland](https://github.com/JOSM/josm-plugins/tree/master/ElevationProfile)
-- [Android GPX Parser](https://github.com/ticofab/android-gpx-parser)
-- [Simplification of a 2D-polyline or a 3D-polyline](https://github.com/hgoebl/simplify-java/)
-- For smoothing data: [Savitzky–Golay filter in Java](https://github.com/vaccovecrana/savitzky-golay)
-- Always helpful: [Lodash](https://lodash.com)
-- To help limiting the amount of data that flows through the bottleneck between react and java: [queue-promise](https://www.npmjs.com/package/queue-promise)
-- [Keep a Changelog](https://www.npmjs.com/package/keep-a-changelog) helps maintaining a [CHANGELOG.md](https://github.com/jhotadhari/react-native-mapsforge-vtm/blob/main/CHANGELOG.md).
-- Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)
+This library is a React Native wrapper around [mapsforge/vtm](https://github.com/mapsforge/vtm).
+**All credit for the map rendering engine goes to the mapsforge and vtm projects.**
+
+### Runtime dependencies
+
+**JavaScript** (bundled with the library):
+- [lodash-es](https://lodash.com) — tree-shakeable utility functions
+
+**Native (Android)** — bundled via Gradle:
+- [vtm](https://github.com/mapsforge/vtm) (0.29.0) — the rendering engine, plus
+  `vtm-android`, `vtm-themes`, `vtm-jts`, `vtm-http`, `vtm-mvt`, `vtm-android-mvt`,
+  and `vtm-hillshading`
+- [mapsforge](https://github.com/mapsforge/mapsforge) (0.29.0) — map file reader (`mapsforge-core`,
+  `mapsforge-map`, `mapsforge-map-android`)
+- [JTS Topology Suite](https://github.com/locationtech/jts) (`jts-core:1.20.0`) —
+  geometry engine for path and shape layers
+- [AndroidSVG](https://bigbadaboom.github.io/androidsvg/) — SVG rendering for vtm
+- [OkHttp](https://square.github.io/okhttp/) / [Okio](https://github.com/square/okio) —
+  HTTP client for online tile layers
+- [Protocol Buffers](https://github.com/protocolbuffers/protobuf) (protobuf-java 3.x) —
+  MVT/vector tile decoding
+- [Mapbox Vector Tile — Java](https://github.com/wdtinc/mapbox-vector-tile-java) —
+  MVT tile parsing
+
+### Dev dependencies
+
+- [react-native-builder-bob](https://github.com/callstack/react-native-builder-bob) —
+  build tooling (codegen, module bundling, type generation)
+- [keep-a-changelog](https://www.npmjs.com/package/keep-a-changelog) — CHANGELOG.md maintenance

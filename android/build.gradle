@@ -1,39 +1,25 @@
 buildscript {
-  // Buildscript is evaluated before everything else so we can't use getExtOrDefault
-  def kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : project.properties["MapsforgeVtm_kotlinVersion"]
+  ext.getExtOrDefault = {name ->
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['MapsforgeVtm_' + name]
+  }
 
   repositories {
     google()
     mavenCentral()
-    maven { url 'https://jitpack.io' }
   }
 
   dependencies {
-    classpath "com.android.tools.build:gradle:8.7.1"
+    classpath "com.android.tools.build:gradle:8.12.0"
     // noinspection DifferentKotlinGradleVersion
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion')}"
   }
 }
 
-def reactNativeArchitectures() {
-  def value = rootProject.getProperties().get("reactNativeArchitectures")
-  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
-}
-
-def isNewArchitectureEnabled() {
-  return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
-}
 
 apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
 
-if (isNewArchitectureEnabled()) {
-  apply plugin: "com.facebook.react"
-}
-
-def getExtOrDefault(name) {
-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["MapsforgeVtm_" + name]
-}
+apply plugin: "com.facebook.react"
 
 def getExtOrIntegerDefault(name) {
   return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["MapsforgeVtm_" + name]).toInteger()
@@ -64,7 +50,10 @@ android {
   defaultConfig {
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
     targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+  }
 
+  buildFeatures {
+    buildConfig true
   }
 
   buildTypes {
@@ -81,6 +70,24 @@ android {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
   }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+      all {
+        jvmArgs '-Djava.awt.headless=true'
+      }
+    }
+  }
+
+  sourceSets {
+    main {
+      java.srcDirs += [
+        "generated/java",
+        "generated/jni"
+      ]
+    }
+  }
 }
 
 repositories {
@@ -91,79 +98,59 @@ repositories {
 def kotlin_version = getExtOrDefault("kotlinVersion")
 
 dependencies {
-  // For < 0.71, this will be from the local maven repo
-  // For > 0.71, this will be replaced by `com.facebook.react:react-android:$version` by react gradle plugin
-  //noinspection GradleDynamicVersion
-  implementation "com.facebook.react:react-native:+"
+  implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
-	// gpx parser https://github.com/ticofab/android-gpx-parser
-	implementation 'com.github.ticofab:android-gpx-parser:2.3.1'
+  // vtm https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
+  implementation 'com.github.mapsforge.vtm:vtm:0.29.0'
+  implementation 'com.github.mapsforge.vtm:vtm-themes:0.29.0'
+  implementation 'androidx.documentfile:documentfile:1.1.0'
 
-	// simplify-java - Simplification of a 2D-polyline or a 3D-polyline
-	implementation 'com.goebl:simplify:1.0.0'
-
-	// savitzky–golay filter - smoothing data
-	implementation("io.vacco.savitzky-golay:savitzky-golay:1.0.1")
-
-	// vtm https://github.com/mapsforge/vtm/blob/master/docs/Integration.md
-	implementation 'com.github.mapsforge.vtm:vtm:0.25.0'
-	implementation 'com.github.mapsforge.vtm:vtm-themes:0.25.0'
-	implementation 'androidx.documentfile:documentfile:1.0.1'
-
-	// vtm Android
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.25.0:natives-armeabi-v7a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.25.0:natives-arm64-v8a'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.25.0:natives-x86'
-	runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.25.0:natives-x86_64'
-	implementation 'com.github.mapsforge.vtm:vtm-android:0.25.0'
-	implementation 'com.caverock:androidsvg:1.4'
+  // vtm Android
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-armeabi-v7a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-arm64-v8a'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86'
+  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86_64'
+  implementation 'com.github.mapsforge.vtm:vtm-android:0.29.0'
+  implementation 'com.caverock:androidsvg:1.4'
 
 //	// vtm Android (libGDX)
-//	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.25.0'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.25.0:natives-armeabi-v7a'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.25.0:natives-arm64-v8a'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.25.0:natives-x86'
-//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.25.0:natives-x86_64'
-//	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.25.0'
+//	implementation 'com.github.mapsforge.vtm:vtm-gdx:0.29.0'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-armeabi-v7a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-arm64-v8a'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-x86'
+//	runtimeOnly 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0:natives-x86_64'
+//	implementation 'com.github.mapsforge.vtm:vtm-android-gdx:0.29.0'
 //	implementation 'com.badlogicgames.gdx:gdx:1.11.0'
 //	implementation 'com.badlogicgames.gdx:gdx-backend-android:1.11.0'
 
-	// vtm JTS overlays
-	implementation 'com.github.mapsforge.vtm:vtm-jts:0.25.0'
-	implementation 'org.locationtech.jts:jts-core:1.20.0'
-	// vtm Online tiles
-	implementation 'com.github.mapsforge.vtm:vtm-http:0.25.0'
-	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-	implementation 'com.squareup.okio:okio:3.6.0'
-	// vtm MBTiles
-	implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.25.0'
-	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.25.0'
-	implementation 'com.google.protobuf:protobuf-java:3.24.2'
-	implementation 'io.github.ci-cmg:mapbox-vector-tile:4.0.6'
-	// vtm Hillshading
-	implementation 'com.github.mapsforge.vtm:vtm-hillshading:0.25.0'
-	implementation 'org.mapsforge:mapsforge-core:0.24.1'
-	implementation 'org.mapsforge:mapsforge-map:0.24.1'
-	implementation 'org.mapsforge:mapsforge-map-android:0.24.1'
+  // vtm JTS overlays
+  implementation 'com.github.mapsforge.vtm:vtm-jts:0.29.0'
+  implementation 'org.locationtech.jts:jts-core:1.20.0'
+  // vtm Online tiles
+  implementation 'com.github.mapsforge.vtm:vtm-http:0.29.0'
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+  implementation 'com.squareup.okio:okio:3.12.0'
+  // vtm MBTiles
+  implementation 'com.github.mapsforge.vtm:vtm-android-mvt:0.29.0'
+  implementation 'com.github.mapsforge.vtm:vtm-mvt:0.29.0'
+  implementation 'com.google.protobuf:protobuf-java:3.25.8'
+  implementation 'io.github.ci-cmg:mapbox-vector-tile:4.0.6'
+  // vtm Hillshading
+  implementation 'com.github.mapsforge.vtm:vtm-hillshading:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-core:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-map:0.29.0'
+  implementation 'com.github.mapsforge.mapsforge:mapsforge-map-android:0.29.0'
 
-
-//	// vtm Mapbox vector tiles
-//	implementation 'com.github.mapsforge.vtm:vtm-mvt:0.25.0'
-//	implementation 'com.google.protobuf:protobuf-java:3.6.1'
-//	implementation 'com.wdtinc:mapbox-vector-tile:3.1.0'
-//	// https://github.com/locationtech/jts/issues/145
-//	implementation 'org.locationtech.jts:jts-core:1.15.1'
-//	// vtm GeoJSON vector tiles
-//	implementation 'com.github.mapsforge.vtm:vtm-json:0.25.0'
-//	implementation 'com.fasterxml.jackson.core:jackson-annotations:2.9.9'
-//	implementation 'com.fasterxml.jackson.core:jackson-core:2.9.9'
-//	implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
-//	// vtm jeo (indoor maps)
-//	implementation 'com.github.mapsforge.vtm:vtm-jeo:0.25.0'
-//	implementation('com.github.jeo.jeo:jeo-carto:master-SNAPSHOT') {
-//		exclude group: 'org.slf4j', module: 'slf4j-jdk14'
-//	}
+  // Test dependencies
+  testImplementation "junit:junit:4.13.2"
+  testImplementation "org.robolectric:robolectric:4.14.1"
+  testImplementation "org.mockito:mockito-core:5.8.0"
 
 }
 
+react {
+  jsRootDir = file("../src/")
+  libraryName = "MapsforgeVtmView"
+  codegenJavaPackageName = "com.jhotadhari.reactnative.mapsforge.vtm"
+}
