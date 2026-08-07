@@ -20,7 +20,7 @@ const MapInfo: FC<{
 	if (!open) {
 		return (
 			<Pressable
-				style={[styles.toggle, { zIndex: 11 }]}
+				style={styles.toggle}
 				onPress={() => setOpen(true)}
 			>
 				<Text style={styles.toggleText}>{'ℹ️ Info'}</Text>
@@ -29,7 +29,7 @@ const MapInfo: FC<{
 	}
 
 	return (
-		<View style={[sharedStyles.info, { zIndex: 11 }]}>
+		<View style={styles.infoContainer}>
 			<View style={styles.header}>
 				<Text style={styles.toggleText}>{'Info'}</Text>
 				<Pressable onPress={() => setOpen(false)}>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
 		position: 'absolute',
 		bottom: 12,
 		right: 12,
-		zIndex: 9,
+		zIndex: 11,
 		backgroundColor: '#000000',
 		paddingVertical: 8,
 		paddingHorizontal: 12,
@@ -127,6 +127,15 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		padding: 12,
+	},
+	infoContainer: {
+		position: 'absolute',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		top: 0,
+		zIndex: 11,
+		backgroundColor: 'rgba(0, 0, 0, 0.9)',
 	},
 });
 
