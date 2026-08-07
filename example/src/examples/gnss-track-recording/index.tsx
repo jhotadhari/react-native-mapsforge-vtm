@@ -102,7 +102,7 @@ const Controls: FC<{
 				</ControlRow>
 				{permError && (
 					<ControlRow>
-						<Text style={[sharedStyles.text, { color: '#ff6666' }]}>
+						<Text style={[sharedStyles.text, styles.permError]}>
 							{permError}
 						</Text>
 					</ControlRow>
@@ -313,6 +313,9 @@ const styles = StyleSheet.create({
 		fontSize: 10,
 		color: '#aaa',
 		lineHeight: 14,
+	},
+	permError: {
+		color: '#ff6666',
 	},
 });
 

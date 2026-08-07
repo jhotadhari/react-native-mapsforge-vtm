@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { type FC } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LayerDebugTree, useLayerDebugInfo } from 'react-native-mapsforge-vtm';
 
 /**
@@ -38,28 +38,9 @@ const LayerDebugOverlay: FC = () => {
 	return (
 		<View
 			pointerEvents="box-none"
-			style={{
-				position: 'absolute',
-				bottom: 0,
-				left: 0,
-				right: 0,
-				zIndex: 10,
-				height: LAYER_DEBUG_OVERLAY_HEIGHT,
-				backgroundColor: 'rgba(0,0,0,0.85)',
-				paddingHorizontal: 10,
-				paddingVertical: 4,
-				borderTopWidth: 1,
-				borderTopColor: '#333333',
-			}}
+			style={styles.container}
 		>
-			<View
-				style={{
-					flexDirection: 'row',
-					flexWrap: 'wrap',
-					gap: 12,
-					marginBottom: 4,
-				}}
-			>
+			<View style={styles.row}>
 				<Text style={sharedStyles.text}>JS: {info.layerCount}</Text>
 				<Text style={sharedStyles.text}>
 					Native: {info.estimatedNativeLayerCount}
@@ -72,5 +53,27 @@ const LayerDebugOverlay: FC = () => {
 		</View>
 	);
 };
+
+const styles = StyleSheet.create({
+	container: {
+		position: 'absolute',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		zIndex: 10,
+		height: LAYER_DEBUG_OVERLAY_HEIGHT,
+		backgroundColor: 'rgba(0,0,0,0.85)',
+		paddingHorizontal: 10,
+		paddingVertical: 4,
+		borderTopWidth: 1,
+		borderTopColor: '#333333',
+	},
+	row: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 12,
+		marginBottom: 4,
+	},
+});
 
 export default LayerDebugOverlay;

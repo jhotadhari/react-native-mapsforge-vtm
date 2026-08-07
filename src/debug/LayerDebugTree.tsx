@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
 		fontWeight: '700',
 		paddingHorizontal: 3,
 		paddingVertical: 1,
+		borderWidth: 1,
 		borderRadius: 3,
 		overflow: 'hidden',
 		marginRight: 4,
@@ -139,10 +140,10 @@ const TypeBadge: FC<{ layerType: string | null }> = ({ layerType }) => {
 		<Text
 			style={[
 				styles.badge,
+
 				{
 					color,
 					backgroundColor: color + '22',
-					borderWidth: 1,
 					borderColor: color + '44',
 				},
 			]}
