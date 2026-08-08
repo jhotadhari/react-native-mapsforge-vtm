@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] - 2026-08-08
+
+### Removed
+
+- **`LineBucket.java` + `RenderBuckets.java`** — redundant source copies
+  that duplicated classes already present in the vtm 0.29.0 JAR. They were
+  added as a workaround for a claimed "D8 drops them" behavior that was
+  actually a stale-build artifact. On clean builds (verified with a wiped
+  Gradle cache) the JAR's classes reach the APK correctly without the
+  source copies. Removing them eliminates the duplicate-class potential
+  for apps that use the library without an extension.
+
+### Fixed
+
+- **`strip-vtm-classes.gradle` — JAR paths captured too early on CI.** On a
+  fresh Gradle cache (CI), the vtm JAR hasn't been downloaded yet during
+  Gradle's configuration phase (`projectsEvaluated`), so the cache walk
+  returned an empty set and the strip task skipped patching. The unpatched
+  JAR's `LineBucket`/`RenderBuckets` then collided with the extension's
+  shadowed copies at DEX merge (`Type X is defined multiple times`). The
+  fix moves JAR resolution into the task's `doFirst` using a **detached
+  configuration** that forces the download at execution time, after
+  dependency resolution is complete.
+- **`strip-vtm-classes.gradle` — hardcoded vtm version.** The script no
+  longer hardcodes `0.29.0`. It auto-detects the version from the core
+  library's declared dependencies. Warns if an extension's `compileOnly`
+  vtm version differs from the library's `implementation` version.
+- **`strip-vtm-classes.gradle` — broken `buildFinished` JAR restoration.**
+  The post-build JAR restore handler now reads the lazily-resolved paths
+  and is guarded against the task being skipped (no shadowed classes).
+
 ## [0.8.0] - 2026-08-07
 
 This release is a complete rewrite of the library against the **React Native New Architecture**
@@ -354,6 +385,7 @@ Just updated README.md
 
 First bumpy version
 
+[0.8.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.3...v0.6.0

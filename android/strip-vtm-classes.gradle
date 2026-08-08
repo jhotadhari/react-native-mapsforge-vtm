@@ -143,28 +143,85 @@ appProject.gradle.projectsEvaluated {
         dollarPrefixes.add(basePath + '\$')
     }
 
-    // ── Resolve vtm JARs ─────────────────────────────────────────────────
-    // Walk the Gradle dependency cache instead of resolving AGP variant-aware
-    // configurations (which fail from standalone tasks).
+    // ── Detect vtm version from the core library's declared dependencies ─
+    // We read dep.version from the declared dependencies (configuration
+    // phase — no resolution needed).  This avoids hardcoding the vtm version
+    // in this script.  Fallback: scan the Gradle modules cache for vtm-*.jar.
 
-    def vtmJarPaths = [] as Set
-    def cacheBase = new File(appProject.gradle.gradleUserHomeDir,
-        'caches/modules-2/files-2.1/com.github.mapsforge.vtm/vtm/0.29.0')
-    if (cacheBase.exists()) {
-        cacheBase.eachFileRecurse { f ->
-            if (f.name == 'vtm-0.29.0.jar') vtmJarPaths.add(f.absolutePath)
+    def coreLibProject = rootProject.allprojects.find {
+        it.name == 'react-native-mapsforge-vtm'
+    }
+
+    def vtmGroup = 'com.github.mapsforge.vtm'
+    def vtmName = 'vtm'
+    def vtmVersion = null
+
+    // Scan all projects' declared dependencies for the vtm artifact.
+    // The core library uses `implementation`, extensions use `compileOnly`.
+    // We collect per-project versions so we can warn on mismatches.
+    def vtmVersionsByProject = [:]
+    rootProject.allprojects.each { proj ->
+        try {
+            proj.configurations.each { cfg ->
+                if (!cfg.canBeResolved) return
+                cfg.dependencies.each { dep ->
+                    if (dep.group == vtmGroup && dep.name == vtmName && dep.version) {
+                        if (!vtmVersionsByProject.containsKey(proj.name)) {
+                            vtmVersionsByProject[proj.name] = dep.version
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Some configurations may not be fully configured yet — ignore.
         }
     }
-    // Also scan transform caches (v4 = AGP 8.x)
-    [4, 3].each { ver ->
-        def td = new File(appProject.gradle.gradleUserHomeDir, "caches/transforms-${ver}")
-        if (td.exists()) {
-            td.eachFileRecurse { f ->
-                if (f.name == 'vtm-0.29.0.jar') vtmJarPaths.add(f.absolutePath)
+
+    if (!vtmVersionsByProject.isEmpty()) {
+        // Use the first detected version as the canonical one.
+        vtmVersion = vtmVersionsByProject.values().iterator().next()
+        logger.lifecycle('[strip-vtm] Detected vtm version: {} (from: {})',
+            vtmVersion, vtmVersionsByProject.keySet())
+
+        // ── Warn on version mismatches across projects ───────────────────
+        def uniqueVersions = vtmVersionsByProject.values().toSet()
+        if (uniqueVersions.size() > 1) {
+            logger.warn('[strip-vtm] WARNING: vtm version mismatch across projects:')
+            vtmVersionsByProject.each { projName, ver ->
+                logger.warn('[strip-vtm]   {} → vtm:{}', projName, ver)
+            }
+            logger.warn('[strip-vtm]   The extension\'s compileOnly vtm version should match ' +
+                'the core library\'s implementation version to avoid runtime errors.')
+        }
+    }
+
+    if (!vtmVersion) {
+        // Fallback: scan the Gradle modules cache for any vtm-*.jar.
+        logger.lifecycle('[strip-vtm] vtm version not found in declared dependencies — scanning cache...')
+        def cacheBase = new File(appProject.gradle.gradleUserHomeDir,
+            "caches/modules-2/files-2.1/${vtmGroup}/${vtmName}")
+        if (cacheBase.exists()) {
+            cacheBase.eachDir { verDir ->
+                if (verDir.name ==~ /\d+\.\d+\.\d+/) {
+                    vtmVersion = verDir.name
+                }
             }
         }
+        if (vtmVersion) {
+            logger.lifecycle('[strip-vtm] Detected vtm version from cache: {}', vtmVersion)
+        }
     }
-    logger.lifecycle('[strip-vtm] vtm JAR paths: {}', vtmJarPaths)
+
+    if (!vtmVersion) {
+        System.err.println('[strip-vtm] Could not determine vtm version — skipping JAR strip')
+        return
+    }
+
+    // ── Shared mutable holder for lazily-resolved JAR paths ───────────────
+    // Populated by doFirst (execution phase, after dependency resolution),
+    // read by doLast (patching) and buildFinished (restoration).
+
+    def resolvedJarPaths = [] as Set
 
     // ── Create the stripping task ─────────────────────────────────────────
 
@@ -174,15 +231,51 @@ appProject.gradle.projectsEvaluated {
 
         inputs.property('exactEntries', exactEntries)
         inputs.property('dollarPrefixes', dollarPrefixes)
-        inputs.property('jarPaths', vtmJarPaths as List)
 
         doFirst {
+            // ── Lazily resolve vtm JAR paths at execution time ────────────
+            // Use a detached configuration to force the download and get
+            // the exact JAR file path.  This works even on a fresh CI
+            // runner where the Gradle cache is empty at configuration time.
+
+            resolvedJarPaths.clear()
+
+            try {
+                def vtmDep = appProject.dependencies.create(
+                    "${vtmGroup}:${vtmName}:${vtmVersion}")
+                def vtmConfig = appProject.configurations.detachedConfiguration(vtmDep)
+                vtmConfig.files.each { f ->
+                    resolvedJarPaths.add(f.absolutePath)
+                }
+                logger.lifecycle('[strip-vtm] Resolved vtm JAR via detached config: {}',
+                    resolvedJarPaths)
+            } catch (Exception e) {
+                logger.warn('[strip-vtm] Detached config resolution failed: {}', e.message)
+            }
+
+            // Also scan transform caches (v4 = AGP 8.x) for transformed copies.
+            def vtmJarName = "vtm-${vtmVersion}.jar"
+            [4, 3].each { ver ->
+                def td = new File(appProject.gradle.gradleUserHomeDir,
+                    "caches/transforms-${ver}")
+                if (td.exists()) {
+                    td.eachFileRecurse { f ->
+                        if (f.name == vtmJarName) {
+                            resolvedJarPaths.add(f.absolutePath)
+                        }
+                    }
+                }
+            }
+
+            if (resolvedJarPaths.isEmpty()) {
+                logger.lifecycle('[strip-vtm] No vtm JARs found — skipping')
+                return
+            }
+
             // ── Crash recovery: restore any .orig backups left by a
             // previous build that crashed mid-strip ─────────────────
-            def jars = (inputs.properties['jarPaths'] as List).collect {
-                new File(it as String)
-            }
-            jars.each { jar ->
+            resolvedJarPaths.each { jarPath ->
+                def jar = new File(jarPath as String)
                 def backupFile = new File(jar.parentFile, jar.name + '.orig')
                 if (backupFile.exists()) {
                     logger.lifecycle('[strip-vtm] Restoring original JAR from .orig (crash recovery): {}', jar.name)
@@ -194,7 +287,7 @@ appProject.gradle.projectsEvaluated {
         }
 
         doLast {
-            def jars = (inputs.properties['jarPaths'] as List).collect {
+            def jars = resolvedJarPaths.collect {
                 new File(it as String)
             }.findAll { it.exists() }
 
@@ -318,7 +411,8 @@ appProject.gradle.projectsEvaluated {
     // ── Restore the vtm JAR after the build completes (success or
     // failure) so the shared Gradle cache is never left broken ─────
     appProject.gradle.buildFinished {
-        def jars = vtmJarPaths.collect { new File(it as String) }
+        if (resolvedJarPaths.isEmpty()) return
+        def jars = resolvedJarPaths.collect { new File(it as String) }
         jars.each { jar ->
             def backupFile = new File(jar.parentFile, jar.name + '.orig')
             if (backupFile.exists()) {
@@ -351,11 +445,6 @@ appProject.gradle.projectsEvaluated {
     // contains the shadowed classes.  The per-class .dex files in
     // .transforms/.../bundleLibRuntimeToDir*_dex/ are also cleaned so stale
     // transform caches can't resurrect them.
-
-    // Identify the core library project (react-native-mapsforge-vtm).
-    def coreLibProject = rootProject.allprojects.find {
-        it.name == 'react-native-mapsforge-vtm'
-    }
 
     // ── Exclude shadowed source files from core library compilation ─────
     // Uses Gradle's SourceDirectorySet.exclude() rather than deleting files
@@ -538,6 +627,8 @@ appProject.gradle.projectsEvaluated {
 
     // ── Wire into the build lifecycle ─────────────────────────────────────
     // Strip from vtm JARs before preBuild (JARs are read early).
+    // The detached configuration in doFirst forces the JAR download,
+    // so early execution is no longer a timing problem.
 
     appProject.tasks.named('preBuild') { preBuild ->
         preBuild.dependsOn stripTask
