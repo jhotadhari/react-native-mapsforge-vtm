@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.1] - 2026-08-08
+
+### Removed
+
+- **`LineBucket.java` + `RenderBuckets.java`** — redundant source copies
+  that duplicated classes already present in the vtm 0.29.0 JAR. They were
+  added as a workaround for a claimed "D8 drops them" behavior that was
+  actually a stale-build artifact. On clean builds (verified with a wiped
+  Gradle cache) the JAR's classes reach the APK correctly without the
+  source copies. Removing them eliminates the duplicate-class potential
+  for apps that use the library without an extension.
 
 ### Fixed
 
@@ -25,16 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`strip-vtm-classes.gradle` — broken `buildFinished` JAR restoration.**
   The post-build JAR restore handler now reads the lazily-resolved paths
   and is guarded against the task being skipped (no shadowed classes).
-
-### Removed
-
-- **`LineBucket.java` + `RenderBuckets.java`** — redundant source copies
-  that duplicated classes already present in the vtm 0.29.0 JAR. They were
-  added as a workaround for a claimed "D8 drops them" behavior that was
-  actually a stale-build artifact. On clean builds (verified with a wiped
-  Gradle cache) the JAR's classes reach the APK correctly without the
-  source copies. Removing them eliminates the duplicate-class potential
-  for apps that use the library without an extension.
 
 ## [0.8.0] - 2026-08-07
 
@@ -385,7 +385,7 @@ Just updated README.md
 
 First bumpy version
 
-[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...HEAD
+[0.8.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.5.3...v0.6.0
