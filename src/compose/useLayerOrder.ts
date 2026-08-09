@@ -326,15 +326,6 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			registry.uuids.set(id, uuid);
 		} else {
 			registry.uuids.delete(id);
-			// If this layer has a fragmentUuid (inside SharedLayer or
-			// same-type run) but no native UUID yet, the shared native
-			// layer hasn't been created. Skip scheduleSync — including
-			// the fragment UUID in orderedUuids before the native layer
-			// exists would cause the first reorderLayers to silently drop
-			// it. Subsequent flushes with the same UUID list would then
-			// be skipped (unchanged && lastReorderWasEffective guard),
-			// permanently stranding the layer at the wrong z-index.
-			//
 			// This guard is intentionally redundant with flush()'s
 			// readyFragmentUuids check inside scheduleSync. It exists
 			// purely as an optimisation to prevent scheduling a no-op
@@ -344,8 +335,14 @@ const useLayerOrder = (uuid: null | false | string, layerType?: string) => {
 			// in flush() provides correctness (it filters fragment UUIDs
 			// at call time), while this guard provides efficiency (it
 			// avoids scheduling unnecessary timers).
+			//
+			// Exception: when nativeDirtyCount > 0 (a createLayer or
+			// removeLayer call resolved since the last applied reorder),
+			// allow scheduleSync through even with an unresolved fragment
+			// UUID — the flush needs to run so the unchanged guard can
+			// evaluate the dirty flag and potentially force a reorder.
 			const fragmentUuid = registry.fragmentUuids.get(id);
-			if (fragmentUuid) {
+			if (fragmentUuid && registry.nativeDirtyCount === 0) {
 				return;
 			}
 		}

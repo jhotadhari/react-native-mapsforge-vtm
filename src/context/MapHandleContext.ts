@@ -77,6 +77,18 @@ export type LayerOrderRegistry = {
 	// destroyed to prevent stale nativeNodeHandle calls that would produce
 	// cosmetic console errors (reportNativeError) after teardown.
 	destroy: () => void;
+	// Counter incremented by markNativeDirty() after every native
+	// createLayer / removeLayer resolution.  flush() uses this to force
+	// a reorderLayers call even when orderedUuids is unchanged from the
+	// last applied list.  flush() snapshots the count before the async
+	// reorder and subtracts it on success; on failure the count is not
+	// decremented so the next flush retries.
+	//
+	// The counter (vs a boolean) handles the case where a new dirty event
+	// arrives while a reorderLayers call is in-flight — the snapshot
+	// subtraction keeps the residual count correct.
+	nativeDirtyCount: number;
+	markNativeDirty: () => void;
 	// Debug/devtools subscription — called whenever the registry mutates so the debug
 	// hook (useLayerDebugInfo) can re-read state via useSyncExternalStore.
 	listeners: Set<() => void>;
@@ -116,6 +128,7 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	const scopeGenerations = new Map<symbol, number>();
 	let lastAppliedUuids: string[] = [];
 	let lastReorderWasEffective = false;
+	let nativeDirtyCount = 0;
 
 	// Many sibling layers can each resolve their own uuid within milliseconds of one
 	// another (e.g. a burst of layers mounting together) -- without batching, every single
@@ -129,9 +142,10 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 	let maxWaitTimer: null | ReturnType<typeof setTimeout> = null;
 	let pendingNativeNodeHandle: null | number = null;
 	let destroyed = false;
+	let isReordering = false;
 	const flush = () => {
 		const nativeNodeHandle = pendingNativeNodeHandle;
-		if (nativeNodeHandle === null) {
+		if (nativeNodeHandle === null || isReordering) {
 			return;
 		}
 		// Build a set of fragment UUIDs whose native shared layer
@@ -185,20 +199,34 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 			orderedUuids.length === lastAppliedUuids.length &&
 			orderedUuids.every((uuid, i) => uuid === lastAppliedUuids[i]);
 		// Skip only when the uuid list hasn't changed AND the last reorder
-		// actually had layers to move. If the last reorder was a no-op (e.g.
-		// it fired before shared layers existed in knownLayers), re-fire now
-		// that layers may have been created.
-		if (unchanged && lastReorderWasEffective) {
+		// actually had layers to move AND no native create/remove events
+		// have occurred since the last applied reorder.
+		if (unchanged && lastReorderWasEffective && nativeDirtyCount === 0) {
 			return;
 		}
-		lastAppliedUuids = orderedUuids;
-		lastReorderWasEffective = true;
+		const snapshot = orderedUuids;
+		const dirtySnapshot = nativeDirtyCount;
+		isReordering = true;
 		NativeMapContainer.reorderLayers({
 			nativeNodeHandle,
 			layerUuids: orderedUuids,
-		}).catch((err) => {
-			reportNativeError(err, null);
-		});
+		})
+			.then(() => {
+				isReordering = false;
+				lastAppliedUuids = snapshot;
+				lastReorderWasEffective = snapshot.length > 0;
+				nativeDirtyCount -= dirtySnapshot;
+				doFlush();
+			})
+			.catch((err) => {
+				isReordering = false;
+				reportNativeError(err, null);
+				// Don't update flags — next flush will retry with
+				// the same snapshot.  nativeDirtyCount is not
+				// decremented, so the retry is not blocked by the
+				// unchanged guard.
+				doFlush();
+			});
 	};
 
 	const doFlush = () => {
@@ -281,6 +309,10 @@ export const createLayerOrderRegistry = (): LayerOrderRegistry => {
 				maxWaitTimer = null;
 			}
 		},
+		nativeDirtyCount: 0,
+		markNativeDirty: () => {
+			nativeDirtyCount++;
+		},
 	};
 };
 
@@ -307,6 +339,8 @@ const noopRegistry: LayerOrderRegistry = {
 	notify: () => {},
 	scheduleSync: () => {},
 	destroy: () => {},
+	nativeDirtyCount: 0,
+	markNativeDirty: () => {},
 };
 
 const MapHandleContext = createContext<MapHandleContextValue>({

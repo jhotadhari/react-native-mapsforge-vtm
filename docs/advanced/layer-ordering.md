@@ -19,7 +19,9 @@ The `useLayerOrder` hook (called by every layer component during render) builds
 a shared `registry.order` array tracking React tree order. On the native side,
 `MapMutationQueue.reorderMinimalMoves()` syncs `map.layers()` to match this
 array using a **Longest Increasing Subsequence** algorithm — only layers that
-need to move are touched.
+need to move are touched. When the first element is not in the LIS, the algorithm
+inserts before the first existing JS-managed layer rather than at index 0, to
+avoid mixing with vtm-internal layers.
 
 ### Drawable-level ordering within fragments
 
@@ -86,6 +88,8 @@ is stale:
 | `lastSymbolPerScope` | Per-scope most-recently-inserted symbol (O(1) sibling lookup) |
 | `scopeGenerations` | Per-scope counter bumped by `<ReindexScope>` renders |
 | `scopePriorities` | `order` prop values per scope |
+| `nativeDirtyCount` | Counter incremented by `markNativeDirty()` after each native `createLayer`/`removeLayer` resolution. Forces a `reorderLayers` call even when the UUID list is unchanged — prevents native z-order drift when individual drawables are added/removed within an already-existing shared fragment. Uses a counter + snapshot-subtract pattern so in-flight dirty events during an async reorder are not lost. |
+| `lastReorderWasEffective` | Set only on successful `reorderLayers` resolution (`.then()`), not before the call. Tracks whether the last applied reorder actually contained layers (`== snapshot.length > 0`). If the call fails (`.catch()`), the flag is NOT updated — the next `flush()` retries. |
 
 ## Async mounting
 
@@ -101,7 +105,66 @@ preserve correct order:
 3. **`order` prop** — explicit numeric priority on `<ReindexScope>`
    (`order={100}` renders before `order={200}`), regardless of mount timing.
 
-## Fragments and `SharedLayer`
+## The reorder guard and `nativeDirtyCount`
+
+`flush()` (called by the debounced `scheduleSync`) builds a deduplicated ordered
+UUID list from `registry.order` and compares it against the last applied list.
+Three conditions must ALL be true for the reorder to be **skipped**:
+
+1. **`unchanged`** — the current `orderedUuids` is identical to
+   `lastAppliedUuids` (same length, same UUIDs at each position).
+2. **`lastReorderWasEffective`** — the last `reorderLayers` call actually
+   succeeded (`snapshot.length > 0`) and the flags were updated in `.then()`.
+3. **`nativeDirtyCount === 0`** — no `createLayer` or `removeLayer` calls have
+   resolved since the last successful reorder.
+
+If any condition fails, `reorderLayers` is called unconditionally.
+
+### Why `nativeDirtyCount` is needed
+
+Shared-layer fragments deduplicate UUIDs in `orderedUuids` — adding or removing
+a `LayerPath` within an existing `SharedLayer` fragment doesn't change the UUID
+list at all. Without the dirty counter, a `flush()` after a path insert/remove
+would see `unchanged = true` and skip the reorder. But the native side's
+internal z-order may have drifted because `createLayer`/`removeLayer` calls
+shifted drawables within the fragment.
+
+`markNativeDirty()` is called by `useNativeLayerLifecycle` after every
+`createLayer` / `removeLayer` resolution, and `flush()` checks the counter
+before deciding to skip.
+
+### Snapshot-subtract pattern
+
+The counter uses a snapshot-subtract pattern to handle in-flight events.  Because only one
+`reorderLayers` call is in-flight at a time (serialized via the `isReordering` flag),
+the subtraction is guaranteed correct — no overlapping snapshots can race.
+
+```
+flush():
+  dirtySnapshot = nativeDirtyCount        // e.g. 3
+  isReordering = true
+  reorderLayers(...)                      // async — takes ~1–2 frames
+    .then(() => {
+      isReordering = false
+      nativeDirtyCount -= dirtySnapshot   // 3 - 3 = 0
+      lastAppliedUuids = snapshot
+      lastReorderWasEffective = true
+      doFlush()                           // process changes that arrived during the wait
+    })
+    .catch(() => {
+      isReordering = false
+      // Flags NOT updated — next flush retries
+      doFlush()
+    })
+```
+
+If another `scheduleSync` fires while `isReordering` is true, its `flush()` returns early
+and is caught by `doFlush()` in `.then()` / `.catch()`.
+
+If `reorderLayers` **fails** (`.catch()`), the snapshot is NOT subtracted and
+`lastReorderWasEffective` is NOT updated. The next `flush()` retries — the
+unchanged guard sees `nativeDirtyCount > 0` (still the snapshot value) and
+forces a reorder, and the failed call's flags don't block the retry.
 
 ### What are fragments?
 
