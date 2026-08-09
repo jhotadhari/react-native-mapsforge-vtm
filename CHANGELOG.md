@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Yalc self-reference** — `package.json` accidentally included `"react-native-mapsforge-vtm": "file:.yalc/..."` as a dependency of itself, making the npm tarball unresolvable. Self-reference removed and library unregistered from its own yalc installations.
+
 ## [0.8.2] - 2026-08-09
 
 ### Changed
