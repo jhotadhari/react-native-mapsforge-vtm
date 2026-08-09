@@ -1,13 +1,14 @@
 /**
  * External dependencies
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 /**
  * Internal dependencies
  */
 import type { ErrorBase } from '../types';
 import reportNativeError from '../reportNativeError';
+import MapHandleContext from '../context/MapHandleContext';
 
 export type CreateFlags = {
 	triggerOnCreate: boolean;
@@ -42,6 +43,7 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 	remove: (uuid: TUuid, flags: RemoveFlags) => Promise<boolean>;
 	onError?: null | ((err: ErrorBase) => void);
 }) => {
+	const { registry } = useContext(MapHandleContext);
 	const [uuid, setUuid] = useState<null | false | TUuid>(null);
 
 	// Always point at the latest closure/value, so triggerCreate/triggerRemove never need
@@ -86,6 +88,7 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 					// 3. Unmount cleanup sees uuidRef=false → skips
 					// 4. Native resource is orphaned (zombie).
 					uuidRef.current = newUuid;
+					registry.markNativeDirty();
 					if (!mountedRef.current) {
 						// Component unmounted while create was
 						// in-flight. The component's create() callback
@@ -108,7 +111,11 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 					reportNativeError(err, onError);
 				});
 		},
-		[enabled, onError]
+		[
+			enabled,
+			onError,
+			registry,
+		]
 	);
 
 	const triggerRemove = useCallback(
@@ -122,6 +129,7 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 					.current(currentUuid, flags)
 					.then((success) => {
 						if (success) {
+							registry.markNativeDirty();
 							setUuid(null);
 						}
 						resolve(success);
@@ -132,7 +140,10 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 					});
 			});
 		},
-		[onError]
+		[
+			onError,
+			registry,
+		]
 	);
 
 	// Create whenever we become eligible to. This effect legitimately needs to re-run on every

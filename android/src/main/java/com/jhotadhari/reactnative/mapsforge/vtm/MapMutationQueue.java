@@ -480,7 +480,21 @@ public class MapMutationQueue {
 				continue;
 			}
 			mapView.map().layers().remove(layer);
-			int index = null == afterLayer ? 0 : mapView.map().layers().indexOf(afterLayer) + 1;
+			int index;
+			if (afterLayer != null) {
+				index = mapView.map().layers().indexOf(afterLayer) + 1;
+			} else {
+				// Find the position of the first JS-managed layer
+				// so we insert before it, not before vtm-internal
+				// layers (GestureLayer, etc.) at index 0.
+				index = 0;
+				for (int j = 0; j < mapView.map().layers().size(); j++) {
+					if (orderedSet.contains(mapView.map().layers().get(j))) {
+						index = j;
+						break;
+					}
+				}
+			}
 			mapView.map().layers().add(index, layer);
 			afterLayer = layer;
 		}

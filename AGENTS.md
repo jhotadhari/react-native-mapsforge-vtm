@@ -95,7 +95,8 @@ Key additions beyond the core `order` + `uuids`:
 | `layerScopeGenerations` | Per-symbol scope-generation stamp. Set by `useLayerOrder` on every render when inside a `ReindexScope`. Read by `ReindexScope` Phase 1 to distinguish symbols touched in the current render pass (live) from stale symbols awaiting `useLayoutEffect` cleanup — fixes the sentinel lifecycle bug where Phase 1 saw stale symbols as live children.
 | `layerGenerations` | Per-symbol global-generation stamp. Set by `useLayerOrder` on every render regardless of scope. Used by the repositioning logic to verify the cursor chain is intact: if any symbol between `previousId` and the current position was not stamped in this render pass (e.g. `useMemo` prevented re-render), the cursor is stale and the move is skipped.
 
-| `scheduleSync` / `destroy` | Debounced (16ms trailing, 250ms max-wait) native `reorderLayers` call. `destroy()` cancels pending timers on map teardown. |
+| `scheduleSync` / `destroy` | Debounced (16ms trailing, 250ms max-wait) native `reorderLayers` call. `destroy()` cancels pending timers on map teardown. `flush()` is serialized via `isReordering` — only one `reorderLayers` call is in-flight at a time; concurrent calls return early and are caught by `doFlush()` in `.then()`. |
+| `nativeDirtyCount` / `markNativeDirty` | Counter incremented by `useNativeLayerLifecycle` after every `createLayer` / `removeLayer` resolution. `flush()` snapshots the count before the async `reorderLayers` call and subtracts it on success (on failure the count is not decremented so the next flush retries). Serialized reorders prevent overlapping snapshot subtractions. |
 | `listeners` / `subscribe` / `notify` | Debug subscription infrastructure for `useLayerDebugInfo` (devtools). |
 
 **Invariant: native layer rendering must strictly follow React component tree order.** A layer
@@ -107,9 +108,13 @@ consumed when children mount), (2) the optional `order` prop for explicit priori
 `scopeGenerations` counters for partial re-render detection. Without any of these, new layers append
 at the stale cursor.
 
-The ordering bugs documented in TODO.md item 0 were fixed (commit `902fc47` and subsequent); the
-remaining theoretical concern (reorder timing vs. `lastReorderWasEffective`) has not been observed in
-practice — position-aware insertion + debounced reorder are sufficient.
+The ordering bugs documented in TODO.md item 0 were fixed (commit `902fc47` and subsequent).
+The `nativeDirtyCount` counter + snapshot-subtract pattern, the `lastReorderWasEffective =
+snapshot.length > 0` check (set only on `.then()`, not before the async call), and the
+`isReordering` serialization flag (prevents concurrent `reorderLayers` calls) prevent
+the remaining theoretical concern (reorder timing vs. `lastReorderWasEffective`).  When
+`reorderLayers` fails, none of the flag variables are updated — the next `flush()` retries
+with the same state without being blocked by the unchanged guard.
 
 ### Central lifecycle hook: `useNativeLayerLifecycle`
 
@@ -129,6 +134,13 @@ error reporting through `reportNativeError`. Two refs guard against teardown rac
   4. Native resource is orphaned (zombie)
 
 Callers supply `create`/`remove` callbacks and an `enabled` boolean — the hook handles the rest.
+
+After every successful `create` or `remove` resolution, the hook calls
+`registry.markNativeDirty()` (increments `nativeDirtyCount`) and then `setUuid()` which
+triggers a React re-render.  The re-render causes `useLayerOrder`'s `useEffect` to call
+`scheduleSync()`, which debounces to a `flush()` call.  `flush()` sees the non-zero
+`nativeDirtyCount` and forces a `reorderLayers` call even when `orderedUuids` is unchanged
+(e.g. when adding/removing a path within an already-existing SharedLayer fragment).
 
 ### Shared-layer architecture: `SharedLayer` + fragments
 
@@ -467,6 +479,8 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 
 **Key rules:**
 - `MapMutationQueue.flush()` is the **only** place that calls `layers().add/remove` and the batch-level `updateMap()`. It runs on the UI thread, serialized with vtm's own rendering.
+  - Adds are sorted by `positionIndex` ascending and inserted via a linear scan that respects existing JS-managed layers.
+  - `reorderLayers` uses `reorderMinimalMoves` (LIS algorithm). When the first element of the target order is not in the LIS, it inserts before the first existing JS-managed layer rather than at index 0 (which would push layers before vtm-internal layers like GestureLayer).
 - `MapFragment.bindUpdateListener()` runs on the **render thread** (vtm's GL thread, 60fps). It writes position data to C++ `Synchronizable` primitives via `MapPositionWriter.nativeSetPosition()` (thread-safe mutex). See `android/src/main/cpp/MapPositionWriter.cpp`.
 - `scheduleUpdate()` (in `LayerManager` and its per-type subclasses: `PathLayerManager`,
   `MarkerLayerManager`, `ShapeLayerManager`) coalesces per-entry `updateMap()` calls onto the UI
