@@ -5,21 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-### Fixed
-
-- **`reorderMinimalMoves` — first-element insertion before vtm-internal layers.** When the first element of `orderedLayers` is not in the LIS and `afterLayer` is null, the code previously inserted at index `0` — before vtm-internal layers (GestureLayer, EventLayer). Now scans for the first JS-managed layer and inserts before it.
-
-- **Concurrent `reorderLayers` calls** — `flush()` now uses an `isReordering` flag to serialize async `reorderLayers` calls, preventing overlapping snapshot subtractions that could produce negative `nativeDirtyCount` values or out-of-order `.then()` callbacks overwriting `lastAppliedUuids`.
-
-- **ReindexScope** — Phase 2 sentinel placement now uses priority-based ordering (matching Phase 1), and `scheduleSync` is always called after a children → sentinel transition.
-
-- **Layer‑order drift after native create/remove** — `flush()` hardened against failed `reorderLayers` calls (flags now set in `.then()`) and native z‑order drift from create/remove within unchanged SharedLayer fragments (`nativeDirtyCount` counter, `useLayerOrder` guard updated).
+## [0.8.2] - 2026-08-09
 
 ### Changed
 
 - **`useNativeLayerLifecycle`** — calls `registry.markNativeDirty()` after every `createLayer`/`removeLayer` resolution.
+
+### Fixed
+
+- **`reorderMinimalMoves` — first-element insertion before vtm-internal layers.** When the first element of `orderedLayers` is not in the LIS and `afterLayer` is null, the code previously inserted at index `0` — before vtm-internal layers (GestureLayer, EventLayer). Now scans for the first JS-managed layer and inserts before it.
+- **Concurrent `reorderLayers` calls** — `flush()` now uses an `isReordering` flag to serialize async `reorderLayers` calls, preventing overlapping snapshot subtractions that could produce negative `nativeDirtyCount` values or out-of-order `.then()` callbacks overwriting `lastAppliedUuids`.
+- **ReindexScope** — Phase 2 sentinel placement now uses priority-based ordering (matching Phase 1), and `scheduleSync` is always called after a children → sentinel transition.
+- **Layer‑order drift after native create/remove** — `flush()` hardened against failed `reorderLayers` calls (flags now set in `.then()`) and native z‑order drift from create/remove within unchanged SharedLayer fragments (`nativeDirtyCount` counter, `useLayerOrder` guard updated).
 
 ## [0.8.1] - 2026-08-08
 
@@ -401,7 +398,7 @@ Just updated README.md
 
 First bumpy version
 
-[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.1...HEAD
+[0.8.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.6.0...v0.7.0
