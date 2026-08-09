@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.3] - 2026-08-09
+
+### Fixed
+
+- **Yalc self-reference** — `package.json` accidentally included `"react-native-mapsforge-vtm": "file:.yalc/..."` as a dependency of itself, making the npm tarball unresolvable. Self-reference removed and library unregistered from its own yalc installations.
+
 ## [0.8.2] - 2026-08-09
 
 ### Changed
@@ -398,6 +404,7 @@ Just updated README.md
 
 First bumpy version
 
+[0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.7.0...v0.8.0
