@@ -95,6 +95,11 @@ interface MapViewProps extends ViewProps {
 	onTap?: DirectEventHandler<Readonly<TapEventResponse>> | null;
 	onLongPress?: DirectEventHandler<Readonly<LongPressEventResponse>> | null;
 	onGnssPosition?: DirectEventHandler<Readonly<GnssPosition>> | null;
+	/**
+	 * Fired when an anchor view is added or removed under the map's wrapper
+	 * View (includes pure reorders that bypass every React commit hook).
+	 */
+	onAnchorsChanged?: DirectEventHandler<Readonly<{}>> | null;
 }
 
 export type MapContainerProps = {
@@ -129,6 +134,7 @@ export type MapContainerProps = {
 	onTap?: MapViewProps['onTap'];
 	onLongPress?: MapViewProps['onLongPress'];
 	onGnssPosition?: MapViewProps['onGnssPosition'];
+	onAnchorsChanged?: MapViewProps['onAnchorsChanged'];
 };
 
 export default codegenNativeComponent<MapViewProps>('MapsforgeVtmView');

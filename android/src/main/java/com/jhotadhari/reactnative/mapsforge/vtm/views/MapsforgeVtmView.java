@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -57,6 +58,51 @@ public class MapsforgeVtmView extends LinearLayout {
 	private ReadableMap gnssFilter;
 
 	public MapsforgeVtmView( ThemedReactContext context ) { super(context); }
+
+	/**
+	 * Hierarchy listener on the wrapper View (this view's parent) — the only
+	 * native signal that catches anchor reordering without any React commit
+	 * touching a library component (identity-preserved element moves).
+	 * Fires onAnchorsChanged, which the JS presenter debounces into a walk.
+	 */
+	private ViewGroup.OnHierarchyChangeListener hierarchyChangeListener;
+
+	@Override
+	public void onAttachedToWindow() {
+		super.onAttachedToWindow();
+		if ( hierarchyChangeListener == null && getParent() instanceof ViewGroup ) {
+			final ViewGroup wrapper = (ViewGroup) getParent();
+			hierarchyChangeListener = new ViewGroup.OnHierarchyChangeListener() {
+				@Override
+				public void onChildViewAdded( View parent, View child ) {
+					if ( child instanceof VtmAnchorView ) {
+						emitAnchorsChanged();
+					}
+				}
+
+				@Override
+				public void onChildViewRemoved( View parent, View child ) {
+					if ( child instanceof VtmAnchorView ) {
+						emitAnchorsChanged();
+					}
+				}
+			};
+			wrapper.setOnHierarchyChangeListener( hierarchyChangeListener );
+		}
+	}
+
+	@Override
+	public void onDetachedFromWindow() {
+		super.onDetachedFromWindow();
+		if ( hierarchyChangeListener != null && getParent() instanceof ViewGroup ) {
+			( (ViewGroup) getParent() ).setOnHierarchyChangeListener( null );
+		}
+		hierarchyChangeListener = null;
+	}
+
+	public void emitAnchorsChanged() {
+		emitMapEvent( "onAnchorsChanged", Arguments.createMap() );
+	}
 
 	@Override
 	public void onLayout( boolean changed, int l, int t, int r, int b ) {

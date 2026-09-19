@@ -1,5 +1,9 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewParent;
+
 import androidx.annotation.NonNull;
 
 import androidx.annotation.Nullable;
@@ -21,6 +25,9 @@ import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.EventEmitterCallback;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.MapsforgeVtmView;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.VtmAnchorViewManager;
 
 import org.mapsforge.map.layer.hills.DemFolder;
 
@@ -471,8 +478,46 @@ public class MapContainer extends NativeMapContainerSpec {
 				Utils.promiseReject( promise, e.getMessage() );
 			}
 		}
-		@Override
-		public void getDebugLayerDump( ReadableMap params, Promise promise ) {
+	@Override
+	public void enumerateAnchors( ReadableMap params, Promise promise ) {
+		UiThreadUtil.runOnUiThread( () -> enumerateAnchorsOnUiThread( params, promise ) );
+	}
+
+	private void enumerateAnchorsOnUiThread( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				Utils.promiseReject( promise, "Unable to find mapFragment" ); return;
+			}
+
+			MapsforgeVtmView hostView = mapFragment.getMapsforgeVtmView();
+			ViewParent parent = hostView != null ? hostView.getParent() : null;
+			if ( ! ( parent instanceof ViewGroup ) ) {
+				Utils.promiseReject( promise, "MapsforgeVtmView has no parent ViewGroup" ); return;
+			}
+
+			List<String> uids = VtmAnchorViewManager.collectAnchorUids( (ViewGroup) parent, hostView );
+			WritableArray anchorsArray = new WritableNativeArray();
+			for ( String uid : uids ) {
+				anchorsArray.pushString( uid );
+			}
+
+			WritableMap response = new WritableNativeMap();
+			response.putArray( "anchors", anchorsArray );
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void getDebugLayerDump( ReadableMap params, Promise promise ) {
 		// Read knownLayers on the calling thread (ConcurrentHashMap, safe from any thread)
 		// and dispatch the map.layers() read to the UI thread, consistent with getPosition.
 		UiThreadUtil.runOnUiThread( () -> getDebugLayerDumpOnUiThread( params, promise ) );

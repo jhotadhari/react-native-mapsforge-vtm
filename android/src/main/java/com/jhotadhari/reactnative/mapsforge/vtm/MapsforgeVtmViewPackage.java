@@ -21,6 +21,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerShape;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerBitmapTile;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapsforgeVtmViewManager;
+import com.jhotadhari.reactnative.mapsforge.vtm.views.VtmAnchorViewManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 	public List<ViewManager> createViewManagers( @NonNull ReactApplicationContext reactContext ) {
 		List<ViewManager> viewManagers = new ArrayList<>();
 		viewManagers.add( new MapsforgeVtmViewManager() );
+		viewManagers.add( new VtmAnchorViewManager() );
 		return viewManagers;
 	}
 
@@ -88,6 +90,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 				map.put( MapsforgeVtmViewManager.NAME, new ReactModuleInfo(
 					MapsforgeVtmViewManager.NAME, 	// name
 					MapsforgeVtmViewManager.NAME, 	// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
+				map.put( VtmAnchorViewManager.NAME, new ReactModuleInfo(
+					VtmAnchorViewManager.NAME, 		// name
+					VtmAnchorViewManager.NAME, 		// className
 					false,							// canOverrideExistingModule
 					false,							// needsEagerInit
 					false,							// isCxxModule

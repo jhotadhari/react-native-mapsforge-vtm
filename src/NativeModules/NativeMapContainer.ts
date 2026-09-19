@@ -41,6 +41,15 @@ export interface ReorderLayersParams {
 	layerUuids: ReadonlyArray<string>;
 }
 
+export interface EnumerateAnchorsParams {
+	nativeNodeHandle: Int32;
+}
+
+export interface EnumerateAnchorsResponse {
+	// Anchor uids in committed tree order (bottom → top of the stack).
+	anchors: ReadonlyArray<string>;
+}
+
 export interface AnimateToParams {
 	nativeNodeHandle: Int32;
 	// Ignored when `bounds` is set.
@@ -143,6 +152,14 @@ export interface GetDebugLayerDumpResponse {
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	reorderLayers(params: ReorderLayersParams): Promise<void>;
+	/**
+	 * Returns the uids of all committed anchor views under the map's wrapper
+	 * View, in tree order. This is the authoritative source of the React
+	 * tree order for the layer scene.
+	 */
+	enumerateAnchors(
+		params: EnumerateAnchorsParams
+	): Promise<EnumerateAnchorsResponse>;
 	animateTo(params: AnimateToParams): Promise<void>;
 	getPosition(params: GetPositionParams): Promise<GetPositionResponse>;
 	triggerEvent(params: TriggerParams): void;
