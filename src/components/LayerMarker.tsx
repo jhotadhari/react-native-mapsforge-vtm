@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import type { EventSubscription } from 'react-native';
 import { omit, pick } from 'lodash-es';
 
@@ -21,6 +21,7 @@ import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
+import { injectVtmSortIndex } from '../compose/injectVtmSortIndex';
 import { fragmentUuidFor } from '../scene/ids';
 
 const defaultsTrigger = pick(LayerMarkerModule.getConstants(), ['strategy']);
@@ -174,6 +175,13 @@ const LayerMarker = ({
 		onError,
 	]);
 
+	// Owner injection: Marker children get their sibling position as
+	// vtmSortIndex — the entry-order source for the scene.
+	const injectedChildren = useMemo(
+		() => injectVtmSortIndex(children),
+		[children]
+	);
+
 	if (!uuid) {
 		return anchorElement;
 	}
@@ -184,7 +192,7 @@ const LayerMarker = ({
 			<MarkerLayerContext.Provider
 				value={{ markerLayerUuid: uuid, fragmentId: anchorUid }}
 			>
-				{children}
+				{injectedChildren}
 			</MarkerLayerContext.Provider>
 		</>
 	);

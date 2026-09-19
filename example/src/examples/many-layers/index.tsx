@@ -236,9 +236,11 @@ const ExampleComponent: FC<{
 							{layerPairs.map((pair) => (
 								<Fragment key={pair.id}>
 									<LayerPath
+										key={`${pair.id}-path`}
 										coordinates={pair.pathCoordinates}
 									/>
 									<Marker
+										key={`${pair.id}-marker`}
 										position={pair.markerPosition}
 										paint={paint}
 									/>
@@ -250,8 +252,12 @@ const ExampleComponent: FC<{
 						!useSharedLayer &&
 						layerPairs.map((pair) => (
 							<Fragment key={pair.id}>
-								<LayerPath coordinates={pair.pathCoordinates} />
+								<LayerPath
+									key={`${pair.id}-path`}
+									coordinates={pair.pathCoordinates}
+								/>
 								<Marker
+									key={`${pair.id}-marker`}
 									position={pair.markerPosition}
 									paint={paint}
 								/>

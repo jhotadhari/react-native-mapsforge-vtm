@@ -42,7 +42,17 @@ const LayerPath = ({
 	triggerEvent,
 
 	vtmSortIndex,
-}: LayerPathProps & { vtmSortIndex?: number }) => {
+	order,
+}: LayerPathProps & {
+	/** Owner-injected sibling position inside a SharedLayer fragment. */
+	vtmSortIndex?: number;
+	/**
+	 * Explicit position inside a fragment. Overrides vtmSortIndex — use it
+	 * when the layer is nested inside wrapper components or host Views that
+	 * can't forward the injected index. Lower = earlier = lower z-order.
+	 */
+	order?: number;
+}) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 	const sharedId = useContext(SharedLayerContext);
 	const isGrouped = sharedId !== null;
@@ -124,7 +134,7 @@ const LayerPath = ({
 		active: isGrouped,
 		fragmentId: sharedId,
 		layerType: 'path',
-		sortIndex: vtmSortIndex,
+		sortIndex: order ?? vtmSortIndex,
 		uuid,
 	});
 

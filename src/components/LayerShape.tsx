@@ -92,7 +92,17 @@ const LayerShape = ({
 	triggerEvent,
 
 	vtmSortIndex,
-}: LayerShapeProps & { vtmSortIndex?: number }) => {
+	order,
+}: LayerShapeProps & {
+	/** Owner-injected sibling position inside a SharedLayer fragment. */
+	vtmSortIndex?: number;
+	/**
+	 * Explicit position inside a fragment. Overrides vtmSortIndex — use it
+	 * when the shape is nested inside wrapper components or host Views that
+	 * can't forward the injected index. Lower = earlier = lower z-order.
+	 */
+	order?: number;
+}) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 	const sharedId = useContext(SharedLayerContext);
 	const isGrouped = sharedId !== null;
@@ -161,7 +171,7 @@ const LayerShape = ({
 		active: isGrouped,
 		fragmentId: sharedId,
 		layerType: 'shape',
-		sortIndex: vtmSortIndex,
+		sortIndex: order ?? vtmSortIndex,
 		uuid,
 	});
 

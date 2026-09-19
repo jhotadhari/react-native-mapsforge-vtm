@@ -7,19 +7,16 @@
  * (LayerPath, LayerShape, Marker) inside declare themselves against that id
  * with the owner-injected vtmSortIndex — the scene expands the anchor into
  * per-type fragments ordered by first occurrence.
+ *
+ * Sort-index injection traverses arrays and Fragments; wrapper components
+ * should forward {@code vtmSortIndex} to the entries they render, or pass an
+ * explicit {@code order} prop to the entry component instead.
  */
 
-import {
-	Children,
-	cloneElement,
-	isValidElement,
-	useMemo,
-	useRef,
-	type ReactElement,
-	type ReactNode,
-} from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import SharedLayerContext from '../context/SharedLayerContext';
 import useLayerAnchor from '../compose/useLayerAnchor';
+import { injectVtmSortIndex } from '../compose/injectVtmSortIndex';
 
 let sharedLayerCounter = 0;
 
@@ -35,20 +32,10 @@ const SharedLayer = ({ children }: { children?: ReactNode }) => {
 		fragmentId: sharedId,
 	});
 
-	// Owner injection: direct element children get their sibling position as
+	// Owner injection: element children get their sibling position as
 	// vtmSortIndex — the entry-order source for the scene.
 	const injectedChildren = useMemo(
-		() =>
-			Children.map(children, (child, index) =>
-				isValidElement(child)
-					? cloneElement(
-							child as ReactElement<{ vtmSortIndex?: number }>,
-							{
-								vtmSortIndex: index,
-							}
-						)
-					: child
-			),
+		() => injectVtmSortIndex(children),
 		[children]
 	);
 
