@@ -1,0 +1,103 @@
+/**
+ * The layer scene: the single source of truth for layer-stack ordering.
+ *
+ * The scene is mutated ONLY from the React commit phase (useLayoutEffect) —
+ * never during render. React renders may be partial, skipped or discarded;
+ * the scene only ever sees committed state, which is exactly why none of the
+ * historical ordering bugs (stale cursors, sentinel churn, generation
+ * stamps) can occur.
+ *
+ * Every mutation is recorded as a command (Command pattern) for replayable
+ * debugging, and produces a fresh immutable LayerPlan (Memento) on demand.
+ * Listeners (Observer pattern) are notified after each mutation.
+ */
+
+import type { AnchorDescriptor, EntryDeclaration, LayerPlan } from './types';
+import { buildPlan } from './planBuilder';
+
+export type SceneCommand =
+	| { type: 'applyWalk'; sequence: AnchorDescriptor[] }
+	| { type: 'declareEntry'; entry: EntryDeclaration }
+	| { type: 'undeclareEntry'; uid: string }
+	| { type: 'attachUuid'; key: string; uuid: string }
+	| { type: 'detachUuid'; key: string };
+
+export class LayerScene {
+	private walk: AnchorDescriptor[] = [];
+	private entries = new Map<string, EntryDeclaration>();
+	private uuids = new Map<string, string>();
+	private commands: SceneCommand[] = [];
+	private listeners = new Set<() => void>();
+	private declarationSeq = 0;
+	private planDirty = true;
+	private cachedPlan: LayerPlan = { layers: [], fragments: [], scopes: [] };
+
+	/** Replaces the committed anchor sequence (fresh walk result). */
+	applyWalk(sequence: AnchorDescriptor[]): void {
+		this.walk = sequence;
+		this.record({ type: 'applyWalk', sequence });
+		this.mutated();
+	}
+
+	/** Declares or updates an entry (drawable) inside a fragment. */
+	declareEntry(entry: EntryDeclaration): void {
+		this.declarationSeq++;
+		this.entries.set(entry.uid, {
+			...entry,
+			declarationSeq: this.declarationSeq,
+		});
+		this.record({ type: 'declareEntry', entry });
+		this.mutated();
+	}
+
+	undeclareEntry(uid: string): void {
+		if (this.entries.delete(uid)) {
+			this.record({ type: 'undeclareEntry', uid });
+			this.mutated();
+		}
+	}
+
+	/** Records a resolved native uuid (dedicated layer, entry, or owner layer). */
+	attachUuid(key: string, uuid: string): void {
+		this.uuids.set(key, uuid);
+		this.record({ type: 'attachUuid', key, uuid });
+		this.mutated();
+	}
+
+	detachUuid(key: string): void {
+		if (this.uuids.delete(key)) {
+			this.record({ type: 'detachUuid', key });
+			this.mutated();
+		}
+	}
+
+	/** The current immutable plan (bottom → top). Cached until mutated. */
+	plan(): LayerPlan {
+		if (this.planDirty) {
+			this.cachedPlan = buildPlan(this.walk, this.entries, this.uuids);
+			this.planDirty = false;
+		}
+		return this.cachedPlan;
+	}
+
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener);
+		return () => {
+			this.listeners.delete(listener);
+		};
+	}
+
+	/** Replayable mutation log — the debug/diagnostic backbone. */
+	commandLog(): readonly SceneCommand[] {
+		return this.commands;
+	}
+
+	private record(command: SceneCommand): void {
+		this.commands.push(command);
+	}
+
+	private mutated(): void {
+		this.planDirty = true;
+		this.listeners.forEach((listener) => listener());
+	}
+}
