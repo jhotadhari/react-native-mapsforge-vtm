@@ -53,45 +53,43 @@ export type { GetPositionResponse };
 // ---------------------------------------------------------------------------
 
 /**
- * One entry in the JS-side registry snapshot, representing a single mounted
- * layer component in React document order.  Symbols are not serializable, so
- * each entry is keyed by its position index.
+ * One entry in the JS-side scene-plan snapshot: a native layer-stack item
+ * (dedicated layer or shared fragment) in desired bottom→top order.
  */
 export type RegistryLayerEntry = {
 	index: number;
 	layerType: string | null;
 	uuid: string | null;
 	fragmentUuid: string | null;
+	kind: 'layer' | 'fragment';
+	/** Number of entries hosted by this item's fragment (1 for dedicated). */
+	fragmentMemberCount: number;
 };
 
 /**
- * Summary of one native fragment — a set of React components that share a
- * single native layer (e.g. all paths inside a SharedLayer).  When
- * memberCount === 1 the fragment is dedicated (one component = one native
- * layer); when > 1 the components are grouped.
+ * Summary of one fragment — a set of React components sharing a single
+ * native layer (e.g. all paths inside a SharedLayer).
  */
 export type FragmentSummaryEntry = {
 	fragmentUuid: string;
 	layerType: string;
 	memberCount: number;
-	memberIndices: number[];
+	resolvedCount: number;
 };
 
 /**
- * JS-side registry snapshot included in the debug dump alongside the native
- * layer list.  Comparing the two helps spot discrepancies: a layer in the
- * registry but not in nativeLayers = creation failed silently; a native layer
- * with no matching registry entry = a leak.
+ * JS-side scene-plan snapshot included in the debug dump alongside the
+ * native layer list.  Comparing the two shows whether the native stack
+ * matches the scene's desired order.
  */
 export type RegistryDebugSnapshot = {
+	/** Desired native layer count (resolved items only). */
 	orderLength: number;
-	sentinelCount: number;
+	/** Resolved entry count across all fragments. */
 	resolvedCount: number;
-	generation: number;
-	sharedLayerActive: boolean;
-	fragmentIndices: Record<string, number>;
+	fragmentCount: number;
+	scopeCount: number;
 	layers: RegistryLayerEntry[];
-	/** Components grouped by their shared fragment UUID — one entry per native fragment. */
 	fragmentSummary: FragmentSummaryEntry[];
 };
 
@@ -128,19 +126,18 @@ const requireHandle = (nativeNodeHandle: null | number): number => {
  * props instead of needing its own bridge component just to reach the context.
  */
 const useMap = (nativeNodeHandleOverride?: null | number) => {
-	const { nativeNodeHandle: contextHandle, registry } =
+	const { nativeNodeHandle: contextHandle, scene } =
 		useContext(MapHandleContext);
 	const nativeNodeHandle =
 		nativeNodeHandleOverride === undefined
 			? contextHandle
 			: nativeNodeHandleOverride;
 
-	// Keep a ref to the latest registry so getDebugLayerDump (inside the memoized
-	// object) can always read the current registry state without adding `registry`
-	// to the useMemo dependency array (which would defeat memoization since the
-	// registry is a new object on every MapContainer render).
-	const registryRef = useRef(registry);
-	registryRef.current = registry;
+	// Keep a ref to the latest scene so getDebugLayerDump (inside the memoized
+	// object) can always read the current plan without adding `scene` to the
+	// useMemo dependency array (which would defeat memoization).
+	const sceneRef = useRef(scene);
+	sceneRef.current = scene;
 
 	return useMemo(() => {
 		// Guard: requireHandle was called lazily (inside each method
@@ -208,66 +205,48 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 				nativeNodeHandle: handle,
 			});
 
-			// Build a JSON-safe snapshot of the JS-side registry.  Symbols can't
-			// be serialized, so we iterate `order` by position index and look up
-			// each entry's metadata from the registry's parallel maps.
-			const reg = registryRef.current;
-			const registryLayers: RegistryLayerEntry[] = reg.order
-				.filter(function (id) {
-					return !reg.sentinels.has(id);
-				})
-				.map((id, index) => ({
-					index,
-					layerType: reg.layerTypes.get(id) ?? null,
-					uuid: reg.uuids.get(id) ?? null,
-					fragmentUuid: reg.fragmentUuids.get(id) ?? null,
-				}));
-
-			const fragmentIndices: Record<string, number> = {};
-			reg.fragmentIndices.forEach((value, key) => {
-				fragmentIndices[key] = value;
-			});
-
-			// Group components by their fragment UUID so it's immediately
-			// obvious whether SharedLayer grouping is active (few fragments
-			// with many members) or not (many fragments with 1 member each).
-			const fragmentSummaryMap = new Map<
-				string,
-				{ layerType: string; memberIndices: number[] }
-			>();
-			for (const layer of registryLayers) {
-				if (!layer.fragmentUuid) {
-					continue;
-				}
-				let entry = fragmentSummaryMap.get(layer.fragmentUuid);
-				if (!entry) {
-					entry = {
-						layerType: layer.layerType ?? 'unknown',
-						memberIndices: [],
+			// Build a JSON-safe snapshot of the scene plan — the desired
+			// layer stack the presenter syncs to native.
+			const plan = sceneRef.current.plan();
+			const registryLayers: RegistryLayerEntry[] = plan.layers.map(
+				(layer, index) => {
+					const fragment =
+						layer.kind === 'fragment'
+							? plan.fragments.find((f) => f.uuid === layer.uuid)
+							: undefined;
+					return {
+						index,
+						layerType: layer.layerType ?? null,
+						uuid: layer.uuid,
+						fragmentUuid:
+							layer.kind === 'fragment' ? layer.uuid : null,
+						kind: layer.kind,
+						fragmentMemberCount: fragment
+							? fragment.entryUids.length
+							: 1,
 					};
-					fragmentSummaryMap.set(layer.fragmentUuid, entry);
 				}
-				entry.memberIndices.push(layer.index);
+			);
+
+			const fragmentSummary: FragmentSummaryEntry[] = plan.fragments.map(
+				(fragment) => ({
+					fragmentUuid: fragment.uuid,
+					layerType: fragment.layerType,
+					memberCount: fragment.entryUids.length,
+					resolvedCount: fragment.resolvedEntryUids.length,
+				})
+			);
+
+			let resolvedCount = 0;
+			for (const fragment of plan.fragments) {
+				resolvedCount += fragment.resolvedEntryUids.length;
 			}
-			const fragmentSummary: FragmentSummaryEntry[] = Array.from(
-				fragmentSummaryMap.entries()
-			)
-				.map(([fragmentUuid, entry]) => ({
-					fragmentUuid,
-					layerType: entry.layerType,
-					memberCount: entry.memberIndices.length,
-					memberIndices: entry.memberIndices,
-				}))
-				.sort((a, b) => a.memberIndices[0]! - b.memberIndices[0]!);
 
 			const registrySnapshot: RegistryDebugSnapshot = {
-				orderLength: reg.order.length,
-				sentinelCount: reg.sentinels.size,
-				resolvedCount: registryLayers.filter((l) => l.uuid !== null)
-					.length,
-				generation: reg.generation,
-				sharedLayerActive: reg.sharedLayerActive,
-				fragmentIndices,
+				orderLength: plan.layers.length,
+				resolvedCount,
+				fragmentCount: plan.fragments.length,
+				scopeCount: plan.scopes.length,
 				layers: registryLayers,
 				fragmentSummary,
 			};

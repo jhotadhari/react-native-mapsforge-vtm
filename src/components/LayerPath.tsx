@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 
 /**
  * Internal dependencies
@@ -13,10 +13,14 @@ import LayerPathModule, {
 } from '../NativeModules/NativeLayerPath';
 import type { ErrorBase } from '../types';
 import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useLayerEntry from '../compose/useLayerEntry';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const moduleDefaults = LayerPathModule.getConstants();
 
@@ -36,8 +40,12 @@ const LayerPath = ({
 	onDoubleTap,
 	onTrigger,
 	triggerEvent,
-}: LayerPathProps) => {
+
+	vtmSortIndex,
+}: LayerPathProps & { vtmSortIndex?: number }) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const sharedId = useContext(SharedLayerContext);
+	const isGrouped = sharedId !== null;
 
 	const responseInclude = useMemo(
 		() => ({
@@ -52,12 +60,14 @@ const LayerPath = ({
 
 	const hasCoordinates = !!coordinates && coordinates.length > 0;
 
-	// positionIndex is computed by useLayerOrder during render (after the uuid
-	// declaration below) but must be available inside the create callback (which
-	// is defined here, before the declaration). A ref bridges the gap: it's set
-	// during render, then read when the async create callback fires.
-	const positionIndexRef = useRef<number>(-1);
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
+	// Standalone: this component contributes an anchor and belongs to an
+	// implicit type-run fragment keyed by its anchor uid.
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+		layerType: 'path',
+		shared: true,
+		active: !isGrouped,
+	});
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
@@ -69,10 +79,13 @@ const LayerPath = ({
 					},
 				} as ErrorBase);
 			}
+			const fragmentUuid =
+				sharedId !== null
+					? fragmentUuidFor(sharedId, 'path')
+					: runUuidFor(anchorUid);
 			return LayerPathModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
-				fragmentUuid: fragmentUuidRef.current,
+				fragmentUuid,
 				supportsGestures,
 				coordinates,
 				...(paint && { paint }),
@@ -106,9 +119,18 @@ const LayerPath = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'path');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	// Grouped (inside a SharedLayer): declare an entry instead of an anchor.
+	useLayerEntry({
+		active: isGrouped,
+		fragmentId: sharedId,
+		layerType: 'path',
+		sortIndex: vtmSortIndex,
+		uuid,
+	});
+
+	// Standalone: bind the resolved entry uuid to the anchor uid — the
+	// type-run fragment exists once one member resolved.
+	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
 
 	// Redraw the existing native layer in place when the line or its paint
 	// changes, instead of tearing down and recreating the layer.
@@ -191,7 +213,7 @@ const LayerPath = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 LayerPath.defaults = moduleDefaults;

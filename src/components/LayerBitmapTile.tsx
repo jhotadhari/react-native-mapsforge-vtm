@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
@@ -10,7 +10,8 @@ import LayerBitmapTileModule, {
 	type LayerBitmapTileProps,
 } from '../NativeModules/NativeLayerBitmapTile';
 import type { ErrorBase } from '../types';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
@@ -32,7 +33,10 @@ const LayerBitmapTile = ({
 }: LayerBitmapTileProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -43,7 +47,6 @@ const LayerBitmapTile = ({
 			}
 			return LayerBitmapTileModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				...(url && { url }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
 				...(zoomMin && { zoomMin }),
@@ -91,8 +94,7 @@ const LayerBitmapTile = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {
@@ -158,7 +160,7 @@ const LayerBitmapTile = ({
 		triggerCreate,
 	]);
 
-	return null;
+	return anchorElement;
 };
 
 LayerBitmapTile.defaults = LayerBitmapTileModule.getConstants();

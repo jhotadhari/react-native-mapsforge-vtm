@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
@@ -13,25 +13,67 @@ import LayerShapeModule, {
 } from '../NativeModules/NativeLayerShape';
 import type { ErrorBase } from '../types';
 import useLayerShapeEventSubscription from '../compose/useLayerShapeEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useLayerEntry from '../compose/useLayerEntry';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
+
+type ShapeParams = {
+	type: string;
+	rings?: ReadonlyArray<ReadonlyArray<number>>;
+	holes?: ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
+	center?: ReadonlyArray<number>;
+	radiusKm?: number;
+	numSegments?: number;
+	min?: ReadonlyArray<number>;
+	max?: ReadonlyArray<number>;
+	position?: ReadonlyArray<number>;
+};
+
+// Converts the typed ShapeDefinition to a codegen-compatible plain object
+// (codegen only allows Readonly<{...}> inline shapes).
+const shapeToParams = (
+	shape: NonNullable<LayerShapeProps['shape']>
+): ShapeParams => {
+	const shapeParams: Record<string, unknown> = {
+		type: shape.type,
+	};
+	switch (shape.type) {
+		case 'polygon':
+			shapeParams.rings = shape.rings;
+			if (shape.holes) shapeParams.holes = shape.holes;
+			break;
+		case 'circle':
+			shapeParams.center = shape.center;
+			shapeParams.radiusKm = shape.radiusKm;
+			if (shape.numSegments) shapeParams.numSegments = shape.numSegments;
+			break;
+		case 'rectangle':
+			shapeParams.min = shape.min;
+			shapeParams.max = shape.max;
+			break;
+		case 'hexagon':
+			shapeParams.center = shape.center;
+			shapeParams.radiusKm = shape.radiusKm;
+			break;
+		case 'point':
+			shapeParams.position = shape.position;
+			break;
+	}
+	return shapeParams as ShapeParams;
+};
 
 /**
  * Draws geometric shapes on the map using vtm-jts drawables.
  *
- * Supports five shape types:
- * - **Polygon** — filled polygon with optional holes (inner rings)
- * - **Circle** — filled circle defined by center + radius in km
- * - **Rectangle** — filled rectangle defined by two corners (min/max)
- * - **Hexagon** — filled hexagon defined by center + radius in km
- * - **Point** — circular point marker
- *
- * Multiple {@code LayerShape} components that are consecutive siblings of the same
- * type share a single native {@code VectorLayer} (via {@code ShapeLayerManager}),
- * collapsed by fragment — improving performance and guaranteeing correct render
- * order via the shared fragment infrastructure.
+ * Multiple {@code LayerShape} components that are consecutive siblings of the
+ * same type share a single native {@code VectorLayer} fragment (via
+ * {@code ShapeLayerManager}) — or one fragment per type when grouped by a
+ * {@code SharedLayer} wrapper.
  */
 const LayerShape = ({
 	shape,
@@ -48,20 +90,23 @@ const LayerShape = ({
 	onDoubleTap,
 	onTrigger,
 	triggerEvent,
-}: LayerShapeProps) => {
+
+	vtmSortIndex,
+}: LayerShapeProps & { vtmSortIndex?: number }) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const sharedId = useContext(SharedLayerContext);
+	const isGrouped = sharedId !== null;
 
 	const supportsGestures = !!onPress || !!onLongPress || !!onDoubleTap;
 
 	const hasShape = !!shape;
 
-	// positionIndex and fragmentUuid are computed by useLayerOrder during render
-	// (after the uuid declaration below) but must be available inside the create
-	// callback (which is defined here, before the declaration). A ref bridges
-	// the gap: it's set during render, then read when the async create callback
-	// fires.
-	const positionIndexRef = useRef<number>(-1);
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+		layerType: 'shape',
+		shared: true,
+		active: !isGrouped,
+	});
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasShape,
@@ -73,50 +118,14 @@ const LayerShape = ({
 					},
 				} as ErrorBase);
 			}
-			// Convert the typed ShapeDefinition to a codegen-compatible
-			// plain object (codegen only allows Readonly<{...}> inline shapes).
-			const shapeParams: Record<string, unknown> = {
-				type: shape.type,
-			};
-			switch (shape.type) {
-				case 'polygon':
-					shapeParams.rings = shape.rings;
-					if (shape.holes) shapeParams.holes = shape.holes;
-					break;
-				case 'circle':
-					shapeParams.center = shape.center;
-					shapeParams.radiusKm = shape.radiusKm;
-					if (shape.numSegments)
-						shapeParams.numSegments = shape.numSegments;
-					break;
-				case 'rectangle':
-					shapeParams.min = shape.min;
-					shapeParams.max = shape.max;
-					break;
-				case 'hexagon':
-					shapeParams.center = shape.center;
-					shapeParams.radiusKm = shape.radiusKm;
-					break;
-				case 'point':
-					shapeParams.position = shape.position;
-					break;
-			}
-
+			const fragmentUuid =
+				sharedId !== null
+					? fragmentUuidFor(sharedId, 'shape')
+					: runUuidFor(anchorUid);
 			return LayerShapeModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
-				fragmentUuid: fragmentUuidRef.current,
-				shape: shapeParams as {
-					type: string;
-					rings?: ReadonlyArray<ReadonlyArray<number>>;
-					holes?: ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
-					center?: ReadonlyArray<number>;
-					radiusKm?: number;
-					numSegments?: number;
-					min?: ReadonlyArray<number>;
-					max?: ReadonlyArray<number>;
-					position?: ReadonlyArray<number>;
-				},
+				fragmentUuid,
+				shape: shapeToParams(shape),
 				supportsGestures,
 				...(paint && { paint }),
 				...(gestureScreenDistance != null && { gestureScreenDistance }),
@@ -148,54 +157,23 @@ const LayerShape = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'shape');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	useLayerEntry({
+		active: isGrouped,
+		fragmentId: sharedId,
+		layerType: 'shape',
+		sortIndex: vtmSortIndex,
+		uuid,
+	});
+
+	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
 
 	// Update shape in place when props change.
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && shape) {
-			const shapeParams: Record<string, unknown> = {
-				type: shape.type,
-			};
-			switch (shape.type) {
-				case 'polygon':
-					shapeParams.rings = shape.rings;
-					if (shape.holes) shapeParams.holes = shape.holes;
-					break;
-				case 'circle':
-					shapeParams.center = shape.center;
-					shapeParams.radiusKm = shape.radiusKm;
-					if (shape.numSegments)
-						shapeParams.numSegments = shape.numSegments;
-					break;
-				case 'rectangle':
-					shapeParams.min = shape.min;
-					shapeParams.max = shape.max;
-					break;
-				case 'hexagon':
-					shapeParams.center = shape.center;
-					shapeParams.radiusKm = shape.radiusKm;
-					break;
-				case 'point':
-					shapeParams.position = shape.position;
-					break;
-			}
-
 			LayerShapeModule.updateShape({
 				nativeNodeHandle,
 				uuid,
-				shape: shapeParams as {
-					type: string;
-					rings?: ReadonlyArray<ReadonlyArray<number>>;
-					holes?: ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
-					center?: ReadonlyArray<number>;
-					radiusKm?: number;
-					numSegments?: number;
-					min?: ReadonlyArray<number>;
-					max?: ReadonlyArray<number>;
-					position?: ReadonlyArray<number>;
-				},
+				shape: shapeToParams(shape),
 				...(paint && { paint }),
 			})
 				.then((response: LayerShapeResponse) => {
@@ -249,7 +227,7 @@ const LayerShape = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 LayerShape.defaults = LayerShapeModule.getConstants();

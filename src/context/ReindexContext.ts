@@ -1,17 +1,16 @@
 /**
- * Internal dependencies
+ * Context provided by ReindexScope: identifies the enclosing scope so
+ * descendant anchors can carry the scope uid, and carries the scope's
+ * optional explicit ordering priority.
  */
+
 import { createContext } from 'react';
 
-/**
- * Context provided by <ReindexScope>.
- *
- * When non-null, descendant useLayerOrder calls tag themselves with this
- * scope symbol so the containing ReindexScope can manage their sub-range
- * within registry.order.
- *
- * Outside any ReindexScope, defaults to null (same pattern as SharedLayerContext).
- */
-const ReindexContext = createContext<symbol | null>(null);
+export type ReindexContextValue = {
+	scopeUid: string;
+	scopeOrder?: number;
+};
+
+const ReindexContext = createContext<ReindexContextValue | null>(null);
 
 export default ReindexContext;

@@ -55,7 +55,7 @@ export interface ModuleParams {
 
 interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle?: Int32;
-	positionIndex: Int32;
+	positionIndex?: Int32;
 }
 
 interface RemoveLayerParams {
@@ -65,7 +65,7 @@ interface RemoveLayerParams {
 
 interface CreateSubLayerParams {
 	nativeNodeHandle: Int32;
-	positionIndex: Int32;
+	positionIndex?: Int32;
 	// The uuid of the already-created main tile layer this sub-layer renders on top of.
 	parentUuid: string;
 	enabledZoomMin?: Double;

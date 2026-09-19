@@ -252,10 +252,11 @@ const expandOwner = (
 	const fragmentId = item.anchor.fragmentId!;
 
 	if (item.anchor.layerType !== undefined) {
-		// LayerMarker-style owner: its own native layer, uuid resolved via
-		// createLayer; its entries are declared against its fragmentId.
-		const resolvedUuid = uuids.get(item.anchor.uid);
-		if (resolvedUuid === undefined) {
+		// LayerMarker-style owner: its own native fragment layer. The native
+		// identity is the deterministic fragment uuid (JS passes it as
+		// fragmentUuid to createLayer; knownLayers is keyed by it). The
+		// resolved group uuid only marks existence.
+		if (!uuids.has(item.anchor.uid)) {
 			// The native layer doesn't exist yet — the fragment only enters
 			// the plan once the owner's own createLayer resolves.
 			return [];
@@ -263,7 +264,10 @@ const expandOwner = (
 		const ownedEntries = collectOwnerEntries(entries, fragmentId);
 		return [
 			{
-				fragmentUuid: resolvedUuid,
+				fragmentUuid: fragmentUuidFor(
+					fragmentId,
+					item.anchor.layerType
+				),
 				layerType: item.anchor.layerType,
 				entryUids: ownedEntries.map((e) => e.uid),
 				resolvedEntryUids: ownedEntries

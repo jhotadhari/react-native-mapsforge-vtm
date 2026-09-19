@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 
 /**
  * Internal dependencies
@@ -13,7 +13,8 @@ import LayerPathJtsModule, {
 } from '../NativeModules/NativeLayerPathJts';
 import type { ErrorBase } from '../types';
 import useLayerPathJtsEventSubscription from '../compose/useLayerPathJtsEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
@@ -72,7 +73,10 @@ const LayerPathJts = ({
 	// resolves to a layer creation failure with no recovery path.
 	const hasCoordinates = !!coordinates && coordinates.length >= 2;
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && hasCoordinates,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -85,7 +89,6 @@ const LayerPathJts = ({
 			}
 			return LayerPathJtsModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				coordinates,
 				supportsGestures,
 				...(paint && { paint }),
@@ -123,8 +126,7 @@ const LayerPathJts = ({
 	// order registry so reorderLayers can position it correctly relative to
 	// other layers. No layerType means no fragment uuid — each component's own
 	// uuid is used directly in orderedUuids.
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	// Redraw the existing native layer in place when the line or its paint
 	// changes, instead of tearing down and recreating the layer.
@@ -190,7 +192,7 @@ const LayerPathJts = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 LayerPathJts.defaults = moduleDefaults;

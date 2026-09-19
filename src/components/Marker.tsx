@@ -7,7 +7,6 @@ import { omit } from 'lodash-es';
 /**
  * Internal dependencies
  */
-// import { MarkerHotspotPlaces } from '../constants';
 import LayerMarkerModule, {
 	FontFamily,
 	FontStyle,
@@ -19,7 +18,9 @@ import {
 } from '../NativeModules/NativeLayerMarker';
 import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useLayerEntry from '../compose/useLayerEntry';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
 	enqueueCreateMarker,
@@ -28,6 +29,8 @@ import {
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const Marker = ({
 	title,
@@ -42,16 +45,28 @@ const Marker = ({
 	onPress,
 	onLongPress,
 	onTrigger,
-}: MarkerProps) => {
+	vtmSortIndex,
+}: MarkerProps & { vtmSortIndex?: number }) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
-	const { markerLayerUuid } = useContext(MarkerLayerContext);
+	const { markerLayerUuid, fragmentId: markerFragmentId } =
+		useContext(MarkerLayerContext);
+	const sharedId = useContext(SharedLayerContext);
+
+	// Grouped when inside a LayerMarker or a SharedLayer wrapper.
+	const fragmentId = markerFragmentId ?? sharedId;
+	const isGrouped = fragmentId !== null;
 
 	const indexRef = useRef<number>(-1);
 	const justCreatedRef = useRef(false);
 	const createdPositionRef = useRef(position);
 	const createdPaintRef = useRef(paint);
-	const positionIndexRef = useRef<number>(-1);
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
+
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+		layerType: 'marker',
+		shared: true,
+		active: !isGrouped,
+	});
 
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
@@ -69,6 +84,10 @@ const Marker = ({
 			// uuid resolution.
 			createdPositionRef.current = position;
 			createdPaintRef.current = paint;
+			const fragmentUuid =
+				fragmentId !== null
+					? fragmentUuidFor(fragmentId, 'marker')
+					: runUuidFor(anchorUid);
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -76,10 +95,7 @@ const Marker = ({
 				...(description && { description }),
 				...(position && { position }),
 				...(paint && { paint }),
-				positionIndex: positionIndexRef.current,
-				...(fragmentUuidRef.current && {
-					fragmentUuid: fragmentUuidRef.current,
-				}),
+				fragmentUuid,
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
 				justCreatedRef.current = true;
@@ -107,9 +123,15 @@ const Marker = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'marker');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	useLayerEntry({
+		active: isGrouped,
+		fragmentId,
+		layerType: 'marker',
+		sortIndex: vtmSortIndex,
+		uuid,
+	});
+
+	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
 
 	// Update the existing native marker in place when its position or paint
 	// changes, instead of tearing down and recreating it.
@@ -165,7 +187,7 @@ const Marker = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 Marker.HotspotPlaces = MarkerHotspotPlaces;

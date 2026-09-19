@@ -270,12 +270,14 @@ describe('planBuilder: LayerMarker owners', () => {
 			entry('m2', 'ml1', 'marker', 1),
 		]);
 		const uuids = new Map([
-			['ml1', 'uuid-marker-layer'],
+			['ml1', 'group-uuid'],
 			['m1', 'uuid-m1'],
 			['m2', 'uuid-m2'],
 		]);
 		const plan = buildPlan(walk, entries, uuids);
-		expect(layerUuids(plan)).toEqual(['uuid-marker-layer']);
+		// The native identity is the deterministic fragment uuid (knownLayers
+		// is keyed by it), not the resolved group uuid.
+		expect(layerUuids(plan)).toEqual([fragmentUuidFor('ml1', 'marker')]);
 		expect(plan.fragments[0]!.resolvedEntryUids).toEqual(['m1', 'm2']);
 	});
 

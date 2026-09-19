@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
@@ -12,19 +12,19 @@ import LayerMapsforgeModule, {
 	type LayerMapsforgeResponse,
 } from '../NativeModules/NativeLayerMapsforge';
 import type { ErrorBase, ResponseBase } from '../types';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 
 /**
- * Buildings and labels each get their own real native layer (and uuid), registered via
- * useLayerOrder alongside the main tile layer rather than bundled into one
- * org.oscim.layers.GroupLayer (see AGENTS.md). Calling useLayerOrder for all three -- main, then
- * buildings, then labels, in that fixed order every render -- keeps them contiguous in the shared
- * ordering registry the same way any other set of sibling layers would be. This internal component
- * isn't part of the public API; LayerMapsforge below renders it conditionally as a child for
- * whichever of hasBuildings/hasLabels is on, so mounting/unmounting alone drives create/remove.
+ * Buildings and labels each get their own real native layer (and uuid),
+ * rendered as children of this component, rather than bundled into one
+ * org.oscim.layers.GroupLayer (see AGENTS.md). Each renders its own anchor
+ * (main, then buildings, then labels, in tree order) so the committed-tree
+ * walk places them correctly regardless of when the sub-layers mount — they
+ * are gated on the parent uuid and appear asynchronously.
  */
 const LayerMapsforgeSubLayer = ({
 	parentUuid,
@@ -40,7 +40,6 @@ const LayerMapsforgeSubLayer = ({
 	onError?: null | ((err: ErrorBase) => void);
 	createSubLayer: (params: {
 		nativeNodeHandle: number;
-		positionIndex: number;
 		parentUuid: string;
 		enabledZoomMin?: number;
 		enabledZoomMax?: number;
@@ -52,7 +51,10 @@ const LayerMapsforgeSubLayer = ({
 }) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: () => {
@@ -63,7 +65,6 @@ const LayerMapsforgeSubLayer = ({
 			}
 			return createSubLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				parentUuid,
 				...(enabledZoomMin !== undefined && {
 					enabledZoomMin,
@@ -87,8 +88,7 @@ const LayerMapsforgeSubLayer = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	useEffect(() => {
 		if (nativeNodeHandle && uuid) {
@@ -113,7 +113,7 @@ const LayerMapsforgeSubLayer = ({
 		onError,
 	]);
 
-	return null;
+	return anchorElement;
 };
 
 const LayerMapsforge = ({
@@ -132,7 +132,10 @@ const LayerMapsforge = ({
 }: LayerMapsforgeProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && !!mapFile,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -145,7 +148,6 @@ const LayerMapsforge = ({
 			}
 			return LayerMapsforgeModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				mapFile,
 				...(renderTheme && { renderTheme }),
 				...(renderStyle && { renderStyle }),
@@ -189,8 +191,7 @@ const LayerMapsforge = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	// enabledZoomMin/enabledZoomMax changed -- update in place, same as every other layer type.
 	useEffect(() => {
@@ -243,6 +244,7 @@ const LayerMapsforge = ({
 
 	return (
 		<>
+			{anchorElement}
 			{hasBuildings && uuid && (
 				<LayerMapsforgeSubLayer
 					parentUuid={uuid}

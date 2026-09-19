@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
@@ -11,7 +11,8 @@ import LayerMBTilesBitmapModule, {
 	type LayerMBTilesBitmapResponse,
 } from '../NativeModules/NativeLayerMBTilesBitmap';
 import type { ErrorBase } from '../types';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
@@ -32,7 +33,10 @@ const LayerMBTilesBitmap = ({
 }: LayerMBTilesBitmapProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && !!mapFile,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -45,7 +49,6 @@ const LayerMBTilesBitmap = ({
 			}
 			return LayerMBTilesBitmapModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				mapFile,
 				...(transparentColor && { transparentColor }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
@@ -88,8 +91,7 @@ const LayerMBTilesBitmap = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {
@@ -156,7 +158,7 @@ const LayerMBTilesBitmap = ({
 		triggerCreate,
 	]);
 
-	return null;
+	return anchorElement;
 };
 
 LayerMBTilesBitmap.defaults = LayerMBTilesBitmapModule.getConstants();

@@ -8,6 +8,8 @@
  * isolation.
  */
 
+export type AnchorKind = 'layer' | 'fragment' | 'scope';
+
 /**
  * One entry in the ordered anchor sequence produced by the committed-tree
  * walk. The walk runs over the committed view hierarchy, so its order IS the
@@ -17,7 +19,7 @@ export type AnchorDescriptor = {
 	/** Stable uid of the rendering component (scope / fragment / layer). */
 	uid: string;
 	/** What the anchor represents in the layer stack. */
-	kind: 'layer' | 'fragment' | 'scope';
+	kind: AnchorKind;
 	/**
 	 * Layer type ('path', 'marker', 'shape', extension types). Absent for
 	 * dedicated-only types (mapsforge, bitmap tile, ...) and for the
