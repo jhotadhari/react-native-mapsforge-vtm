@@ -171,10 +171,12 @@ public class MarkerLayerManagerTest {
     private MarkerLayerManager createManagerWithFakeLayer() throws Exception {
         MarkerLayerManager mgr = MarkerLayerManager.get(handle, mockMapView);
 
-        // Inject sharedLayer via reflection.
-        Field f = LayerManager.class.getDeclaredField("sharedLayer");
+        // Inject the mock layer into the per-fragment map via reflection.
+        Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
         f.setAccessible(true);
-        f.set(mgr, mockItemizedLayer);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
+        fragments.put(mgr.getSharedLayerUuid() + "0", mockItemizedLayer);
 
         // Register in MapMutationQueue knownLayers.
         MapMutationQueue queue = MapMutationQueue.get(handle, mockMapView);
@@ -248,7 +250,8 @@ public class MarkerLayerManagerTest {
         MarkerItem mi = new MarkerItem(UUID.randomUUID(), "t", "d",
                 new GeoPoint(52.5, 13.4));
         MarkerLayerManager.MarkerEntry entry =
-                new MarkerLayerManager.MarkerEntry("marker-uuid", groupUuid, mi, 0);
+                new MarkerLayerManager.MarkerEntry("marker-uuid", groupUuid,
+                        "__vtm_shared_markers__0", mi, 0);
         allMarkers.put("marker-uuid", entry);
         mgr.getEntries().put("marker-uuid", entry);
 
@@ -290,7 +293,8 @@ public class MarkerLayerManagerTest {
                 new GeoPoint(52.5, 13.4));
         MarkerLayerManager.MarkerEntry entry =
                 new MarkerLayerManager.MarkerEntry("entry-uuid",
-                        MarkerLayerManager.ROOT_GROUP_UUID, mi, 0);
+                        MarkerLayerManager.ROOT_GROUP_UUID,
+                        "__vtm_shared_markers__0", mi, 0);
 
         Field allMarkersField = MarkerLayerManager.class.getDeclaredField("allMarkers");
         allMarkersField.setAccessible(true);
@@ -460,7 +464,8 @@ public class MarkerLayerManagerTest {
         java.util.Map<String, Object> allMarkers =
                 (java.util.Map<String, Object>) allMarkersField.get(mgr);
         MarkerLayerManager.MarkerEntry entry = new MarkerLayerManager.MarkerEntry(
-                "far-uuid", MarkerLayerManager.ROOT_GROUP_UUID, farItem, 0);
+                "far-uuid", MarkerLayerManager.ROOT_GROUP_UUID,
+                        "__vtm_shared_markers__0", farItem, 0);
         allMarkers.put("far-uuid", entry);
 
         mgr.triggerAllMarkers(100, 100, "all");
@@ -498,7 +503,8 @@ public class MarkerLayerManagerTest {
         java.util.Map<String, Object> allMarkers =
                 (java.util.Map<String, Object>) allMarkersField.get(mgr);
         MarkerLayerManager.MarkerEntry entry = new MarkerLayerManager.MarkerEntry(
-                "near-uuid", MarkerLayerManager.ROOT_GROUP_UUID, mi, 0);
+                "near-uuid", MarkerLayerManager.ROOT_GROUP_UUID,
+                        "__vtm_shared_markers__0", mi, 0);
         allMarkers.put("near-uuid", entry);
 
         mgr.triggerAllMarkers(100, 100, "all");
@@ -530,9 +536,11 @@ public class MarkerLayerManagerTest {
                 (java.util.Map<String, MarkerLayerManager.MarkerEntry>)
                         allMarkersField.get(mgr);
         allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
-                "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID, mi1, 0));
+                "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
+                "__vtm_shared_markers__0", mi1, 0));
         allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
-                "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID, mi2, 1));
+                "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
+                "__vtm_shared_markers__0", mi2, 1));
         mgr.getEntries().put("uuid-1", allMarkers.get("uuid-1"));
         mgr.getEntries().put("uuid-2", allMarkers.get("uuid-2"));
 

@@ -134,9 +134,11 @@ public class PathLayerManagerTest {
      */
     private PathLayerManager createManagerWithFakeLayer() throws Exception {
         PathLayerManager mgr = PathLayerManager.get(handle, mockMapView);
-        Field f = LayerManager.class.getDeclaredField("sharedLayer");
+        Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
         f.setAccessible(true);
-        f.set(mgr, mockVectorLayer);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
+        fragments.put("__vtm_shared_path__0", mockVectorLayer);
         return mgr;
     }
 
@@ -225,7 +227,7 @@ public class PathLayerManagerTest {
 
         String entryUuid = "path-entry-1";
         LayerManager.CreateResult<PathLayerManager.PathEntry> result =
-                mgr.create(entryUuid, params, mf, cr, rctx);
+                mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
 
         assertNotNull("CreateResult must not be null", result);
         assertNotNull("PathEntry must not be null", result.entry);
@@ -255,7 +257,7 @@ public class PathLayerManagerTest {
         // No "coordinates" key -> the method should throw.
         when(params.hasKey("coordinates")).thenReturn(false);
 
-        mgr.create("bad-entry", params, mf, cr, rctx);
+        mgr.create("bad-entry", "__vtm_shared_path__0", params, mf, cr, rctx);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -274,10 +276,18 @@ public class PathLayerManagerTest {
         when(empty.size()).thenReturn(0);
         when(params.getArray("coordinates")).thenReturn(empty);
 
-        mgr.create("empty-entry", params, mf, cr, rctx);
+        mgr.create("empty-entry", "__vtm_shared_path__0", params, mf, cr, rctx);
     }
 
     @Test
+    public void createEntry_withPaintParams() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = { {13.4, 52.5}, {13.5, 52.6} };
+        ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
         // Build a style map mock instead of a WritableNativeMap.
@@ -306,7 +316,7 @@ public class PathLayerManagerTest {
         when(params.getMap("paint")).thenReturn(styleMap);
 
         String entryUuid = "path-styled";
-        mgr.create(entryUuid, params, mf, cr, rctx);
+        mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
 
         PathLayerManager.PathEntry entry = mgr.getEntries().get(entryUuid);
         assertNotNull("Entry must exist after create", entry);
@@ -332,7 +342,7 @@ public class PathLayerManagerTest {
         configureDefaultParamBehavior(params);
 
         String entryUuid = "path-to-remove";
-        mgr.create(entryUuid, params, mf, cr, rctx);
+        mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
 
         // Sanity: entry and drawables exist.
         assertEquals(1, mgr.getEntries().size());
@@ -369,12 +379,12 @@ public class PathLayerManagerTest {
         double[][] coordsA = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coordsA);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", paramsA, mf, cr, rctx);
+        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
 
         double[][] coordsB = {{13.6, 52.7}, {13.7, 52.8}, {13.8, 52.9}};
         ReadableMap paramsB = mockCoordParams(coordsB);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", paramsB, mf, cr, rctx);
+        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
 
         assertEquals("Two path entries must be registered",
                 2, mgr.getEntries().size());
@@ -402,9 +412,9 @@ public class PathLayerManagerTest {
         ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
-        mgr.create("path-1", params, mf, cr, rctx);
-        mgr.create("path-2", params, mf, cr, rctx);
-        mgr.create("path-3", params, mf, cr, rctx);
+        mgr.create("path-1", "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create("path-2", "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create("path-3", "__vtm_shared_path__0", params, mf, cr, rctx);
 
         assertEquals(3, mgr.getEntries().size());
 
@@ -426,8 +436,11 @@ public class PathLayerManagerTest {
     }
 
     @Test
-    public void basePosition_isMaxInt() {
-        assertEquals(Integer.MAX_VALUE, PathLayerManager.BASE_POSITION);
+    public void basePosition_isOneBelowMaxInt() {
+        // Paths sit one below Integer.MAX_VALUE so path fragments sort
+        // below marker fragments (BASE_POSITION = Integer.MAX_VALUE) in
+        // the native incremental-insertion order.
+        assertEquals(Integer.MAX_VALUE - 1, PathLayerManager.BASE_POSITION);
     }
 
     // ------------------------------------------------------------------
@@ -439,7 +452,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", 0,
+                "test-uuid", "__vtm_shared_path__0", 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
@@ -463,7 +476,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", 0,
+                "test-uuid", "__vtm_shared_path__0", 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
