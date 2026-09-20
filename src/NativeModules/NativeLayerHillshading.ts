@@ -57,7 +57,6 @@ export interface ModuleParams {
 
 interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
 }
 
 interface RemoveLayerParams {

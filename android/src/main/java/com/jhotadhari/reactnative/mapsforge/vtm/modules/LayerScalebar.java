@@ -72,7 +72,7 @@ public class LayerScalebar extends NativeLayerScalebarSpec {
 
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
-		layerHelper.removeLayer( params, promise );
+		layerHelper.removeLayerResolving( params, promise );
 	}
 
 }

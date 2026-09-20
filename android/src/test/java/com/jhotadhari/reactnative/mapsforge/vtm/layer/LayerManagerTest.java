@@ -58,8 +58,8 @@ public class LayerManagerTest {
     private static class TestLayerManager extends LayerManager<String> {
         final Layer fakeSharedLayer;
 
-        TestLayerManager(int nh, MapView mv, String name, int basePos) {
-            super(nh, mv, name, basePos);
+        TestLayerManager(int nh, MapView mv, String name) {
+            super(nh, mv, name);
             fakeSharedLayer = mock(Layer.class);
         }
 
@@ -135,7 +135,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         assertNull(LayerManager.getInstance(handle, name));
         assertNotNull(LayerManager.get(handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0)));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n)));
         assertNotNull(LayerManager.getInstance(handle, name));
     }
 
@@ -143,9 +143,9 @@ public class LayerManagerTest {
     public void getReturnsSameInstance() {
         String name = "test" + handle;
         LayerManager<?> a = LayerManager.get(handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         LayerManager<?> b = LayerManager.get(handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         assertEquals(a, b);
     }
 
@@ -154,9 +154,9 @@ public class LayerManagerTest {
         String nameA = "testA" + handle;
         String nameB = "testB" + handle;
         LayerManager<?> a = LayerManager.get(handle, mockMapView, nameA,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         LayerManager<?> b = LayerManager.get(handle, mockMapView, nameB,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         assertNotNull(a);
         assertNotNull(b);
         // Same handle, different names → different instances
@@ -167,7 +167,7 @@ public class LayerManagerTest {
     public void removeClearsSingleton() {
         String name = "test" + handle;
         LayerManager.get(handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         assertNotNull(LayerManager.getInstance(handle, name));
         LayerManager.remove(handle, name);
         assertNull(LayerManager.getInstance(handle, name));
@@ -176,9 +176,9 @@ public class LayerManagerTest {
     @Test
     public void removeAllClearsAllForHandle() {
         LayerManager.get(handle, mockMapView, "a" + handle,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         LayerManager.get(handle, mockMapView, "b" + handle,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
         assertNotNull(LayerManager.getInstance(handle, "a" + handle));
         assertNotNull(LayerManager.getInstance(handle, "b" + handle));
         LayerManager.removeAll(handle);
@@ -195,7 +195,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         LayerManager.EventEmitterCallback cb = mock(LayerManager.EventEmitterCallback.class);
         mgr.setEventCallback(cb);
@@ -212,7 +212,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         mgr.setEventCallback(null);
 
@@ -231,7 +231,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         ReadableMap params = mock(ReadableMap.class);
         when(params.hasKey("positionIndex")).thenReturn(true);
@@ -246,7 +246,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         ReadableMap params = mock(ReadableMap.class);
         when(params.hasKey("positionIndex")).thenReturn(false);
@@ -263,7 +263,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         assertEquals("__vtm_shared_" + name + "__", mgr.getSharedLayerUuid());
     }
@@ -277,7 +277,7 @@ public class LayerManagerTest {
         String name = "test" + handle;
         TestLayerManager mgr = (TestLayerManager) LayerManager.get(
                 handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n, 0));
+                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
 
         // sharedLayer is null until ensureSharedLayer() is called (via create(), etc.)
         assertNull("getSharedLayer must be null before ensureSharedLayer",

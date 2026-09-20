@@ -300,12 +300,10 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 
 			LayerHelper layerHelper = new LayerHelper(this, getReactApplicationContext());
 
-			// Build helper params that include positionIndex for position-aware insertion.
+			// Order is the plan's responsibility — the helper params only
+			// need the map handle; the absolute plan places the layer.
 			WritableMap helperParams = new WritableNativeMap();
 			helperParams.putInt("nativeNodeHandle", nativeNodeHandle);
-			if (Utils.rMapHasKey(params, "positionIndex")) {
-				helperParams.putInt("positionIndex", params.getInt("positionIndex"));
-			}
 
 			layerHelper.addLayerAsync(pathLayer, helperParams, uuid)
 				.thenAccept(resolvedUuid -> {

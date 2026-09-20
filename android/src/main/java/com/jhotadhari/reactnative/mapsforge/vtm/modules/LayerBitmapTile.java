@@ -119,7 +119,7 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
-		layerHelper.removeLayer( params, promise );
+		layerHelper.removeLayerResolving( params, promise );
 	}
 
 	@Override

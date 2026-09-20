@@ -57,8 +57,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	private static final String TAG = "MarkerLayerManager";
 
 	public static final String NAME = "markers";
-	/** Position in map.layers(): above paths (0), below any future layers. */
-	public static final int BASE_POSITION = Integer.MAX_VALUE;
 
 	/** Default group for bare {@code <Marker>} components (no LayerMarker wrapper). */
 	public static final String ROOT_GROUP_UUID = "__root__";
@@ -155,7 +153,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	// ── Constructor ─────────────────────────────────────────────────────
 
 	protected MarkerLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
-		super(nativeNodeHandle, mapView, name, BASE_POSITION);
+		super(nativeNodeHandle, mapView, name);
 	}
 
 	// ── LayerManager contract ───────────────────────────────────────────

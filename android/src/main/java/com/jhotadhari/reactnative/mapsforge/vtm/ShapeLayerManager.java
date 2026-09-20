@@ -57,8 +57,6 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	private static final String TAG = "ShapeLayerManager";
 
 	public static final String NAME = "shapes";
-	/** Position in map.layers(): same tier as markers, above paths. */
-	public static final int BASE_POSITION = Integer.MAX_VALUE;
 	/**
 	 * Default fragment UUID prefix used when JS doesn't supply one. Must match
 	 * the default in the owning TurboModule ({@code LayerShape.java}'s createLayer).
@@ -117,7 +115,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Constructor ─────────────────────────────────────────────────────
 
 	protected ShapeLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
-		super(nativeNodeHandle, mapView, name, BASE_POSITION);
+		super(nativeNodeHandle, mapView, name);
 	}
 
 	// ── LayerManager contract ───────────────────────────────────────────

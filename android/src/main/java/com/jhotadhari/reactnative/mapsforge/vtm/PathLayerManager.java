@@ -57,8 +57,6 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	private static final String TAG = "PathLayerManager";
 
 	public static final String NAME = "paths";
-	/** Position in map.layers(): below markers/shapes so paths render underneath overlays. */
-	public static final int BASE_POSITION = Integer.MAX_VALUE - 1;
 	/** Fallback fragment uuid when batch params carry none (single implicit fragment). */
 	public static final String DEFAULT_FRAGMENT_UUID = "__vtm_shared_path__0";
 
@@ -116,7 +114,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	// ── Constructor ─────────────────────────────────────────────────────
 
 	protected PathLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
-		super(nativeNodeHandle, mapView, name, BASE_POSITION);
+		super(nativeNodeHandle, mapView, name);
 	}
 
 	// ── LayerManager contract ───────────────────────────────────────────

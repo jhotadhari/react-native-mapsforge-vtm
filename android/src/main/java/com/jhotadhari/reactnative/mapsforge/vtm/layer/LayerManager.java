@@ -140,8 +140,6 @@ public abstract class LayerManager<TEntry> {
 	/** Reserved uuid for the shared layer in {@link MapMutationQueue#getKnownLayers}. */
 	@NonNull
 	protected final String sharedLayerUuid;
-	/** Where the shared layer sits among JS-managed layers in {@code map.layers()}. */
-	protected final int basePositionIndex;
 
 	/**
 	 * Per-fragment shared vtm Layers, keyed by fragment uuid.
@@ -167,13 +165,11 @@ public abstract class LayerManager<TEntry> {
 	protected LayerManager(
 		int nativeNodeHandle,
 		@NonNull MapView mapView,
-		@NonNull String name,
-		int basePositionIndex
+		@NonNull String name
 	) {
 		this.nativeNodeHandle = nativeNodeHandle;
 		this.mapView = mapView;
 		this.name = name;
-		this.basePositionIndex = basePositionIndex;
 		this.sharedLayerUuid = "__vtm_shared_" + name + "__";
 	}
 
@@ -397,10 +393,11 @@ public abstract class LayerManager<TEntry> {
 			sharedLayerFragments.put(fragmentUuid, layer);
 
 			queue = MapMutationQueue.get(nativeNodeHandle, mapView);
+			// The absolute plan (from the JS side) places the fragment —
+			// adds append until the plan arrives in the same or next flush.
 			future = queue.enqueueAddLayer(
 				layer,
-				fragmentUuid,
-				basePositionIndex
+				fragmentUuid
 			);
 		}
 

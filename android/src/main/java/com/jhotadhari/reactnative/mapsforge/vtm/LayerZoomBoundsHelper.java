@@ -20,32 +20,12 @@ public class LayerZoomBoundsHelper extends LayerHelper {
 	}
 
 	@Override
-	public String addLayer( Layer layer, ReadableMap params ) {
-		String uuid = super.addLayer( layer, params );
-
-		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) { return null; }
-		MapView mapView = Utils.getMapView( reactContext, params.getInt( "nativeNodeHandle" ) );
-		if ( null == mapView ) { return null; }
-
-		// Get params, assign defaults.
-		int enabledZoomMin = Utils.rMapHasKey( params, "enabledZoomMin" ) ? (int) params.getDouble( "enabledZoomMin" ) : (int) module.getConstants().get( "enabledZoomMin" );
-		int enabledZoomMax = Utils.rMapHasKey( params, "enabledZoomMax" ) ? (int) params.getDouble( "enabledZoomMax" ) : (int) module.getConstants().get( "enabledZoomMax" );
-
-		updateEnabled(
-			layer,
-			enabledZoomMin,
-			enabledZoomMax,
-			mapView.map().getMapPosition().getZoomLevel()
-		);
-
-		updateUpdateListener(
-			params.getInt( "nativeNodeHandle" ),
-			uuid,
-			enabledZoomMin,
-			enabledZoomMax
-		);
-
-		return uuid;
+	public java.util.concurrent.CompletableFuture<Void> removeLayerAsync( ReadableMap params ) {
+		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+			return super.removeLayerAsync( params );
+		}
+		removeUpdateListener( params.getInt( "nativeNodeHandle" ) );
+		return super.removeLayerAsync( params );
 	}
 
 	public void updateEnabledZoomMinMax( ReadableMap params, Promise promise ) {
@@ -71,15 +51,6 @@ public class LayerZoomBoundsHelper extends LayerHelper {
 			e.printStackTrace();
 			Utils.promiseReject( promise,e.getMessage() );
 		}
-	}
-
-	@Override
-	public void removeLayer( ReadableMap params, Promise promise ) {
-		if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Utils.promiseReject( promise, "Undefined nativeNodeHandle" );  return;
-		}
-		removeUpdateListener( params.getInt( "nativeNodeHandle" ) );
-		super.removeLayer( params, promise );
 	}
 
 	public void updateEnabled(

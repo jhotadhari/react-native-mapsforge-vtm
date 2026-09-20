@@ -482,14 +482,6 @@ public class PathLayerManagerTest {
         assertEquals("paths", PathLayerManager.NAME);
     }
 
-    @Test
-    public void basePosition_isOneBelowMaxInt() {
-        // Paths sit one below Integer.MAX_VALUE so path fragments sort
-        // below marker fragments (BASE_POSITION = Integer.MAX_VALUE) in
-        // the native incremental-insertion order.
-        assertEquals(Integer.MAX_VALUE - 1, PathLayerManager.BASE_POSITION);
-    }
-
     // ------------------------------------------------------------------
     // Utility methods
     // ------------------------------------------------------------------

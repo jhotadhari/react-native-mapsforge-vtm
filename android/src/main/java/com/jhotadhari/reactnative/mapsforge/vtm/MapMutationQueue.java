@@ -9,8 +9,6 @@ import org.oscim.android.MapView;
 import org.oscim.layers.Layer;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,12 +30,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Flush always runs on the UI thread, serialized with vtm's own rendering and
  * with {@code animateTo}/{@code getPosition} (which also dispatch to the UI thread).
  *
- * <p>Position-aware insertion: {@code AddLayer} carries a {@code positionIndex}
- * (0 = first among JS-managed layers). The flush algorithm inserts each new layer
- * directly at its correct position, eliminating the need for a separate
- * {@code reorderLayers} pass after creation. When multiple layers are added in a
- * single batch, they are sorted by positionIndex before insertion so earlier
- * indices don't shift later ones.
+ * <p>New layers are appended; their final position comes from the absolute
+ * plan applied in the same flush ({@link LayerStackController#applyPlan}).
  *
  * <h3>Threading model</h3>
  * <pre>
@@ -48,8 +42,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *  removeLayer (async)  ──enqueue──>  │  MapMutationQueue.flush()    │
  *  reorderLayers        ──enqueue──>  │  ─────────────────────────  │
  *                                     │  1. Remove stale layers      │
- *  animateTo()          ──dispatch──> │  2. Add new layers           │
- *  getPosition()        ──dispatch──> │  3. Reorder (LIS algorithm)  │
+ *  animateTo()          ──dispatch──> │  2. Add new layers (append)  │
+ *  getPosition()        ──dispatch──> │  3. Apply absolute plan (LIS)│
  *                                     │  4. updateMap() once         │
  *  scheduleUpdate()     ──post─────>  │  updateMap() coalesced       │
  *  (LayerManager +       (CAS+Handler)│  (per-entry geometry changes)│
@@ -83,10 +77,6 @@ public class MapMutationQueue {
 	/** Owns the JS-managed layer-stack state and applies absolute plans. */
 	private final LayerStackController controller;
 
-	// Per-layer positionIndex, populated on add and used during incremental insertion
-	// so we can find where each new layer belongs relative to existing JS-managed layers.
-	private final Map<String, Integer> positionByUuid = new ConcurrentHashMap<>();
-
 	// Pending mutations, drained by flush() on the UI thread.
 	private final ConcurrentLinkedQueue<Mutation> pending = new ConcurrentLinkedQueue<>();
 	private volatile boolean flushScheduled = false;
@@ -103,13 +93,11 @@ public class MapMutationQueue {
 	private static final class AddLayer implements Mutation {
 		final Layer layer;
 		final String uuid;
-		final int positionIndex; // Among JS-managed layers, 0 = first
 		final CompletableFuture<String> future;
 
-		AddLayer(Layer layer, String uuid, int positionIndex, CompletableFuture<String> future) {
+		AddLayer(Layer layer, String uuid, CompletableFuture<String> future) {
 			this.layer = layer;
 			this.uuid = uuid;
-			this.positionIndex = positionIndex;
 			this.future = future;
 		}
 
@@ -199,7 +187,6 @@ public class MapMutationQueue {
 		}
 		pending.clear();
 		flushScheduled = false;
-		positionByUuid.clear();
 		controller.clear();
 	}
 
@@ -207,9 +194,9 @@ public class MapMutationQueue {
 	// Public enqueue API – safe to call from any thread
 	// ------------------------------------------------------------------
 
-	public CompletableFuture<String> enqueueAddLayer(Layer layer, String uuid, int positionIndex) {
+	public CompletableFuture<String> enqueueAddLayer(Layer layer, String uuid) {
 		CompletableFuture<String> future = new CompletableFuture<>();
-		pending.add(new AddLayer(layer, uuid, positionIndex, future));
+		pending.add(new AddLayer(layer, uuid, future));
 		scheduleFlush();
 		return future;
 	}
@@ -294,49 +281,15 @@ public class MapMutationQueue {
 		// --- Step 1: remove layers that are being torn down ---
 		if (!removeUuids.isEmpty()) {
 			controller.removeAll(removeUuids);
-			for (String uuid : removeUuids) {
-				positionByUuid.remove(uuid);
-			}
 		}
 
-		// --- Step 2: incremental insertion (not "remove-all re-add-all") ---
-		// Existing JS layers stay on the map; new layers are inserted at their
-		// positionIndex among JS-managed layers.  We sort ASCENDING so earlier
-		// positions don't shift later ones, and maintain a running layerToUuid
-		// / knownSet that includes layers added earlier in this batch.
-		adds.sort(Comparator.comparingInt(a -> a.positionIndex));
-
-		Map<Layer, String> layerToUuid = new HashMap<>();
-		Set<Layer> knownSet = new HashSet<>();
-		for (Map.Entry<String, Layer> entry : controller.getKnownLayers().entrySet()) {
-			layerToUuid.put(entry.getValue(), entry.getKey());
-			knownSet.add(entry.getValue());
-		}
-
-		int scanFrom = 0;
+		// --- Step 2: add new layers (append) ---
+		// Order is the plan's responsibility — the flush applies the
+		// absolute plan right after the adds, so new layers never render
+		// at a wrong position beyond this single batch.
 		for (AddLayer add : adds) {
-			int insertAt = mapView.map().layers().size(); // default: append
-			int mapLen = mapView.map().layers().size();
-			for (int i = scanFrom; i < mapLen; i++) {
-				Layer l = mapView.map().layers().get(i);
-				String existingUuid = layerToUuid.get(l);
-				if (existingUuid != null) {
-					Integer existingPos = positionByUuid.get(existingUuid);
-					// positionByUuid may not yet have entries for layers added in
-					// the very first flush for this instance; treat missing as -1
-					// so the scan doesn't stop prematurely.
-					if (existingPos != null && existingPos > add.positionIndex) {
-						insertAt = i;
-						break;
-					}
-				}
-			}
-			mapView.map().layers().add(insertAt, add.layer);
+			mapView.map().layers().add(add.layer);
 			controller.register(add.layer, add.uuid);
-			positionByUuid.put(add.uuid, add.positionIndex);
-			layerToUuid.put(add.layer, add.uuid);
-			knownSet.add(add.layer);
-			scanFrom = insertAt; // next add goes at or after this point
 		}
 
 		// --- Step 3: apply the absolute plan ---
@@ -390,7 +343,6 @@ public class MapMutationQueue {
 	 */
 	public void removeLayerSync(String uuid) {
 		controller.removeLayerSync(uuid);
-		positionByUuid.remove(uuid);
 	}
 
 	/**

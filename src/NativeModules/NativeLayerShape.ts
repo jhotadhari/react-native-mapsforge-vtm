@@ -101,7 +101,6 @@ export interface ModuleParams {
 
 export interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
-	positionIndex?: Int32;
 	fragmentUuid?: string;
 	shape?: {
 		type: string;

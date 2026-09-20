@@ -182,7 +182,7 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 				( (BitmapTileLayer) layer ).onDetach();
 			}
 		}
-		layerHelper.removeLayer( params, promise );
+		layerHelper.removeLayerResolving( params, promise );
 	}
 
 	@Override
