@@ -4,7 +4,6 @@ import type { Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import type { ErrorBase, ResponseBase } from '../types';
 
 interface CreateLayerParams {
-	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle: Int32;
 }
 

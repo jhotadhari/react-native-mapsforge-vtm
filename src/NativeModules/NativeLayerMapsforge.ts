@@ -54,7 +54,6 @@ export interface ModuleParams {
 }
 
 interface CreateLayerParams extends ModuleParams {
-	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle?: Int32;
 }
 
@@ -64,7 +63,6 @@ interface RemoveLayerParams {
 }
 
 interface CreateSubLayerParams {
-	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle: Int32;
 	// The uuid of the already-created main tile layer this sub-layer renders on top of.
 	parentUuid: string;
