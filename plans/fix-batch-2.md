@@ -1,6 +1,6 @@
 # Plan: Fix Batch 2 (post-Phase-5 findings + re-review)
 
-Status: **implemented — device gate IN PROGRESS (paused by user before Phase 6).**
+Status: **implemented + device-verified.**
 Companion docs: `layer-ordering-rewrite.md` (roadmap), `layer-ordering-rewrite-code-review.md`
 (findings), `phase-5-layer-stack-controller.md` (done).
 
@@ -20,21 +20,23 @@ Companion docs: `layer-ordering-rewrite.md` (roadmap), `layer-ordering-rewrite-c
 5. `e9be901` — `refactor(js)`: dedicated layers stop sending layerUuids (uuid unknowable
    pre-create; kills the 'virtual' leak); spec fields removed
 6. `8bd169d` — `chore(docs)`: stale javadoc cleanup
+7. `60d35a3` — `fix(examples)`: stabilized per-render-regenerated layer props (fit-bounds
+   bbox rings, markers city paints, type-run coords/paint) — flicker fix found while
+   exercising the gate
 
-## Device gate (IN PROGRESS — 19261FDEE000YM, fresh Metro + pm clear)
+## Device verification (19261FDEE000YM, Android 13, fresh Metro + pm clear)
 
 | Check | Result |
 |---|---|
-| layer-order-verification fresh | JS 5 / Native 5, run fragment 1/2 ✓ |
+| layer-order-verification fresh / toggles | 5/5 (SharedLayer+Scope), 8/8 (SharedLayer OFF), back to 5/5 ✓ |
 | type-run add ×2 → remove-first → move-last-to-front | 3 paths, 5/5, run re-keyed to layer_12, still 1 fragment ✓ |
-| Logcat during run ops | 0 mismatch warnings, 0 W-level ZOMBIE; 2 D-level re-key ZOMBIE transients (designed self-healing reject path) ✓ |
-| SharedLayer OFF | 8/8 ✓ |
-
-**Remaining when the gate resumes:**
-- toggles back to 5/5 (SharedLayer ON tapped, not yet verified)
-- MANYLAYERS 3/3, SHARED LAYER GROUPING swap, MARKERS, MANY SHAPES, MULTI-MAP SYNC
-- `getDebugLayerDump` `appliedMatchesExpected: true` after a full screen load
-- then update this doc + roadmap and commit
+| Logcat during run ops | 0 mismatch warnings, 0 W-level ZOMBIE; 2 D-level re-key ZOMBIE transients (designed self-healing reject path, priorities re-sent on the next mutation) ✓ |
+| MANYLAYERS stress test | 3/3 ✓ |
+| SHARED LAYER GROUPING swap | 2 fragments, 0 warnings ✓ |
+| MARKERS / MANY SHAPES | render clean, 0 warnings ✓ |
+| MULTI-MAP SYNC | Map A renders; Map B = documented known issue; 0 warnings ✓ |
+| getDebugLayerDump self-check | 0 `LayerStackController mismatch` warnings across the whole matrix (the verify intersection semantics covered by Robolectric; console dump not observable via logcat on this RN version) ✓ |
+| fitBounds flyToBounds (flicker fix) | resolves cleanly, rectangles stable ✓ |
 
 ## Accepted transient (decision confirmed)
 

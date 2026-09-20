@@ -76,8 +76,8 @@ accumulated during render.
 | 4B | Generic batching (paths+shapes, marker migration) | ✅ done |
 | — | **Fix batch 1** (review findings, before Phase 5) | ✅ done — commits `d6405c1`..`c9f1987`, device-verified |
 | 5 | `LayerStackController` (absolute plans, `positionByUuid` removal, atomic create+apply, self-check) | ✅ done — commits `60cb00b`..`68532fc`, device-verified |
-| — | **Fix batch 2** (post-Phase-5 findings + re-review) | ⏭ next |
-| 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | partial |
+| — | **Fix batch 2** (post-Phase-5 findings + re-review) | ✅ done — commits `786fccf`..`60d35a3`, device-verified |
+| 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | ⏭ next |
 | 7 | Docs rewrite (`layer-ordering.md`, `AGENTS.md`, extending.md), example verification matrix | pending |
 | 8 | Lockstep consumers (straymap, ext-path-color-ramp, ext-grib) + breaking release | pending |
 
