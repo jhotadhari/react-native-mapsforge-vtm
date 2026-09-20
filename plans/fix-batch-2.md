@@ -1,8 +1,45 @@
 # Plan: Fix Batch 2 (post-Phase-5 findings + re-review)
 
-Status: **planned — implementation pending.**
+Status: **implemented — device gate IN PROGRESS (paused by user before Phase 6).**
 Companion docs: `layer-ordering-rewrite.md` (roadmap), `layer-ordering-rewrite-code-review.md`
 (findings), `phase-5-layer-stack-controller.md` (done).
+
+## Implemented (commits)
+
+1. `786fccf` — `fix(stack)`: verify() compares resolvable relative order (unknown uuids +
+   plan-absent siblings ignored, real desyncs detected); `lastVerifyResult` volatile;
+   CLEAR_EVENT dedup records resolved uuids only; new controller tests + mixed
+   add-plan+reorder batch test
+2. `e672b5b` — `fix(batch)`: per-fragment ensure error capture in
+   createPaths/createShapes/createMarkers (per-item errors, batch never rejects wholesale);
+   `addResponseData` rMapHasKey guards; marker insertion/tracking loop null-fragment guards
+3. `85b315f` — `fix(markers)`: MarkerEntry creationSeq (AtomicLong) tie-break — equal
+   priorities rebuild deterministically, earlier-created on top (batch convention)
+4. `bbf11c0` — `perf(batch)`: syncGestureSupport hoisted to once per batch
+   (super.create/super.remove in the batch loops)
+5. `e9be901` — `refactor(js)`: dedicated layers stop sending layerUuids (uuid unknowable
+   pre-create; kills the 'virtual' leak); spec fields removed
+6. `8bd169d` — `chore(docs)`: stale javadoc cleanup
+
+## Device gate (IN PROGRESS — 19261FDEE000YM, fresh Metro + pm clear)
+
+| Check | Result |
+|---|---|
+| layer-order-verification fresh | JS 5 / Native 5, run fragment 1/2 ✓ |
+| type-run add ×2 → remove-first → move-last-to-front | 3 paths, 5/5, run re-keyed to layer_12, still 1 fragment ✓ |
+| Logcat during run ops | 0 mismatch warnings, 0 W-level ZOMBIE; 2 D-level re-key ZOMBIE transients (designed self-healing reject path) ✓ |
+| SharedLayer OFF | 8/8 ✓ |
+
+**Remaining when the gate resumes:**
+- toggles back to 5/5 (SharedLayer ON tapped, not yet verified)
+- MANYLAYERS 3/3, SHARED LAYER GROUPING swap, MARKERS, MANY SHAPES, MULTI-MAP SYNC
+- `getDebugLayerDump` `appliedMatchesExpected: true` after a full screen load
+- then update this doc + roadmap and commit
+
+## Accepted transient (decision confirmed)
+
+Grouped cold-mount first entries and dedicated layers keep append-then-reorder
+(SceneSync heals in ≤250 ms); the self-check no longer flags it.
 
 ## A. Known findings
 
