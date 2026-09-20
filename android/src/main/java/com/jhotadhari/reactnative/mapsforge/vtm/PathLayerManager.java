@@ -11,8 +11,8 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -35,7 +35,10 @@ import org.oscim.layers.vector.geometries.Style;
 import org.oscim.utils.geom.GeomBuilder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -277,7 +280,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		ReadableMap responseInclude = Utils.rMapHasKey(params, "responseInclude")
 			? params.getMap("responseInclude")
 			: null;
-		WritableMap responseData = new WritableNativeMap();
+		WritableMap responseData = Arguments.createMap();
 		responseData.putString("uuid", entry.pathUuid);
 		if (responseInclude != null) {
 			addResponseData(entry.pathUuid, responseInclude, 1, responseData);
@@ -305,7 +308,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			// Use distance() instead of buffer(d).contains() — see
 			// VectorLayer.containsGetResponse for rationale.
 			if (drawable.getGeometry().distance(point) <= threshold) {
-				WritableMap params = new WritableNativeMap();
+				WritableMap params = Arguments.createMap();
 				params.putString("uuid", entry.pathUuid);
 				params.putDouble("distance", drawable.getGeometry().distance(point));
 				org.locationtech.jts.geom.Coordinate[] nearestPoints =
@@ -343,6 +346,98 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	public void remove(@NonNull String entryUuid) {
 		super.remove(entryUuid);
 		syncGestureSupport();
+	}
+
+	// ── Batch creation / removal ──────────────────────────────────────
+
+	/**
+	 * Creates multiple path entries in a single batch: ensures all required
+	 * fragment layers upfront, creates each entry, and calls updateMap once
+	 * (via the coalesced scheduleUpdate). Per-item errors are captured; the
+	 * response mirrors the single createLayer response for each item.
+	 */
+	@NonNull
+	public WritableMap createPaths(
+		@NonNull ReadableArray pathsArray,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver,
+		@NonNull ReactApplicationContext reactContext,
+		@NonNull ReadableMap defaultResponseInclude
+	) throws Exception {
+		int count = pathsArray.size();
+		ReadableMap[] allParams = new ReadableMap[count];
+		String[] entryUuids = new String[count];
+		String[] errors = new String[count];
+
+		// Ensure all required fragment layers exist upfront.
+		Set<String> seenFragments = new HashSet<>();
+		for ( int i = 0; i < count; i++ ) {
+			allParams[i] = pathsArray.getMap( i );
+			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+				? allParams[i].getString( "fragmentUuid" )
+				: "__vtm_shared_path__0";
+			if ( seenFragments.add( fragmentUuid ) ) {
+				ensureSharedLayer( fragmentUuid );
+			}
+		}
+
+		for ( int i = 0; i < count; i++ ) {
+			String entryUuid = UUID.randomUUID().toString();
+			entryUuids[i] = entryUuid;
+			try {
+				String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+					? allParams[i].getString( "fragmentUuid" )
+					: "__vtm_shared_path__0";
+				create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
+			} catch ( Exception e ) {
+				errors[i] = e.getMessage();
+			}
+		}
+
+		scheduleUpdate();
+
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", entryUuids[i] );
+			if ( errors[i] != null ) {
+				resultItem.putString( "error", errors[i] );
+			} else {
+				ReadableMap responseInclude = Utils.rMapHasKey( allParams[i], "responseInclude" )
+					? allParams[i].getMap( "responseInclude" )
+					: defaultResponseInclude;
+				resultItem.putMap( "response", buildCreateResponse( entryUuids[i], responseInclude ) );
+			}
+			results.pushMap( resultItem );
+		}
+
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
+	}
+
+	/**
+	 * Removes multiple path entries in a single batch. The coalesced
+	 * scheduleUpdate collapses the per-entry updates into one updateMap.
+	 */
+	@NonNull
+	public WritableMap removePaths( @NonNull ReadableArray pathUuids ) {
+		int count = pathUuids.size();
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			String uuid = pathUuids.getString( i );
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", uuid );
+			try {
+				remove( uuid );
+			} catch ( Exception e ) {
+				resultItem.putString( "error", e.getMessage() );
+			}
+			results.pushMap( resultItem );
+		}
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
 	}
 
 	// ── Path-specific public API ────────────────────────────────────────
@@ -427,7 +522,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		@NonNull String entryUuid,
 		@NonNull ReadableMap responseInclude
 	) {
-		WritableMap responseData = new WritableNativeMap();
+		WritableMap responseData = Arguments.createMap();
 		responseData.putString("uuid", entryUuid);
 		addResponseData(entryUuid, responseInclude, 0, responseData);
 		return responseData;
@@ -607,7 +702,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			new GeometryFactory()
 		);
 		Envelope boundingBox = geometry.getEnvelopeInternal();
-		com.facebook.react.bridge.WritableArray bboxParams = new com.facebook.react.bridge.WritableNativeArray();
+		com.facebook.react.bridge.WritableArray bboxParams = Arguments.createArray();
 		bboxParams.pushDouble(boundingBox.getMinX());
 		bboxParams.pushDouble(boundingBox.getMinY());
 		bboxParams.pushDouble(boundingBox.getMaxX());
@@ -620,7 +715,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		@NonNull WritableMap responseParams
 	) {
 		if (jtsCoordinates.length > 0 && !responseParams.hasKey("coordinates")) {
-			com.facebook.react.bridge.WritableArray arr = new com.facebook.react.bridge.WritableNativeArray();
+			com.facebook.react.bridge.WritableArray arr = Arguments.createArray();
 			for (Coordinate c : jtsCoordinates) {
 				arr.pushArray(Utils.positionToWritableArray(c.x, c.y, c.z));
 			}
@@ -650,7 +745,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			}
 			// The GestureListener is called by VectorLayer.onGesture, which
 			// already populated uuid/distance/nearestPoint in containsGetResponse.
-			WritableMap payload = new WritableNativeMap();
+			WritableMap payload = Arguments.createMap();
 			// Copy relevant fields from eventParams.
 			if (eventParams.hasKey("uuid")) {
 				payload.putString("uuid", eventParams.getString("uuid"));

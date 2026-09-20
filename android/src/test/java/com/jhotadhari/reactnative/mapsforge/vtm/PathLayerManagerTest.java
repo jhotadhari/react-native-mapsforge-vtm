@@ -4,16 +4,20 @@ import android.content.ContentResolver;
 import android.os.Looper;
 
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.oscim.android.MapView;
@@ -41,6 +45,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mockStatic;
+import org.mockito.MockedStatic;
+
 import static org.mockito.Mockito.when;
 
 /**
@@ -58,6 +66,26 @@ import static org.mockito.Mockito.when;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 33)
 public class PathLayerManagerTest {
+
+    private static MockedStatic<Arguments> argumentsMock;
+
+    @BeforeClass
+    public static void setUpClass() {
+        // Mock Arguments.createArray/createMap so batch methods can build
+        // responses without native library loading in Robolectric.
+        argumentsMock = mockStatic(Arguments.class);
+        WritableArray mockArray = mock(WritableArray.class);
+        WritableMap mockMap = mock(WritableMap.class);
+        when(Arguments.createArray()).thenReturn(mockArray);
+        when(Arguments.createMap()).thenReturn(mockMap);
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        if (argumentsMock != null) {
+            argumentsMock.close();
+        }
+    }
 
     private static int handleCounter = 400000;
 
@@ -545,6 +573,96 @@ public class PathLayerManagerTest {
         when(assignments.size()).thenReturn(0);
         // Should not throw (ZOMBIE path logs a warning).
         mgr.applyEntryPriorities("unknown-fragment", assignments);
+    }
+
+    // ------------------------------------------------------------------
+    // Batch create / remove
+    // ------------------------------------------------------------------
+
+    @Test
+    public void createPaths_createsEntriesInOneBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals("Two path entries must be registered",
+                2, mgr.getEntries().size());
+        assertEquals("One drawable per 2-coordinate path",
+                2, addedDrawables.size());
+    }
+
+    @Test
+    public void createPaths_capturesPerItemErrors() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        // First item valid, second missing coordinates.
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mock(ReadableMap.class);
+        configureDefaultParamBehavior(paramsB);
+        when(paramsB.hasKey("coordinates")).thenReturn(false);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        // Only the valid item registered.
+        assertEquals(1, mgr.getEntries().size());
+        assertEquals(1, addedDrawables.size());
+    }
+
+    @Test
+    public void removePaths_removesEntriesInOneBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        assertEquals(2, mgr.getEntries().size());
+
+        ReadableArray uuids = mock(ReadableArray.class);
+        when(uuids.size()).thenReturn(2);
+        when(uuids.getString(0)).thenReturn("path-a");
+        when(uuids.getString(1)).thenReturn("path-b");
+
+        mgr.removePaths(uuids);
+
+        assertEquals("All entries must be removed", 0, mgr.getEntries().size());
+        assertTrue("All drawables must be removed", addedDrawables.isEmpty());
     }
 
     // ------------------------------------------------------------------

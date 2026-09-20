@@ -61,8 +61,8 @@ export interface ModuleParams {
 	gestureScreenDistance?: Double;
 }
 
-interface CreateLayerParams extends ModuleParams {
-	nativeNodeHandle?: Int32;
+export interface CreateLayerParams extends ModuleParams {
+	nativeNodeHandle: Int32;
 	positionIndex?: Int32;
 	fragmentUuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
@@ -171,6 +171,36 @@ export interface ApplyEntryPrioritiesParams {
 	assignments: ReadonlyArray<EntryPriorityAssignment>;
 }
 
+export interface PathBatchResultItem {
+	uuid: string;
+	error?: string;
+	/** Per-item create response — mirrors the single createLayer response. */
+	response?: LayerPathResponse;
+}
+
+export interface PathBatchResponse {
+	results: ReadonlyArray<PathBatchResultItem>;
+}
+
+export interface CreateLayersParams {
+	nativeNodeHandle: Int32;
+	paths: ReadonlyArray<CreateLayerParams>;
+}
+
+export interface RemoveLayersParams {
+	nativeNodeHandle: Int32;
+	uuids: ReadonlyArray<string>;
+}
+
+export interface RemoveLayersResultItem {
+	uuid: string;
+	error?: string;
+}
+
+export interface RemoveLayersResponse {
+	results: ReadonlyArray<RemoveLayersResultItem>;
+}
+
 export interface LayerPathGestureResponse extends ResponseBase {
 	type: string; // 'press' | 'longPress' | 'doubleTap' | 'trigger'
 	distance: Double;
@@ -205,6 +235,12 @@ export interface Spec extends TurboModule {
 	 * PriorityAllocator emits O(changed) assignments per mutation.
 	 */
 	applyEntryPriorities(params: ApplyEntryPrioritiesParams): Promise<void>;
+	/**
+	 * Batch creation — N path entries in one bridge call (mirrors the
+	 * marker batch pipeline).
+	 */
+	createLayers(params: CreateLayersParams): Promise<PathBatchResponse>;
+	removeLayers(params: RemoveLayersParams): Promise<RemoveLayersResponse>;
 
 	updateCoordinates(
 		params: UpdateCoordinatesParams

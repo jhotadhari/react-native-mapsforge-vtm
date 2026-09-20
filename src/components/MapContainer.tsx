@@ -26,6 +26,8 @@ import MapHandleContext, {
 } from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
 import { drainQueue } from '../compose/MarkerBatchQueue';
+import { drainPathQueue } from '../compose/PathBatchQueue';
+import { drainShapeQueue } from '../compose/ShapeBatchQueue';
 import { SceneSync } from '../scene/SceneSync';
 
 const moduleDefaults = NativeMapContainer.getConstants();
@@ -134,6 +136,8 @@ const MapContainer = ({
 		return () => {
 			if (nativeNodeHandleRef.current != null) {
 				drainQueue(nativeNodeHandleRef.current);
+				drainPathQueue(nativeNodeHandleRef.current);
+				drainShapeQueue(nativeNodeHandleRef.current);
 			}
 			sync.destroy();
 		};

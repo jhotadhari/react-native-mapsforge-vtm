@@ -3,10 +3,12 @@ package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
@@ -162,6 +164,81 @@ public class LayerShape extends NativeLayerShapeSpec {
 				manager.applyEntryPriorities( fragmentUuid, assignments );
 			}
 			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	// ── Batch create / remove ──────────────────────────────────────────
+
+	@Override
+	public void createLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "shapes" ) ) {
+				Utils.promiseReject( promise, "Undefined shapes array" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView || null == mapFragment ) {
+				Utils.promiseReject( promise, "Unable to find mapView or mapFragment" ); return;
+			}
+
+			ShapeLayerManager manager = ShapeLayerManager.get( nativeNodeHandle, mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onShapeEvent".equals( eventName ) ) {
+					emitOnShapeEvent( payload );
+				}
+			});
+
+			WritableMap response = manager.createShapes(
+				params.getArray( "shapes" ),
+				mapFragment,
+				mapFragment.getActivity().getContentResolver(),
+				getReactApplicationContext()
+			);
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void removeLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "uuids" ) ) {
+				Utils.promiseReject( promise, "Undefined uuids array" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			ReadableArray uuids = params.getArray( "uuids" );
+
+			ShapeLayerManager manager = ShapeLayerManager.getInstance( nativeNodeHandle );
+			if ( manager == null ) {
+				// Map already destroyed — resolve with empty results.
+				WritableMap response = Arguments.createMap();
+				WritableArray results = Arguments.createArray();
+				for ( int i = 0; i < uuids.size(); i++ ) {
+					WritableMap item = Arguments.createMap();
+					item.putString( "uuid", uuids.getString( i ) );
+					results.pushMap( item );
+				}
+				response.putArray( "results", results );
+				promise.resolve( response );
+				return;
+			}
+
+			WritableMap response = manager.removeShapes( uuids );
+			promise.resolve( response );
 		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );

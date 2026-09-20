@@ -17,6 +17,10 @@ import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import {
+	enqueueCreateShape,
+	enqueueRemoveShape,
+} from '../compose/ShapeBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
@@ -132,7 +136,7 @@ const LayerShape = ({
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'shape')
 					: runUuidFor(anchorUid);
-			return LayerShapeModule.createLayer({
+			return enqueueCreateShape({
 				nativeNodeHandle,
 				fragmentUuid,
 				shape: shapeToParams(shape),
@@ -149,10 +153,7 @@ const LayerShape = ({
 			if (!nativeNodeHandle) {
 				return Promise.resolve(false);
 			}
-			return LayerShapeModule.removeLayer({
-				nativeNodeHandle,
-				uuid: currentUuid,
-			})
+			return enqueueRemoveShape(nativeNodeHandle, currentUuid)
 				.then((removedUuid) => {
 					triggerOnRemove && onRemove
 						? onRemove({ nativeNodeHandle, uuid: removedUuid })

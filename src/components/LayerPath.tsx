@@ -17,6 +17,10 @@ import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import {
+	enqueueCreatePath,
+	enqueueRemovePath,
+} from '../compose/PathBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
@@ -93,7 +97,7 @@ const LayerPath = ({
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'path')
 					: runUuidFor(anchorUid);
-			return LayerPathModule.createLayer({
+			return enqueueCreatePath({
 				nativeNodeHandle,
 				fragmentUuid,
 				supportsGestures,
@@ -111,10 +115,7 @@ const LayerPath = ({
 			if (!nativeNodeHandle) {
 				return Promise.resolve(false);
 			}
-			return LayerPathModule.removeLayer({
-				nativeNodeHandle,
-				uuid: currentUuid,
-			})
+			return enqueueRemovePath(nativeNodeHandle, currentUuid)
 				.then((removedUuid) => {
 					triggerOnRemove && onRemove
 						? onRemove({ nativeNodeHandle, uuid: removedUuid })

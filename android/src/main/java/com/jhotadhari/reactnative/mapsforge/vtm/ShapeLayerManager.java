@@ -6,12 +6,13 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -34,7 +35,10 @@ import org.oscim.layers.vector.geometries.Style;
 import org.oscim.utils.geom.GeomBuilder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -270,7 +274,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 
 		double geoDist = entry.drawable.getGeometry().distance(point);
 		if (geoDist <= threshold) {
-			WritableMap params = new WritableNativeMap();
+			WritableMap params = Arguments.createMap();
 			params.putString("uuid", entry.shapeUuid);
 			params.putDouble("distance", geoDist);
 			org.locationtech.jts.geom.Coordinate[] nearestPoints =
@@ -307,6 +311,108 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	public void remove(@NonNull String entryUuid) {
 		super.remove(entryUuid);
 		syncGestureSupport();
+	}
+
+	// ── Batch creation / removal ──────────────────────────────────────
+
+	/**
+	 * Creates multiple shape entries in a single batch: ensures all required
+	 * fragment layers upfront, creates each entry, and calls updateMap once.
+	 * Per-item errors are captured; the response mirrors the single
+	 * createLayer response (uuid + nativeNodeHandle + shape type) per item.
+	 */
+	@NonNull
+	public WritableMap createShapes(
+		@NonNull ReadableArray shapesArray,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver,
+		@NonNull ReactApplicationContext reactContext
+	) throws Exception {
+		int count = shapesArray.size();
+		ReadableMap[] allParams = new ReadableMap[count];
+		String[] entryUuids = new String[count];
+		String[] errors = new String[count];
+
+		Set<String> seenFragments = new HashSet<>();
+		for ( int i = 0; i < count; i++ ) {
+			allParams[i] = shapesArray.getMap( i );
+			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+				? allParams[i].getString( "fragmentUuid" )
+				: DEFAULT_FRAGMENT_UUID;
+			if ( seenFragments.add( fragmentUuid ) ) {
+				ensureSharedLayer( fragmentUuid );
+			}
+		}
+
+		for ( int i = 0; i < count; i++ ) {
+			String entryUuid = UUID.randomUUID().toString();
+			entryUuids[i] = entryUuid;
+			try {
+				String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+					? allParams[i].getString( "fragmentUuid" )
+					: DEFAULT_FRAGMENT_UUID;
+				create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
+			} catch ( Exception e ) {
+				errors[i] = e.getMessage();
+			}
+		}
+
+		scheduleUpdate();
+
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", entryUuids[i] );
+			if ( errors[i] != null ) {
+				resultItem.putString( "error", errors[i] );
+			} else {
+				// Per-item response mirrors the single createLayer response
+				// ({uuid, nativeNodeHandle, shape: {type}}), nested under
+				// "response" so the batch result shape is uniform.
+				WritableMap itemResponse = Arguments.createMap();
+				itemResponse.putString( "uuid", entryUuids[i] );
+				if ( Utils.rMapHasKey( allParams[i], "nativeNodeHandle" ) ) {
+					itemResponse.putInt( "nativeNodeHandle", allParams[i].getInt( "nativeNodeHandle" ) );
+				}
+				ReadableMap shapeMap = Utils.rMapHasKey( allParams[i], "shape" )
+					? allParams[i].getMap( "shape" )
+					: null;
+				WritableMap shapeResponse = Arguments.createMap();
+				if ( shapeMap != null && Utils.rMapHasKey( shapeMap, "type" ) ) {
+					shapeResponse.putString( "type", shapeMap.getString( "type" ) );
+				}
+				itemResponse.putMap( "shape", shapeResponse );
+				resultItem.putMap( "response", itemResponse );
+			}
+			results.pushMap( resultItem );
+		}
+
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
+	}
+
+	/**
+	 * Removes multiple shape entries in a single batch.
+	 */
+	@NonNull
+	public WritableMap removeShapes( @NonNull ReadableArray shapeUuids ) {
+		int count = shapeUuids.size();
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			String uuid = shapeUuids.getString( i );
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", uuid );
+			try {
+				remove( uuid );
+			} catch ( Exception e ) {
+				resultItem.putString( "error", e.getMessage() );
+			}
+			results.pushMap( resultItem );
+		}
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
 	}
 
 	// ── Shape-specific public API ───────────────────────────────────────
@@ -558,7 +664,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			if (eventCallback == null) {
 				return;
 			}
-			WritableMap payload = new WritableNativeMap();
+			WritableMap payload = Arguments.createMap();
 			if (eventParams.hasKey("uuid")) {
 				payload.putString("uuid", eventParams.getString("uuid"));
 			}
