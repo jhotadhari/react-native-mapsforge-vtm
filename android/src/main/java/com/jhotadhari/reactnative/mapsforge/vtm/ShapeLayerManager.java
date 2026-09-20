@@ -35,6 +35,7 @@ import org.oscim.layers.vector.geometries.Style;
 import org.oscim.utils.geom.GeomBuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -331,6 +332,11 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 		String[] entryUuids = new String[count];
 		String[] errors = new String[count];
 
+		// Ensure all required fragment layers exist upfront. A fragment
+		// ensure that fails (e.g. map torn down mid-request) is recorded
+		// per fragment — the batch must never reject wholesale after
+		// teardown; the affected items report per-item errors instead.
+		Map<String, String> fragmentErrors = new HashMap<>();
 		Set<String> seenFragments = new HashSet<>();
 		for ( int i = 0; i < count; i++ ) {
 			allParams[i] = shapesArray.getMap( i );
@@ -338,17 +344,27 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				? allParams[i].getString( "fragmentUuid" )
 				: DEFAULT_FRAGMENT_UUID;
 			if ( seenFragments.add( fragmentUuid ) ) {
-				ensureSharedLayer( fragmentUuid, Utils.rMapGetStringList( allParams[i], "layerUuids" ) );
+				try {
+					ensureSharedLayer( fragmentUuid, Utils.rMapGetStringList( allParams[i], "layerUuids" ) );
+				} catch ( Exception e ) {
+					String msg = e.getMessage();
+					fragmentErrors.put( fragmentUuid, msg != null ? msg : e.getClass().getSimpleName() );
+				}
 			}
 		}
 
 		for ( int i = 0; i < count; i++ ) {
 			String entryUuid = UUID.randomUUID().toString();
 			entryUuids[i] = entryUuid;
+			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+				? allParams[i].getString( "fragmentUuid" )
+				: DEFAULT_FRAGMENT_UUID;
+			String fragmentError = fragmentErrors.get( fragmentUuid );
+			if ( fragmentError != null ) {
+				errors[i] = fragmentError;
+				continue;
+			}
 			try {
-				String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
-					? allParams[i].getString( "fragmentUuid" )
-					: DEFAULT_FRAGMENT_UUID;
 				create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
 			} catch ( Exception e ) {
 				String msg = e.getMessage();

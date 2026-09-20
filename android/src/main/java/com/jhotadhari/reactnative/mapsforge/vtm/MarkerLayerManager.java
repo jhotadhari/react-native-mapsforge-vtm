@@ -28,6 +28,7 @@ import org.oscim.layers.marker.MarkerSymbol;
 import org.oscim.map.Viewport;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -375,10 +376,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		List<Integer> positionIndices = new ArrayList<>(count);
 		List<Integer> sourceIndices = new ArrayList<>(count); // index into markersArray
 
-		// Ensure all required fragment layers exist upfront.
+		// Ensure all required fragment layers exist upfront. A fragment
+		// ensure that fails (e.g. map torn down mid-request) is recorded
+		// per fragment — the batch must never reject wholesale after
+		// teardown; the affected items report per-item errors instead.
 		// Cache all ReadableMaps to avoid redundant markersArray.getMap(i) calls
 		// in the three subsequent loops.
 		ReadableMap[] allMarkerParams = new ReadableMap[count];
+		Map<String, String> fragmentErrors = new HashMap<>();
 		Set<String> seenFragments = new HashSet<>();
 		for (int i = 0; i < count; i++) {
 			allMarkerParams[i] = markersArray.getMap(i);
@@ -388,7 +393,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				: sharedLayerUuid + "0";
 			fragmentUuids[i] = fragmentUuid;
 			if (seenFragments.add(fragmentUuid)) {
-				ensureSharedLayer(fragmentUuid, Utils.rMapGetStringList(markerParams, "layerUuids"));
+				try {
+					ensureSharedLayer(fragmentUuid, Utils.rMapGetStringList(markerParams, "layerUuids"));
+				} catch (Exception e) {
+					String msg = e.getMessage();
+					fragmentErrors.put(fragmentUuid, msg != null ? msg : e.getClass().getSimpleName());
+				}
 			}
 		}
 
@@ -397,6 +407,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			String entryUuid = UUID.randomUUID().toString();
 			entryUuids[i] = entryUuid;
 			resultIndices[i] = -1;
+
+			String fragmentError = fragmentErrors.get(fragmentUuids[i]);
+			if (fragmentError != null) {
+				errors[i] = fragmentError;
+				continue;
+			}
 
 			try {
 				// Resolve group.
@@ -480,6 +496,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			String fragmentUuid = fragmentUuids[i];
 
 			ItemizedLayer fragmentLayer = (ItemizedLayer) getSharedLayer(fragmentUuid);
+			if (fragmentLayer == null) {
+				// Fragment vanished (teardown race) — mark the item failed
+				// so the tracking loop below skips it: no item inserted
+				// into a layer that no longer tracks it (no zombie).
+				errors[i] = "Fragment not found: " + fragmentUuid;
+				continue;
+			}
 			List<MarkerInterface> itemList = fragmentLayer.getItemList();
 
 			// Find the insertion point: first existing marker with
@@ -517,6 +540,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		for (int si = 0; si < sortedLocalIndices.size(); si++) {
 			int li = sortedLocalIndices.get(si);
 			int i = sourceIndices.get(li);
+			if (errors[i] != null) {
+				// Insertion skipped (e.g. fragment vanished mid-batch) —
+				// do not track an item that never entered a layer.
+				continue;
+			}
 			String entryUuid = entryUuids[i];
 			MarkerItem markerItem = itemsToAdd.get(li);
 			int positionIndex = positionIndices.get(li);

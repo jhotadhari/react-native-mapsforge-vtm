@@ -34,6 +34,7 @@ import org.robolectric.annotation.Config;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -657,6 +658,49 @@ public class PathLayerManagerTest {
                 2, addedDrawables.size());
         assertEquals("One shared fragment must host the whole run",
                 1, getSharedLayerFragments(mgr).size());
+    }
+
+    /**
+     * #14: a fragment ensure failure (map torn down mid-request) must not
+     * reject the whole batch — nothing is created and the affected items
+     * report per-item errors.
+     */
+    @Test
+    public void createPaths_fragmentEnsureFailure_producesPerItemErrors() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer(); // fake at __vtm_shared_path__0
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        // A fragment with no injected fake layer → ensureSharedLayer goes
+        // through MapMutationQueue, which we mock as already torn down.
+        when(paramsA.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsA.getString("fragmentUuid")).thenReturn("run:gone");
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(1);
+        when(paths.getMap(0)).thenReturn(paramsA);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        try (MockedStatic<MapMutationQueue> queueMock = mockStatic(MapMutationQueue.class)) {
+            MapMutationQueue mockQueue = mock(MapMutationQueue.class);
+            CompletableFuture<String> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new RuntimeException("map torn down"));
+            when(mockQueue.enqueueAddLayer(any(), any(), any())).thenReturn(failed);
+            queueMock.when(() -> MapMutationQueue.get(anyInt(), any()))
+                    .thenReturn(mockQueue);
+
+            // Must not throw — the batch resolves with per-item errors.
+            mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+            assertEquals("No entries may be created when the fragment failed",
+                    0, mgr.getEntries().size());
+        }
     }
 
     @Test
