@@ -365,13 +365,17 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				continue;
 			}
 			try {
-				create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
+				// super.create — the per-item syncGestureSupport override is
+				// hoisted to once per batch below (O(n) instead of O(n²)).
+				super.create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
 			} catch ( Exception e ) {
 				String msg = e.getMessage();
 				errors[i] = msg != null ? msg : e.getClass().getSimpleName();
 			}
 		}
 
+		// One gesture-support sync for the whole batch.
+		syncGestureSupport();
 		scheduleUpdate();
 
 		WritableArray results = Arguments.createArray();
@@ -419,13 +423,17 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			WritableMap resultItem = Arguments.createMap();
 			resultItem.putString( "uuid", uuid );
 			try {
-				remove( uuid );
+				// super.remove — per-item syncGestureSupport hoisted to
+				// once per batch below.
+				super.remove( uuid );
 			} catch ( Exception e ) {
 				String msg = e.getMessage();
 				resultItem.putString( "error", msg != null ? msg : e.getClass().getSimpleName() );
 			}
 			results.pushMap( resultItem );
 		}
+		// One gesture-support sync for the whole batch.
+		syncGestureSupport();
 		WritableMap response = Arguments.createMap();
 		response.putArray( "results", results );
 		return response;

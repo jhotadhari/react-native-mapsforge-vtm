@@ -41,16 +41,19 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mockStatic;
-import org.mockito.MockedStatic;
-
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.MockedStatic;
 
 /**
  * Robolectric unit tests for {@link PathLayerManager}.
@@ -658,6 +661,71 @@ public class PathLayerManagerTest {
                 2, addedDrawables.size());
         assertEquals("One shared fragment must host the whole run",
                 1, getSharedLayerFragments(mgr).size());
+    }
+
+    /**
+     * #19: gesture-support sync is hoisted — one setSupportsGestures call
+     * per batch, not one per item.
+     */
+    @Test
+    public void createPaths_syncsGestureSupportOncePerBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        ReadableMap paramsC = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsC);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(3);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+        when(paths.getMap(2)).thenReturn(paramsC);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals(3, mgr.getEntries().size());
+        verify(mockVectorLayer, times(1)).setSupportsGestures(anyBoolean());
+    }
+
+    /**
+     * #19: remove batch also syncs gesture support once.
+     */
+    @Test
+    public void removePaths_syncsGestureSupportOncePerBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        // Individual creates each synced once — reset before the batch.
+        clearInvocations(mockVectorLayer);
+
+        ReadableArray uuids = mock(ReadableArray.class);
+        when(uuids.size()).thenReturn(2);
+        when(uuids.getString(0)).thenReturn("path-a");
+        when(uuids.getString(1)).thenReturn("path-b");
+
+        mgr.removePaths(uuids);
+
+        assertEquals(0, mgr.getEntries().size());
+        verify(mockVectorLayer, times(1)).setSupportsGestures(anyBoolean());
     }
 
     /**
