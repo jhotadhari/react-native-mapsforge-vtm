@@ -10,6 +10,12 @@
 import { useContext, useEffect, useRef } from 'react';
 import MapHandleContext from '../context/MapHandleContext';
 
+// Module-load prefix keeps uids unique across Fast Refresh — without it a
+// refreshed module restarts its counter and collides with uids from the
+// previous generation (React state survives the refresh).
+const uidPrefix = `${Date.now().toString(36)}_${Math.random()
+	.toString(36)
+	.slice(2, 8)}_`;
 let entryUidCounter = 0;
 
 export type UseLayerEntryOptions = {
@@ -34,7 +40,7 @@ const useLayerEntry = ({
 
 	const uidRef = useRef<string | null>(null);
 	if (uidRef.current === null) {
-		uidRef.current = `entry_${entryUidCounter++}`;
+		uidRef.current = `${uidPrefix}entry_${entryUidCounter++}`;
 	}
 	const uid = uidRef.current;
 
@@ -61,12 +67,20 @@ const useLayerEntry = ({
 	]);
 
 	useEffect(() => {
+		// The attach mirrors the declaration: inactive (standalone) entries
+		// must not attach their resolved uuid to an undeclared entry uid —
+		// that would leave stale scene.uids entries (double mutation).
+		if (!active || fragmentId === null) {
+			return;
+		}
 		if (uuid) {
 			scene.attachUuid(uid, uuid);
 		} else {
 			scene.detachUuid(uid);
 		}
 	}, [
+		active,
+		fragmentId,
 		uuid,
 		uid,
 		scene,

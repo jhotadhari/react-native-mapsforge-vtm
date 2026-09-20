@@ -20,6 +20,12 @@ import MapHandleContext from '../context/MapHandleContext';
 import ReindexContext from '../context/ReindexContext';
 import type { AnchorDescriptor, AnchorKind } from '../scene/types';
 
+// Module-load prefix keeps uids unique across Fast Refresh — without it a
+// refreshed module restarts its counter and collides with uids from the
+// previous generation (React state survives the refresh).
+const uidPrefix = `${Date.now().toString(36)}_${Math.random()
+	.toString(36)
+	.slice(2, 8)}_`;
 let anchorUidCounter = 0;
 
 export type UseLayerAnchorOptions = {
@@ -53,7 +59,7 @@ const useLayerAnchor = ({
 
 	const uidRef = useRef<string | null>(null);
 	if (uidRef.current === null) {
-		uidRef.current = `${kind}_${anchorUidCounter++}`;
+		uidRef.current = `${uidPrefix}${kind}_${anchorUidCounter++}`;
 	}
 	const uid = uidRef.current;
 

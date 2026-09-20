@@ -20,7 +20,15 @@ const queue = createEntryBatchQueue<
 		LayerShapeModule.createLayers({ nativeNodeHandle, shapes }),
 	removeMany: (nativeNodeHandle, uuids) =>
 		LayerShapeModule.removeLayers({ nativeNodeHandle, uuids }),
-	resolveCreate: (result) => result.response as LayerShapeResponse,
+	resolveCreate: (result) => {
+		if (!result.response) {
+			// A missing response payload means the native side failed to
+			// report the created entry — resolving with undefined would
+			// produce a phantom uuid and a zombie entry. Reject instead.
+			throw new Error('Shape create response missing in batch result');
+		}
+		return result.response as LayerShapeResponse;
+	},
 });
 
 export const enqueueCreateShape = queue.enqueueCreate;

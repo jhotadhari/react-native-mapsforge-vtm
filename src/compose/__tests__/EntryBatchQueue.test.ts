@@ -135,7 +135,7 @@ describe('EntryBatchQueue', () => {
 		await expect(p2).resolves.toBe('u2');
 	});
 
-	test('drainQueue rejects all pending operations', async () => {
+	test('drainQueue rejects pending creates and resolves pending removes', async () => {
 		const createMany = jest.fn(() => new Promise<never>(() => {}));
 		const removeMany = jest.fn(() => new Promise<never>(() => {}));
 		const queue = makeQueue({ createMany, removeMany });
@@ -144,7 +144,64 @@ describe('EntryBatchQueue', () => {
 		const p2 = queue.enqueueRemove(7, 'u1');
 		queue.drainQueue(7);
 
+		// Pending creates reject: the map they would create into is gone.
 		await expect(p1).rejects.toThrow('Map view destroyed');
-		await expect(p2).rejects.toThrow('Map view destroyed');
+		// Pending removes resolve: native teardown already destroyed the
+		// shared layers, so the remove is effectively complete — rejecting
+		// would surface a spurious teardown error.
+		await expect(p2).resolves.toBe('u1');
+	});
+
+	test('throwing resolveCreate rejects only that create op', async () => {
+		const createMany = jest.fn(() =>
+			Promise.resolve({
+				results: [
+					{ uuid: 'u1', response: { uuid: 'u1' } },
+					{ uuid: 'u2' },
+				],
+			})
+		);
+		const queue = createEntryBatchQueue<Item, CreateResult>({
+			createMany,
+			removeMany: jest.fn(),
+			resolveCreate: (result, params) => {
+				if (!result.response) {
+					throw new Error('missing response');
+				}
+				return { uuid: result.uuid, echoed: params.value };
+			},
+		});
+
+		const p1 = queue.enqueueCreate({ nativeNodeHandle: 7, value: 'a' });
+		const p2 = queue.enqueueCreate({ nativeNodeHandle: 7, value: 'b' });
+		await flushMicrotasks();
+
+		await expect(p1).resolves.toEqual({ uuid: 'u1', echoed: 'a' });
+		await expect(p2).rejects.toThrow('missing response');
+	});
+
+	test('maxWait timer rearms after firing for later cycles', async () => {
+		jest.useFakeTimers();
+		try {
+			const createMany = jest.fn(() =>
+				Promise.resolve({ results: [{ uuid: 'u1' }] })
+			);
+			const queue = makeQueue({ createMany });
+
+			// First cycle flushes via the max-wait safety net.
+			queue.enqueueCreate({ nativeNodeHandle: 7, value: 'a' });
+			jest.advanceTimersByTime(20);
+			await flushMicrotasks();
+			expect(createMany).toHaveBeenCalledTimes(1);
+
+			// A later cycle must arm a FRESH max-wait timer — without the
+			// re-arm the safety net stays dead after its first fire.
+			queue.enqueueCreate({ nativeNodeHandle: 7, value: 'b' });
+			jest.advanceTimersByTime(20);
+			await flushMicrotasks();
+			expect(createMany).toHaveBeenCalledTimes(2);
+		} finally {
+			jest.useRealTimers();
+		}
 	});
 });

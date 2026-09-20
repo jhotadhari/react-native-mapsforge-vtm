@@ -25,11 +25,19 @@ const queue = createEntryBatchQueue<
 		LayerMarkerModule.createMarkers({ nativeNodeHandle, markers }),
 	removeMany: (nativeNodeHandle, markerUuids) =>
 		LayerMarkerModule.removeMarkers({ nativeNodeHandle, markerUuids }),
-	resolveCreate: (result, _params, nativeNodeHandle) => ({
-		uuid: result.uuid,
-		index: result.index as number,
-		nativeNodeHandle,
-	}),
+	resolveCreate: (result, _params, nativeNodeHandle) => {
+		if (!result.uuid) {
+			// A missing uuid means the native side failed to report the
+			// created marker — resolving with undefined would produce a
+			// phantom marker. Reject instead.
+			throw new Error('Marker create response missing in batch result');
+		}
+		return {
+			uuid: result.uuid,
+			index: result.index as number,
+			nativeNodeHandle,
+		};
+	},
 });
 
 export const enqueueCreateMarker = queue.enqueueCreate;

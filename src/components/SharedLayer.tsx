@@ -18,12 +18,18 @@ import SharedLayerContext from '../context/SharedLayerContext';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import { injectVtmSortIndex } from '../compose/injectVtmSortIndex';
 
+// Module-load prefix keeps ids unique across Fast Refresh — without it a
+// refreshed module restarts its counter and collides with ids from the
+// previous generation (React state survives the refresh).
+const uidPrefix = `${Date.now().toString(36)}_${Math.random()
+	.toString(36)
+	.slice(2, 8)}_`;
 let sharedLayerCounter = 0;
 
 const SharedLayer = ({ children }: { children?: ReactNode }) => {
 	const sharedIdRef = useRef<string | null>(null);
 	if (sharedIdRef.current === null) {
-		sharedIdRef.current = `shared_${sharedLayerCounter++}`;
+		sharedIdRef.current = `${uidPrefix}shared_${sharedLayerCounter++}`;
 	}
 	const sharedId = sharedIdRef.current;
 

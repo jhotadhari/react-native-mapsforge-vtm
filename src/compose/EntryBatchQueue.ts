@@ -115,7 +115,9 @@ export const createEntryBatchQueue = <
 						const result = results[i]!;
 						if (result.error) {
 							op.reject(new Error(result.error));
-						} else {
+							continue;
+						}
+						try {
 							op.resolve(
 								spec.resolveCreate(
 									result,
@@ -123,6 +125,12 @@ export const createEntryBatchQueue = <
 									nativeNodeHandle
 								)
 							);
+						} catch (resolveError) {
+							// A resolver that throws (e.g. missing response
+							// payload) must reject THIS op — otherwise the
+							// op's promise would hang forever and the entry
+							// would become a zombie.
+							op.reject(resolveError);
 						}
 					}
 					for (let i = len; i < pendingCreates.length; i++) {
@@ -187,8 +195,14 @@ export const createEntryBatchQueue = <
 		if (queue.maxWaitTimer === null) {
 			queue.maxWaitTimer = setTimeout(() => {
 				const q = queues.get(nativeNodeHandle);
-				if (q && (q.creates.length > 0 || q.removes.length > 0)) {
-					flush(nativeNodeHandle);
+				if (q) {
+					// Consume the timer reference BEFORE checking pending
+					// work — leaving it set would deaden the safety net
+					// for every future cycle.
+					q.maxWaitTimer = null;
+					if (q.creates.length > 0 || q.removes.length > 0) {
+						flush(nativeNodeHandle);
+					}
 				}
 			}, MAX_WAIT_MS);
 		}
@@ -227,8 +241,12 @@ export const createEntryBatchQueue = <
 			for (const op of queue.creates) {
 				op.reject(error);
 			}
+			// Pending removes resolve (not reject): native teardown already
+			// destroyed the shared layers the entries lived in, so the
+			// remove is effectively complete — rejecting would surface a
+			// spurious "Map view destroyed" onError during unmount.
 			for (const op of queue.removes) {
-				op.reject(error);
+				op.resolve(op.uuid);
 			}
 			if (queue.maxWaitTimer !== null) {
 				clearTimeout(queue.maxWaitTimer);
