@@ -41,7 +41,7 @@ describe('diffPlans', () => {
 		expect(diff.layerOrderChanged).toBe(false);
 		expect(diff.removedUuids).toEqual([]);
 		expect(diff.addedUuids).toEqual([]);
-		expect(diff.entryPriorityChanges.size).toBe(0);
+		expect(diff.entryPriorityComputations.size).toBe(0);
 	});
 
 	test('reorder produces layerOrderChanged', () => {
@@ -102,16 +102,25 @@ describe('diffPlans', () => {
 		const initial = diffPlans(prev, prev, allocator);
 		// First diff assigns initial sparse priorities for both entries.
 		expect([
-			...initial.entryPriorityChanges
+			...initial.entryPriorityComputations
 				.get(fragmentUuidFor('shared1', 'path'))!
-				.keys(),
+				.changed.keys(),
 		]).toEqual([
 			'e1',
 			'e2',
 		]);
-		expect(diffPlans(prev, prev, allocator).entryPriorityChanges.size).toBe(
-			0
-		);
+
+		// The presenter commits after native success — without the commit
+		// the same changes would be recomputed forever.
+		for (const [
+			fragmentUuid,
+			computation,
+		] of initial.entryPriorityComputations) {
+			allocator.commitFor(fragmentUuid, computation.next);
+		}
+		expect(
+			diffPlans(prev, prev, allocator).entryPriorityComputations.size
+		).toBe(0);
 
 		const next = makePlan(
 			walk,
@@ -127,10 +136,10 @@ describe('diffPlans', () => {
 			])
 		);
 		const diff = diffPlans(prev, next, allocator);
-		const changes = diff.entryPriorityChanges.get(
+		const changes = diff.entryPriorityComputations.get(
 			fragmentUuidFor('shared1', 'path')
 		);
 		expect(changes).toBeDefined();
-		expect([...changes!.keys()]).toEqual(['e3']);
+		expect([...changes!.changed.keys()]).toEqual(['e3']);
 	});
 });

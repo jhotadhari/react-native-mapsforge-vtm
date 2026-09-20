@@ -1,11 +1,15 @@
 /**
  * Plan diffing: (previous plan, next plan) → the minimal native sync
- * payload. Includes entry-priority assignments via a per-scene
- * PriorityAllocator so only changed entries are re-prioritized.
+ * payload. Includes entry-priority computations via a per-scene
+ * PriorityAllocator. Computations are pure — the presenter commits them
+ * only after the native side confirmed the application.
  */
 
 import type { LayerPlan } from './types';
-import { PriorityAllocator } from './PriorityAllocator';
+import {
+	PriorityAllocator,
+	type PriorityComputation,
+} from './PriorityAllocator';
 
 export type PlanDiff = {
 	/** The complete desired bottom→top native uuid list (resolved only). */
@@ -13,8 +17,8 @@ export type PlanDiff = {
 	layerOrderChanged: boolean;
 	removedUuids: string[];
 	addedUuids: string[];
-	/** fragment native uuid → (entry uid → sparse priority), changed only. */
-	entryPriorityChanges: Map<string, Map<string, number>>;
+	/** fragment native uuid → pure computation (commit after native success). */
+	entryPriorityComputations: Map<string, PriorityComputation>;
 };
 
 export const diffPlans = (
@@ -34,18 +38,18 @@ export const diffPlans = (
 		prevUuids.length !== nextUuids.length ||
 		prevUuids.some((uuid, i) => uuid !== nextUuids[i]);
 
-	const entryPriorityChanges = new Map<string, Map<string, number>>();
+	const entryPriorityComputations = new Map<string, PriorityComputation>();
 	const nextFragmentUuids = new Set<string>();
 
 	for (const fragment of next.fragments) {
 		nextFragmentUuids.add(fragment.uuid);
 		if (fragment.resolvedEntryUids.length > 0) {
-			const changed = allocator.changedFor(
+			const computation = allocator.computeFor(
 				fragment.uuid,
 				fragment.resolvedEntryUids
 			);
-			if (changed.size > 0) {
-				entryPriorityChanges.set(fragment.uuid, changed);
+			if (computation.changed.size > 0) {
+				entryPriorityComputations.set(fragment.uuid, computation);
 			}
 		}
 	}
@@ -62,6 +66,6 @@ export const diffPlans = (
 		layerOrderChanged,
 		removedUuids,
 		addedUuids,
-		entryPriorityChanges,
+		entryPriorityComputations,
 	};
 };

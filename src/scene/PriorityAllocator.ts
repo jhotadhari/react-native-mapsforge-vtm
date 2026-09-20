@@ -9,29 +9,41 @@
  *
  * When the gap between neighbours is exhausted (adjacent ints), the whole
  * fragment is renumbered once — amortized O(1) per mutation.
+ *
+ * Compute and commit are separate steps: {@link #computeFor} is pure and
+ * derives the changed set against the last COMMITTED state; {@link #commitFor}
+ * persists a computation only after the native side applied it. A failed
+ * native application therefore re-sends the same changes on the next
+ * mutation instead of dropping them forever.
  */
 
 const STEP = 1000;
+
+export type PriorityComputation = {
+	/** Complete entry→priority mapping for the fragment after applying. */
+	next: Map<string, number>;
+	/** Entries whose native priority must change (subset of `next`). */
+	changed: Map<string, number>;
+};
 
 export class PriorityAllocator {
 	private prioritiesByFragment = new Map<string, Map<string, number>>();
 
 	/**
-	 * Returns the entries whose native priority must change for the given
-	 * ordered entry list, and stores the new assignment. Kept entries in
-	 * unchanged relative order keep their priority.
+	 * Pure: computes the assignment for the given ordered entry list without
+	 * storing anything. Kept entries in unchanged relative order keep their
+	 * priority.
 	 */
-	changedFor(
+	computeFor(
 		fragmentUuid: string,
 		orderedEntryUids: string[]
-	): Map<string, number> {
+	): PriorityComputation {
 		const prev = this.prioritiesByFragment.get(fragmentUuid) ?? new Map();
 		const next = new Map<string, number>();
 		const changed = new Map<string, number>();
 
 		if (orderedEntryUids.length === 0) {
-			this.prioritiesByFragment.set(fragmentUuid, next);
-			return changed;
+			return { next, changed };
 		}
 
 		// Detect reordering of previously-known entries: if the subsequence
@@ -58,8 +70,7 @@ export class PriorityAllocator {
 					changed.set(uid, p);
 				}
 			});
-			this.prioritiesByFragment.set(fragmentUuid, next);
-			return changed;
+			return { next, changed };
 		}
 
 		// First pass: kept entries keep their previous priority.
@@ -106,22 +117,25 @@ export class PriorityAllocator {
 				p = Math.floor((lower + upper) / 2);
 			} else {
 				// Gap exhausted — renumber the whole fragment once.
-				return this.renumberAll(fragmentUuid, orderedEntryUids);
+				return this.renumberAll(prev, orderedEntryUids);
 			}
 
 			next.set(uid, p);
 			changed.set(uid, p);
 		}
 
+		return { next, changed };
+	}
+
+	/** Persists a computed assignment — call only after native success. */
+	commitFor(fragmentUuid: string, next: Map<string, number>): void {
 		this.prioritiesByFragment.set(fragmentUuid, next);
-		return changed;
 	}
 
 	private renumberAll(
-		fragmentUuid: string,
+		prev: Map<string, number>,
 		orderedEntryUids: string[]
-	): Map<string, number> {
-		const prev = this.prioritiesByFragment.get(fragmentUuid) ?? new Map();
+	): PriorityComputation {
 		const next = new Map<string, number>();
 		const changed = new Map<string, number>();
 		orderedEntryUids.forEach((uid, i) => {
@@ -131,8 +145,7 @@ export class PriorityAllocator {
 				changed.set(uid, p);
 			}
 		});
-		this.prioritiesByFragment.set(fragmentUuid, next);
-		return changed;
+		return { next, changed };
 	}
 
 	/** Drops allocator state for a fragment that was destroyed. */

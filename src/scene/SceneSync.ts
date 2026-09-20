@@ -24,6 +24,9 @@ const DEBOUNCE_MS = 16;
 const MAX_WAIT_MS = 250;
 const WALK_RETRY_MS = 250;
 const MAX_WALK_RETRIES = 10;
+const MAX_REORDER_RETRIES = 5;
+const REORDER_RETRY_BASE_MS = 250;
+const REORDER_RETRY_MAX_MS = 4000;
 
 type Debouncer = {
 	schedule: () => void;
@@ -94,6 +97,14 @@ export class SceneSync {
 	private destroyed = false;
 	private walkRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	private walkFailures = 0;
+	private walkSeq = 0;
+	private walkInFlight = false;
+	private walkRequested = false;
+	private reorderRetryTimer: ReturnType<typeof setTimeout> | null = null;
+	private reorderFailures = 0;
+	private lastAttemptLogLength = -1;
+	/** Fragment uuid → computed assignment awaiting native confirmation. */
+	private pendingPriorityCommits = new Map<string, Map<string, number>>();
 
 	private readonly walkDebouncer: Debouncer;
 	private readonly syncDebouncer: Debouncer;
@@ -109,7 +120,13 @@ export class SceneSync {
 	}
 
 	setNativeNodeHandle(handle: number | null): void {
-		if (this.nativeNodeHandle === handle) {
+		const wasDestroyed = this.destroyed;
+		if (handle !== null) {
+			// StrictMode mount → cleanup → mount reuses the same handle —
+			// re-arm the presenter so the second mount walks again.
+			this.destroyed = false;
+		}
+		if (this.nativeNodeHandle === handle && !wasDestroyed) {
 			return;
 		}
 		this.nativeNodeHandle = handle;
@@ -140,10 +157,19 @@ export class SceneSync {
 		this.destroyed = true;
 		this.walkDebouncer.cancel();
 		this.syncDebouncer.cancel();
+		// Invalidate in-flight walk results and pending requests — they
+		// belong to the previous lifecycle.
+		this.walkSeq++;
+		this.walkRequested = false;
 		if (this.walkRetryTimer !== null) {
 			clearTimeout(this.walkRetryTimer);
 			this.walkRetryTimer = null;
 		}
+		if (this.reorderRetryTimer !== null) {
+			clearTimeout(this.reorderRetryTimer);
+			this.reorderRetryTimer = null;
+		}
+		this.pendingPriorityCommits.clear();
 		this.descriptors.clear();
 	}
 
@@ -152,9 +178,21 @@ export class SceneSync {
 		if (handle === null || this.destroyed) {
 			return;
 		}
+		if (this.walkInFlight) {
+			// An enumeration is already running — remember the signal and
+			// let the in-flight walk re-schedule a fresh one when it lands.
+			this.walkRequested = true;
+			return;
+		}
+		this.walkInFlight = true;
+		const seq = ++this.walkSeq;
 		NativeMapContainer.enumerateAnchors({ nativeNodeHandle: handle })
 			.then(({ anchors }) => {
-				if (this.destroyed) {
+				this.walkInFlight = false;
+				this.settleWalkRequested();
+				if (this.destroyed || seq !== this.walkSeq) {
+					// Stale result (destroyed and re-armed in between) —
+					// discard.
 					return;
 				}
 				this.walkFailures = 0;
@@ -172,6 +210,8 @@ export class SceneSync {
 				this.scene.applyWalk(sequence);
 			})
 			.catch(() => {
+				this.walkInFlight = false;
+				this.settleWalkRequested();
 				// enumerateAnchors failed (early mount, teardown race).
 				// Retry with a small backoff — a permanently failed walk
 				// would leave the scene unsynced and keep standalone
@@ -191,6 +231,19 @@ export class SceneSync {
 			});
 	};
 
+	/**
+	 * A walk signal arrived while an enumeration was in-flight — run a
+	 * fresh walk so the scene converges on the latest committed state.
+	 */
+	private settleWalkRequested(): void {
+		if (this.walkRequested) {
+			this.walkRequested = false;
+			if (!this.destroyed && this.nativeNodeHandle !== null) {
+				this.scheduleWalk();
+			}
+		}
+	}
+
 	private sync = (): void => {
 		if (this.syncInFlight || this.destroyed) {
 			return;
@@ -207,18 +260,24 @@ export class SceneSync {
 			diff.addedUuids.length > 0 ||
 			diff.removedUuids.length > 0;
 
-		if (!hasLayerWork && diff.entryPriorityChanges.size === 0) {
+		if (!hasLayerWork && diff.entryPriorityComputations.size === 0) {
 			this.lastPlan = plan;
 			return;
 		}
 
 		this.syncInFlight = true;
 		const startedAt = this.scene.commandLog().length;
+		if (startedAt !== this.lastAttemptLogLength) {
+			// The scene mutated since the previous attempt — the plan is
+			// fresh, reset the failure streak.
+			this.reorderFailures = 0;
+			this.lastAttemptLogLength = startedAt;
+		}
 
 		// Entry priorities are independent of the layer stack — fire them
-		// alongside the reorder. Best-effort: on failure the allocator state
-		// has already advanced, so a missed update is re-sent on the next
-		// mutation (drawable order may lag one mutation for that fragment).
+		// alongside the reorder. The computed assignments commit only after
+		// the native side confirms, so a failed application is re-sent on
+		// the next mutation instead of being dropped forever.
 		this.applyEntryPriorityChanges(handle, plan, diff);
 
 		const reorderPromise = hasLayerWork
@@ -231,6 +290,7 @@ export class SceneSync {
 		reorderPromise
 			.then(() => {
 				this.syncInFlight = false;
+				this.reorderFailures = 0;
 				this.lastPlan = plan;
 				// Mutations landed while the reorder was in-flight —
 				// re-sync with the freshest plan.
@@ -241,7 +301,19 @@ export class SceneSync {
 			.catch(() => {
 				// Don't update lastPlan — the next sync retries.
 				this.syncInFlight = false;
-				this.syncDebouncer.schedule();
+				this.reorderFailures++;
+				if (this.reorderFailures <= MAX_REORDER_RETRIES) {
+					// Exponential backoff — retries stop after the cap
+					// until the next scene mutation resets the streak.
+					const delay = Math.min(
+						REORDER_RETRY_BASE_MS * 2 ** (this.reorderFailures - 1),
+						REORDER_RETRY_MAX_MS
+					);
+					if (this.reorderRetryTimer !== null) {
+						clearTimeout(this.reorderRetryTimer);
+					}
+					this.reorderRetryTimer = setTimeout(this.sync, delay);
+				}
 			});
 	};
 
@@ -250,7 +322,10 @@ export class SceneSync {
 		plan: LayerPlan,
 		diff: PlanDiff
 	): void {
-		for (const [fragmentUuid, assignments] of diff.entryPriorityChanges) {
+		for (const [
+			fragmentUuid,
+			computation,
+		] of diff.entryPriorityComputations) {
 			const fragment = plan.fragments.find(
 				(f) => f.uuid === fragmentUuid
 			);
@@ -263,15 +338,52 @@ export class SceneSync {
 				// registered handler) — skipped until it registers one.
 				continue;
 			}
+			this.pendingPriorityCommits.set(fragmentUuid, computation.next);
 			handler({
 				nativeNodeHandle: handle,
 				fragmentUuid,
-				assignments: [...assignments.entries()].map(
+				assignments: [...computation.changed.entries()].map(
 					([uuid, priority]) => ({ uuid, priority })
 				),
-			}).catch(() => {
-				// Best-effort — see comment at the call site.
-			});
+			})
+				.then(() => {
+					// Commit only when no newer computation superseded
+					// this one — stale maps must never clobber fresher
+					// state.
+					if (
+						this.pendingPriorityCommits.get(fragmentUuid) ===
+						computation.next
+					) {
+						this.allocator.commitFor(
+							fragmentUuid,
+							computation.next
+						);
+						this.pendingPriorityCommits.delete(fragmentUuid);
+					}
+				})
+				.catch(() => {
+					// Best-effort: without a commit the allocator still
+					// holds the previous state, so the next mutation
+					// re-sends the same changes.
+					if (
+						this.pendingPriorityCommits.get(fragmentUuid) ===
+						computation.next
+					) {
+						this.pendingPriorityCommits.delete(fragmentUuid);
+					}
+				});
+		}
+
+		// Drop pending commits for fragments that left the plan — their
+		// allocator state was forgotten, a late resolution must not
+		// resurrect it.
+		const fragmentUuids = new Set(plan.fragments.map((f) => f.uuid));
+		for (const fragmentUuid of [
+			...this.pendingPriorityCommits.keys(),
+		]) {
+			if (!fragmentUuids.has(fragmentUuid)) {
+				this.pendingPriorityCommits.delete(fragmentUuid);
+			}
 		}
 	}
 }

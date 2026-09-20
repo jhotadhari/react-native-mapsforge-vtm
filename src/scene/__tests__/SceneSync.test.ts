@@ -208,4 +208,165 @@ describe('SceneSync', () => {
 		await flush();
 		expect(mockEnumerate).toHaveBeenCalledTimes(12);
 	});
+
+	test('concurrent walk signals coalesce into one in-flight enumeration', async () => {
+		const sync = new SceneSync();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+
+		let resolveFirst!: (value: { anchors: string[] }) => void;
+		mockEnumerate.mockImplementationOnce(
+			() =>
+				new Promise<{ anchors: string[] }>((resolve) => {
+					resolveFirst = resolve;
+				})
+		);
+
+		sync.scheduleWalk();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(1);
+
+		// More signals while the enumeration is in-flight — no second
+		// concurrent call.
+		sync.scheduleWalk();
+		sync.scheduleWalk();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(1);
+
+		// Resolution re-schedules a fresh walk for the pending signals.
+		resolveFirst({ anchors: ['ded'] });
+		await flush();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(2);
+	});
+
+	test('destroy re-arms on the next non-null handle (StrictMode remount)', async () => {
+		const sync = new SceneSync();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+		mockEnumerate.mockResolvedValue({ anchors: ['ded'] });
+
+		sync.scheduleWalk();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(1);
+
+		sync.destroy();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(1);
+
+		// Same handle, after destroy — the presenter re-arms and walks.
+		sync.setNativeNodeHandle(7);
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(2);
+	});
+
+	test('reorder failures retry with backoff and give up after the cap', async () => {
+		const sync = new SceneSync();
+		const scene = sync.getScene();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({
+			uid: 'sl1',
+			kind: 'fragment',
+			fragmentId: 'shared1',
+		});
+		scene.declareEntry({
+			uid: 'e1',
+			fragmentId: 'shared1',
+			layerType: 'path',
+			sortIndex: 0,
+		});
+		scene.attachUuid('e1', 'uuid-e1');
+		mockEnumerate.mockResolvedValue({ anchors: ['sl1'] });
+		mockReorder.mockRejectedValue(new Error('reorder failed'));
+
+		sync.scheduleWalk();
+		await flush(); // walk
+		await flush(); // sync → reorder fails (attempt 1)
+		expect(mockReorder).toHaveBeenCalledTimes(1);
+
+		// 5 retries with exponential backoff: 250, 500, 1000, 2000, 4000.
+		const delays = [
+			250,
+			500,
+			1000,
+			2000,
+			4000,
+		];
+		for (const delay of delays) {
+			jest.advanceTimersByTime(delay);
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
+		expect(mockReorder).toHaveBeenCalledTimes(6);
+
+		// Cap reached — no further retries without a scene mutation.
+		jest.advanceTimersByTime(20000);
+		await Promise.resolve();
+		expect(mockReorder).toHaveBeenCalledTimes(6);
+
+		// A fresh mutation resets the streak and retries.
+		mockReorder.mockResolvedValue(undefined);
+		scene.declareEntry({
+			uid: 'e2',
+			fragmentId: 'shared1',
+			layerType: 'path',
+			sortIndex: 1,
+		});
+		await flush();
+		await flush();
+		expect(mockReorder).toHaveBeenCalledTimes(7);
+	});
+
+	test('failed priority application is re-sent on the next mutation', async () => {
+		const sync = new SceneSync();
+		const scene = sync.getScene();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({
+			uid: 'sl1',
+			kind: 'fragment',
+			fragmentId: 'shared1',
+		});
+		scene.declareEntry({
+			uid: 'e1',
+			fragmentId: 'shared1',
+			layerType: 'path',
+			sortIndex: 0,
+		});
+		scene.attachUuid('e1', 'uuid-e1');
+		mockEnumerate.mockResolvedValue({ anchors: ['sl1'] });
+
+		// First application fails — the allocator must NOT commit.
+		mockPathPriorities.mockRejectedValueOnce(new Error('apply failed'));
+		sync.scheduleWalk();
+		await flush();
+		await flush();
+		expect(mockPathPriorities).toHaveBeenCalledTimes(1);
+		expect(mockPathPriorities).toHaveBeenLastCalledWith({
+			nativeNodeHandle: 7,
+			fragmentUuid: 'frag:shared1:path',
+			assignments: [{ uuid: 'e1', priority: 0 }],
+		});
+
+		// Next mutation: the failed e1 assignment is re-sent alongside the
+		// new entry (with commit-on-success, nothing was dropped).
+		scene.declareEntry({
+			uid: 'e2',
+			fragmentId: 'shared1',
+			layerType: 'path',
+			sortIndex: 1,
+		});
+		scene.attachUuid('e2', 'uuid-e2');
+		await flush();
+		await flush();
+		expect(mockPathPriorities).toHaveBeenCalledTimes(2);
+		expect(mockPathPriorities).toHaveBeenLastCalledWith({
+			nativeNodeHandle: 7,
+			fragmentUuid: 'frag:shared1:path',
+			assignments: [
+				{ uuid: 'e1', priority: 0 },
+				{ uuid: 'e2', priority: 1000 },
+			],
+		});
+	});
 });
