@@ -12,7 +12,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the private static method
- * {@code MapMutationQueue.longestIncreasingSubsequenceMask(int[])}
+ * {@code LayerStackController.longestIncreasingSubsequenceMask(int[])}
  * via reflection.
  *
  * <p>The LIS algorithm is strictly increasing (duplicate values do not extend
@@ -27,7 +27,7 @@ public class MapMutationQueueLISTest {
 
     @Before
     public void setUp() throws Exception {
-        lisMethod = MapMutationQueue.class
+        lisMethod = LayerStackController.class
                 .getDeclaredMethod("longestIncreasingSubsequenceMask", int[].class);
         lisMethod.setAccessible(true);
     }
