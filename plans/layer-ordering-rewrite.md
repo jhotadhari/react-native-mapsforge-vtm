@@ -74,8 +74,8 @@ accumulated during render.
 | 3.5 | Fragment-injection fix + `order` prop | ✅ done |
 | 4A | Sparse priorities applied natively | ✅ done |
 | 4B | Generic batching (paths+shapes, marker migration) | ✅ done |
-| — | **Fix batch 1** (review findings, before Phase 5) | ⏭ next — see `fix-batch-1.md` |
-| 5 | `LayerStackController` (absolute plans, `positionByUuid` removal, atomic create+apply, self-check) | pending |
+| — | **Fix batch 1** (review findings, before Phase 5) | ✅ done — commits `d6405c1`..`c9f1987`, device-verified |
+| 5 | `LayerStackController` (absolute plans, `positionByUuid` removal, atomic create+apply, self-check) | ⏭ next |
 | — | **Fix batch 2** (post-Phase-5 findings + re-review) | pending |
 | 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | partial |
 | 7 | Docs rewrite (`layer-ordering.md`, `AGENTS.md`, extending.md), example verification matrix | pending |

@@ -1,8 +1,47 @@
 # Plan: Fix Batch 1 (pre-Phase-5 correctness foundation)
 
-Status: **planned — implementation pending.**
+Status: **implemented + device-verified** (commits below).
 Companion docs: `layer-ordering-rewrite.md` (roadmap), `layer-ordering-rewrite-code-review.md`
 (finding details).
+
+## Implemented (commits)
+
+1. `d6405c1` — scene-authoritative fragment uuids (CRITICAL #1, approach b) + nested-scope
+   ordering (#13) + walk retry (D-2) + **D-1 folded in** (max-wait pending-burst guard — moved
+   from commit 3 because the walk-retry tests need deterministic debouncer behavior)
+2. `c541c81` — CRITICAL #2 (marker rebuild under `synchronized (layer)`), CRITICAL #3 + #22
+   (hierarchy-listener lifecycle, cached wrapper, re-attach walk, listener save/restore), G
+   (#17 fragmentUuid guards, #18 null-safe error messages, #20 DEFAULT_FRAGMENT_UUID, #21
+   iterative anchor walk)
+3. `bb78774` — SceneSync D-3 (reorder backoff/cap), D-4 (PriorityAllocator compute/commit
+   split, commit-on-success), D-5 (destroy re-arm), D-6 (single in-flight walk + seq)
+4. `eea6735` — E (#10 max-wait re-arm, #11 response guards + per-op reject, #12 teardown
+   drain resolves removes) + F (#9 uid prefixes, #23 attach gating)
+5. `c9f1987` — type-run repro controls in `layer-order-verification` (add / remove-first /
+   move-last-to-front, expected-native-layers status line)
+
+## Device verification (19261FDEE000YM, Android 13, fresh Metro + pm clear)
+
+| Check | Result |
+|---|---|
+| layer-order-verification SharedLayer ON + Scope ON | JS 5 / Native 5 ✓ (bitmap + 3 shared fragments + 1 run fragment) |
+| SharedLayer OFF + Scope ON / OFF | JS 8 / Native 8 ✓ |
+| SharedLayer ON + Scope OFF | JS 5 / Native 5 ✓ |
+| Type-run add path ×2 | 2→3→4 members, always 1 native fragment, debug row `1/3` after expand ✓ |
+| Remove first | run re-keyed `run:…_layer_1` → `run:…_layer_2`, still 1 fragment ✓ |
+| Move last to front | re-keyed to moved member's uid, still 1 fragment ✓ |
+| MANYLAYERS stress test | JS 3 / Native 3 ✓ |
+| SHARED LAYER GROUPING swap | 2 fragments, swap toggle ✓ |
+| MARKERS / MANY SHAPES | render clean ✓ |
+| Logcat | no ZOMBIE, no warnings during example operations |
+| LogBox | one pre-existing "MapMutationQueue destroyed" entry from example-navigation
+teardown race (also present in the old-bundle snapshot — unrelated to these fixes) |
+
+## Deviations from the plan
+
+- D-1 (max-wait pending-burst guard) moved from commit 3 into commit 1 (test determinism).
+- #13 landed in commit 1 as planned (user: "i dont care where it stays").
+- Native batch-robustness minors #14/#15/#16/#19 remain deferred to batch 2 (post-Phase-5).
 
 ## A. CRITICAL #1 — scene-authoritative fragment uuids (approach b)
 
