@@ -19,6 +19,7 @@ import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressLint( "ViewConstructor" )
@@ -64,40 +65,94 @@ public class MapsforgeVtmView extends LinearLayout {
 	 * native signal that catches anchor reordering without any React commit
 	 * touching a library component (identity-preserved element moves).
 	 * Fires onAnchorsChanged, which the JS presenter debounces into a walk.
+	 *
+	 * Coverage: direct-child VtmAnchorViews of the wrapper (and their
+	 * descendants — anchors are the leaf markers of every ordering-relevant
+	 * component), while this view is attached. Detached-phase moves fire no
+	 * events, so {@link #onAttachedToWindow()} re-walks on (re)attach.
 	 */
 	private ViewGroup.OnHierarchyChangeListener hierarchyChangeListener;
+	/** The wrapper the listener is installed on — cached so teardown never
+	 * depends on {@code getParent()} (null mid-detach). */
+	@Nullable
+	private ViewGroup wrapperView;
+	/** Any listener the wrapper had before ours — restored on removal. */
+	@Nullable
+	private ViewGroup.OnHierarchyChangeListener previousListener;
+
+	/** Installs the move-signal listener on the wrapper, preserving any
+	 * pre-existing listener. Idempotent. */
+	private void installHierarchyListener( @NonNull ViewGroup wrapper ) {
+		if ( hierarchyChangeListener != null ) {
+			return;
+		}
+		wrapperView = wrapper;
+		previousListener = getHierarchyChangeListener( wrapper );
+		hierarchyChangeListener = new ViewGroup.OnHierarchyChangeListener() {
+			@Override
+			public void onChildViewAdded( View parent, View child ) {
+				if ( child instanceof VtmAnchorView ) {
+					emitAnchorsChanged();
+				}
+			}
+
+			@Override
+			public void onChildViewRemoved( View parent, View child ) {
+				if ( child instanceof VtmAnchorView ) {
+					emitAnchorsChanged();
+				}
+			}
+		};
+		wrapper.setOnHierarchyChangeListener( hierarchyChangeListener );
+	}
+
+	/** Removes the move-signal listener via the cached wrapper reference and
+	 * restores any pre-existing listener. Idempotent. */
+	private void removeHierarchyListener() {
+		if ( hierarchyChangeListener != null && wrapperView != null ) {
+			wrapperView.setOnHierarchyChangeListener( previousListener );
+		}
+		hierarchyChangeListener = null;
+		previousListener = null;
+		wrapperView = null;
+	}
+
+	/**
+	 * Reads a ViewGroup's hierarchy-change listener. There is no public
+	 * getter — the private field is the only way to preserve a pre-existing
+	 * listener across our install/remove cycle.
+	 */
+	@Nullable
+	private static ViewGroup.OnHierarchyChangeListener getHierarchyChangeListener(
+		@NonNull ViewGroup group
+	) {
+		try {
+			Field field = ViewGroup.class.getDeclaredField(
+				"mOnHierarchyChangeListener"
+			);
+			field.setAccessible( true );
+			return (ViewGroup.OnHierarchyChangeListener) field.get( group );
+		} catch ( Exception e ) {
+			return null;
+		}
+	}
 
 	@Override
 	public void onAttachedToWindow() {
 		super.onAttachedToWindow();
-		if ( hierarchyChangeListener == null && getParent() instanceof ViewGroup ) {
-			final ViewGroup wrapper = (ViewGroup) getParent();
-			hierarchyChangeListener = new ViewGroup.OnHierarchyChangeListener() {
-				@Override
-				public void onChildViewAdded( View parent, View child ) {
-					if ( child instanceof VtmAnchorView ) {
-						emitAnchorsChanged();
-					}
-				}
-
-				@Override
-				public void onChildViewRemoved( View parent, View child ) {
-					if ( child instanceof VtmAnchorView ) {
-						emitAnchorsChanged();
-					}
-				}
-			};
-			wrapper.setOnHierarchyChangeListener( hierarchyChangeListener );
+		if ( getParent() instanceof ViewGroup ) {
+			installHierarchyListener( (ViewGroup) getParent() );
 		}
+		// Anchors may have been moved while detached (the wrapper fires no
+		// hierarchy events for a detached tree) — re-walk on (re)attach so
+		// the scene heals.
+		emitAnchorsChanged();
 	}
 
 	@Override
 	public void onDetachedFromWindow() {
 		super.onDetachedFromWindow();
-		if ( hierarchyChangeListener != null && getParent() instanceof ViewGroup ) {
-			( (ViewGroup) getParent() ).setOnHierarchyChangeListener( null );
-		}
-		hierarchyChangeListener = null;
+		removeHierarchyListener();
 	}
 
 	public void emitAnchorsChanged() {
@@ -420,6 +475,7 @@ public class MapsforgeVtmView extends LinearLayout {
 	 * MapContainer is unmounted.
 	 */
 	public void destroy() {
+		removeHierarchyListener();
 		if ( null != mapFragment ) {
 			int handle = this.getId();
 			mapFragment.onDestroy();

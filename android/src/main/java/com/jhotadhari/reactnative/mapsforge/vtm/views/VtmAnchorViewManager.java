@@ -56,28 +56,37 @@ public class VtmAnchorViewManager extends SimpleViewManager<VtmAnchorView> imple
 	 * {@link VtmAnchorView} instances in committed child order. The subtree
 	 * rooted at {@code exclude} (the MapsforgeVtmView host) is skipped — it
 	 * contains no anchors.
+	 *
+	 * Iterative (explicit work stack) — the historical recursive version
+	 * could StackOverflow on deep view trees.
 	 */
 	public static List<String> collectAnchorUids( @NonNull ViewGroup root, @Nullable View exclude ) {
 		List<String> uids = new ArrayList<>();
-		collect( root, exclude, uids );
-		return uids;
-	}
-
-	private static void collect( @NonNull ViewGroup group, @Nullable View exclude, @NonNull List<String> uids ) {
-		int childCount = group.getChildCount();
-		for ( int i = 0; i < childCount; i++ ) {
-			View child = group.getChildAt( i );
-			if ( child == exclude ) {
-				continue;
-			}
-			if ( child instanceof VtmAnchorView ) {
-				String uid = ( (VtmAnchorView) child ).getUid();
+		// Work stack of pending views, pushed last-child-first so popping
+		// yields DFS in committed child order.
+		List<View> stack = new ArrayList<>();
+		stack.add( root );
+		while ( !stack.isEmpty() ) {
+			View top = stack.remove( stack.size() - 1 );
+			if ( top instanceof VtmAnchorView ) {
+				String uid = ( (VtmAnchorView) top ).getUid();
 				if ( uid != null ) {
 					uids.add( uid );
 				}
-			} else if ( child instanceof ViewGroup ) {
-				collect( (ViewGroup) child, exclude, uids );
+				continue;
+			}
+			ViewGroup group = (ViewGroup) top;
+			int childCount = group.getChildCount();
+			for ( int i = childCount - 1; i >= 0; i-- ) {
+				View child = group.getChildAt( i );
+				if ( child == exclude ) {
+					continue;
+				}
+				if ( child instanceof ViewGroup || child instanceof VtmAnchorView ) {
+					stack.add( child );
+				}
 			}
 		}
+		return uids;
 	}
 }

@@ -453,7 +453,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				positionIndices.add(positionIndex);
 				sourceIndices.add(i);
 			} catch (Exception e) {
-				errors[i] = e.getMessage();
+				String msg = e.getMessage();
+				errors[i] = msg != null ? msg : e.getClass().getSimpleName();
 			}
 		}
 
@@ -613,7 +614,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 					}
 				}
 			} catch (Exception e) {
-				resultItem.putString("error", e.getMessage());
+				String msg = e.getMessage();
+				resultItem.putString("error", msg != null ? msg : e.getClass().getSimpleName());
 			}
 
 			results.pushMap(resultItem);
@@ -658,7 +660,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			String uuid = assignment.getString( "uuid" );
 			int priority = assignment.getInt( "priority" );
 			MarkerEntry entry = allMarkers.get( uuid );
-			if ( entry != null ) {
+			// Guard against cross-fragment assignments: never touch an
+			// entry that doesn't belong to this fragment's layer.
+			if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
 				entry.positionIndex = priority;
 			}
 		}
@@ -671,37 +675,46 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 
-		List<MarkerInterface> itemList = layer.getItemList();
-		for ( MarkerEntry entry : fragmentEntries ) {
-			itemList.remove( entry.markerItem );
-		}
-
-		// Sort descending positionIndex so higher z-order markers go in
-		// first (front-insertion reversal compensation).
-		fragmentEntries.sort( ( a, b ) -> {
-			if ( a.positionIndex != b.positionIndex ) {
-				return Integer.compare( b.positionIndex, a.positionIndex );
+		// The rebuild is a read-modify-write over the live item list and
+		// must be serialized against vtm's own synchronized accessors and
+		// the UI-thread hit-test path — synchronize on the layer (the same
+		// monitor vtm uses) so the compound operation is atomic.
+		synchronized ( layer ) {
+			List<MarkerInterface> itemList = layer.getItemList();
+			for ( MarkerEntry entry : fragmentEntries ) {
+				itemList.remove( entry.markerItem );
 			}
-			return 0;
-		} );
 
-		for ( MarkerEntry entry : fragmentEntries ) {
-			int insertAt = itemList.size();
-			for ( int j = 0; j < itemList.size(); j++ ) {
-				MarkerInterface existing = itemList.get( j );
-				MarkerEntry existingEntry = allMarkers.get(
-					( (MarkerItem) existing ).getUid().toString() );
-				if ( existingEntry != null
-					&& existingEntry.positionIndex > entry.positionIndex ) {
-					insertAt = j;
-					break;
+			// Sort descending positionIndex so higher z-order markers go in
+			// first (front-insertion reversal compensation).
+			fragmentEntries.sort( ( a, b ) -> {
+				if ( a.positionIndex != b.positionIndex ) {
+					return Integer.compare( b.positionIndex, a.positionIndex );
 				}
+				return 0;
+			} );
+
+			for ( MarkerEntry entry : fragmentEntries ) {
+				int insertAt = itemList.size();
+				for ( int j = 0; j < itemList.size(); j++ ) {
+					MarkerInterface existing = itemList.get( j );
+					MarkerEntry existingEntry = allMarkers.get(
+						( (MarkerItem) existing ).getUid().toString() );
+					if ( existingEntry != null
+						&& existingEntry.positionIndex > entry.positionIndex ) {
+						insertAt = j;
+						break;
+					}
+				}
+				itemList.add( insertAt, entry.markerItem );
 			}
-			itemList.add( insertAt, entry.markerItem );
+
+			if ( !fragmentEntries.isEmpty() ) {
+				layer.populate();
+			}
 		}
 
 		if ( !fragmentEntries.isEmpty() ) {
-			layer.populate();
 			scheduleUpdate();
 		}
 	}

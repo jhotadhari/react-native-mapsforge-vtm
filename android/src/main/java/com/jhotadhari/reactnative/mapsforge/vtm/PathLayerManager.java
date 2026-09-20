@@ -59,6 +59,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	public static final String NAME = "paths";
 	/** Position in map.layers(): below markers/shapes so paths render underneath overlays. */
 	public static final int BASE_POSITION = Integer.MAX_VALUE - 1;
+	/** Fallback fragment uuid when batch params carry none (single implicit fragment). */
+	public static final String DEFAULT_FRAGMENT_UUID = "__vtm_shared_path__0";
 
 	// ── Factory ─────────────────────────────────────────────────────────
 
@@ -162,12 +164,12 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			: 30d;
 
 		// Resolve fragment uuid for this entry. Default must match
-		// LayerPath.java's default ("__vtm_shared_path__0") so that
+		// LayerPath.java's default (DEFAULT_FRAGMENT_UUID) so that
 		// ensureSharedLayer (called with the same value from create())
 		// and getSharedLayer use the same key.
 		String fragmentUuid = Utils.rMapHasKey(params, "fragmentUuid")
 			? params.getString("fragmentUuid")
-			: "__vtm_shared_path__0";
+			: DEFAULT_FRAGMENT_UUID;
 
 		// Parse coordinates.
 		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(coordinates);
@@ -375,7 +377,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			allParams[i] = pathsArray.getMap( i );
 			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
 				? allParams[i].getString( "fragmentUuid" )
-				: "__vtm_shared_path__0";
+				: DEFAULT_FRAGMENT_UUID;
 			if ( seenFragments.add( fragmentUuid ) ) {
 				ensureSharedLayer( fragmentUuid );
 			}
@@ -387,10 +389,11 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			try {
 				String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
 					? allParams[i].getString( "fragmentUuid" )
-					: "__vtm_shared_path__0";
+					: DEFAULT_FRAGMENT_UUID;
 				create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
 			} catch ( Exception e ) {
-				errors[i] = e.getMessage();
+				String msg = e.getMessage();
+				errors[i] = msg != null ? msg : e.getClass().getSimpleName();
 			}
 		}
 
@@ -431,7 +434,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			try {
 				remove( uuid );
 			} catch ( Exception e ) {
-				resultItem.putString( "error", e.getMessage() );
+				String msg = e.getMessage();
+				resultItem.putString( "error", msg != null ? msg : e.getClass().getSimpleName() );
 			}
 			results.pushMap( resultItem );
 		}
@@ -462,7 +466,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			String uuid = assignment.getString( "uuid" );
 			int priority = assignment.getInt( "priority" );
 			PathEntry entry = entries.get( uuid );
-			if ( entry == null ) {
+			// Guard against cross-fragment assignments: never touch an
+			// entry that doesn't belong to this fragment's layer.
+			if ( entry == null || !fragmentUuid.equals( entry.fragmentUuid ) ) {
 				continue;
 			}
 			entry.positionIndex = priority;
