@@ -201,8 +201,21 @@ const runPalette = [
 
 interface RunPath {
 	id: number;
-	color: string;
+	/** Precomputed at creation — inline computation in JSX would regenerate
+	 * arrays/paint on every render (map events at ~25Hz), firing native
+	 * updates and flickering the paths. */
+	coords: Position[];
+	paint: PathPaint;
 }
+
+const buildRunPath = (id: number, index: number, color: string): RunPath => ({
+	id,
+	coords: buildRunPathCoords(index),
+	paint: {
+		strokeColor: color,
+		strokeWidth: 6 + index * 2,
+	} as PathPaint,
+});
 
 const buildRunPathCoords = (index: number): Position[] => {
 	const extent = 0.045 + index * 0.014;
@@ -388,21 +401,16 @@ const ExampleComponent: FC<{
 	// The standalone type-run: consecutive LayerPaths OUTSIDE the
 	// SharedLayer/ReindexScope wrappers. Starts with a 2-member run.
 	const [runPaths, setRunPaths] = useState<RunPath[]>(() => [
-		{ id: 1, color: runPalette[0]! },
-		{ id: 2, color: runPalette[1]! },
+		buildRunPath(1, 0, runPalette[0]!),
+		buildRunPath(2, 1, runPalette[1]!),
 	]);
 	const nextRunIdRef = useRef(3);
 
-	const runPathElements = runPaths.map((runPath, index) => (
+	const runPathElements = runPaths.map((runPath) => (
 		<LayerPath
 			key={runPath.id}
-			coordinates={buildRunPathCoords(index)}
-			paint={
-				{
-					strokeColor: runPath.color,
-					strokeWidth: 6 + index * 2,
-				} as PathPaint
-			}
+			coordinates={runPath.coords}
+			paint={runPath.paint}
 		/>
 	));
 
@@ -476,10 +484,11 @@ const ExampleComponent: FC<{
 				onAddRunPath={() =>
 					setRunPaths((prev) => [
 						...prev,
-						{
-							id: nextRunIdRef.current++,
-							color: runPalette[prev.length % runPalette.length]!,
-						},
+						buildRunPath(
+							nextRunIdRef.current++,
+							prev.length,
+							runPalette[prev.length % runPalette.length]!
+						),
 					])
 				}
 				onRemoveFirstRunPath={() =>
