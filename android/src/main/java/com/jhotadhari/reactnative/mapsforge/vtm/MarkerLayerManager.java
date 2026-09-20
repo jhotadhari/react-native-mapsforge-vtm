@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Collapses all {@code LayerMarker} / {@code Marker} components into a single
@@ -92,19 +93,27 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		@NonNull
 		public final MarkerItem markerItem;
 		public int positionIndex;
+		/**
+		 * Monotonic creation sequence — the deterministic tie-break when
+		 * several entries share a positionIndex (earlier-created draws on
+		 * top, mirroring the batch creation tie convention).
+		 */
+		public final long creationSeq;
 
 		public MarkerEntry(
 			@NonNull String entryUuid,
 			@NonNull String groupUuid,
 			@NonNull String fragmentUuid,
 			@NonNull MarkerItem markerItem,
-			int positionIndex
+			int positionIndex,
+			long creationSeq
 		) {
 			this.entryUuid = entryUuid;
 			this.groupUuid = groupUuid;
 			this.fragmentUuid = fragmentUuid;
 			this.markerItem = markerItem;
 			this.positionIndex = positionIndex;
+			this.creationSeq = creationSeq;
 		}
 	}
 
@@ -138,6 +147,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	}
 
 	// ── Instance state ──────────────────────────────────────────────────
+
+	/** Monotonic creation sequence for deterministic equal-priority ties. */
+	private final AtomicLong entrySeqCounter = new AtomicLong(0);
 
 	/** All markers across all groups, keyed by marker uuid (not item uid). */
 	private final Map<String, MarkerEntry> allMarkers = new ConcurrentHashMap<>();
@@ -239,7 +251,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		insertMarkerSorted(markerItem, positionIndex, itemizedLayer);
 
 		// Track.
-		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, positionIndex);
+		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, positionIndex, entrySeqCounter.incrementAndGet());
 		allMarkers.put(entryUuid, entry);
 		if (group != null) {
 			group.memberMarkerUuids.add(entryUuid);
@@ -558,7 +570,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 
 			MarkerEntry entry = new MarkerEntry(
-				entryUuid, groupUuid, fragmentUuids[i], markerItem, positionIndex);
+				entryUuid, groupUuid, fragmentUuids[i], markerItem, positionIndex,
+				entrySeqCounter.incrementAndGet());
 			entries.put(entryUuid, entry);
 			allMarkers.put(entryUuid, entry);
 
@@ -716,12 +729,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 
 			// Sort descending positionIndex so higher z-order markers go in
-			// first (front-insertion reversal compensation).
+			// first (front-insertion reversal compensation). Ties break by
+			// creation sequence ascending — earlier-created draws on top,
+			// mirroring the batch-creation tie convention.
 			fragmentEntries.sort( ( a, b ) -> {
 				if ( a.positionIndex != b.positionIndex ) {
 					return Integer.compare( b.positionIndex, a.positionIndex );
 				}
-				return 0;
+				return Long.compare( a.creationSeq, b.creationSeq );
 			} );
 
 			for ( MarkerEntry entry : fragmentEntries ) {
