@@ -22,10 +22,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Robolectric unit tests for {@link LayerStackController}: registry
@@ -232,11 +236,55 @@ public class LayerStackControllerTest {
 	}
 
 	@Test
-	public void verify_lengthMismatchDetected() {
+	public void verify_ignoresUnknownTargetUuids() {
+		// "virtual"/not-yet-registered uuids in the target (e.g. a create
+		// whose plan predates registration) must not produce a mismatch.
 		addToStack("l1");
 		addToStack("l2");
-		LayerStackController.VerifyResult result = controller.verify(Arrays.asList("l1"));
+		LayerStackController.VerifyResult result = controller.verify(Arrays.asList("l1", "virtual", "l2"));
+		assertTrue("Unknown uuids must be ignored", result.matches);
+		assertEquals(Arrays.asList("l1", "l2"), result.expectedUuids);
+		assertEquals(Arrays.asList("l1", "l2"), result.appliedUuids);
+	}
+
+	@Test
+	public void verify_ignoresAppliedLayersAbsentFromPlan() {
+		// A same-batch sibling appended but absent from the plan must not
+		// produce a mismatch — only the resolvable relative order counts.
+		addToStack("l1");
+		addToStack("l2");
+		addToStack("sibling");
+		LayerStackController.VerifyResult result = controller.verify(Arrays.asList("l1", "l2"));
+		assertTrue("Plan-absent applied layers must be ignored", result.matches);
+	}
+
+	@Test
+	public void verify_detectsOutOfOrderResolvableLayers() {
+		addToStack("l1");
+		addToStack("l2");
+		addToStack("l3");
+		// l3 resolvable but misplaced relative to the others — real desync.
+		LayerStackController.VerifyResult result = controller.verify(Arrays.asList("l1", "l3", "l2"));
 		assertFalse(result.matches);
+	}
+
+	@Test
+	public void applyPlan_firesClearEventOnceForNewlyTrackedLayers() {
+		Layer listenerLayer = mock(
+			Layer.class,
+			withSettings().extraInterfaces(org.oscim.map.Map.UpdateListener.class)
+		);
+		backingList.add(listenerLayer);
+		controller.register(listenerLayer, "l1");
+
+		controller.applyPlan(Arrays.asList("l1"));
+		org.oscim.map.Map.UpdateListener listener =
+			(org.oscim.map.Map.UpdateListener) listenerLayer;
+		verify(listener).onMapEvent(eq(org.oscim.map.Map.CLEAR_EVENT), any());
+
+		// Second application of the same plan must NOT re-fire CLEAR_EVENT.
+		controller.applyPlan(Arrays.asList("l1"));
+		verify(listener, times(1)).onMapEvent(eq(org.oscim.map.Map.CLEAR_EVENT), any());
 	}
 
 	// -----------------------------------------------------------------------

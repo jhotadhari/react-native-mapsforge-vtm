@@ -340,6 +340,37 @@ public class MapMutationQueueTest {
         assertEquals(b, backingList.get(1));
     }
 
+    @Test
+    public void addWithPlanAndReorderInSameBatch_lastWins() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        Layer c = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // One batch: an add carrying plan [c, a, b], then a pure reorder
+        // [a, b, c] — the reorder is later in the batch, so it must win.
+        List<String> addPlan = new ArrayList<>();
+        addPlan.add("c");
+        addPlan.add("a");
+        addPlan.add("b");
+        q.enqueueAddLayer(c, "c", addPlan);
+
+        List<String> reorderPlan = new ArrayList<>();
+        reorderPlan.add("a");
+        reorderPlan.add("b");
+        reorderPlan.add("c");
+        q.enqueueReorderLayers(reorderPlan);
+        flushLooper();
+
+        assertEquals("reorder must win over the earlier add plan", a, backingList.get(0));
+        assertEquals(b, backingList.get(1));
+        assertEquals(c, backingList.get(2));
+    }
+
     // -----------------------------------------------------------------------
     // Reorder layers
     // -----------------------------------------------------------------------

@@ -48,9 +48,10 @@ public class LayerStackController {
 	@NonNull
 	private final Set<String> previouslyReorderedUuids = new HashSet<>();
 
-	/** Result of the last {@link #verify(List)} call. UI-thread only. */
+	/** Result of the last {@link #verify(List)} call. Written on the UI
+	 * thread, read from the TurboModule thread (debug dump) — volatile. */
 	@Nullable
-	private VerifyResult lastVerifyResult;
+	private volatile VerifyResult lastVerifyResult;
 
 	/** Signature of the last logged mismatch — dedupes the warning log. */
 	@Nullable
@@ -142,10 +143,15 @@ public class LayerStackController {
 	 */
 	public void applyPlan( @NonNull List<String> orderedUuids ) {
 		List<Layer> orderedLayers = new ArrayList<>();
+		// The RESOLVED subset of the plan — unknown uuids (e.g. a create
+		// whose plan predates another layer's registration) are skipped,
+		// and only resolved uuids participate in the CLEAR_EVENT dedup.
+		List<String> resolvedUuids = new ArrayList<>();
 		for ( String uuid : orderedUuids ) {
 			Layer layer = knownLayers.get( uuid );
 			if ( layer != null && mapView.map().layers().contains( layer ) ) {
 				orderedLayers.add( layer );
+				resolvedUuids.add( uuid );
 			}
 		}
 		if ( orderedLayers.isEmpty() ) {
@@ -169,7 +175,7 @@ public class LayerStackController {
 			}
 		}
 		previouslyReorderedUuids.clear();
-		previouslyReorderedUuids.addAll( orderedUuids );
+		previouslyReorderedUuids.addAll( resolvedUuids );
 
 		reorderMinimalMoves( orderedLayers );
 
@@ -184,25 +190,44 @@ public class LayerStackController {
 	 * {@code MapContainer.getDebugLayerDump}). Logs a warning on mismatch,
 	 * deduped by mismatch signature so repeated identical mismatches don't
 	 * spam the log. UI-thread only.
+	 *
+	 * <p>The comparison covers the plan's RESOLVABLE relative order only:
+	 * plan entries that don't resolve to a registered layer (not yet
+	 * created, torn down) are ignored, and map layers absent from the plan
+	 * (same-batch siblings, not-yet-planned layers) are ignored. A
+	 * resolvable layer out of its planned position IS a mismatch.
 	 */
 	@NonNull
 	public VerifyResult verify( @NonNull List<String> target ) {
-		List<String> appliedUuids = new ArrayList<>();
 		Map<Layer, String> layerToUuid = new HashMap<>();
 		for ( Map.Entry<String, Layer> entry : knownLayers.entrySet() ) {
 			layerToUuid.put( entry.getValue(), entry.getKey() );
 		}
+
+		// Expected: target uuids that resolve, in target order.
+		List<String> expectedUuids = new ArrayList<>();
+		Set<String> expectedSet = new HashSet<>();
+		for ( String uuid : target ) {
+			Layer layer = knownLayers.get( uuid );
+			if ( layer != null && mapView.map().layers().contains( layer ) ) {
+				expectedUuids.add( uuid );
+				expectedSet.add( uuid );
+			}
+		}
+
+		// Applied: the map's JS-managed sequence, filtered to that set.
+		List<String> appliedUuids = new ArrayList<>();
 		for ( int i = 0; i < mapView.map().layers().size(); i++ ) {
 			String uuid = layerToUuid.get( mapView.map().layers().get( i ) );
-			if ( uuid != null ) {
+			if ( uuid != null && expectedSet.contains( uuid ) ) {
 				appliedUuids.add( uuid );
 			}
 		}
 
-		boolean matches = target.size() == appliedUuids.size();
+		boolean matches = expectedUuids.size() == appliedUuids.size();
 		if ( matches ) {
-			for ( int i = 0; i < target.size(); i++ ) {
-				if ( !target.get( i ).equals( appliedUuids.get( i ) ) ) {
+			for ( int i = 0; i < expectedUuids.size(); i++ ) {
+				if ( !expectedUuids.get( i ).equals( appliedUuids.get( i ) ) ) {
 					matches = false;
 					break;
 				}
@@ -211,7 +236,7 @@ public class LayerStackController {
 
 		VerifyResult result = new VerifyResult(
 			matches,
-			new ArrayList<>( target ),
+			expectedUuids,
 			appliedUuids
 		);
 		lastVerifyResult = result;
