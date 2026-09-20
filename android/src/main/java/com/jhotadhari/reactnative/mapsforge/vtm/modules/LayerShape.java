@@ -161,7 +161,10 @@ public class LayerShape extends NativeLayerShapeSpec {
 
 			ShapeLayerManager manager = ShapeLayerManager.getInstance( nativeNodeHandle );
 			if ( manager != null && assignments != null ) {
-				manager.applyEntryPriorities( fragmentUuid, assignments );
+				if ( ! manager.applyEntryPriorities( fragmentUuid, assignments ) ) {
+					Utils.promiseReject( promise, "Fragment not found: " + fragmentUuid );
+					return;
+				}
 			}
 			promise.resolve( null );
 		} catch ( Exception e ) {

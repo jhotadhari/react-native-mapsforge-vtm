@@ -422,15 +422,19 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	 * Only the listed entries are touched — the JS scene emits O(changed)
 	 * assignments per mutation. The upstream VectorLayer sorts drawables by
 	 * getPriority() on every frame, so no explicit re-sort is needed.
+	 *
+	 * @return true when the fragment exists and the assignments were applied;
+	 *         false when the fragment is missing (the caller must REJECT so
+	 *         the JS presenter keeps the state uncommitted and re-sends)
 	 */
-	public void applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+	public boolean applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
 		VectorLayer layer = (VectorLayer) getSharedLayer( fragmentUuid );
 		if ( layer == null ) {
 			Log.w( TAG,
 				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
 					+ fragmentUuid
 					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
-			return;
+			return false;
 		}
 		for ( int i = 0; i < assignments.size(); i++ ) {
 			ReadableMap assignment = assignments.getMap( i );
@@ -446,6 +450,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			entry.drawable.setPriority( priority );
 		}
 		scheduleUpdate();
+		return true;
 	}
 
 	/**

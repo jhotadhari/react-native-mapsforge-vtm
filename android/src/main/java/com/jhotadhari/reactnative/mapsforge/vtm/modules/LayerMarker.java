@@ -223,7 +223,10 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 
 			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
 			if ( manager != null && assignments != null ) {
-				manager.applyEntryPriorities( fragmentUuid, assignments );
+				if ( ! manager.applyEntryPriorities( fragmentUuid, assignments ) ) {
+					Utils.promiseReject( promise, "Fragment not found: " + fragmentUuid );
+					return;
+				}
 			}
 			promise.resolve( null );
 		} catch ( Exception e ) {

@@ -641,15 +641,19 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	 * descending-positionIndex insertion logic as createMarkers — vtm's
 	 * Inlist.push() reverses insertion order). Only fragments with changed
 	 * entries receive this call; the JS scene emits O(changed) assignments.
+	 *
+	 * @return true when the fragment exists and the assignments were applied;
+	 *         false when the fragment is missing (the caller must REJECT so
+	 *         the JS presenter keeps the state uncommitted and re-sends)
 	 */
-	public void applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+	public boolean applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
 		ItemizedLayer layer = (ItemizedLayer) getSharedLayer( fragmentUuid );
 		if ( layer == null ) {
 			Log.w( TAG,
 				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
 					+ fragmentUuid
 					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
-			return;
+			return false;
 		}
 
 		// Update tracked positions.
@@ -715,6 +719,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		if ( !fragmentEntries.isEmpty() ) {
 			scheduleUpdate();
 		}
+		return true;
 	}
 
 	/**

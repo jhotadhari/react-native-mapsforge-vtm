@@ -363,7 +363,13 @@ public class LayerPath extends NativeLayerPathSpec {
 
 			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
 			if ( manager != null && assignments != null ) {
-				manager.applyEntryPriorities( fragmentUuid, assignments );
+				if ( ! manager.applyEntryPriorities( fragmentUuid, assignments ) ) {
+					// Fragment missing (e.g. a re-keyed run whose recreate
+					// hasn't landed yet) — reject so the JS presenter keeps
+					// the state uncommitted and re-sends on the next mutation.
+					Utils.promiseReject( promise, "Fragment not found: " + fragmentUuid );
+					return;
+				}
 			}
 			promise.resolve( null );
 		} catch ( Exception e ) {
