@@ -100,6 +100,7 @@ export interface MarkerEvent extends ResponseBase {
 }
 
 interface CreateLayerParams extends ModuleLayerParams {
+	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle?: Int32;
 	fragmentUuid?: string;
 }
@@ -115,6 +116,7 @@ interface UpdateLayerParams extends ModuleLayerParams {
 }
 
 export interface CreateMarkerParams extends ModuleParams {
+	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
 	fragmentUuid?: string;

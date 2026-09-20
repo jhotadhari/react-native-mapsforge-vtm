@@ -82,7 +82,7 @@ const LayerHillshading = ({
 	onChange,
 	onError,
 }: LayerHillshadingProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -100,6 +100,9 @@ const LayerHillshading = ({
 			}
 			return LayerHillshadingModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				hgtDirPath,
 				...(zoomMin !== undefined && { zoomMin }),
 				...(zoomMax !== undefined && { zoomMax }),

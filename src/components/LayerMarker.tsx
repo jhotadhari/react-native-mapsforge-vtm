@@ -39,7 +39,7 @@ const LayerMarker = ({
 	onMarkerTrigger,
 	triggerEvent,
 }: LayerMarkerProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const errorSubscription = useRef<null | EventSubscription>(null);
 
@@ -73,9 +73,15 @@ const LayerMarker = ({
 					userInfo: { errorMsg: 'Missing nativeNodeHandle' },
 				} as ErrorBase);
 			}
+			// The absolute target order: the plan as if this group's layer
+			// were already resolved — applied atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(anchorUid)
+				.layers.map((l) => l.uuid);
 			return LayerMarkerModule.createLayer({
 				nativeNodeHandle,
 				fragmentUuid: fragmentUuidFor(anchorUid, 'marker'),
+				layerUuids,
 				...(paint && { paint }),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate

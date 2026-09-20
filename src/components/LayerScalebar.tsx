@@ -17,7 +17,7 @@ import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 
 const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -33,6 +33,9 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 			}
 			return LayerScalebarModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })

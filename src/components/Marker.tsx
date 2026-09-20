@@ -58,7 +58,7 @@ const Marker = ({
 	 */
 	order?: number;
 }) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 	const { markerLayerUuid, fragmentId: markerFragmentId } =
 		useContext(MarkerLayerContext);
 	const sharedId = useContext(SharedLayerContext);
@@ -111,6 +111,12 @@ const Marker = ({
 					? fragmentUuidFor(fragmentId, 'marker')
 					: (runFragmentUuid ?? runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
+			// The absolute target order: the plan as if this entry were
+			// already resolved — the fragment appears at its tree position.
+			// The native side applies it atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(isGrouped ? entryUid : anchorUid)
+				.layers.map((l) => l.uuid);
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -119,6 +125,7 @@ const Marker = ({
 				...(position && { position }),
 				...(paint && { paint }),
 				fragmentUuid,
+				layerUuids,
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
 				justCreatedRef.current = true;
@@ -146,7 +153,7 @@ const Marker = ({
 		onError,
 	});
 
-	useLayerEntry({
+	const entryUid = useLayerEntry({
 		active: isGrouped,
 		fragmentId,
 		layerType: 'marker',

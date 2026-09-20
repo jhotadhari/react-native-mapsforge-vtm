@@ -19,6 +19,7 @@ import org.oscim.core.GeoPoint;
 import org.oscim.layers.Layer;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -294,7 +295,12 @@ public abstract class LayerManager<TEntry> {
 		@NonNull ReactApplicationContext reactContext
 	) throws Exception {
 		// Ensure the shared layer exists for this fragment before adding the first entry.
-		ensureSharedLayer(fragmentUuid);
+		// The create carries the desired absolute order so the new fragment
+		// lands at its final position in the same flush that adds it.
+		ensureSharedLayer(
+			fragmentUuid,
+			Utils.rMapGetStringList(params, "layerUuids")
+		);
 
 		CreateResult<TEntry> result = createEntry(entryUuid, params, mapFragment, contentResolver, reactContext);
 		entries.put(entryUuid, result.entry);
@@ -373,8 +379,13 @@ public abstract class LayerManager<TEntry> {
 	 * Idempotent per fragment.
 	 *
 	 * @param fragmentUuid unique key for this fragment (e.g. {@code "__vtm_shared_paths__1"})
+	 * @param desiredOrder optional absolute target order applied atomically
+	 *                     with the add (from the JS-side create params)
 	 */
-	protected void ensureSharedLayer(@NonNull String fragmentUuid) throws Exception {
+	protected void ensureSharedLayer(
+		@NonNull String fragmentUuid,
+		@Nullable List<String> desiredOrder
+	) throws Exception {
 		// Fast path: already exists (outside synchronized to avoid contention).
 		if (sharedLayerFragments.containsKey(fragmentUuid)) {
 			return;
@@ -397,7 +408,8 @@ public abstract class LayerManager<TEntry> {
 			// adds append until the plan arrives in the same or next flush.
 			future = queue.enqueueAddLayer(
 				layer,
-				fragmentUuid
+				fragmentUuid,
+				desiredOrder
 			);
 		}
 

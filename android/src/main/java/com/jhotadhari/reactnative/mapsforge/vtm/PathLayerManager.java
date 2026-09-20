@@ -377,7 +377,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 				? allParams[i].getString( "fragmentUuid" )
 				: DEFAULT_FRAGMENT_UUID;
 			if ( seenFragments.add( fragmentUuid ) ) {
-				ensureSharedLayer( fragmentUuid );
+				ensureSharedLayer( fragmentUuid, Utils.rMapGetStringList( allParams[i], "layerUuids" ) );
 			}
 		}
 

@@ -77,8 +77,13 @@ public class LayerHelper {
 
 		String resolvedUuid = uuid != null ? uuid : UUID.randomUUID().toString();
 
+		// The absolute target order (bottom → top) the JS side sends with the
+		// create — applied atomically with the add so the layer lands at its
+		// final position in the same flush.
+		java.util.List<String> desiredOrder = Utils.rMapGetStringList(params, "layerUuids");
+
 		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
-		CompletableFuture<String> future = queue.enqueueAddLayer(layer, resolvedUuid);
+		CompletableFuture<String> future = queue.enqueueAddLayer(layer, resolvedUuid, desiredOrder);
 
 		return future;
 	}

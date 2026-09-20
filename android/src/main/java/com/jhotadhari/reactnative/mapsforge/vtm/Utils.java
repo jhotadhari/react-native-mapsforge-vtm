@@ -37,6 +37,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Utils {
@@ -218,6 +219,23 @@ public class Utils {
 	 */
 	public static boolean rMapHasKey( ReadableMap args, String key ) {
 		return args.hasKey( key ) && ! args.isNull( key );
+	}
+
+	/**
+	 * Reads a string-array key (e.g. {@code layerUuids}) into a {@link List},
+	 * or null when the key is absent.
+	 */
+	@Nullable
+	public static List<String> rMapGetStringList( ReadableMap args, String key ) {
+		if ( ! rMapHasKey( args, key ) ) {
+			return null;
+		}
+		ReadableArray array = args.getArray( key );
+		List<String> list = new ArrayList<>( array.size() );
+		for ( int i = 0; i < array.size(); i++ ) {
+			list.add( array.getString( i ) );
+		}
+		return list;
 	}
 
 	/**

@@ -31,7 +31,7 @@ const LayerBitmapTile = ({
 	onChange,
 	onError,
 }: LayerBitmapTileProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -47,6 +47,9 @@ const LayerBitmapTile = ({
 			}
 			return LayerBitmapTileModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				...(url && { url }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.
 				...(zoomMin && { zoomMin }),

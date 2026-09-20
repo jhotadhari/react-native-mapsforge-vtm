@@ -56,7 +56,7 @@ const LayerPathJts = ({
 	onTrigger,
 	triggerEvent,
 }: LayerPathJtsProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const responseInclude = useMemo(
 		() => ({
@@ -89,6 +89,9 @@ const LayerPathJts = ({
 			}
 			return LayerPathJtsModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				coordinates,
 				supportsGestures,
 				...(paint && { paint }),

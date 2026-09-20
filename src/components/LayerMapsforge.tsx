@@ -43,13 +43,14 @@ const LayerMapsforgeSubLayer = ({
 		parentUuid: string;
 		enabledZoomMin?: number;
 		enabledZoomMax?: number;
+		layerUuids?: ReadonlyArray<string>;
 	}) => Promise<string>;
 	removeSubLayer: (params: {
 		nativeNodeHandle: number;
 		uuid: string;
 	}) => Promise<string>;
 }) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -66,6 +67,9 @@ const LayerMapsforgeSubLayer = ({
 			return createSubLayer({
 				nativeNodeHandle,
 				parentUuid,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				...(enabledZoomMin !== undefined && {
 					enabledZoomMin,
 				}),
@@ -130,7 +134,7 @@ const LayerMapsforge = ({
 	onChange,
 	onError,
 }: LayerMapsforgeProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -148,6 +152,9 @@ const LayerMapsforge = ({
 			}
 			return LayerMapsforgeModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				mapFile,
 				...(renderTheme && { renderTheme }),
 				...(renderStyle && { renderStyle }),

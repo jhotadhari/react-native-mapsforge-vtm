@@ -58,7 +58,7 @@ const LayerPath = ({
 	 */
 	order?: number;
 }) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 	const sharedId = useContext(SharedLayerContext);
 	const isGrouped = sharedId !== null;
 
@@ -111,9 +111,16 @@ const LayerPath = ({
 					? fragmentUuidFor(sharedId, 'path')
 					: (runFragmentUuid ?? runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
+			// The absolute target order: the plan as if this entry were
+			// already resolved — the fragment appears at its tree position.
+			// The native side applies it atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(isGrouped ? entryUid : anchorUid)
+				.layers.map((l) => l.uuid);
 			return enqueueCreatePath({
 				nativeNodeHandle,
 				fragmentUuid,
+				layerUuids,
 				supportsGestures,
 				coordinates,
 				...(paint && { paint }),
@@ -145,7 +152,7 @@ const LayerPath = ({
 	});
 
 	// Grouped (inside a SharedLayer): declare an entry instead of an anchor.
-	useLayerEntry({
+	const entryUid = useLayerEntry({
 		active: isGrouped,
 		fragmentId: sharedId,
 		layerType: 'path',

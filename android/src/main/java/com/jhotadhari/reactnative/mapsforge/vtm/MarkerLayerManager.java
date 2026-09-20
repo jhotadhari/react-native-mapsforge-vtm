@@ -388,7 +388,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				: sharedLayerUuid + "0";
 			fragmentUuids[i] = fragmentUuid;
 			if (seenFragments.add(fragmentUuid)) {
-				ensureSharedLayer(fragmentUuid);
+				ensureSharedLayer(fragmentUuid, Utils.rMapGetStringList(markerParams, "layerUuids"));
 			}
 		}
 
@@ -734,7 +734,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			: sharedLayerUuid + "0";
 
 		// Ensure the fragment's shared layer exists.
-		ensureSharedLayer(fragmentUuid);
+		ensureSharedLayer(fragmentUuid, Utils.rMapGetStringList(params, "layerUuids"));
 
 		String groupUuid = UUID.randomUUID().toString();
 		int positionIndex = resolvePositionIndex(params);

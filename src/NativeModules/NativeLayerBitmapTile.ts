@@ -18,6 +18,7 @@ export interface ModuleParams {
 }
 
 interface CreateLayerParams extends ModuleParams {
+	layerUuids?: ReadonlyArray<string>;
 	nativeNodeHandle?: Int32;
 }
 

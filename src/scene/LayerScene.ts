@@ -85,6 +85,19 @@ export class LayerScene {
 		return this.cachedPlan;
 	}
 
+	/**
+	 * Pure, uncached: builds the plan as if {@code key} had a resolved uuid.
+	 * The plan only tests presence, so the value is irrelevant. Used by
+	 * components to compute the absolute target order they send with a
+	 * create call — the not-yet-resolved fragment appears at its correct
+	 * tree position in the result.
+	 */
+	planWithResolved(key: string): LayerPlan {
+		const virtualUuids = new Map(this.uuids);
+		virtualUuids.set(key, 'virtual');
+		return buildPlan(this.walk, this.entries, virtualUuids);
+	}
+
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => {

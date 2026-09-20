@@ -31,7 +31,7 @@ const LayerMBTilesBitmap = ({
 	onChange,
 	onError,
 }: LayerMBTilesBitmapProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -49,6 +49,9 @@ const LayerMBTilesBitmap = ({
 			}
 			return LayerMBTilesBitmapModule.createLayer({
 				nativeNodeHandle,
+				layerUuids: scene
+					.planWithResolved(anchorUid)
+					.layers.map((l) => l.uuid),
 				mapFile,
 				...(transparentColor && { transparentColor }),
 				...(alpha && { alpha }), // java side will ensure it is between 0 and 1.

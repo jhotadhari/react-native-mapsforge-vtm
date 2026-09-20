@@ -290,6 +290,56 @@ public class MapMutationQueueTest {
         assertEquals("plan must place l1 second", l1, backingList.get(1));
     }
 
+    @Test
+    public void desiredOrder_placesAddAtomically() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer existing = mock(Layer.class);
+        q.enqueueAddLayer(existing, "existing");
+        flushLooper();
+
+        // Add a new layer carrying the desired plan that places it FIRST —
+        // it must land at its final position in this single flush, never
+        // transiently appended on top.
+        Layer inserted = mock(Layer.class);
+        List<String> plan = new ArrayList<>();
+        plan.add("inserted");
+        plan.add("existing");
+        q.enqueueAddLayer(inserted, "inserted", plan);
+        flushLooper();
+
+        assertEquals(2, backingList.size());
+        assertEquals("inserted must be first per the carried plan",
+                inserted, backingList.get(0));
+        assertEquals("existing must be second", existing, backingList.get(1));
+    }
+
+    @Test
+    public void lastPlanInBatchWins() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // Two plans in one batch: the first puts a on top, the second (the
+        // freshest) puts b on top — only the last one may apply.
+        List<String> stalePlan = new ArrayList<>();
+        stalePlan.add("b");
+        stalePlan.add("a");
+        List<String> freshPlan = new ArrayList<>();
+        freshPlan.add("a");
+        freshPlan.add("b");
+        q.enqueueReorderLayers(stalePlan);
+        q.enqueueReorderLayers(freshPlan);
+        flushLooper();
+
+        assertEquals(a, backingList.get(0));
+        assertEquals(b, backingList.get(1));
+    }
+
     // -----------------------------------------------------------------------
     // Reorder layers
     // -----------------------------------------------------------------------

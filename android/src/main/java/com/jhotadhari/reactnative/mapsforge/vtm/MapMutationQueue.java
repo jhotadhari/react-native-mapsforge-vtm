@@ -93,11 +93,15 @@ public class MapMutationQueue {
 	private static final class AddLayer implements Mutation {
 		final Layer layer;
 		final String uuid;
+		/** Absolute target order (bottom → top) to apply with this add. */
+		@Nullable
+		final List<String> desiredOrder;
 		final CompletableFuture<String> future;
 
-		AddLayer(Layer layer, String uuid, CompletableFuture<String> future) {
+		AddLayer(Layer layer, String uuid, @Nullable List<String> desiredOrder, CompletableFuture<String> future) {
 			this.layer = layer;
 			this.uuid = uuid;
+			this.desiredOrder = desiredOrder;
 			this.future = future;
 		}
 
@@ -194,11 +198,20 @@ public class MapMutationQueue {
 	// Public enqueue API – safe to call from any thread
 	// ------------------------------------------------------------------
 
-	public CompletableFuture<String> enqueueAddLayer(Layer layer, String uuid) {
+	public CompletableFuture<String> enqueueAddLayer(
+		Layer layer,
+		String uuid,
+		@Nullable List<String> desiredOrder
+	) {
 		CompletableFuture<String> future = new CompletableFuture<>();
-		pending.add(new AddLayer(layer, uuid, future));
+		pending.add(new AddLayer(layer, uuid, desiredOrder, future));
 		scheduleFlush();
 		return future;
+	}
+
+	/** Convenience overload: add without a desired plan (append until one arrives). */
+	public CompletableFuture<String> enqueueAddLayer(Layer layer, String uuid) {
+		return enqueueAddLayer(layer, uuid, null);
 	}
 
 	/**
@@ -294,13 +307,19 @@ public class MapMutationQueue {
 
 		// --- Step 3: apply the absolute plan ---
 		// Run after adds/removals so the plan sees the correct post-mutation
-		// state. Multiple plans in a single batch are all applied; the last
-		// one wins, which matches JS-side semantics (debounced scheduleSync
-		// sends the latest order).
+		// state. The LAST plan-bearing mutation in the batch wins: a create
+		// carrying the desired order lands atomically at its final position
+		// in this same flush; plain reorderLayers calls are equivalent.
+		List<String> plan = null;
 		for (Mutation mut : batch) {
 			if (mut instanceof ReorderLayers) {
-				controller.applyPlan(((ReorderLayers) mut).orderedLayerUuids);
+				plan = ((ReorderLayers) mut).orderedLayerUuids;
+			} else if (mut instanceof AddLayer && ((AddLayer) mut).desiredOrder != null) {
+				plan = ((AddLayer) mut).desiredOrder;
 			}
+		}
+		if (plan != null) {
+			controller.applyPlan(plan);
 		}
 
 		// Single updateMap for the entire batch.
