@@ -25,6 +25,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.MarkerLayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.EventEmitterCallback;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.LayerStackController;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapsforgeVtmView;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.VtmAnchorViewManager;
@@ -576,12 +577,26 @@ public class MapContainer extends NativeMapContainerSpec {
 
 			int pendingMutations = queue != null ? queue.getPendingCount() : 0;
 
+			// Self-check: did the last applied plan match the actual stack?
+			LayerStackController.VerifyResult verify = queue != null
+				? queue.getLastVerifyResult()
+				: null;
+
 			WritableMap response = new WritableNativeMap();
 			response.putInt( "nativeNodeHandle", nativeNodeHandle );
 			response.putInt( "totalLayers", totalLayers );
 			response.putInt( "jsManagedCount", jsManagedCount );
 			response.putInt( "pendingMutations", pendingMutations );
 			response.putArray( "layers", layersArray );
+			if ( verify != null ) {
+				response.putBoolean( "appliedMatchesExpected", verify.matches );
+				response.putArray( "expectedUuids", Utils.stringListToWritableArray( verify.expectedUuids ) );
+				response.putArray( "appliedUuids", Utils.stringListToWritableArray( verify.appliedUuids ) );
+			} else {
+				response.putNull( "appliedMatchesExpected" );
+				response.putNull( "expectedUuids" );
+				response.putNull( "appliedUuids" );
+			}
 
 			promise.resolve( response );
 		} catch ( Exception e ) {

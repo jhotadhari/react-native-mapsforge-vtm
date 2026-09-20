@@ -147,6 +147,10 @@ export interface GetDebugLayerDumpResponse {
 	jsManagedCount: Int32;
 	pendingMutations: Int32;
 	layers: ReadonlyArray<DebugLayerInfo>;
+	/** Self-check: did the last applied plan match the actual stack? */
+	appliedMatchesExpected: boolean | null;
+	expectedUuids: ReadonlyArray<string> | null;
+	appliedUuids: ReadonlyArray<string> | null;
 }
 
 export interface Spec extends TurboModule {

@@ -239,6 +239,17 @@ public class Utils {
 	}
 
 	/**
+	 * Copies a {@link List} of strings into a fresh {@link WritableArray}.
+	 */
+	public static WritableArray stringListToWritableArray( List<String> list ) {
+		WritableArray array = new WritableNativeArray();
+		for ( String value : list ) {
+			array.pushString( value );
+		}
+		return array;
+	}
+
+	/**
 	 * Build a geojson style `Position`, ie `[ lng, lat, alt? ]`.
 	 *
 	 * @param lng	Longitude
