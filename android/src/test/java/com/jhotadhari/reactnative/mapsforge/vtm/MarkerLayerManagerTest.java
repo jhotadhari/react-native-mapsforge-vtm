@@ -553,12 +553,72 @@ public class MarkerLayerManagerTest {
 
         mgr.removeMarkers(uuidsToRemove);
 
-        assertEquals("entries must have 1 after removing 1 of 2",
+        assertEquals("uuid-1 must be removed from entries",
                 1, mgr.getEntries().size());
-        assertNull("uuid-1 must be gone from entries",
-                mgr.getEntries().get("uuid-1"));
-        assertNotNull("uuid-2 must remain in entries",
-                mgr.getEntries().get("uuid-2"));
+        assertNull("uuid-1 must be removed from allMarkers",
+                allMarkers.get("uuid-1"));
+        assertEquals("itemList must contain only the remaining marker",
+                1, itemList.size());
+        assertEquals("remaining marker must be mi2",
+                mi2, itemList.get(0));
+    }
+
+    // ------------------------------------------------------------------
+    // applyEntryPriorities
+    // ------------------------------------------------------------------
+    @Test
+    public void applyEntryPriorities_reordersItemListConsistently() throws Exception {
+        MarkerLayerManager mgr = createManagerWithFakeLayer();
+
+        // MarkerItem uid doubles as the allMarkers key (production creates
+        // items with the entry uuid).
+        MarkerItem mi1 = new MarkerItem("uuid-1", "m1", "d",
+                new GeoPoint(52.5, 13.4));
+        MarkerItem mi2 = new MarkerItem("uuid-2", "m2", "d",
+                new GeoPoint(52.6, 13.5));
+        itemList.add(mi1);
+        itemList.add(mi2);
+
+        Field allMarkersField = MarkerLayerManager.class.getDeclaredField("allMarkers");
+        allMarkersField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, MarkerLayerManager.MarkerEntry> allMarkers =
+                (java.util.Map<String, MarkerLayerManager.MarkerEntry>)
+                        allMarkersField.get(mgr);
+        allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
+                "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
+                "__vtm_shared_markers__0", mi1, 0));
+        allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
+                "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
+                "__vtm_shared_markers__0", mi2, 1000));
+
+        ReadableMap assignment = mock(ReadableMap.class);
+        when(assignment.getString("uuid")).thenReturn("uuid-1");
+        when(assignment.getInt("priority")).thenReturn(2000);
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(1);
+        when(assignments.getMap(0)).thenReturn(assignment);
+
+        mgr.applyEntryPriorities("__vtm_shared_markers__0", assignments);
+
+        // Same order createMarkers would produce for priorities (2000, 1000):
+        // descending insertion puts the lower-priority item at index 0.
+        assertEquals("positionIndex must be updated",
+                2000, allMarkers.get("uuid-1").positionIndex);
+        assertEquals(2, itemList.size());
+        assertEquals("Lower-priority marker must be at index 0",
+                mi2, itemList.get(0));
+        assertEquals("Higher-priority marker must be at index 1",
+                mi1, itemList.get(1));
+    }
+
+    @Test
+    public void applyEntryPriorities_unknownFragmentIsNoOp() throws Exception {
+        MarkerLayerManager mgr = createManagerWithFakeLayer();
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(0);
+        // Should not throw (ZOMBIE path logs a warning).
+        mgr.applyEntryPriorities("unknown-fragment", assignments);
     }
 
     // ------------------------------------------------------------------

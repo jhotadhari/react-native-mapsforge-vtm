@@ -147,6 +147,17 @@ export interface RemoveMarkerResultItem {
 	error?: string;
 }
 
+export interface EntryPriorityAssignment {
+	uuid: string;
+	priority: Int32;
+}
+
+export interface ApplyEntryPrioritiesParams {
+	nativeNodeHandle: Int32;
+	fragmentUuid: string;
+	assignments: ReadonlyArray<EntryPriorityAssignment>;
+}
+
 export interface RemoveMarkersResponse {
 	results: ReadonlyArray<RemoveMarkerResultItem>;
 }
@@ -239,6 +250,12 @@ export interface Spec extends TurboModule {
 	createMarkers(params: CreateMarkersParams): Promise<MarkerBatchResponse>;
 	removeMarker(params: RemoveMarkerParams): Promise<string>;
 	removeMarkers(params: RemoveMarkersParams): Promise<RemoveMarkersResponse>;
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the entries listed in `assignments` are touched — the scene's
+	 * PriorityAllocator emits O(changed) assignments per mutation.
+	 */
+	applyEntryPriorities(params: ApplyEntryPrioritiesParams): Promise<void>;
 	updateMarker(params: UpdateMarkerParams): Promise<string>;
 	triggerEvent(params: TriggerParamsCG): void;
 	onError: EventEmitter<ErrorWithErrorMsg>;

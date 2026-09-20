@@ -16,7 +16,8 @@
 import NativeMapContainer from '../NativeModules/NativeMapContainer';
 import { LayerScene } from './LayerScene';
 import { PriorityAllocator } from './PriorityAllocator';
-import { diffPlans } from './planDiff';
+import { diffPlans, type PlanDiff } from './planDiff';
+import { entryPriorityHandlers } from './priorityHandlers';
 import type { AnchorDescriptor, LayerPlan } from './types';
 
 const DEBOUNCE_MS = 16;
@@ -173,10 +174,21 @@ export class SceneSync {
 
 		this.syncInFlight = true;
 		const startedAt = this.scene.commandLog().length;
-		NativeMapContainer.reorderLayers({
-			nativeNodeHandle: handle,
-			layerUuids: diff.orderedUuids,
-		})
+
+		// Entry priorities are independent of the layer stack — fire them
+		// alongside the reorder. Best-effort: on failure the allocator state
+		// has already advanced, so a missed update is re-sent on the next
+		// mutation (drawable order may lag one mutation for that fragment).
+		this.applyEntryPriorityChanges(handle, plan, diff);
+
+		const reorderPromise = hasLayerWork
+			? NativeMapContainer.reorderLayers({
+					nativeNodeHandle: handle,
+					layerUuids: diff.orderedUuids,
+				})
+			: Promise.resolve();
+
+		reorderPromise
 			.then(() => {
 				this.syncInFlight = false;
 				this.lastPlan = plan;
@@ -192,4 +204,34 @@ export class SceneSync {
 				this.syncDebouncer.schedule();
 			});
 	};
+
+	private applyEntryPriorityChanges(
+		handle: number,
+		plan: LayerPlan,
+		diff: PlanDiff
+	): void {
+		for (const [fragmentUuid, assignments] of diff.entryPriorityChanges) {
+			const fragment = plan.fragments.find(
+				(f) => f.uuid === fragmentUuid
+			);
+			if (!fragment) {
+				continue;
+			}
+			const handler = entryPriorityHandlers.get(fragment.layerType);
+			if (!handler) {
+				// Unknown layer type (third-party extension without a
+				// registered handler) — skipped until it registers one.
+				continue;
+			}
+			handler({
+				nativeNodeHandle: handle,
+				fragmentUuid,
+				assignments: [...assignments.entries()].map(
+					([uuid, priority]) => ({ uuid, priority })
+				),
+			}).catch(() => {
+				// Best-effort — see comment at the call site.
+			});
+		}
+	}
 }

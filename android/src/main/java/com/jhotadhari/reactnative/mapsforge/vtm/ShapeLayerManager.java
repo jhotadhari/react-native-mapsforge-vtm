@@ -312,6 +312,35 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Shape-specific public API ───────────────────────────────────────
 
 	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation. The upstream VectorLayer sorts drawables by
+	 * getPriority() on every frame, so no explicit re-sort is needed.
+	 */
+	public void applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+		VectorLayer layer = (VectorLayer) getSharedLayer( fragmentUuid );
+		if ( layer == null ) {
+			Log.w( TAG,
+				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
+					+ fragmentUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
+			return;
+		}
+		for ( int i = 0; i < assignments.size(); i++ ) {
+			ReadableMap assignment = assignments.getMap( i );
+			String uuid = assignment.getString( "uuid" );
+			int priority = assignment.getInt( "priority" );
+			ShapeEntry entry = entries.get( uuid );
+			if ( entry == null ) {
+				continue;
+			}
+			entry.positionIndex = priority;
+			entry.drawable.setPriority( priority );
+		}
+		scheduleUpdate();
+	}
+
+	/**
 	 * Syncs the shared VectorLayer's {@code mSupportsGestures} flag to whether
 	 * any ShapeEntry has gesture handlers. When no entries want gestures, the
 	 * shared layer's {@code onGesture()} short-circuits at the first guard —

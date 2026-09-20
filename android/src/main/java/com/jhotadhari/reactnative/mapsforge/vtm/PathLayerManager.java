@@ -347,6 +347,37 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	// ── Path-specific public API ────────────────────────────────────────
 
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation. The upstream VectorLayer sorts drawables by
+	 * getPriority() on every frame, so no explicit re-sort is needed.
+	 */
+	public void applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+		VectorLayer layer = (VectorLayer) getSharedLayer( fragmentUuid );
+		if ( layer == null ) {
+			Log.w( TAG,
+				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
+					+ fragmentUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
+			return;
+		}
+		for ( int i = 0; i < assignments.size(); i++ ) {
+			ReadableMap assignment = assignments.getMap( i );
+			String uuid = assignment.getString( "uuid" );
+			int priority = assignment.getInt( "priority" );
+			PathEntry entry = entries.get( uuid );
+			if ( entry == null ) {
+				continue;
+			}
+			entry.positionIndex = priority;
+			for ( LineDrawable drawable : entry.drawables ) {
+				drawable.setPriority( priority );
+			}
+		}
+		scheduleUpdate();
+	}
+
 	public void updateSupportsGestures(@NonNull String entryUuid, boolean supportsGestures) {
 		PathEntry entry = entries.get(entryUuid);
 		if (entry != null) {

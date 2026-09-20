@@ -203,6 +203,35 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		if ( payload != null ) { emitOnMarkerEvent( payload ); }
 	}
 
+
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation.
+	 */
+	@Override
+	public void applyEntryPriorities( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "fragmentUuid" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or fragmentUuid" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String fragmentUuid = params.getString( "fragmentUuid" );
+			ReadableArray assignments = Utils.rMapHasKey( params, "assignments" )
+				? params.getArray( "assignments" )
+				: null;
+
+			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null && assignments != null ) {
+				manager.applyEntryPriorities( fragmentUuid, assignments );
+			}
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
 	@Override
 	public void createLayer( ReadableMap params, Promise promise ) {
 		try {

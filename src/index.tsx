@@ -138,6 +138,7 @@ import useSceneUuidBinding from './compose/useSceneUuidBinding';
 import { LayerScene } from './scene/LayerScene';
 import type { SceneCommand } from './scene/LayerScene';
 import { SceneSync } from './scene/SceneSync';
+import { registerEntryPriorityHandler } from './scene/priorityHandlers';
 import {
 	createMapHandle,
 	createMapHandleRegistry,
@@ -295,6 +296,7 @@ export {
 	LayerScene,
 	type SceneCommand,
 	SceneSync,
+	registerEntryPriorityHandler,
 	useNativeLayerLifecycle,
 	type CreateFlags,
 	type RemoveFlags,

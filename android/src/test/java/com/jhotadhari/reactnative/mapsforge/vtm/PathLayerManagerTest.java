@@ -496,6 +496,58 @@ public class PathLayerManagerTest {
     }
 
     // ------------------------------------------------------------------
+    // applyEntryPriorities
+    // ------------------------------------------------------------------
+
+    @Test
+    public void applyEntryPriorities_updatesEntryAndDrawablePriorities() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+
+        ReadableMap assignmentA = mock(ReadableMap.class);
+        when(assignmentA.getString("uuid")).thenReturn("path-a");
+        when(assignmentA.getInt("priority")).thenReturn(100);
+        ReadableMap assignmentB = mock(ReadableMap.class);
+        when(assignmentB.getString("uuid")).thenReturn("path-b");
+        when(assignmentB.getInt("priority")).thenReturn(200);
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(2);
+        when(assignments.getMap(0)).thenReturn(assignmentA);
+        when(assignments.getMap(1)).thenReturn(assignmentB);
+
+        mgr.applyEntryPriorities("__vtm_shared_path__0", assignments);
+
+        PathLayerManager.PathEntry entryA = mgr.getEntries().get("path-a");
+        PathLayerManager.PathEntry entryB = mgr.getEntries().get("path-b");
+        assertEquals(100, entryA.positionIndex);
+        assertEquals(200, entryB.positionIndex);
+        assertEquals("Entry A drawable priority must be updated",
+                100, entryA.drawables.get(0).getPriority());
+        assertEquals("Entry B drawable priority must be updated",
+                200, entryB.drawables.get(0).getPriority());
+    }
+
+    @Test
+    public void applyEntryPriorities_unknownFragmentIsNoOp() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(0);
+        // Should not throw (ZOMBIE path logs a warning).
+        mgr.applyEntryPriorities("unknown-fragment", assignments);
+    }
+
+    // ------------------------------------------------------------------
     // buildCreateResponse
     //
     // NOTE: buildCreateResponse internally creates a WritableNativeMap,

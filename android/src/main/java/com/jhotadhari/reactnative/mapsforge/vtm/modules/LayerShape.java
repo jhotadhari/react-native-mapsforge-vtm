@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -135,6 +136,35 @@ public class LayerShape extends NativeLayerShapeSpec {
 		} catch (Exception e) {
 			e.printStackTrace();
 			Utils.promiseReject(promise, e.getMessage());
+		}
+	}
+
+
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation.
+	 */
+	@Override
+	public void applyEntryPriorities( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "fragmentUuid" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or fragmentUuid" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String fragmentUuid = params.getString( "fragmentUuid" );
+			ReadableArray assignments = Utils.rMapHasKey( params, "assignments" )
+				? params.getArray( "assignments" )
+				: null;
+
+			ShapeLayerManager manager = ShapeLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null && assignments != null ) {
+				manager.applyEntryPriorities( fragmentUuid, assignments );
+			}
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
 		}
 	}
 

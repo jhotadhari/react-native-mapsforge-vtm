@@ -636,6 +636,77 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 
 	/**
+	 * Applies sparse priorities to entries of a shared fragment and rebuilds
+	 * the fragment's ItemizedLayer item list in compensated order (same
+	 * descending-positionIndex insertion logic as createMarkers — vtm's
+	 * Inlist.push() reverses insertion order). Only fragments with changed
+	 * entries receive this call; the JS scene emits O(changed) assignments.
+	 */
+	public void applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+		ItemizedLayer layer = (ItemizedLayer) getSharedLayer( fragmentUuid );
+		if ( layer == null ) {
+			Log.w( TAG,
+				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
+					+ fragmentUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
+			return;
+		}
+
+		// Update tracked positions.
+		for ( int i = 0; i < assignments.size(); i++ ) {
+			ReadableMap assignment = assignments.getMap( i );
+			String uuid = assignment.getString( "uuid" );
+			int priority = assignment.getInt( "priority" );
+			MarkerEntry entry = allMarkers.get( uuid );
+			if ( entry != null ) {
+				entry.positionIndex = priority;
+			}
+		}
+
+		// Collect this fragment's items and rebuild the list.
+		List<MarkerEntry> fragmentEntries = new ArrayList<>();
+		for ( MarkerEntry entry : allMarkers.values() ) {
+			if ( fragmentUuid.equals( entry.fragmentUuid ) ) {
+				fragmentEntries.add( entry );
+			}
+		}
+
+		List<MarkerInterface> itemList = layer.getItemList();
+		for ( MarkerEntry entry : fragmentEntries ) {
+			itemList.remove( entry.markerItem );
+		}
+
+		// Sort descending positionIndex so higher z-order markers go in
+		// first (front-insertion reversal compensation).
+		fragmentEntries.sort( ( a, b ) -> {
+			if ( a.positionIndex != b.positionIndex ) {
+				return Integer.compare( b.positionIndex, a.positionIndex );
+			}
+			return 0;
+		} );
+
+		for ( MarkerEntry entry : fragmentEntries ) {
+			int insertAt = itemList.size();
+			for ( int j = 0; j < itemList.size(); j++ ) {
+				MarkerInterface existing = itemList.get( j );
+				MarkerEntry existingEntry = allMarkers.get(
+					( (MarkerItem) existing ).getUid().toString() );
+				if ( existingEntry != null
+					&& existingEntry.positionIndex > entry.positionIndex ) {
+					insertAt = j;
+					break;
+				}
+			}
+			itemList.add( insertAt, entry.markerItem );
+		}
+
+		if ( !fragmentEntries.isEmpty() ) {
+			layer.populate();
+			scheduleUpdate();
+		}
+	}
+
+	/**
 	 * Creates a named group for a {@code LayerMarker} component.
 	 *
 	 * @param defaultSymbol the resolved default marker symbol (may be null)

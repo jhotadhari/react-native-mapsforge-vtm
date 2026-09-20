@@ -15,6 +15,7 @@ import { injectVtmSortIndex } from '../injectVtmSortIndex';
 const Layer = (_props: { vtmSortIndex?: number }) => null;
 const MemoLayer = memo(Layer);
 const RefLayer = forwardRef<null, { vtmSortIndex?: number }>(Layer);
+RefLayer.displayName = 'RefLayer';
 
 const sortIndexesOf = (nodes: unknown): number[] => {
 	const indexes: number[] = [];

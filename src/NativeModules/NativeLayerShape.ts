@@ -187,6 +187,17 @@ export interface LayerShapeResponse extends ResponseBase {
 	};
 }
 
+export interface EntryPriorityAssignment {
+	uuid: string;
+	priority: Int32;
+}
+
+export interface ApplyEntryPrioritiesParams {
+	nativeNodeHandle: Int32;
+	fragmentUuid: string;
+	assignments: ReadonlyArray<EntryPriorityAssignment>;
+}
+
 export interface LayerShapeGestureResponse extends ResponseBase {
 	type: string; // 'press' | 'longPress' | 'doubleTap' | 'trigger'
 	distance: Double;
@@ -216,6 +227,12 @@ export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	createLayer(params: CreateLayerParams): Promise<LayerShapeResponse>;
 	removeLayer(params: RemoveLayerParams): Promise<string>;
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the entries listed in `assignments` are touched — the scene's
+	 * PriorityAllocator emits O(changed) assignments per mutation.
+	 */
+	applyEntryPriorities(params: ApplyEntryPrioritiesParams): Promise<void>;
 	updateShape(params: UpdateShapeParams): Promise<LayerShapeResponse>;
 	triggerEvent(params: TriggerParamsCG): void;
 	onShapeEvent: EventEmitter<LayerShapeGestureResponse>;
