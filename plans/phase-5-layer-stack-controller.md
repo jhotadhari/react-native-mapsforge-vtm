@@ -1,8 +1,52 @@
 # Plan: Phase 5 — LayerStackController (absolute-plan applier)
 
-Status: **planned — implementation pending.**
+Status: **implemented + device-verified** (commits below).
 Companion docs: `layer-ordering-rewrite.md` (roadmap), `layer-ordering-rewrite-code-review.md`
 (findings), `fix-batch-1.md` (done).
+
+## Implemented (commits)
+
+1. `60cb00b` — `LayerStackController` class (knownLayers, applyPlan with LIS + CLEAR_EVENT,
+   removeAll, removeLayerSync, verify self-check with deduped mismatch log); MapMutationQueue
+   reduced to the concurrency shell; LIS test retargeted; 12 new controller tests
+2. `46cd71e` — `positionByUuid`/`BASE_POSITION`/incremental insertion deleted; adds append;
+   deprecated sync `LayerHelper.addLayer`/`removeLayer`/`getLayerIndexInMapLayers` DELETED
+   (no BC — lockstep in Phase 8); `LayerZoomBoundsHelper` async overrides; modules migrated;
+   vestigial `positionIndex` removed from all 9 JS specs
+3. `9dd44d0` — create calls carry the desired absolute order: `LayerScene.planWithResolved`,
+   `layerUuids` in all create params (JS specs + native `Utils.rMapGetStringList`),
+   `MapMutationQueue.AddLayer.desiredOrder`, flush applies the LAST plan-bearing mutation
+   in the batch — atomic create+apply. **Deviation:** removals deliberately do NOT carry
+   plans (the removed layer disappears in the same flush; remaining-layer reorder is
+   SceneSync's job).
+4. `64dbce0` — self-check surfaced in `getDebugLayerDump`
+   (`appliedMatchesExpected`/`expectedUuids`/`appliedUuids`)
+
+### Device-gate follow-ups (found during verification)
+
+- `1ea8df2` — **found by the gate**: the run re-key race sent priorities for the new
+  fragment before the recreate landed; the managers logged ZOMBIE and resolved anyway, so
+  the JS presenter committed state and the priorities were dropped forever. Fix:
+  `applyEntryPriorities` returns false on the zombie path and the modules REJECT — the
+  presenter keeps the state uncommitted and re-sends on the next mutation (the recreate's
+  create resolution is one).
+- `68532fc` — the now-expected transient ZOMBIE log downgraded to debug level (still
+  greppable, device gates stay clean).
+
+## Device verification (19261FDEE000YM, Android 13, fresh Metro + pm clear)
+
+| Check | Result |
+|---|---|
+| layer-order-verification fresh | JS 5 / Native 5, run fragment 1/2, prefixed uids ✓ |
+| type-run add ×2 → remove-first → move-last-to-front | 3 paths, 5/5, run re-keyed, still 1 fragment ✓ |
+| SharedLayer OFF / toggles back | 8/8 → 5/5 ✓ |
+| MANYLAYERS stress test | 3/3 ✓ |
+| SHARED LAYER GROUPING swap | 2 fragments ✓ |
+| MULTI-MAP SYNC | Map A renders; Map B = documented known issue ✓ |
+| MARKERS / MANY SHAPES | render clean ✓ |
+| LayerStackController mismatch logs | 0 everywhere ✓ |
+| W-level ZOMBIE warnings | 0 (re-key zombie self-healing at debug level) ✓ |
+| LogBox teardown error | same pre-existing navigation-teardown noise as batch-1 gate (unrelated) ✓ |
 
 ## Goal
 
