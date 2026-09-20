@@ -649,7 +649,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	public boolean applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
 		ItemizedLayer layer = (ItemizedLayer) getSharedLayer( fragmentUuid );
 		if ( layer == null ) {
-			Log.w( TAG,
+			Log.d( TAG,
 				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
 					+ fragmentUuid
 					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );

@@ -430,7 +430,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	public boolean applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
 		VectorLayer layer = (VectorLayer) getSharedLayer( fragmentUuid );
 		if ( layer == null ) {
-			Log.w( TAG,
+			Log.d( TAG,
 				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
 					+ fragmentUuid
 					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
