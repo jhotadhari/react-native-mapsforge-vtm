@@ -161,13 +161,32 @@ public class PathLayerManagerTest {
      * {@code future.get()} deadlock.
      */
     private PathLayerManager createManagerWithFakeLayer() throws Exception {
+        return createManagerWithFakeLayer("__vtm_shared_path__0");
+    }
+
+    /**
+     * Same as {@link #createManagerWithFakeLayer()}, but injects the mock
+     * layer under an arbitrary fragment uuid (e.g. a type-run key).
+     */
+    private PathLayerManager createManagerWithFakeLayer(String fragmentUuid) throws Exception {
         PathLayerManager mgr = PathLayerManager.get(handle, mockMapView);
         Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
         f.setAccessible(true);
         @SuppressWarnings("unchecked")
         java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
-        fragments.put("__vtm_shared_path__0", mockVectorLayer);
+        fragments.put(fragmentUuid, mockVectorLayer);
         return mgr;
+    }
+
+    /**
+     * Reads the manager's sharedLayerFragments map via reflection.
+     */
+    private java.util.Map<String, Layer> getSharedLayerFragments(PathLayerManager mgr) throws Exception {
+        Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
+        return fragments;
     }
 
     /**
@@ -606,6 +625,46 @@ public class PathLayerManagerTest {
                 2, mgr.getEntries().size());
         assertEquals("One drawable per 2-coordinate path",
                 2, addedDrawables.size());
+    }
+
+    /**
+     * The type-run collapse contract: all members of one run share the SAME
+     * fragment uuid (scene-authoritative, e.g. "run:layer_0"), so the native
+     * side must keep them in ONE shared layer — one fragment, N drawables.
+     */
+    @Test
+    public void createPaths_sameFragmentUuid_collapsesToOneFragment() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer("run:layer_0");
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        when(paramsA.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsA.getString("fragmentUuid")).thenReturn("run:layer_0");
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        when(paramsB.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsB.getString("fragmentUuid")).thenReturn("run:layer_0");
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals("Two path entries must be registered",
+                2, mgr.getEntries().size());
+        assertEquals("Both entries' drawables must live in the ONE shared layer",
+                2, addedDrawables.size());
+        assertEquals("One shared fragment must host the whole run",
+                1, getSharedLayerFragments(mgr).size());
     }
 
     @Test

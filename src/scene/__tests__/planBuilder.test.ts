@@ -141,6 +141,29 @@ describe('planBuilder: type-run fragments', () => {
 		]);
 	});
 
+	test('runKeysByAnchor maps every member to the run fragment uuid', () => {
+		const walk = [layer('p1', 'path'), layer('p2', 'path')];
+		const plan = buildPlan(walk, new Map(), uuidMap(['p1', 'p2']));
+		expect(plan.runKeysByAnchor.get('p1')).toBe(runUuidFor('p1'));
+		expect(plan.runKeysByAnchor.get('p2')).toBe(runUuidFor('p1'));
+	});
+
+	test('single-member run maps to its own anchor (self-key equivalent)', () => {
+		const walk = [layer('p1', 'path')];
+		const plan = buildPlan(walk, new Map(), uuidMap(['p1']));
+		expect(plan.runKeysByAnchor.get('p1')).toBe(runUuidFor('p1'));
+	});
+
+	test('runKeysByAnchor re-keys all remaining members when the first is removed', () => {
+		const walk1 = [layer('p1', 'path'), layer('p2', 'path')];
+		const plan1 = buildPlan(walk1, new Map(), uuidMap(['p1', 'p2']));
+		expect(plan1.runKeysByAnchor.get('p2')).toBe(runUuidFor('p1'));
+
+		const walk2 = [layer('p2', 'path')];
+		const plan2 = buildPlan(walk2, new Map(), uuidMap(['p2']));
+		expect(plan2.runKeysByAnchor.get('p2')).toBe(runUuidFor('p2'));
+	});
+
 	test('type alternation splits runs (mixed-grouping, SharedLayer off)', () => {
 		const walk = [
 			layer('p1', 'path'),
@@ -336,11 +359,11 @@ describe('planBuilder: scopes', () => {
 		expect(layerUuids(plan)).toEqual(['uuid-a1', 'uuid-b1']);
 	});
 
-	test('nested scopes form blocks at the inner anchor position', () => {
+	test('nested unordered scopes keep tree order (inner block splits the outer)', () => {
 		const walk = [
 			scope('outer'),
 			dedicated('o1', { scopeUid: 'outer' }),
-			scope('inner'),
+			{ uid: 'inner', kind: 'scope' as const, scopeUid: 'outer' },
 			dedicated('i1', { scopeUid: 'inner' }),
 			dedicated('o2', { scopeUid: 'outer' }),
 		];
@@ -353,11 +376,67 @@ describe('planBuilder: scopes', () => {
 				'o2',
 			])
 		);
+		// S1: default is pure tree order — i1 sits between o1 and o2 at
+		// its committed-tree position, even though it splits the outer block.
 		expect(layerUuids(plan)).toEqual([
 			'uuid-o1',
-			'uuid-o2',
 			'uuid-i1',
+			'uuid-o2',
 		]);
+	});
+
+	test('nested unordered scope inherits the outer explicit order', () => {
+		const walk = [
+			scope('outer', 100),
+			dedicated('o1', { scopeUid: 'outer' }),
+			{ uid: 'inner', kind: 'scope' as const, scopeUid: 'outer' },
+			dedicated('i1', { scopeUid: 'inner' }),
+			dedicated('o2', { scopeUid: 'outer' }),
+			scope('other', 50),
+			dedicated('x1', { scopeUid: 'other' }),
+		];
+		const plan = buildPlan(
+			walk,
+			new Map(),
+			uuidMap([
+				'o1',
+				'i1',
+				'o2',
+				'x1',
+			])
+		);
+		// The inner scope inherits outer's order=100: the outer block stays
+		// contiguous (tree order within it) and beats the ordered sibling.
+		expect(layerUuids(plan)).toEqual([
+			'uuid-x1',
+			'uuid-o1',
+			'uuid-i1',
+			'uuid-o2',
+		]);
+	});
+
+	test('nested inner explicit order overrides the outer order', () => {
+		const walk = [
+			scope('outer', 100),
+			dedicated('o1', { scopeUid: 'outer' }),
+			{
+				uid: 'inner',
+				kind: 'scope' as const,
+				scopeUid: 'outer',
+				scopeOrder: 75,
+			},
+			dedicated('i1', { scopeUid: 'inner' }),
+		];
+		const plan = buildPlan(
+			walk,
+			new Map(),
+			uuidMap([
+				'o1',
+				'i1',
+			])
+		);
+		// The inner block uses its own order — explicit intent wins.
+		expect(layerUuids(plan)).toEqual(['uuid-i1', 'uuid-o1']);
 	});
 
 	test('childless scope: members mounting later land at the scope position', () => {

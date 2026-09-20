@@ -38,6 +38,10 @@ const mockPathPriorities = NativeLayerPath.applyEntryPriorities as jest.Mock;
 
 const flush = async () => {
 	jest.advanceTimersByTime(20);
+	// Drain the promise-chain microtasks (then-propagation + catch) so
+	// retry timers are armed at the current fake time.
+	await Promise.resolve();
+	await Promise.resolve();
 	await Promise.resolve();
 };
 
@@ -151,5 +155,57 @@ describe('SceneSync', () => {
 			nativeNodeHandle: 7,
 			layerUuids: [],
 		});
+	});
+
+	test('walk failure retries with backoff and recovers', async () => {
+		const sync = new SceneSync();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+
+		mockEnumerate.mockRejectedValueOnce(new Error('walk failed'));
+		sync.scheduleWalk();
+		await flush(); // debounce fires; enumerate rejects; retry armed
+
+		expect(mockEnumerate).toHaveBeenCalledTimes(1);
+
+		// The max-wait must NOT re-fire the already-run walk (pending-burst
+		// guard) — only the retry fires at +250ms.
+		jest.advanceTimersByTime(250);
+		await Promise.resolve();
+		expect(mockEnumerate).toHaveBeenCalledTimes(2);
+
+		// Retry succeeded — no further walks are scheduled.
+		jest.advanceTimersByTime(500);
+		await Promise.resolve();
+		expect(mockEnumerate).toHaveBeenCalledTimes(2);
+	});
+
+	test('walk failures give up after the retry cap until a fresh scheduleWalk', async () => {
+		const sync = new SceneSync();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+
+		mockEnumerate.mockRejectedValue(new Error('persistent failure'));
+		sync.scheduleWalk();
+		await flush(); // attempt 1
+
+		// 10 retries, 250ms apart.
+		for (let i = 0; i < 10; i++) {
+			jest.advanceTimersByTime(250);
+			await Promise.resolve();
+			await Promise.resolve();
+		}
+		expect(mockEnumerate).toHaveBeenCalledTimes(11);
+
+		// No further retries without a new schedule.
+		jest.advanceTimersByTime(2000);
+		await Promise.resolve();
+		expect(mockEnumerate).toHaveBeenCalledTimes(11);
+
+		// A fresh scheduleWalk resets the failure streak.
+		mockEnumerate.mockResolvedValue({ anchors: [] });
+		sync.scheduleWalk();
+		await flush();
+		expect(mockEnumerate).toHaveBeenCalledTimes(12);
 	});
 });

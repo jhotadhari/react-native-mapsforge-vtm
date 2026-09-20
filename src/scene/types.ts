@@ -98,6 +98,12 @@ export type LayerPlan = {
 	layers: PlannedLayer[];
 	fragments: FragmentPlan[];
 	scopes: ScopeInfo[];
+	/**
+	 * Resolved fragment uuid per type-run member anchor. The scene is the
+	 * single authority: members must create their native entry under this
+	 * uuid (never self-key), otherwise the collapse is silently lost.
+	 */
+	runKeysByAnchor: Map<string, string>;
 };
 
 export type ScopeInfo = {

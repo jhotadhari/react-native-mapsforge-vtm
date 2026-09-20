@@ -20,6 +20,7 @@ import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
+import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
@@ -78,8 +79,19 @@ const Marker = ({
 		active: !isGrouped,
 	});
 
-	const { uuid } = useNativeLayerLifecycle({
-		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
+	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// The fragment uuid the current native entry was created under — ground
+	// truth for detecting a run re-key (first member removed).
+	const usedFragmentUuidRef = useRef<string | null>(null);
+
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		// Standalone creation waits for the scene-resolved run key: without
+		// it the entry would land under a self-keyed (unmanaged) fragment.
+		enabled:
+			!!nativeNodeHandle &&
+			markerLayerUuid !== false &&
+			!!position &&
+			(isGrouped || runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
 			if (!nativeNodeHandle || markerLayerUuid === false || !position) {
 				return Promise.reject<string>({
@@ -97,7 +109,8 @@ const Marker = ({
 			const fragmentUuid =
 				fragmentId !== null
 					? fragmentUuidFor(fragmentId, 'marker')
-					: runUuidFor(anchorUid);
+					: (runFragmentUuid ?? runUuidFor(anchorUid));
+			usedFragmentUuidRef.current = fragmentUuid;
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -142,6 +155,33 @@ const Marker = ({
 	});
 
 	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
+
+	// Standalone: when the type-run re-keys (its first member was removed),
+	// the native entry must move to the new fragment — remove and recreate
+	// under the new key. `uuid` is a dep so a re-key that lands while the
+	// create is in-flight is caught when the stale uuid resolves.
+	useEffect(() => {
+		if (isGrouped || runFragmentUuid === null) {
+			return;
+		}
+		if (usedFragmentUuidRef.current === runFragmentUuid) {
+			return;
+		}
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
+	}, [
+		isGrouped,
+		runFragmentUuid,
+		uuid,
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	// Update the existing native marker in place when its position or paint
 	// changes, instead of tearing down and recreating it.

@@ -38,6 +38,10 @@ export const buildPlan = (
 	uuids: Map<string, string>
 ): LayerPlan => {
 	const scopeInfos = new Map<string, ScopeInfo>();
+	// Scope → enclosing scope (nesting), from the scope anchors' own
+	// scopeUid (the anchor of an inner scope is rendered inside the outer
+	// scope's provider, so its descriptor carries the outer uid).
+	const scopeParentOf = new Map<string, string>();
 	walk.forEach((anchor, index) => {
 		if (anchor.kind === 'scope') {
 			scopeInfos.set(anchor.uid, {
@@ -45,45 +49,51 @@ export const buildPlan = (
 				order: anchor.scopeOrder,
 				anchorIndex: index,
 			});
+			if (anchor.scopeUid !== undefined) {
+				scopeParentOf.set(anchor.uid, anchor.scopeUid);
+			}
 		}
 	});
 
 	const items = partitionIntoItems(walk);
 
-	// blockStart: explicit scope order overrides; default is tree position
-	// (S2: unordered scopes sit at their tree position).
+	// Nearest explicit order up the scope chain (own scope first). Nested
+	// unordered scopes inherit the enclosing scope's order so an ordered
+	// outer block stays contiguous (fixes the block-split where an inner
+	// unordered scope pulled its members to their own anchor position).
+	const orderInChainOf = (scopeUid: string): number | undefined => {
+		let current: string | undefined = scopeUid;
+		while (current !== undefined) {
+			const info = scopeInfos.get(current);
+			if (info && info.order !== undefined) {
+				return info.order;
+			}
+			current = scopeParentOf.get(current);
+		}
+		return undefined;
+	};
+
+	// blockStart: explicit scope order (inherited through nesting) overrides
+	// tree position; default is pure tree position (S1/S2 — unordered scopes
+	// sit exactly where their members are in the committed walk).
 	const blockStartOf = (item: Item): number => {
 		const scopeUid = scopeUidOf(item);
 		if (scopeUid !== undefined) {
-			const info = scopeInfos.get(scopeUid);
-			if (info) {
-				return info.order ?? info.anchorIndex;
-			}
-		}
-		return item.walkIndex;
-	};
-
-	const scopeAnchorIndexOf = (item: Item): number => {
-		const scopeUid = scopeUidOf(item);
-		if (scopeUid !== undefined) {
-			const info = scopeInfos.get(scopeUid);
-			if (info) {
-				return info.anchorIndex;
+			const order = orderInChainOf(scopeUid);
+			if (order !== undefined) {
+				return order;
 			}
 		}
 		return item.walkIndex;
 	};
 
 	const sorted = [...items].sort((a, b) => {
-		return (
-			blockStartOf(a) - blockStartOf(b) ||
-			scopeAnchorIndexOf(a) - scopeAnchorIndexOf(b) ||
-			a.walkIndex - b.walkIndex
-		);
+		return blockStartOf(a) - blockStartOf(b) || a.walkIndex - b.walkIndex;
 	});
 
 	const layers: PlannedLayer[] = [];
 	const fragments: FragmentPlan[] = [];
+	const runKeysByAnchor = new Map<string, string>();
 	const seenFragmentUuids = new Set<string>();
 
 	for (const item of sorted) {
@@ -102,6 +112,12 @@ export const buildPlan = (
 
 		if (item.kind === 'run') {
 			const fragmentUuid = runUuidFor(item.memberUids[0]!);
+			// Every member resolves to the run's fragment uuid — this map is
+			// the scene-authoritative source standalone components create
+			// their native entries under (approach b).
+			for (const memberUid of item.memberUids) {
+				runKeysByAnchor.set(memberUid, fragmentUuid);
+			}
 			const resolvedEntryUids = item.memberUids.filter((uid) =>
 				uuids.has(uid)
 			);
@@ -165,6 +181,7 @@ export const buildPlan = (
 		scopes: [...scopeInfos.values()].sort(
 			(a, b) => a.anchorIndex - b.anchorIndex
 		),
+		runKeysByAnchor,
 	};
 };
 

@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 
 /**
  * Internal dependencies
@@ -15,6 +15,7 @@ import type { ErrorBase } from '../types';
 import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscription';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
+import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
@@ -75,7 +76,9 @@ const LayerPath = ({
 	const hasCoordinates = !!coordinates && coordinates.length > 0;
 
 	// Standalone: this component contributes an anchor and belongs to an
-	// implicit type-run fragment keyed by its anchor uid.
+	// implicit type-run fragment. The fragment uuid is scene-authoritative
+	// (keyed by the run's first member) — creating under it keeps the
+	// collapse alive; self-keying would orphan members 2..N.
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
 		layerType: 'path',
@@ -83,8 +86,18 @@ const LayerPath = ({
 		active: !isGrouped,
 	});
 
-	const { uuid } = useNativeLayerLifecycle({
-		enabled: !!nativeNodeHandle && hasCoordinates,
+	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// The fragment uuid the current native entry was created under — ground
+	// truth for detecting a run re-key (first member removed).
+	const usedFragmentUuidRef = useRef<string | null>(null);
+
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		// Standalone creation waits for the scene-resolved run key: without
+		// it the entry would land under a self-keyed (unmanaged) fragment.
+		enabled:
+			!!nativeNodeHandle &&
+			hasCoordinates &&
+			(isGrouped || runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
 			if (!nativeNodeHandle || !coordinates) {
 				return Promise.reject<string>({
@@ -96,7 +109,8 @@ const LayerPath = ({
 			const fragmentUuid =
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'path')
-					: runUuidFor(anchorUid);
+					: (runFragmentUuid ?? runUuidFor(anchorUid));
+			usedFragmentUuidRef.current = fragmentUuid;
 			return enqueueCreatePath({
 				nativeNodeHandle,
 				fragmentUuid,
@@ -142,6 +156,33 @@ const LayerPath = ({
 	// Standalone: bind the resolved entry uuid to the anchor uid — the
 	// type-run fragment exists once one member resolved.
 	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
+
+	// Standalone: when the type-run re-keys (its first member was removed),
+	// the native entry must move to the new fragment — remove and recreate
+	// under the new key. `uuid` is a dep so a re-key that lands while the
+	// create is in-flight is caught when the stale uuid resolves.
+	useEffect(() => {
+		if (isGrouped || runFragmentUuid === null) {
+			return;
+		}
+		if (usedFragmentUuidRef.current === runFragmentUuid) {
+			return;
+		}
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
+	}, [
+		isGrouped,
+		runFragmentUuid,
+		uuid,
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	// Redraw the existing native layer in place when the line or its paint
 	// changes, instead of tearing down and recreating the layer.

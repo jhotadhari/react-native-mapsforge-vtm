@@ -22,6 +22,8 @@ import type { AnchorDescriptor, LayerPlan } from './types';
 
 const DEBOUNCE_MS = 16;
 const MAX_WAIT_MS = 250;
+const WALK_RETRY_MS = 250;
+const MAX_WALK_RETRIES = 10;
 
 type Debouncer = {
 	schedule: () => void;
@@ -31,12 +33,18 @@ type Debouncer = {
 const createDebouncer = (run: () => void): Debouncer => {
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
+	// True while a scheduled run has not been consumed by either the
+	// debounce or the max-wait timer — the max-wait fires only when the
+	// burst is still pending, never a second time after the debounce
+	// already flushed.
+	let maxWaitPending = false;
 
 	const fire = () => {
 		if (debounceTimer !== null) {
 			clearTimeout(debounceTimer);
 			debounceTimer = null;
 		}
+		maxWaitPending = false;
 		run();
 	};
 
@@ -47,6 +55,7 @@ const createDebouncer = (run: () => void): Debouncer => {
 			}
 			debounceTimer = setTimeout(() => {
 				debounceTimer = null;
+				maxWaitPending = false;
 				run();
 			}, DEBOUNCE_MS);
 			// Armed once per burst — a sustained mutation stream can never
@@ -54,9 +63,12 @@ const createDebouncer = (run: () => void): Debouncer => {
 			if (maxWaitTimer === null) {
 				maxWaitTimer = setTimeout(() => {
 					maxWaitTimer = null;
-					fire();
+					if (maxWaitPending) {
+						fire();
+					}
 				}, MAX_WAIT_MS);
 			}
+			maxWaitPending = true;
 		},
 		cancel: () => {
 			if (debounceTimer !== null) {
@@ -67,6 +79,7 @@ const createDebouncer = (run: () => void): Debouncer => {
 				clearTimeout(maxWaitTimer);
 				maxWaitTimer = null;
 			}
+			maxWaitPending = false;
 		},
 	};
 };
@@ -79,6 +92,8 @@ export class SceneSync {
 	private lastPlan: LayerPlan = this.scene.plan();
 	private syncInFlight = false;
 	private destroyed = false;
+	private walkRetryTimer: ReturnType<typeof setTimeout> | null = null;
+	private walkFailures = 0;
 
 	private readonly walkDebouncer: Debouncer;
 	private readonly syncDebouncer: Debouncer;
@@ -116,6 +131,7 @@ export class SceneSync {
 	}
 
 	scheduleWalk(): void {
+		this.walkFailures = 0;
 		this.walkDebouncer.schedule();
 	}
 
@@ -124,6 +140,10 @@ export class SceneSync {
 		this.destroyed = true;
 		this.walkDebouncer.cancel();
 		this.syncDebouncer.cancel();
+		if (this.walkRetryTimer !== null) {
+			clearTimeout(this.walkRetryTimer);
+			this.walkRetryTimer = null;
+		}
 		this.descriptors.clear();
 	}
 
@@ -137,6 +157,11 @@ export class SceneSync {
 				if (this.destroyed) {
 					return;
 				}
+				this.walkFailures = 0;
+				if (this.walkRetryTimer !== null) {
+					clearTimeout(this.walkRetryTimer);
+					this.walkRetryTimer = null;
+				}
 				const sequence: AnchorDescriptor[] = [];
 				for (const uid of anchors) {
 					const descriptor = this.descriptors.get(uid);
@@ -147,7 +172,22 @@ export class SceneSync {
 				this.scene.applyWalk(sequence);
 			})
 			.catch(() => {
-				// Map torn down or wrapper gone — nothing to sync against.
+				// enumerateAnchors failed (early mount, teardown race).
+				// Retry with a small backoff — a permanently failed walk
+				// would leave the scene unsynced and keep standalone
+				// creation gated forever. Give up after a streak of
+				// failures until the next explicit scheduleWalk.
+				if (this.destroyed || this.nativeNodeHandle === null) {
+					return;
+				}
+				this.walkFailures++;
+				if (this.walkFailures > MAX_WALK_RETRIES) {
+					return;
+				}
+				if (this.walkRetryTimer !== null) {
+					clearTimeout(this.walkRetryTimer);
+				}
+				this.walkRetryTimer = setTimeout(this.walk, WALK_RETRY_MS);
 			});
 	};
 

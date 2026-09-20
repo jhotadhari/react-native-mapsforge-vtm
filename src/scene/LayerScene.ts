@@ -30,7 +30,12 @@ export class LayerScene {
 	private listeners = new Set<() => void>();
 	private declarationSeq = 0;
 	private planDirty = true;
-	private cachedPlan: LayerPlan = { layers: [], fragments: [], scopes: [] };
+	private cachedPlan: LayerPlan = {
+		layers: [],
+		fragments: [],
+		scopes: [],
+		runKeysByAnchor: new Map(),
+	};
 
 	/** Replaces the committed anchor sequence (fresh walk result). */
 	applyWalk(sequence: AnchorDescriptor[]): void {
