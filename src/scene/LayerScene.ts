@@ -100,6 +100,20 @@ export class LayerScene {
 		return this.mutationVersion;
 	}
 
+	/**
+	 * Resets all state. Used on map teardown so a re-arm (StrictMode or
+	 * re-mount) starts from a genuinely clean baseline rather than a stale
+	 * walk/entries/uuids. Does not notify listeners — this is a teardown op.
+	 */
+	clear(): void {
+		this.walk = [];
+		this.entries.clear();
+		this.uuids.clear();
+		this.declarationSeq = 0;
+		this.mutationVersion++;
+		this.planDirty = true;
+	}
+
 	private mutated(): void {
 		this.mutationVersion++;
 		this.planDirty = true;

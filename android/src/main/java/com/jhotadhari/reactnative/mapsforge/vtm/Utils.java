@@ -232,6 +232,11 @@ public class Utils {
 			return null;
 		}
 		if ( args.getType( key ) != ReadableType.Array ) {
+			// A present-but-non-array value is a JS contract violation — log
+			// it rather than silently swallowing the malformed input (which
+			// would mask an ordering bug by degrading to append).
+			android.util.Log.w( "Utils",
+				"rMapGetStringList: key '" + key + "' is not an array" );
 			return null;
 		}
 		ReadableArray array = args.getArray( key );

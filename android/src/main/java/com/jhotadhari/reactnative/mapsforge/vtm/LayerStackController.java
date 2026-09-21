@@ -169,16 +169,11 @@ public class LayerStackController {
 		}
 		if ( orderedLayers.isEmpty() ) {
 			// Empty plan (bulk remove, or nothing resolved yet) — still clear
-			// the dedup set and record an empty verify so stale state doesn't
-			// survive to mislead the next plan or the debug dump.
+			// the dedup set and run the self-check so the debug dump reflects
+			// the true state (verify() computes notInPlanCount correctly for
+			// a stale/partial plan, unlike a hand-synthesized zero).
 			previouslyReorderedUuids.clear();
-			lastLoggedMismatch = null;
-			lastVerifyResult = new VerifyResult(
-				true,
-				resolvedUuids,
-				new ArrayList<>(),
-				0
-			);
+			verify( orderedUuids );
 			return;
 		}
 

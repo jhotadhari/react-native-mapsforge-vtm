@@ -167,6 +167,9 @@ export class SceneSync {
 		// the first post-re-arm sync diffs against a clean baseline.
 		this.syncInFlight = false;
 		this.walkInFlight = false;
+		// Establish a genuinely clean baseline: clear the scene (walk/entries/
+		// uuids) so the first post-re-arm sync diffs against an empty plan.
+		this.scene.clear();
 		this.lastPlan = this.scene.plan();
 		this.lastAttemptVersion = -1;
 		this.walkFailures = 0;
@@ -302,6 +305,11 @@ export class SceneSync {
 
 		reorderPromise
 			.then(() => {
+				// A resolution that lands after destroy() must not clobber
+				// the reset state (lastPlan baseline, in-flight flags).
+				if (this.destroyed) {
+					return;
+				}
 				this.syncInFlight = false;
 				this.reorderFailures = 0;
 				this.lastPlan = plan;
@@ -312,6 +320,9 @@ export class SceneSync {
 				}
 			})
 			.catch(() => {
+				if (this.destroyed) {
+					return;
+				}
 				// Don't update lastPlan — the next sync retries.
 				this.syncInFlight = false;
 				this.reorderFailures++;

@@ -89,7 +89,17 @@ public class MapsforgeVtmView extends LinearLayout {
 	/** Tracks first attach so the initial (spurious) anchors-changed emit is skipped. */
 	private boolean everAttached = false;
 
-	/** Per-wrapper composite listener registry, keyed by the wrapper ViewGroup. */
+	/**
+	 * Per-wrapper composite listener registry, keyed by the wrapper ViewGroup.
+	 *
+	 * <p>All access runs on the UI thread (install from
+	 * {@link #onAttachedToWindow()}, remove from {@link #onDetachedFromWindow()}
+	 * and {@link #destroy()}). The concurrent types are defensive, not a
+	 * thread-safety guarantee. Entries are purged when the last delegate
+	 * leaves; on abnormal teardown (a view attached but never detached nor
+	 * destroyed) the entry — and via its delegates, the view — can outlive
+	 * the map, which is the residual cost of the single-slot ViewGroup API.
+	 */
 	private static final ConcurrentHashMap<ViewGroup, CompositeHierarchyListener> compositeListeners =
 		new ConcurrentHashMap<>();
 
@@ -185,9 +195,13 @@ public class MapsforgeVtmView extends LinearLayout {
 		if ( composite != null ) {
 			composite.delegates.remove( delegate );
 			if ( composite.delegates.isEmpty() ) {
-				// Last view gone — restore the wrapper's original listener.
 				compositeListeners.remove( wrapper );
-				wrapper.setOnHierarchyChangeListener( composite.foreign );
+				// Only restore the captured foreign listener if the wrapper
+				// still holds OUR composite — a newer external listener set
+				// mid-lifetime must not be clobbered by the stale seed.
+				if ( getHierarchyChangeListener( wrapper ) == composite ) {
+					wrapper.setOnHierarchyChangeListener( composite.foreign );
+				}
 			}
 		}
 	}

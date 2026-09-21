@@ -16,6 +16,7 @@ import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscript
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
 import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
+import useSceneFragmentReady from '../compose/useSceneFragmentReady';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
@@ -25,7 +26,7 @@ import {
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
-import { fragmentUuidFor } from '../scene/ids';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const moduleDefaults = LayerPathModule.getConstants();
 
@@ -87,6 +88,12 @@ const LayerPath = ({
 	});
 
 	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// Grouped entries wait until their owning fragment is in the committed plan
+	// (owner anchor walked) so the atomic-add order hint is correct on mount.
+	const ownerFragmentReady = useSceneFragmentReady(
+		isGrouped ? sharedId : null,
+		'path'
+	);
 	// The fragment uuid the current native entry was created under — ground
 	// truth for detecting a run re-key (first member removed).
 	const usedFragmentUuidRef = useRef<string | null>(null);
@@ -97,7 +104,7 @@ const LayerPath = ({
 		enabled:
 			!!nativeNodeHandle &&
 			hasCoordinates &&
-			(isGrouped || runFragmentUuid !== null),
+			(isGrouped ? ownerFragmentReady : runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
 			if (!nativeNodeHandle || !coordinates) {
 				return Promise.reject<string>({
@@ -109,9 +116,10 @@ const LayerPath = ({
 			const fragmentUuid =
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'path')
-					: // `enabled` guarantees runFragmentUuid is non-null here —
-						// the self-keying runUuidFor fallback is unreachable.
-						runFragmentUuid!;
+					: // `enabled` normally guarantees runFragmentUuid is non-null,
+						// but keep the self-keying fallback so a broken invariant
+						// can't silently create under a null/unmanaged fragment.
+						(runFragmentUuid ?? runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.

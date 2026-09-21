@@ -268,8 +268,12 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		}
 
 		WritableMap responseData = new WritableNativeMap();
-		responseData.putInt("index", itemizedLayer.getItemList().indexOf(markerItem));
-		responseData.putString("uuid", entryUuid);
+		int index;
+		synchronized ( itemizedLayer ) {
+			index = itemizedLayer.getItemList().indexOf( markerItem );
+		}
+		responseData.putInt( "index", index );
+		responseData.putString( "uuid", entryUuid );
 
 		return new CreateResult<>(entry, responseData);
 	}
@@ -602,11 +606,16 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				group.memberMarkerUuids.add(entryUuid);
 			}
 
-			// Look up index within the marker's fragment layer.
+			// Look up index within the marker's fragment layer (under the
+			// layer monitor so a concurrent mutation can't skew the scan).
 			ItemizedLayer fl = (ItemizedLayer) getSharedLayer(fragmentUuids[i]);
-			resultIndices[i] = fl != null
-				? fl.getItemList().indexOf(markerItem)
-				: -1;
+			if ( fl != null ) {
+				synchronized ( fl ) {
+					resultIndices[i] = fl.getItemList().indexOf( markerItem );
+				}
+			} else {
+				resultIndices[i] = -1;
+			}
 		}
 
 		// Single updateMap for the entire batch.
@@ -719,19 +728,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return false;
 		}
 
-		// Update tracked positions.
-		for ( int i = 0; i < assignments.size(); i++ ) {
-			ReadableMap assignment = assignments.getMap( i );
-			String uuid = assignment.getString( "uuid" );
-			int priority = assignment.getInt( "priority" );
-			MarkerEntry entry = allMarkers.get( uuid );
-			// Guard against cross-fragment assignments: never touch an
-			// entry that doesn't belong to this fragment's layer.
-			if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
-				entry.positionIndex = priority;
-			}
-		}
-
 		// Collect this fragment's items and rebuild the list.
 		List<MarkerEntry> fragmentEntries = new ArrayList<>();
 		for ( MarkerEntry entry : allMarkers.values() ) {
@@ -743,8 +739,23 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// The rebuild is a read-modify-write over the live item list and
 		// must be serialized against vtm's own synchronized accessors and
 		// the UI-thread hit-test path — synchronize on the layer (the same
-		// monitor vtm uses) so the compound operation is atomic.
+		// monitor vtm uses) so the compound operation is atomic. The
+		// positionIndex writes happen here too, so the reads below (sort +
+		// scan) see them with a proper happens-before edge.
 		synchronized ( layer ) {
+			// Update tracked positions.
+			for ( int i = 0; i < assignments.size(); i++ ) {
+				ReadableMap assignment = assignments.getMap( i );
+				String uuid = assignment.getString( "uuid" );
+				int priority = assignment.getInt( "priority" );
+				MarkerEntry entry = allMarkers.get( uuid );
+				// Guard against cross-fragment assignments: never touch an
+				// entry that doesn't belong to this fragment's layer.
+				if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
+					entry.positionIndex = priority;
+				}
+			}
+
 			List<MarkerInterface> itemList = layer.getItemList();
 			for ( MarkerEntry entry : fragmentEntries ) {
 				itemList.remove( entry.markerItem );

@@ -21,6 +21,7 @@ import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
 import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
+import useSceneFragmentReady from '../compose/useSceneFragmentReady';
 import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
@@ -31,7 +32,7 @@ import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
 import SharedLayerContext from '../context/SharedLayerContext';
-import { fragmentUuidFor } from '../scene/ids';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const Marker = ({
 	title,
@@ -80,6 +81,10 @@ const Marker = ({
 	});
 
 	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	const ownerFragmentReady = useSceneFragmentReady(
+		isGrouped ? fragmentId : null,
+		'marker'
+	);
 	// The fragment uuid the current native entry was created under — ground
 	// truth for detecting a run re-key (first member removed).
 	const usedFragmentUuidRef = useRef<string | null>(null);
@@ -90,7 +95,7 @@ const Marker = ({
 		enabled:
 			!!nativeNodeHandle &&
 			!!position &&
-			(isGrouped || runFragmentUuid !== null),
+			(isGrouped ? ownerFragmentReady : runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
 			if (!nativeNodeHandle || !position) {
 				return Promise.reject<string>({
@@ -107,9 +112,10 @@ const Marker = ({
 			const fragmentUuid =
 				fragmentId !== null
 					? fragmentUuidFor(fragmentId, 'marker')
-					: // `enabled` guarantees runFragmentUuid is non-null here —
-						// the self-keying runUuidFor fallback is unreachable.
-						runFragmentUuid!;
+					: // `enabled` normally guarantees runFragmentUuid is non-null,
+						// but keep the self-keying fallback so a broken invariant
+						// can't silently create under a null/unmanaged fragment.
+						(runFragmentUuid ?? runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.

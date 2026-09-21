@@ -381,7 +381,12 @@ public abstract class LayerManager<TEntry> {
 	@NonNull
 	protected static String errorMessage( @NonNull Throwable t ) {
 		String msg = t.getMessage();
-		return msg != null ? msg : t.getClass().getSimpleName();
+		if ( msg != null && !msg.isEmpty() ) {
+			return msg;
+		}
+		// Fully-qualified name — never empty (getSimpleName() returns "" for
+		// anonymous/local classes).
+		return t.getClass().getName();
 	}
 
 	/**
@@ -449,7 +454,7 @@ public abstract class LayerManager<TEntry> {
 			synchronized (this) {
 				sharedLayerFragments.remove(fragmentUuid);
 			}
-			throw new RuntimeException("Failed to register shared layer fragment '" + fragmentUuid + "': " + e.getMessage(), e);
+			throw new RuntimeException("Failed to register shared layer fragment '" + fragmentUuid + "': " + errorMessage(e), e);
 		}
 
 		// destroy() may have run while we were blocked in future.get().
@@ -462,7 +467,14 @@ public abstract class LayerManager<TEntry> {
 				// This runs on the caller's (TurboModule) thread, so we must
 				// route through the async queue — removeLayerSync is UI-thread
 				// only and would mutate map().layers() un-serialized here.
-				queue.enqueueRemoveLayer(fragmentUuid);
+				CompletableFuture<Void> removal = queue.enqueueRemoveLayer(fragmentUuid);
+				removal.exceptionally( t -> {
+					// Log rather than silently drop: if the queue was already
+					// torn down, the layer stays leaked but we make it visible.
+					android.util.Log.w( "LayerManager",
+						"Failed to roll back shared layer fragment '" + fragmentUuid + "': " + errorMessage( t ) );
+					return null;
+				} );
 				throw new RuntimeException(
 					"Shared layer fragment '" + fragmentUuid
 						+ "' was destroyed while waiting for registration");

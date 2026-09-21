@@ -122,12 +122,16 @@ public class LayerHelper {
 	 * rejects with the failure message.
 	 */
 	public void removeLayerResolving( ReadableMap params, Promise promise ) {
-		// Delegate validation to removeLayerAsync (which rejects with a clear
-		// "Missing uuid or nativeNodeHandle" message). The uuid is only read
-		// inside thenRun — after the async removal already succeeded — so a
-		// missing/absent uuid never reaches an eager params.getString here.
+		// Validate + read the uuid once, on the caller's thread — the async
+		// completion (thenRun) runs on the UI thread and must not re-read the
+		// same ReadableMap key across threads.
+		if ( !Utils.rMapHasKey( params, "uuid" ) || !Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+			Utils.promiseReject( promise, "Undefined uuid or nativeNodeHandle" );
+			return;
+		}
+		final String uuid = params.getString( "uuid" );
 		removeLayerAsync( params )
-			.thenRun( () -> promise.resolve( params.getString( "uuid" ) ) )
+			.thenRun( () -> promise.resolve( uuid ) )
 			.exceptionally( t -> {
 				Utils.promiseReject( promise, t.getMessage() );
 				return null;
