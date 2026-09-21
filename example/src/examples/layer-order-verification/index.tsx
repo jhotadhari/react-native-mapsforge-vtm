@@ -406,13 +406,19 @@ const ExampleComponent: FC<{
 	]);
 	const nextRunIdRef = useRef(3);
 
-	const runPathElements = runPaths.map((runPath) => (
-		<LayerPath
-			key={runPath.id}
-			coordinates={runPath.coords}
-			paint={runPath.paint}
-		/>
-	));
+	// Memoized like the sibling renderItems — rebuilt only when runPaths
+	// changes, not on every ~25Hz map-event re-render.
+	const runPathElements = useMemo(
+		() =>
+			runPaths.map((runPath) => (
+				<LayerPath
+					key={runPath.id}
+					coordinates={runPath.coords}
+					paint={runPath.paint}
+				/>
+			)),
+		[runPaths]
+	);
 
 	const renderItems = useMemo(() => {
 		return items.map((item) => {
@@ -481,16 +487,20 @@ const ExampleComponent: FC<{
 				runCount={runPaths.length}
 				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
 				onToggleReindexScope={() => setUseReindexScope((v) => !v)}
-				onAddRunPath={() =>
+				onAddRunPath={() => {
+					// Read/increment outside the updater (pure updater) and
+					// derive the index from the id — a monotonic counter, not
+					// prev.length, so removed members don't collide in size/color.
+					const id = nextRunIdRef.current++;
 					setRunPaths((prev) => [
 						...prev,
 						buildRunPath(
-							nextRunIdRef.current++,
-							prev.length,
-							runPalette[prev.length % runPalette.length]!
+							id,
+							id - 1,
+							runPalette[(id - 1) % runPalette.length]!
 						),
-					])
-				}
+					]);
+				}}
 				onRemoveFirstRunPath={() =>
 					setRunPaths((prev) => prev.slice(1))
 				}
