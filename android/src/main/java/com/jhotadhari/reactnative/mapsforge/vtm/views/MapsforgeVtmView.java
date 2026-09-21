@@ -209,8 +209,11 @@ public class MapsforgeVtmView extends LinearLayout {
 			field.setAccessible( true );
 			return (ViewGroup.OnHierarchyChangeListener) field.get( group );
 		} catch ( Exception e ) {
-			Log.w( "MapsforgeVtmView",
-				"Failed to read pre-existing hierarchy listener: " + e );
+			// Best-effort: the private field is hidden-API-restricted (or
+			// renamed) on modern Android, so this commonly throws. Degrade to
+			// a null seed — our own composite chaining still works without it.
+			Log.d( "MapsforgeVtmView",
+				"Could not read pre-existing hierarchy listener (best-effort): " + e );
 			return null;
 		}
 	}
