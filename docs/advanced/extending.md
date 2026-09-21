@@ -1,7 +1,7 @@
 # Extending `react-native-mapsforge-vtm`
 
 This library provides hooks and patterns for building custom layer-type extensions
-that integrate with the map's render-order registry, lifecycle management, and
+that integrate with the map's scene-based ordering, lifecycle management, and
 native rendering pipeline.
 
 ## Quick start
@@ -42,57 +42,91 @@ components that render custom content on the map.
 
 ### Extension API (public)
 
-Two hooks, one context, and one factory function form the extension API. Import them from
-the main package:
+The public extension API lets a third-party component render a custom layer
+type and integrate with the scene-based ordering. Import from the main package:
 
 ```tsx
 import {
   MapHandleContext,
-  createLayerOrderRegistry,
-  useLayerOrder,
+  useLayerAnchor,
+  useLayerEntry,
+  useSceneUuidBinding,
   useNativeLayerLifecycle,
+  registerEntryPriorityHandler,
+  LayerScene,
+  SceneSync,
 } from 'react-native-mapsforge-vtm';
 ```
 
-Also exported as types: `LayerOrderRegistry`, `MapHandleContextValue`, `CreateFlags`,
+Also exported as types: `MapHandleContextValue`, `UseLayerAnchorOptions`, `CreateFlags`,
 `RemoveFlags`, `ErrorBase`, `ErrorWithErrorMsg`, `ResponseBase`, `Position`.
 
 #### `MapHandleContext` — React context
 
-Provides `nativeNodeHandle` (the map view's Android view tag, `null | number`) and
-`registry` (the `LayerOrderRegistry` that tracks every layer's position in the render
-tree).
+Provides `nativeNodeHandle` (the map view's Android view tag, `null | number`),
+`scene` (the `LayerScene` — single source of truth for ordering), and `sync`
+(the `SceneSync` presenter).
 
 ```tsx
-const { nativeNodeHandle, registry } = useContext(MapHandleContext);
+const { nativeNodeHandle, scene, sync } = useContext(MapHandleContext);
 ```
 
-#### `createLayerOrderRegistry()` — factory function
+#### `useLayerAnchor(options)` — anchor registration
 
-Creates a `LayerOrderRegistry` instance with debounced native `reorderLayers` syncing
-(16ms debounce, 250ms max-wait cap). Extensions typically don't call this directly — it's
-used by `MapContainer` internally. Exported for custom container scenarios.
-
-#### `useLayerOrder(uuid, layerType?)` — hook
-
-Registers a component into the render-order registry during render. Call this once per
-layer component.
+Renders an invisible `VtmAnchorView` and registers an `AnchorDescriptor` with
+the scene. Every layer-stack component renders one anchor; the committed-tree
+walk reads anchor uids in tree order and feeds the scene.
 
 ```tsx
-const { nativeNodeHandle, positionIndex, fragmentUuid } =
-  useLayerOrder(uuid, layerType);
+const { uid, element } = useLayerAnchor({
+  kind: 'layer',      // 'layer' | 'fragment' | 'scope'
+  layerType: 'path',  // for shared-layer fragment grouping
+  shared: true,       // hosted by a shared fragment manager
+});
 ```
 
-| Parameter | Type | Meaning |
-|---|---|---|
-| `uuid` | `null \| false \| string` | The layer's native UUID. `null` = not yet created/disabled; `false` = create-in-progress; `string` = resolved native UUID. |
-| `layerType` | `string` (optional) | A type string like `'path'`, `'marker'`, `'mapsforge'`. When passed, a shared-layer fragment UUID is computed (e.g. `__vtm_shared_path__2`). When omitted, the component is treated as a dedicated-layer type. |
+`UseLayerAnchorOptions`:
 
-| Return field | Type | Meaning |
+| Option | Type | Meaning |
 |---|---|---|
-| `nativeNodeHandle` | `null \| number` | The map's native view tag from context. |
-| `positionIndex` | `number` | This layer's zero-based index in `registry.order` — its document-order position among all JS-managed layers. `-1` if not yet registered. |
-| `fragmentUuid` | `string \| undefined` | Shared-layer fragment UUID. `undefined` when no `layerType` was passed. |
+| `kind` | `'layer' \| 'fragment' \| 'scope'` | Anchor kind. Dedicated layers and type-run members use `'layer'`; `SharedLayer`/`LayerMarker` use `'fragment'`; `ReindexScope` uses `'scope'`. |
+| `active` | `boolean` (default `true`) | When false the anchor is neither rendered nor registered. |
+| `layerType` | `string` (optional) | A type string like `'path'`, `'marker'`. Used for fragment grouping. |
+| `fragmentId` | `string` (optional) | Owner id for `kind: 'fragment'` (SharedLayer instance id / LayerMarker uid). |
+| `shared` | `boolean` (optional) | True when the layer type is hosted by a shared fragment manager. |
+| `scopeOrder` | `number` (optional) | Explicit ordering priority, `kind: 'scope'` only. |
+
+#### `useLayerEntry(options)` — entry declaration
+
+Declares an entry (drawable/marker) inside a fragment owner. Returns the entry
+uid used for `attachUuid`.
+
+```tsx
+const entryUid = useLayerEntry({
+  active: true,        // false when the component is standalone/anchored
+  fragmentId: sharedId,
+  layerType: 'path',
+  sortIndex: order ?? vtmSortIndex,
+  uuid,
+});
+```
+
+#### `useSceneUuidBinding(anchorOrEntryUid, uuid)` — uuid binding
+
+Binds a resolved native uuid to an anchor/entry uid so the plan can resolve the
+fragment's position.
+
+#### `registerEntryPriorityHandler(layerType, handler)` — priority bridge
+
+Registers the `applyEntryPriorities` bridge for a layer type. `SceneSync` calls
+the handler with `{ nativeNodeHandle, fragmentUuid, assignments }` to apply
+sparse drawable priorities natively.
+
+#### `LayerScene` / `SceneSync`
+
+The scene model and presenter. Advanced extensions that need to read the
+committed plan (`scene.plan()`) or schedule a walk (`sync.scheduleWalk()`) use
+these directly.
 
 #### `useNativeLayerLifecycle({ enabled, create, remove, onError? })` — hook
 
@@ -103,7 +137,7 @@ re-creation, unmount cleanup, and error reporting.
 const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
   enabled: true,
   create: async (flags) => {
-    const { uuid } = await MyModule.createLayer({ nativeNodeHandle, positionIndex });
+    const { uuid } = await MyModule.createLayer({ nativeNodeHandle });
     return uuid;
   },
   remove: async (uuid, flags) => {
@@ -435,7 +469,6 @@ import type { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 
 interface CreateLayerParams {
   nativeNodeHandle?: Int32;
-  positionIndex?: Int32;
   // ...extension-specific params
 }
 
@@ -513,13 +546,20 @@ public class MyExtensionPackage extends BaseReactPackage {
 ### Layer render ordering
 
 Layer z-order follows React component tree order. Later siblings render on top.
-`useLayerOrder` returns a `positionIndex` — pass this to your native `createLayer`
-call so the layer lands at the correct position immediately:
+An extension component participates by rendering an anchor (`useLayerAnchor`)
+and, for shared-layer entries, declaring into the scene (`useLayerEntry` /
+`useSceneUuidBinding`). The scene plan then drives the absolute native reorder — ordering is not a
+create-time parameter:
 
 ```typescript
-const { positionIndex } = useLayerOrder(uuid);
-Module.createLayer({ nativeNodeHandle, positionIndex, ...otherParams });
+const { element } = useLayerAnchor({ kind: 'layer', layerType: 'mytype', shared: true });
+// ...render {element}, and declare the entry when grouped:
+const entryUid = useLayerEntry({ active: isGrouped, fragmentId, layerType: 'mytype', uuid });
+useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
 ```
+
+Entry order within a fragment comes from the owner-injected `vtmSortIndex` (or
+`order`), applied natively via `applyEntryPriorities`.
 
 ## Reanimated overlays (no native code)
 
