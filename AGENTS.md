@@ -67,54 +67,44 @@ expose a handle any other way) and a `uuid` returned from `createLayer` (used la
 hand-written implementation lives one level up as `android/.../modules/Xxx.java extends NativeXxxSpec`
 (e.g. `LayerMarker.java extends NativeLayerMarkerSpec`).
 
-### Wiring layers together: `MapHandleContext`, not prop injection
+### Wiring layers together: `MapHandleContext` + the scene, not prop injection
 
-`MapContainer` creates a `LayerOrderRegistry` (`src/context/MapHandleContext.ts`) and provides it, along
-with the map's `nativeNodeHandle`, through `MapHandleContext`. Every layer component calls
-`useLayerOrder` (`src/compose/useLayerOrder.ts`), which registers the component's position in render
-order (tracked by a stable `Symbol`, independent of nesting depth) and its resolved native `uuid` into
-that shared registry, then debounces a single native `reorderLayers` call whenever the resolved order
-actually changes. This replaced the old `cloneElement`/static-`isMapLayer` walk entirely — there is no
-prop-injection wiring left in this repo. `LayerMarker` does its own one-level-down equivalent for
-`Marker` children.
+`MapContainer` provides `MapHandleContext` (`src/context/MapHandleContext.ts`) holding three things:
+`nativeNodeHandle` (the map view's Fabric handle), `scene` (a `LayerScene` — the single source of
+truth for layer ordering), and `sync` (a `SceneSync` presenter). There is no prop-injection wiring:
+layer components render `VtmAnchorView` host components and declare entries into the scene via
+commit-phase hooks.
 
-The registry has grown beyond a simple ordered-symbol list into a rich data structure with ~20 fields.
-Key additions beyond the core `order` + `uuids`:
+Ordering is **a function of committed state, never accumulated during render**:
 
-| Field | Purpose |
-|---|---|
-| `generation` | Monotonically increasing counter bumped by `MapContainer` on each render. `useLayerOrder` compares its last-seen value to detect full render passes (must reposition already-registered layers) vs. solo re-renders (must not disturb sibling order). |
-| `cursor` / `cursorLayerType` | Id of the most-recently-rendered sibling + its layer type. Reset by `MapContainer` each render pass. Used for O(1) insertion anchoring and type-run fragment-boundary detection. |
-| `fragmentIndices` / `fragmentUuids` | Per-type fragment counters and per-component fragment UUIDs (e.g. `__vtm_shared_path__1`). Computed eagerly during render so `flush()` can synthesize the ordered-UUID list without waiting for native `createLayer` resolutions. |
-| `layerTypes` | Per-symbol layer type string (`'path'`, `'marker'`, etc.), used for type-run boundary detection. |
-| `layerReindexScopes` | Maps each layer symbol to its enclosing `ReindexScope`'s stable scope symbol. |
-| `lastSymbolPerScope` | Per-scope most-recently-inserted symbol — O(1) sibling anchoring during partial re-renders (e.g. Redux-triggered), replacing the old O(n) backwards scan of `order`. |
-| `sentinels` / `sentinelScopes` | Placeholder symbols pushed by `ReindexScope` wrappers whose children haven't mounted yet. `flush()` skips them; they ensure sibling scopes see correct relative order before children exist. |
-| `scopePriorities` | Optional `order` prop values keyed by scope symbol, for explicit cross-scope z-ordering. |
-| `scopeGenerations` | Per-scope monotonic counter bumped by `ReindexScope` on each of its own renders. Enables partial re-render repositioning scoped to the affected `ReindexScope` only, without disturbing unrelated scopes (e.g. Redux updating one panel's data). |
-| `layerScopeGenerations` | Per-symbol scope-generation stamp. Set by `useLayerOrder` on every render when inside a `ReindexScope`. Read by `ReindexScope` Phase 1 to distinguish symbols touched in the current render pass (live) from stale symbols awaiting `useLayoutEffect` cleanup — fixes the sentinel lifecycle bug where Phase 1 saw stale symbols as live children.
-| `layerGenerations` | Per-symbol global-generation stamp. Set by `useLayerOrder` on every render regardless of scope. Used by the repositioning logic to verify the cursor chain is intact: if any symbol between `previousId` and the current position was not stamped in this render pass (e.g. `useMemo` prevented re-render), the cursor is stale and the move is skipped.
-
-| `scheduleSync` / `destroy` | Debounced (16ms trailing, 250ms max-wait) native `reorderLayers` call. `destroy()` cancels pending timers on map teardown. `flush()` is serialized via `isReordering` — only one `reorderLayers` call is in-flight at a time; concurrent calls return early and are caught by `doFlush()` in `.then()`. |
-| `nativeDirtyCount` / `markNativeDirty` | Counter incremented by `useNativeLayerLifecycle` after every `createLayer` / `removeLayer` resolution. `flush()` snapshots the count before the async `reorderLayers` call and subtracts it on success (on failure the count is not decremented so the next flush retries). Serialized reorders prevent overlapping snapshot subtractions. |
-| `listeners` / `subscribe` / `notify` | Debug subscription infrastructure for `useLayerDebugInfo` (devtools). |
+- **Anchors** — `useLayerAnchor` (`src/compose/useLayerAnchor.tsx`) renders an invisible
+  `VtmAnchorView` and registers an `AnchorDescriptor` with `SceneSync`. `MapContainer.enumerateAnchors`
+  walks the committed view tree under the wrapper and returns the ordered anchor uids (the "walk").
+  A hierarchy-change listener on the wrapper emits `onAnchorsChanged` as the move signal.
+- **Scene** — `LayerScene` (`src/scene/LayerScene.ts`) is mutated ONLY from the commit phase
+  (`useLayoutEffect`/`useEffect`, never render): `applyWalk(sequence)`, `declareEntry`, `attachUuid`,
+  `detachUuid`. It caches an immutable `plan()` and exposes a monotonic `version()` counter.
+- **Plan** — `buildPlan` (`src/scene/planBuilder.ts`) turns (walk, entries, resolved uuids) into a
+  bottom→top `LayerPlan` (layers + fragments + scopes + `runKeysByAnchor`). Fragment keys are
+  deterministic: `frag:<owner>:<type>` for shared-layer fragments, `run:<anchor>` for implicit
+  type-run fragments.
+- **Presenter** — `SceneSync` (`src/scene/SceneSync.ts`) debounces the walk and sync (16ms/250ms),
+  diffs the last-applied plan against the new one (`planDiff`), then issues one absolute
+  `reorderLayers` call plus per-fragment `applyEntryPriorities` (single-flight, exponential-backoff
+  retry). The scene's `subscribe`/`version()` drive scheduling — every commit-phase mutation schedules
+  a sync.
 
 **Invariant: native layer rendering must strictly follow React component tree order.** A layer
 declared later in JSX (e.g. a `LayerMarker` mounted after a `LayerPath`) must always render on top of
-it, same as later siblings paint on top in the DOM. Within a single render pass this holds
-automatically (React's depth-first render order drives the cursor chain). For async children, three
-mechanisms preserve it: (1) `<ReindexScope>` sentinel placeholders (pushed during initial render,
-consumed when children mount), (2) the optional `order` prop for explicit priority, and (3) per-scope
-`scopeGenerations` counters for partial re-render detection. Without any of these, new layers append
-at the stale cursor.
+it. This holds because the committed-tree walk yields the tree order, the scene plan derives from that
+walk, and `LayerStackController.applyPlan` applies it atomically with the add. Async children
+(mounting later) are handled by the `ReindexScope` anchor marking the block position, the optional
+`order` prop for explicit cross-scope priority, and the debounced re-walk on anchor changes — there is
+no cursor/sentinel/generation machinery.
 
-The ordering bugs documented in TODO.md item 0 were fixed (commit `902fc47` and subsequent).
-The `nativeDirtyCount` counter + snapshot-subtract pattern, the `lastReorderWasEffective =
-snapshot.length > 0` check (set only on `.then()`, not before the async call), and the
-`isReordering` serialization flag (prevents concurrent `reorderLayers` calls) prevent
-the remaining theoretical concern (reorder timing vs. `lastReorderWasEffective`).  When
-`reorderLayers` fails, none of the flag variables are updated — the next `flush()` retries
-with the same state without being blocked by the unchanged guard.
+The historical ordering bugs documented in TODO.md item 0 were fixed (commit `902fc47` and
+subsequent), and the whole cursor-chain/`LayerOrderRegistry` architecture was replaced by this scene
+model on the `feature/layer-ordering-rewrite` branch.
 
 ### Central lifecycle hook: `useNativeLayerLifecycle`
 
@@ -135,12 +125,12 @@ error reporting through `reportNativeError`. Two refs guard against teardown rac
 
 Callers supply `create`/`remove` callbacks and an `enabled` boolean — the hook handles the rest.
 
-After every successful `create` or `remove` resolution, the hook calls
-`registry.markNativeDirty()` (increments `nativeDirtyCount`) and then `setUuid()` which
-triggers a React re-render.  The re-render causes `useLayerOrder`'s `useEffect` to call
-`scheduleSync()`, which debounces to a `flush()` call.  `flush()` sees the non-zero
-`nativeDirtyCount` and forces a `reorderLayers` call even when `orderedUuids` is unchanged
-(e.g. when adding/removing a path within an already-existing SharedLayer fragment).
+After every successful `create` or `remove` resolution, the hook calls `setUuid()`, which triggers a
+React re-render. The component's commit-phase hooks then mutate the scene (`useSceneUuidBinding`
+attaches/detaches the resolved uuid, `useLayerEntry` declares/undeclares the entry), and each mutation
+notifies `SceneSync` via `scene.subscribe`, which schedules a debounced sync. The sync diffs the plan
+and forces a `reorderLayers`/`applyEntryPriorities` pass even when the ordered uuid list is unchanged
+(e.g. when adding/removing a path within an already-existing `SharedLayer` fragment).
 
 ### Shared-layer architecture: `SharedLayer` + fragments
 
@@ -152,22 +142,17 @@ Fragment boundaries occur at:
 - **Type-run boundaries** — consecutive same-type layers share a fragment; a different type starts a new one
 - **Scope boundaries** — layers in different `<ReindexScope>` wrappers never share a fragment
 
-Fragment UUIDs follow the pattern `__vtm_shared_<type>__<index>` (e.g. `__vtm_shared_path__1`).
+Fragment UUIDs follow the pattern `frag:<owner>:<type>` for `SharedLayer`/`LayerMarker` fragments
+(e.g. `frag:<sharedId>:path`) and `run:<anchor>` for implicit type-run fragments (standalone
+same-type layers not wrapped in `SharedLayer`).
 
-`<ReindexScope>` (`src/components/ReindexScope.tsx`) serves three purposes:
-1. **Async children**: pushes a **sentinel** placeholder into the ordering registry during render so
-   children that mount later (async data) land at their correct tree position, not at the stale cursor
+`<ReindexScope>` (`src/components/ReindexScope.tsx`) serves two purposes:
+1. **Tree-position marker**: renders a scope anchor (`VtmAnchorView`) that permanently marks the
+   block's tree position — the anchor IS the placeholder, so children that mount later (async data)
+   land at their correct tree position with no sentinel lifecycle to manage.
 2. **Cross-scope ordering**: the `order` prop (e.g. `order={100}`) provides explicit priority across
-   sibling scopes regardless of mount timing
-3. **Partial re-render detection**: bumps a per-scope `scopeGenerations` counter on each of its own
-   renders. When a `ReindexScope` re-renders without `MapContainer` re-rendering (e.g. Redux-triggered
-   data update), child `useLayerOrder` calls detect the generation change and reposition already-
-   registered layers to match the new document order — but only layers inside the changed scope are
-   affected; unrelated scopes are undisturbed.
-
-It uses a two-phase protocol: Phase 1 (render) records the scope block's position and manages
-sentinel lifecycle; Phase 2 (`useLayoutEffect`) verifies the block hasn't been shifted by a sibling
-scope in the same commit. See the source comments for the full algorithm.
+   sibling scopes regardless of mount timing; it flows into the plan via the scope anchor's own
+   descriptor (`AnchorDescriptor.scopeOrder` → `planBuilder`), not through context.
 
 For full details, see `docs/advanced/layer-ordering.md`.
 
@@ -181,15 +166,16 @@ per-`nativeNodeHandle`, flushed on the microtask boundary (`Promise.resolve().th
 
 ### MarkerLayerManager sort direction
 
-Within a shared `ItemizedLayer` fragment, markers are sorted by **descending** `positionIndex`
-before insertion. This is deliberate: vtm's `Inlist.push()` inserts at the **front** of the
-linked list, reversing insertion order. The first marker pushed ends up at the tail of the
-render list and draws last (on top). Sorting descending before insertion compensates for this
-reversal — the marker with the highest `positionIndex` goes into the item list first, gets
-pushed first, ends up at the render list tail, and draws on top.
+Markers inside a shared `ItemizedLayer` fragment are ordered by **descending** `positionIndex`
+(higher priority first); equal priorities break by **ascending `creationSeq`** — a monotonic
+sequence assigned in source order at validation time. Both `createMarkers` and the
+`applyEntryPriorities` rebuild use this same ordering, so the two paths agree deterministically.
 
-Other shared-layer managers (`PathLayerManager`, `ShapeLayerManager`) use `VectorLayer` which
-sorts by `getPriority()` ascending via a `Comparator` — no reversal applies there.
+`positionIndex` is a sparse priority produced by the JS `PriorityAllocator` and applied via
+`applyEntryPriorities` — it is no longer a create-time param (JS no longer sends it).
+
+Other shared-layer managers (`PathLayerManager`, `ShapeLayerManager`) use `VectorLayer`, which sorts
+by `getPriority()` ascending via a `Comparator` — no tie-break or reversal applies there.
 
 
 ### Extension points for external layer-type libraries
@@ -199,9 +185,12 @@ outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
 
 | Export | Purpose |
 |---|---|
-| `MapHandleContext` | React context holding `nativeNodeHandle` + `LayerOrderRegistry` |
-| `createLayerOrderRegistry()` | Factory for the ordering registry (if you need a separate one) |
-| `useLayerOrder` | Register a component in the layer ordering registry |
+| `MapHandleContext` | React context holding `nativeNodeHandle` + `scene` + `sync` |
+| `useLayerAnchor` | Renders an anchor and registers its descriptor with the scene |
+| `useLayerEntry` | Declares an entry (drawable/marker) inside a fragment owner |
+| `useSceneUuidBinding` | Binds a resolved native uuid to an anchor/entry uid |
+| `LayerScene` / `SceneSync` | The scene model + presenter (advanced extension integration) |
+| `registerEntryPriorityHandler` | Registers the `applyEntryPriorities` bridge for a layer type |
 | `useNativeLayerLifecycle` | `null → false → uuid` state machine for native resource lifecycle |
 | `createMapHandle` | Non-hook factory — creates the imperative map-control + elevation API |
 | `createMapHandleRegistry` | Singleton `wire`/`unwire` pattern for non-React code to access a map handle |
@@ -210,7 +199,7 @@ outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
 
 See `docs/advanced/extending.md` and the `ext-plan` skill for guidance on the three extension
 patterns: JS-only, TurboModule, and vtm-shadowing.  Companion types extension authors also need:
-`CreateFlags`, `RemoveFlags`, `MapHandleContextValue`, `LayerOrderRegistry` (all exported
+`CreateFlags`, `RemoveFlags`, `MapHandleContextValue`, `UseLayerAnchorOptions` (all exported
 from `src/index.tsx`).
 
 ### Imperative map API: `createMapHandle` / `useMap` / `createMapHandleRegistry`
@@ -231,8 +220,8 @@ createMapHandle(handle)
 ```
 
 `useMap` (still the React hook — `src/compose/useMap.ts`) now delegates to `createMapHandle` for
-the base API and adds only `getDebugLayerDump()` (which needs the JS-side `LayerOrderRegistry`
-from React context to build the registry snapshot).
+the base API and adds only `getDebugLayerDump()` (which needs the JS-side `scene` from React
+context to build the scene-plan snapshot).
 
 `createMapHandleRegistry()` returns a `{ wire, unwire, getHandle, requireHandle }` singleton.
 The React side calls `wire(handle)` in a `useEffect`; non-React code calls `requireHandle()` to
@@ -479,7 +468,9 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
 
 **Key rules:**
 - `MapMutationQueue.flush()` is the **only** place that calls `layers().add/remove` and the batch-level `updateMap()`. It runs on the UI thread, serialized with vtm's own rendering.
-  - Adds are sorted by `positionIndex` ascending and inserted via a linear scan that respects existing JS-managed layers.
+  - Adds are **appended** (each new entry uses the `APPEND_PRIORITY` placeholder); their final
+    position comes from the absolute plan (`LayerStackController.applyPlan`) applied in the same
+    flush, so new layers never render at a wrong position beyond that single batch.
   - `reorderLayers` uses `reorderMinimalMoves` (LIS algorithm). When the first element of the target order is not in the LIS, it inserts before the first existing JS-managed layer rather than at index 0 (which would push layers before vtm-internal layers like GestureLayer).
 - `MapFragment.bindUpdateListener()` runs on the **render thread** (vtm's GL thread, 60fps). It writes position data to C++ `Synchronizable` primitives via `MapPositionWriter.nativeSetPosition()` (thread-safe mutex). See `android/src/main/cpp/MapPositionWriter.cpp`.
 - `scheduleUpdate()` (in `LayerManager` and its per-type subclasses: `PathLayerManager`,
@@ -491,7 +482,7 @@ All mutations to `mapView.map().layers()` (add, remove, reorder) **must** flow t
   `PathLayerManager`, `MarkerLayerManager`, `ShapeLayerManager`) **and** `GnssManager`
   (`gnssManager.stop()`) **before** `mapView.onDestroy()`, or shared layers silently leak and
   the GNSS listener continues firing into a dead map.
-- `LayerHelper.addLayerAsync` / `removeLayerAsync` are the preferred API — they enqueue into `MapMutationQueue`. The deprecated `addLayer`/`removeLayer` sync methods now delegate to the async path internally.
+- `LayerHelper.addLayerAsync` / `removeLayerAsync` are the API — they enqueue into `MapMutationQueue`. The old synchronous `addLayer`/`removeLayer` methods were removed (breaking change).
 
 **What still runs on the native-modules thread (read-only / non-layers-mutating):**
 - `LayerHelper.getLayer()` / `getLayers()` — reads from `MapMutationQueue.getKnownLayers()` (ConcurrentHashMap, safe from any thread)
@@ -505,8 +496,9 @@ A deliberate, systematic defensive pattern across both TypeScript and Java sides
 typically from teardown races where the map is destroyed while async operations are in-flight.
 
 **JS side:** `useNativeLayerLifecycle`'s `uuidRef` (see above) prevents zombies from being created by
-ensuring the unmount cleanup always sees the real uuid. The `destroy()` method on `LayerOrderRegistry`
-cancels pending debounced `reorderLayers` timers so they don't fire against a destroyed map.
+ensuring the unmount cleanup always sees the real uuid. `SceneSync.destroy()` cancels pending
+debounced `reorderLayers` timers and resets in-flight state so they don't fire against a destroyed
+map.
 
 **Java side:** All three per-type managers (`PathLayerManager`, `MarkerLayerManager`,
 `ShapeLayerManager`) and their owning TurboModules (`LayerPath.java`, `LayerMarker.java`,
