@@ -193,3 +193,36 @@ Grouping: 6a debug (S2, S3, S4, S14 + debug tree), 6b dead code (M15, S20, S21, 
 6c robustness (C1–C5, M1–M23 correctness items, S5, S13, S24), 6d refactor (S6, S7, S9, S10, S11, S12),
 6e tests (M11, M12, S15–S17, S25, S29 + prior #11 gaps).
 Pre-existing items addressed opportunistically. Docs (S19) → Phase 7 CRITICAL #4.
+
+## Phase 6 resolution (commits `c69343d`..`f69a759`)
+
+### Addressed
+
+- **6a critical**: C1 (async-queue rollback), C4 (marker `mItemList` synchronization),
+  C2/C3/M9/S14 (composite per-wrapper hierarchy listener), M10 (skip initial anchors-changed),
+  C5/M20/S28 (remove command log → `version()` counter)
+- **6b**: M1, M2, M3, M7, M8, S1, S4, S5, S10, S11
+- **6c**: M4, M5, M15, S6, S7, S8, S9, S12 (M6 partially — marker fallback unified)
+- **6d**: M16 (useLayoutEffect declare), M17 (owner-resolved fragment), M18, M19, M21, M22,
+  M23, S22, S24, S26 (S28 done in 6a)
+- **6e**: S20, S21, S27, S30, prior #7 (scopeOrder), prior #8 (unused import)
+- **6f**: M13, M14, S18
+- **6g**: S2 (unmodifiable VerifyResult), S3 (notInPlanCount), SUGGESTION #5 (verified already
+  compatible — straymap reads only top-level dump fields)
+- **6h**: M11, M12, S15, S17, pre-existing false-return assertions
+
+### Deferred (low-risk, documented)
+
+- **S23** `planWithResolved` O(N²) for bulk creates — perf, needs a batched plan cache (risky)
+- **S16** MAX_BATCH_SIZE cap test — needs >25-mutation scenario
+- **S25** EntryBatchQueue microtask-wins re-arm test
+- **S29** SceneSync max-wait / stale-commit / nested-scope `planWithResolved` tests
+- **M6** remaining fragment-uuid fallback reconciliation (Path/Shape singular-vs-plural NAME) —
+  cosmetic; each manager is now internally consistent via `DEFAULT_FRAGMENT_UUID`
+- fragment entry-list dump (aspirational Phase 6 item; expected-vs-applied + notInPlanCount
+  already surfaced)
+
+### Not in scope of Phase 6
+
+- CRITICAL #4 (extension API removal) → Phase 7 (docs) + Phase 8 (lockstep consumers)
+- S19 (stale `positionIndex`/`useLayerOrder` in docs) → Phase 7
