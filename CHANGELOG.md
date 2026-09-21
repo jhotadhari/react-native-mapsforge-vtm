@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Scene-based layer ordering** — the cursor-chain / `LayerOrderRegistry` architecture is replaced by a scene model: `LayerScene` (single source of truth, commit-phase mutations, immutable `plan()`) + `SceneSync` (debounced walk + single-flight `reorderLayers`/`applyEntryPriorities`). Order is a function of committed state, derived from an anchor walk over the committed view tree.
+- **`LayerStackController`** — native absolute-plan applier (`MapMutationQueue`-serialized) with a post-apply self-check surfaced in `getDebugLayerDump()` (`appliedMatchesExpected`, `expectedUuids`, `appliedUuids`, `notInPlanCount`).
+- **Deterministic fragment keys** — `frag:<owner>:<type>` (SharedLayer/LayerMarker) and `run:<anchor>` (implicit type-runs).
+
+### Changed
+
+- **Fragment UUID scheme** — shared-layer fragment UUIDs changed from `__vtm_shared_<type>__<index>` to `frag:<owner>:<type>` / `run:<anchor>`. Any code keying on the old strings must update.
+
+### Removed
+
+- **`useLayerOrder` / `createLayerOrderRegistry` / `LayerOrderRegistry`** — replaced by `useLayerAnchor`, `useLayerEntry`, `useSceneUuidBinding`, `LayerScene`, and `SceneSync` (all exported from `src/index.tsx`).
+- **Create-time `positionIndex`** — the `positionIndex` param is no longer sent to native `createLayer`/`createMarker`. Within-fragment order is now applied via `applyEntryPriorities` using sparse priorities from `PriorityAllocator`.
+- **Synchronous `LayerHelper.addLayer` / `removeLayer`** — deleted; use `addLayerAsync` / `removeLayerAsync` (the only layer-mutation API).
+- **`SceneCommand` / `commandLog()`** — the replayable command log was removed; `LayerScene.version()` is the mutation signal.
+
 ## [0.8.3] - 2026-08-09
 
 ### Fixed
