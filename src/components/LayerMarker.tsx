@@ -182,10 +182,12 @@ const LayerMarker = ({
 	]);
 
 	// Owner injection: Marker children get their sibling position as
-	// vtmSortIndex — the entry-order source for the scene.
+	// vtmSortIndex — the entry-order source for the scene. Gated on uuid so
+	// the walk/clone cost isn't paid while the layer uuid is unresolved and
+	// the children are discarded.
 	const injectedChildren = useMemo(
-		() => injectVtmSortIndex(children),
-		[children]
+		() => (uuid ? injectVtmSortIndex(children) : null),
+		[children, uuid]
 	);
 
 	if (!uuid) {

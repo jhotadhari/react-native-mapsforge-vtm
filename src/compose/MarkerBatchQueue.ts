@@ -34,7 +34,7 @@ const queue = createEntryBatchQueue<
 		}
 		return {
 			uuid: result.uuid,
-			index: result.index as number,
+			index: result.index ?? -1,
 			nativeNodeHandle,
 		};
 	},

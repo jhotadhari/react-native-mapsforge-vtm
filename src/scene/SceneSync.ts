@@ -22,8 +22,9 @@ import type { AnchorDescriptor, LayerPlan } from './types';
 
 const DEBOUNCE_MS = 16;
 const MAX_WAIT_MS = 250;
-const WALK_RETRY_MS = 250;
 const MAX_WALK_RETRIES = 10;
+const WALK_RETRY_BASE_MS = 250;
+const WALK_RETRY_MAX_MS = 4000;
 const MAX_REORDER_RETRIES = 5;
 const REORDER_RETRY_BASE_MS = 250;
 const REORDER_RETRY_MAX_MS = 4000;
@@ -161,6 +162,15 @@ export class SceneSync {
 		// belong to the previous lifecycle.
 		this.walkSeq++;
 		this.walkRequested = false;
+		// Reset in-flight/last-applied state so a StrictMode re-arm (or a
+		// hung in-flight promise) can't gate the presenter permanently, and
+		// the first post-re-arm sync diffs against a clean baseline.
+		this.syncInFlight = false;
+		this.walkInFlight = false;
+		this.lastPlan = this.scene.plan();
+		this.lastAttemptVersion = -1;
+		this.walkFailures = 0;
+		this.reorderFailures = 0;
 		if (this.walkRetryTimer !== null) {
 			clearTimeout(this.walkRetryTimer);
 			this.walkRetryTimer = null;
@@ -227,7 +237,13 @@ export class SceneSync {
 				if (this.walkRetryTimer !== null) {
 					clearTimeout(this.walkRetryTimer);
 				}
-				this.walkRetryTimer = setTimeout(this.walk, WALK_RETRY_MS);
+				// Exponential backoff (mirrors the reorder retry) so a
+				// cold-starting TurboModule isn't hammered at a fixed rate.
+				const delay = Math.min(
+					WALK_RETRY_BASE_MS * 2 ** (this.walkFailures - 1),
+					WALK_RETRY_MAX_MS
+				);
+				this.walkRetryTimer = setTimeout(this.walk, delay);
 			});
 	};
 

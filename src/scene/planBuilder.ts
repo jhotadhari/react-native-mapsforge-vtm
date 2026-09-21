@@ -160,8 +160,15 @@ export const buildPlan = (
 				entryUids: expansion.entryUids,
 				resolvedEntryUids: expansion.resolvedEntryUids,
 			});
+			// A LayerMarker-style owner (layerType defined) owns a real native
+			// fragment layer that exists as soon as its own createLayer
+			// resolves — even with zero marker children. It must enter the
+			// plan then, so its create order hint (planWithResolved) and the
+			// reorder list both include it. SharedLayer wrappers (layerType
+			// undefined) still require at least one resolved entry.
+			const ownerResolved = item.anchor.layerType !== undefined;
 			if (
-				expansion.resolvedEntryUids.length > 0 &&
+				(expansion.resolvedEntryUids.length > 0 || ownerResolved) &&
 				!seenFragmentUuids.has(expansion.fragmentUuid)
 			) {
 				seenFragmentUuids.add(expansion.fragmentUuid);

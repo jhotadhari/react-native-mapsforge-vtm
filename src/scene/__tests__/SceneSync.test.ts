@@ -189,9 +189,22 @@ describe('SceneSync', () => {
 		sync.scheduleWalk();
 		await flush(); // attempt 1
 
-		// 10 retries, 250ms apart.
-		for (let i = 0; i < 10; i++) {
-			jest.advanceTimersByTime(250);
+		// 10 retries with exponential backoff (250, 500, 1000, 2000, then
+		// capped at 4000 for the rest).
+		const delays = [
+			250,
+			500,
+			1000,
+			2000,
+			4000,
+			4000,
+			4000,
+			4000,
+			4000,
+			4000,
+		];
+		for (const delay of delays) {
+			jest.advanceTimersByTime(delay);
 			await Promise.resolve();
 			await Promise.resolve();
 		}

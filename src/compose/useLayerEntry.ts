@@ -7,7 +7,7 @@
  * render anchors.
  */
 
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import MapHandleContext from '../context/MapHandleContext';
 
 // Module-load prefix keeps uids unique across Fast Refresh — without it a
@@ -44,7 +44,12 @@ const useLayerEntry = ({
 	}
 	const uid = uidRef.current;
 
-	useEffect(() => {
+	// Declared in the commit phase BEFORE paint (and before the owning
+	// component's create effect) so the atomic-add order hint computed inside
+	// the create callback sees the declared entry — otherwise the fragment is
+	// missing from the hint on first create and lands appended (transient
+	// wrong-z until the debounced SceneSync reorder heals it).
+	useLayoutEffect(() => {
 		if (!active || fragmentId === null) {
 			return;
 		}
@@ -71,6 +76,10 @@ const useLayerEntry = ({
 		// must not attach their resolved uuid to an undeclared entry uid —
 		// that would leave stale scene.uids entries (double mutation).
 		if (!active || fragmentId === null) {
+			// Detach any uuid attached in a previous (grouped) render so a
+			// grouped→standalone transition doesn't leak a stale scene.uids
+			// entry. Safe no-op when nothing was attached.
+			scene.detachUuid(uid);
 			return;
 		}
 		if (uuid) {

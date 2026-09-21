@@ -18,6 +18,12 @@
  */
 
 const STEP = 1000;
+// Renumber once priorities drift outside this safe band. Priorities are
+// written to native as ints; without a floor/ceiling, repeated front/back
+// insertions would grow the range unboundedly (int32 overflow after
+// ~2^31/STEP leading inserts, and double precision loss far earlier).
+const MIN_FLOOR = -(2 ** 30);
+const MAX_CEILING = 2 ** 30;
 
 export type PriorityComputation = {
 	/** Complete entry→priority mapping for the fragment after applying. */
@@ -117,6 +123,12 @@ export class PriorityAllocator {
 				p = Math.floor((lower + upper) / 2);
 			} else {
 				// Gap exhausted — renumber the whole fragment once.
+				return this.renumberAll(prev, orderedEntryUids);
+			}
+
+			// Guard against unbounded front/back drift — renumber once the
+			// band is left instead of letting priorities grow without bound.
+			if (p < MIN_FLOOR || p > MAX_CEILING) {
 				return this.renumberAll(prev, orderedEntryUids);
 			}
 

@@ -244,7 +244,9 @@ export const createEntryBatchQueue = <
 			// Pending removes resolve (not reject): native teardown already
 			// destroyed the shared layers the entries lived in, so the
 			// remove is effectively complete — rejecting would surface a
-			// spurious "Map view destroyed" onError during unmount.
+			// spurious "Map view destroyed" onError during unmount. Note this
+			// also means a consumer onRemove callback can fire once post-
+			// unmount during teardown (deliberate — teardown semantics).
 			for (const op of queue.removes) {
 				op.resolve(op.uuid);
 			}
