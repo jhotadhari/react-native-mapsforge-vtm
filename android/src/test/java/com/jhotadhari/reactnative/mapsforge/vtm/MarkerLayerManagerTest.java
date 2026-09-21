@@ -42,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -251,7 +252,7 @@ public class MarkerLayerManagerTest {
                 new GeoPoint(52.5, 13.4));
         MarkerLayerManager.MarkerEntry entry =
                 new MarkerLayerManager.MarkerEntry("marker-uuid", groupUuid,
-                        "__vtm_shared_markers__0", mi, 0, 1L);
+                        MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi, 0, 1L);
         allMarkers.put("marker-uuid", entry);
         mgr.getEntries().put("marker-uuid", entry);
 
@@ -294,7 +295,7 @@ public class MarkerLayerManagerTest {
         MarkerLayerManager.MarkerEntry entry =
                 new MarkerLayerManager.MarkerEntry("entry-uuid",
                         MarkerLayerManager.ROOT_GROUP_UUID,
-                        "__vtm_shared_markers__0", mi, 0, 1L);
+                        MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi, 0, 1L);
 
         Field allMarkersField = MarkerLayerManager.class.getDeclaredField("allMarkers");
         allMarkersField.setAccessible(true);
@@ -465,7 +466,7 @@ public class MarkerLayerManagerTest {
                 (java.util.Map<String, Object>) allMarkersField.get(mgr);
         MarkerLayerManager.MarkerEntry entry = new MarkerLayerManager.MarkerEntry(
                 "far-uuid", MarkerLayerManager.ROOT_GROUP_UUID,
-                        "__vtm_shared_markers__0", farItem, 0, 1L);
+                        MarkerLayerManager.DEFAULT_FRAGMENT_UUID, farItem, 0, 1L);
         allMarkers.put("far-uuid", entry);
 
         mgr.triggerAllMarkers(100, 100, "all");
@@ -504,7 +505,7 @@ public class MarkerLayerManagerTest {
                 (java.util.Map<String, Object>) allMarkersField.get(mgr);
         MarkerLayerManager.MarkerEntry entry = new MarkerLayerManager.MarkerEntry(
                 "near-uuid", MarkerLayerManager.ROOT_GROUP_UUID,
-                        "__vtm_shared_markers__0", mi, 0, 1L);
+                        MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi, 0, 1L);
         allMarkers.put("near-uuid", entry);
 
         mgr.triggerAllMarkers(100, 100, "all");
@@ -537,10 +538,10 @@ public class MarkerLayerManagerTest {
                         allMarkersField.get(mgr);
         allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
                 "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi1, 0, 1L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi1, 0, 1L));
         allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
                 "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi2, 1, 2L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi2, 1, 2L));
         mgr.getEntries().put("uuid-1", allMarkers.get("uuid-1"));
         mgr.getEntries().put("uuid-2", allMarkers.get("uuid-2"));
 
@@ -587,10 +588,10 @@ public class MarkerLayerManagerTest {
                         allMarkersField.get(mgr);
         allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
                 "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi1, 0, 1L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi1, 0, 1L));
         allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
                 "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi2, 1000, 2L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi2, 1000, 2L));
 
         ReadableMap assignment = mock(ReadableMap.class);
         when(assignment.getString("uuid")).thenReturn("uuid-1");
@@ -599,7 +600,7 @@ public class MarkerLayerManagerTest {
         when(assignments.size()).thenReturn(1);
         when(assignments.getMap(0)).thenReturn(assignment);
 
-        mgr.applyEntryPriorities("__vtm_shared_markers__0", assignments);
+        mgr.applyEntryPriorities(MarkerLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
 
         // Same order createMarkers would produce for priorities (2000, 1000):
         // descending insertion puts the lower-priority item at index 0.
@@ -617,8 +618,9 @@ public class MarkerLayerManagerTest {
         MarkerLayerManager mgr = createManagerWithFakeLayer();
         ReadableArray assignments = mock(ReadableArray.class);
         when(assignments.size()).thenReturn(0);
-        // Should not throw (ZOMBIE path logs a warning).
-        mgr.applyEntryPriorities("unknown-fragment", assignments);
+        // Should not throw (ZOMBIE path logs a warning), and must return
+        // false so the JS presenter rejects and re-sends later.
+        assertFalse(mgr.applyEntryPriorities("unknown-fragment", assignments));
     }
 
     /**
@@ -647,15 +649,15 @@ public class MarkerLayerManagerTest {
         // Equal priorities; uuid-1 created first.
         allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
                 "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi1, 500, 1L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi1, 500, 1L));
         allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
                 "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
-                "__vtm_shared_markers__0", mi2, 500, 2L));
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi2, 500, 2L));
 
         ReadableArray assignments = mock(ReadableArray.class);
         when(assignments.size()).thenReturn(0);
 
-        mgr.applyEntryPriorities("__vtm_shared_markers__0", assignments);
+        mgr.applyEntryPriorities(MarkerLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
 
         assertEquals(2, itemList.size());
         assertEquals("Earlier-created marker must come first (creation-seq tie-break)",

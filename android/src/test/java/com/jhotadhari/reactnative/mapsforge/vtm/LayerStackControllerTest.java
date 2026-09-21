@@ -86,12 +86,6 @@ public class LayerStackControllerTest {
 		controller.register(layer, uuid);
 	}
 
-	private void addAtStart(String uuid) {
-		Layer layer = mock(Layer.class);
-		backingList.add(0, layer);
-		controller.register(layer, uuid);
-	}
-
 	private void addToMapOnly(Layer layer) {
 		backingList.add(layer);
 	}

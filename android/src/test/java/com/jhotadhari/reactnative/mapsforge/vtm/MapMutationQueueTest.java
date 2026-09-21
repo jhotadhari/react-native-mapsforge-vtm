@@ -244,6 +244,35 @@ public class MapMutationQueueTest {
         assertNull(MapMutationQueue.getInstance(handle));
     }
 
+    @Test
+    public void destroyRejectsPendingRemoveAndReorderFutures() {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+        CompletableFuture<Void> removeFuture = q.enqueueRemoveLayer("l1");
+        CompletableFuture<Void> reorderFuture = q.enqueueReorderLayers(
+                java.util.Collections.singletonList("l1"));
+
+        MapMutationQueue.remove(handle);
+
+        assertTrue("Remove future must be completed after destroy", removeFuture.isDone());
+        assertTrue("Reorder future must be completed after destroy", reorderFuture.isDone());
+        try {
+            removeFuture.get();
+            fail("Remove future must be rejected");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("MapMutationQueue destroyed"));
+        } catch (InterruptedException e) {
+            fail("Unexpected InterruptedException");
+        }
+        try {
+            reorderFuture.get();
+            fail("Reorder future must be rejected");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("MapMutationQueue destroyed"));
+        } catch (InterruptedException e) {
+            fail("Unexpected InterruptedException");
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Batch size capping (MAX_BATCH_SIZE = 25)
     // -----------------------------------------------------------------------

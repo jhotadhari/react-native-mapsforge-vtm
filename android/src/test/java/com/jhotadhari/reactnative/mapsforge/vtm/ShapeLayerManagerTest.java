@@ -141,7 +141,7 @@ public class ShapeLayerManagerTest {
         @SuppressWarnings("unchecked")
         java.util.Map<String, Layer> fragments =
                 (java.util.Map<String, Layer>) f.get(mgr);
-        fragments.put("__vtm_shared_shape__0", mockVectorLayer);
+        fragments.put(ShapeLayerManager.DEFAULT_FRAGMENT_UUID, mockVectorLayer);
         return mgr;
     }
 
@@ -266,7 +266,7 @@ public class ShapeLayerManagerTest {
         when(assignments.size()).thenReturn(1);
         when(assignments.getMap(0)).thenReturn(assignment);
 
-        mgr.applyEntryPriorities("__vtm_shared_shape__0", assignments);
+        mgr.applyEntryPriorities(ShapeLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
 
         ShapeLayerManager.ShapeEntry entry = mgr.getEntries().get(uuid);
         assertEquals(123, entry.positionIndex);

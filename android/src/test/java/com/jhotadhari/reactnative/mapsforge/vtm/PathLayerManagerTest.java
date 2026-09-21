@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -49,6 +50,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -165,7 +167,7 @@ public class PathLayerManagerTest {
      * {@code future.get()} deadlock.
      */
     private PathLayerManager createManagerWithFakeLayer() throws Exception {
-        return createManagerWithFakeLayer("__vtm_shared_path__0");
+        return createManagerWithFakeLayer(PathLayerManager.DEFAULT_FRAGMENT_UUID);
     }
 
     /**
@@ -278,7 +280,7 @@ public class PathLayerManagerTest {
 
         String entryUuid = "path-entry-1";
         LayerManager.CreateResult<PathLayerManager.PathEntry> result =
-                mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
+                mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         assertNotNull("CreateResult must not be null", result);
         assertNotNull("PathEntry must not be null", result.entry);
@@ -308,7 +310,7 @@ public class PathLayerManagerTest {
         // No "coordinates" key -> the method should throw.
         when(params.hasKey("coordinates")).thenReturn(false);
 
-        mgr.create("bad-entry", "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create("bad-entry", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -327,7 +329,7 @@ public class PathLayerManagerTest {
         when(empty.size()).thenReturn(0);
         when(params.getArray("coordinates")).thenReturn(empty);
 
-        mgr.create("empty-entry", "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create("empty-entry", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
     }
 
     @Test
@@ -367,7 +369,7 @@ public class PathLayerManagerTest {
         when(params.getMap("paint")).thenReturn(styleMap);
 
         String entryUuid = "path-styled";
-        mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         PathLayerManager.PathEntry entry = mgr.getEntries().get(entryUuid);
         assertNotNull("Entry must exist after create", entry);
@@ -393,7 +395,7 @@ public class PathLayerManagerTest {
         configureDefaultParamBehavior(params);
 
         String entryUuid = "path-to-remove";
-        mgr.create(entryUuid, "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         // Sanity: entry and drawables exist.
         assertEquals(1, mgr.getEntries().size());
@@ -430,12 +432,12 @@ public class PathLayerManagerTest {
         double[][] coordsA = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coordsA);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
 
         double[][] coordsB = {{13.6, 52.7}, {13.7, 52.8}, {13.8, 52.9}};
         ReadableMap paramsB = mockCoordParams(coordsB);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
 
         assertEquals("Two path entries must be registered",
                 2, mgr.getEntries().size());
@@ -463,9 +465,9 @@ public class PathLayerManagerTest {
         ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
-        mgr.create("path-1", "__vtm_shared_path__0", params, mf, cr, rctx);
-        mgr.create("path-2", "__vtm_shared_path__0", params, mf, cr, rctx);
-        mgr.create("path-3", "__vtm_shared_path__0", params, mf, cr, rctx);
+        mgr.create("path-1", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
+        mgr.create("path-2", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
+        mgr.create("path-3", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         assertEquals(3, mgr.getEntries().size());
 
@@ -495,7 +497,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", "__vtm_shared_path__0", 0,
+                "test-uuid", PathLayerManager.DEFAULT_FRAGMENT_UUID, 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
@@ -519,7 +521,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", "__vtm_shared_path__0", 0,
+                "test-uuid", PathLayerManager.DEFAULT_FRAGMENT_UUID, 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
@@ -552,11 +554,11 @@ public class PathLayerManagerTest {
         double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
 
         ReadableMap paramsB = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
 
         ReadableMap assignmentA = mock(ReadableMap.class);
         when(assignmentA.getString("uuid")).thenReturn("path-a");
@@ -569,7 +571,7 @@ public class PathLayerManagerTest {
         when(assignments.getMap(0)).thenReturn(assignmentA);
         when(assignments.getMap(1)).thenReturn(assignmentB);
 
-        mgr.applyEntryPriorities("__vtm_shared_path__0", assignments);
+        mgr.applyEntryPriorities(PathLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
 
         PathLayerManager.PathEntry entryA = mgr.getEntries().get("path-a");
         PathLayerManager.PathEntry entryB = mgr.getEntries().get("path-b");
@@ -586,8 +588,9 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
         ReadableArray assignments = mock(ReadableArray.class);
         when(assignments.size()).thenReturn(0);
-        // Should not throw (ZOMBIE path logs a warning).
-        mgr.applyEntryPriorities("unknown-fragment", assignments);
+        // Should not throw (ZOMBIE path logs a warning), and must return
+        // false so the JS presenter rejects and re-sends later.
+        assertFalse(mgr.applyEntryPriorities("unknown-fragment", assignments));
     }
 
     // ------------------------------------------------------------------
@@ -710,10 +713,10 @@ public class PathLayerManagerTest {
         double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
         ReadableMap paramsB = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
         // Individual creates each synced once — reset before the batch.
         clearInvocations(mockVectorLayer);
 
@@ -764,10 +767,16 @@ public class PathLayerManagerTest {
                     .thenReturn(mockQueue);
 
             // Must not throw — the batch resolves with per-item errors.
-            mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+            WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
 
             assertEquals("No entries may be created when the fragment failed",
                     0, mgr.getEntries().size());
+
+            // The per-item error is reported in the response (M11 — assert the
+            // failure-path contract, not just that no entries were created).
+            // `response` is the Arguments.createMap() mock, and createPaths
+            // builds result items on the same mock instance.
+            verify(response).putString(eq("error"), anyString());
         }
     }
 
@@ -811,10 +820,10 @@ public class PathLayerManagerTest {
         double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", "__vtm_shared_path__0", paramsA, mf, cr, rctx);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
         ReadableMap paramsB = mockCoordParams(coords);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", "__vtm_shared_path__0", paramsB, mf, cr, rctx);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
         assertEquals(2, mgr.getEntries().size());
 
         ReadableArray uuids = mock(ReadableArray.class);
