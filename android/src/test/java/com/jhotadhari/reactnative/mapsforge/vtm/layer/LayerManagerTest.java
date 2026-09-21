@@ -230,6 +230,7 @@ public class LayerManagerTest {
     public void appendPriority_isMaxValue() {
         // New entries always append (Integer.MAX_VALUE); within-fragment order
         // is established by applyEntryPriorities, not a create-time positionIndex.
+        // Behavioral coverage lives in PathLayerManagerTest#createEntry_appendsRegardlessOfPositionIndex.
         assertEquals(Integer.MAX_VALUE, LayerManager.APPEND_PRIORITY);
     }
 

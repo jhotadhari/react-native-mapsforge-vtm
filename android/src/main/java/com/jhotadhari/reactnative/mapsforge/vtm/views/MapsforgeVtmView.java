@@ -241,8 +241,10 @@ public class MapsforgeVtmView extends LinearLayout {
 		if ( everAttached ) {
 			// Re-attach after a detach: anchors may have been moved while
 			// detached (the wrapper fires no hierarchy events for a detached
-			// tree) — re-walk so the scene heals. Skipped on first attach
-			// (no anchors/JS subscriber yet; the scene walks on its own mount).
+			// tree) — re-walk so the scene heals. Skipped on first attach:
+			// the initial order is established by the JS side (MapContainer's
+			// handleAnchorsChanged → scheduleWalk, plus the mount-time reorder),
+			// so there is no JS subscriber to consume a first-attach emit.
 			emitAnchorsChanged();
 		}
 		everAttached = true;

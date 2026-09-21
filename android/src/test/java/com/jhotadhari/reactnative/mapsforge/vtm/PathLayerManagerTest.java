@@ -54,6 +54,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import org.mockito.MockedStatic;
 
@@ -74,6 +75,7 @@ import org.mockito.MockedStatic;
 public class PathLayerManagerTest {
 
     private static MockedStatic<Arguments> argumentsMock;
+    private static WritableMap mockWritableMap;
 
     @BeforeClass
     public static void setUpClass() {
@@ -81,9 +83,9 @@ public class PathLayerManagerTest {
         // responses without native library loading in Robolectric.
         argumentsMock = mockStatic(Arguments.class);
         WritableArray mockArray = mock(WritableArray.class);
-        WritableMap mockMap = mock(WritableMap.class);
+        mockWritableMap = mock(WritableMap.class);
         when(Arguments.createArray()).thenReturn(mockArray);
-        when(Arguments.createMap()).thenReturn(mockMap);
+        when(Arguments.createMap()).thenReturn(mockWritableMap);
     }
 
     @AfterClass
@@ -296,6 +298,30 @@ public class PathLayerManagerTest {
         // Entry must be registered in the manager.
         assertNotNull("entries must contain the new entry",
                 mgr.getEntries().get(entryUuid));
+    }
+
+    @Test
+    public void createEntry_appendsRegardlessOfPositionIndex() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap params = mockCoordParams(coords);
+        configureDefaultParamBehavior(params);
+        // A legacy JS caller still sending positionIndex — it must be ignored:
+        // new entries always append (APPEND_PRIORITY); applyEntryPriorities
+        // owns within-fragment order.
+        when(params.hasKey("positionIndex")).thenReturn(true);
+        when(params.getInt("positionIndex")).thenReturn(5);
+
+        LayerManager.CreateResult<PathLayerManager.PathEntry> result =
+                mgr.create("path-appends", PathLayerManager.DEFAULT_FRAGMENT_UUID,
+                        params, mf, cr, rctx);
+
+        assertEquals("create-time positionIndex must be ignored",
+                Integer.MAX_VALUE, result.entry.positionIndex);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -766,17 +792,25 @@ public class PathLayerManagerTest {
             queueMock.when(() -> MapMutationQueue.get(anyInt(), any()))
                     .thenReturn(mockQueue);
 
-            // Must not throw — the batch resolves with per-item errors.
-            WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+            // Distinct mocks for the per-item result vs the top-level response,
+            // so the assertion can verify the error lands on the item, not the
+            // response (the shared setUpClass stub can't distinguish them).
+            WritableMap resultItemMap = mock(WritableMap.class);
+            WritableMap responseMap = mock(WritableMap.class);
+            when(Arguments.createMap()).thenReturn(resultItemMap, responseMap);
+            try {
+                // Must not throw — the batch resolves with per-item errors.
+                WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
 
-            assertEquals("No entries may be created when the fragment failed",
-                    0, mgr.getEntries().size());
+                assertEquals("No entries may be created when the fragment failed",
+                        0, mgr.getEntries().size());
 
-            // The per-item error is reported in the response (M11 — assert the
-            // failure-path contract, not just that no entries were created).
-            // `response` is the Arguments.createMap() mock, and createPaths
-            // builds result items on the same mock instance.
-            verify(response).putString(eq("error"), anyString());
+                // The per-item error goes on the result item, never the response.
+                verify(resultItemMap).putString(eq("error"), anyString());
+                verify(responseMap, never()).putString(eq("error"), anyString());
+            } finally {
+                when(Arguments.createMap()).thenReturn(mockWritableMap);
+            }
         }
     }
 

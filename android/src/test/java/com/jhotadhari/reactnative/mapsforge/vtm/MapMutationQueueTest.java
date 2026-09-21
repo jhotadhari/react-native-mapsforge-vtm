@@ -271,6 +271,8 @@ public class MapMutationQueueTest {
         } catch (InterruptedException e) {
             fail("Unexpected InterruptedException");
         }
+        // getInstance must return null — queue was fully torn down.
+        assertNull(MapMutationQueue.getInstance(handle));
     }
 
     // -----------------------------------------------------------------------
@@ -397,6 +399,39 @@ public class MapMutationQueueTest {
 
         assertEquals("reorder must win over the earlier add plan", a, backingList.get(0));
         assertEquals(b, backingList.get(1));
+        assertEquals(c, backingList.get(2));
+    }
+
+    @Test
+    public void reorderWinsEvenWhenAddIsLater() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        Layer c = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // Reorder FIRST, then an add carrying a conflicting plan — the reorder
+        // is earlier in the batch but must still win (a reorderLayers call
+        // reflects the freshest scene state; an add's desiredOrder is a
+        // create-time snapshot).
+        List<String> reorderPlan = new ArrayList<>();
+        reorderPlan.add("b");
+        reorderPlan.add("a");
+        q.enqueueReorderLayers(reorderPlan);
+
+        List<String> addPlan = new ArrayList<>();
+        addPlan.add("c");
+        addPlan.add("a");
+        addPlan.add("b");
+        q.enqueueAddLayer(c, "c", addPlan);
+        flushLooper();
+
+        // Reorder [b, a] applied; c (absent from the reorder plan) appended.
+        assertEquals("reorder must win over the later add plan", b, backingList.get(0));
+        assertEquals(a, backingList.get(1));
         assertEquals(c, backingList.get(2));
     }
 

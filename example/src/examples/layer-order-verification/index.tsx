@@ -198,6 +198,9 @@ const runPalette = [
 	'#cc44ff',
 	'#ffcc00',
 ];
+// Cap the visual size/width so repeated add/remove cycles (which keep the id
+// monotonic) don't grow the rectangle/stroke unboundedly.
+const MAX_RUN_PATH_INDEX = runPalette.length - 1;
 
 interface RunPath {
 	id: number;
@@ -208,14 +211,17 @@ interface RunPath {
 	paint: PathPaint;
 }
 
-const buildRunPath = (id: number, index: number, color: string): RunPath => ({
-	id,
-	coords: buildRunPathCoords(index),
-	paint: {
-		strokeColor: color,
-		strokeWidth: 6 + index * 2,
-	} as PathPaint,
-});
+const buildRunPath = (id: number, index: number, color: string): RunPath => {
+	const visualIndex = Math.min(index, MAX_RUN_PATH_INDEX);
+	return {
+		id,
+		coords: buildRunPathCoords(visualIndex),
+		paint: {
+			strokeColor: color,
+			strokeWidth: 6 + visualIndex * 2,
+		} as PathPaint,
+	};
+};
 
 const buildRunPathCoords = (index: number): Position[] => {
 	const extent = 0.045 + index * 0.014;

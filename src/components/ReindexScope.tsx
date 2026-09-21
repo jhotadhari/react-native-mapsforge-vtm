@@ -24,6 +24,10 @@ export type ReindexScopeProps = {
 };
 
 const ReindexScope = ({ children, order }: ReindexScopeProps) => {
+	// `order` flows into the plan via the scope's own anchor descriptor
+	// (useLayerAnchor → AnchorDescriptor.scopeOrder → planBuilder), NOT through
+	// context — the context only carries `scopeUid` so descendant anchors can
+	// group themselves under this scope.
 	const { uid, element } = useLayerAnchor({
 		kind: 'scope',
 		scopeOrder: order,
