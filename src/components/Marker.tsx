@@ -31,7 +31,7 @@ import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
 import SharedLayerContext from '../context/SharedLayerContext';
-import { fragmentUuidFor, runUuidFor } from '../scene/ids';
+import { fragmentUuidFor } from '../scene/ids';
 
 const Marker = ({
 	title,
@@ -89,15 +89,13 @@ const Marker = ({
 		// it the entry would land under a self-keyed (unmanaged) fragment.
 		enabled:
 			!!nativeNodeHandle &&
-			markerLayerUuid !== false &&
 			!!position &&
 			(isGrouped || runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
-			if (!nativeNodeHandle || markerLayerUuid === false || !position) {
+			if (!nativeNodeHandle || !position) {
 				return Promise.reject<string>({
 					userInfo: {
-						errorMsg:
-							'Missing nativeNodeHandle, markerLayerUuid or position',
+						errorMsg: 'Missing nativeNodeHandle or position',
 					},
 				} as ErrorBase);
 			}
@@ -109,7 +107,9 @@ const Marker = ({
 			const fragmentUuid =
 				fragmentId !== null
 					? fragmentUuidFor(fragmentId, 'marker')
-					: (runFragmentUuid ?? runUuidFor(anchorUid));
+					: // `enabled` guarantees runFragmentUuid is non-null here —
+						// the self-keying runUuidFor fallback is unreachable.
+						runFragmentUuid!;
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.
@@ -135,7 +135,7 @@ const Marker = ({
 			});
 		},
 		remove: (currentUuid, { triggerOnRemove }) => {
-			if (!nativeNodeHandle || markerLayerUuid === false) {
+			if (!nativeNodeHandle) {
 				return Promise.resolve(false);
 			}
 			return enqueueRemoveMarker(nativeNodeHandle, currentUuid)
@@ -205,7 +205,7 @@ const Marker = ({
 			// Props changed between the create enqueue and uuid
 			// resolution. Fall through to apply the update.
 		}
-		if (uuid && markerLayerUuid !== false && nativeNodeHandle) {
+		if (uuid && nativeNodeHandle) {
 			LayerMarkerModule.updateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,

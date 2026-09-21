@@ -14,9 +14,12 @@ import {
 export type PlanDiff = {
 	/** The complete desired bottom→top native uuid list (resolved only). */
 	orderedUuids: string[];
+	/**
+	 * True when the desired order differs from the last applied one. Any
+	 * add/remove is already reflected here (length or positional change), so
+	 * there is no separate added/removed split.
+	 */
 	layerOrderChanged: boolean;
-	removedUuids: string[];
-	addedUuids: string[];
 	/** fragment native uuid → pure computation (commit after native success). */
 	entryPriorityComputations: Map<string, PriorityComputation>;
 };
@@ -29,11 +32,6 @@ export const diffPlans = (
 	const prevUuids = prev.layers.map((layer) => layer.uuid);
 	const nextUuids = next.layers.map((layer) => layer.uuid);
 
-	const prevSet = new Set(prevUuids);
-	const nextSet = new Set(nextUuids);
-
-	const removedUuids = prevUuids.filter((uuid) => !nextSet.has(uuid));
-	const addedUuids = nextUuids.filter((uuid) => !prevSet.has(uuid));
 	const layerOrderChanged =
 		prevUuids.length !== nextUuids.length ||
 		prevUuids.some((uuid, i) => uuid !== nextUuids[i]);
@@ -64,8 +62,6 @@ export const diffPlans = (
 	return {
 		orderedUuids: nextUuids,
 		layerOrderChanged,
-		removedUuids,
-		addedUuids,
 		entryPriorityComputations,
 	};
 };

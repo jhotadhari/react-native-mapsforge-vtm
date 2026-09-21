@@ -8,7 +8,7 @@
 import { createContext } from 'react';
 
 export type MarkerLayerContextValue = {
-	markerLayerUuid: null | false | string;
+	markerLayerUuid: null | string;
 	fragmentId: null | string;
 };
 

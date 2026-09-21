@@ -73,10 +73,10 @@ export const buildPlan = (
 		return undefined;
 	};
 
-	// blockStart: explicit scope order (inherited through nesting) overrides
+	// sortKey: explicit scope order (inherited through nesting) overrides
 	// tree position; default is pure tree position (S1/S2 — unordered scopes
 	// sit exactly where their members are in the committed walk).
-	const blockStartOf = (item: Item): number => {
+	const sortKeyOf = (item: Item): number => {
 		const scopeUid = scopeUidOf(item);
 		if (scopeUid !== undefined) {
 			const order = orderInChainOf(scopeUid);
@@ -88,7 +88,7 @@ export const buildPlan = (
 	};
 
 	const sorted = [...items].sort((a, b) => {
-		return blockStartOf(a) - blockStartOf(b) || a.walkIndex - b.walkIndex;
+		return sortKeyOf(a) - sortKeyOf(b) || a.walkIndex - b.walkIndex;
 	});
 
 	const layers: PlannedLayer[] = [];

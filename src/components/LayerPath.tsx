@@ -25,7 +25,7 @@ import {
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
-import { fragmentUuidFor, runUuidFor } from '../scene/ids';
+import { fragmentUuidFor } from '../scene/ids';
 
 const moduleDefaults = LayerPathModule.getConstants();
 
@@ -109,7 +109,9 @@ const LayerPath = ({
 			const fragmentUuid =
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'path')
-					: (runFragmentUuid ?? runUuidFor(anchorUid));
+					: // `enabled` guarantees runFragmentUuid is non-null here —
+						// the self-keying runUuidFor fallback is unreachable.
+						runFragmentUuid!;
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.

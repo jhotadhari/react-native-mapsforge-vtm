@@ -41,14 +41,14 @@ const createDebouncer = (run: () => void): Debouncer => {
 	// debounce or the max-wait timer — the max-wait fires only when the
 	// burst is still pending, never a second time after the debounce
 	// already flushed.
-	let maxWaitPending = false;
+	let runPending = false;
 
 	const fire = () => {
 		if (debounceTimer !== null) {
 			clearTimeout(debounceTimer);
 			debounceTimer = null;
 		}
-		maxWaitPending = false;
+		runPending = false;
 		run();
 	};
 
@@ -59,7 +59,7 @@ const createDebouncer = (run: () => void): Debouncer => {
 			}
 			debounceTimer = setTimeout(() => {
 				debounceTimer = null;
-				maxWaitPending = false;
+				runPending = false;
 				run();
 			}, DEBOUNCE_MS);
 			// Armed once per burst — a sustained mutation stream can never
@@ -67,12 +67,12 @@ const createDebouncer = (run: () => void): Debouncer => {
 			if (maxWaitTimer === null) {
 				maxWaitTimer = setTimeout(() => {
 					maxWaitTimer = null;
-					if (maxWaitPending) {
+					if (runPending) {
 						fire();
 					}
 				}, MAX_WAIT_MS);
 			}
-			maxWaitPending = true;
+			runPending = true;
 		},
 		cancel: () => {
 			if (debounceTimer !== null) {
@@ -83,7 +83,7 @@ const createDebouncer = (run: () => void): Debouncer => {
 				clearTimeout(maxWaitTimer);
 				maxWaitTimer = null;
 			}
-			maxWaitPending = false;
+			runPending = false;
 		},
 	};
 };
@@ -271,10 +271,7 @@ export class SceneSync {
 
 		const plan = this.scene.plan();
 		const diff = diffPlans(this.lastPlan, plan, this.allocator);
-		const hasLayerWork =
-			diff.layerOrderChanged ||
-			diff.addedUuids.length > 0 ||
-			diff.removedUuids.length > 0;
+		const hasLayerWork = diff.layerOrderChanged;
 
 		if (!hasLayerWork && diff.entryPriorityComputations.size === 0) {
 			this.lastPlan = plan;

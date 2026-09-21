@@ -39,8 +39,6 @@ describe('diffPlans', () => {
 		const diff = diffPlans(plan, plan, allocator);
 		expect(diff.orderedUuids).toEqual(['uuid-a']);
 		expect(diff.layerOrderChanged).toBe(false);
-		expect(diff.removedUuids).toEqual([]);
-		expect(diff.addedUuids).toEqual([]);
 		expect(diff.entryPriorityComputations.size).toBe(0);
 	});
 
@@ -65,10 +63,9 @@ describe('diffPlans', () => {
 		const diff = diffPlans(prev, next, allocator);
 		expect(diff.orderedUuids).toEqual(['uuid-b', 'uuid-a']);
 		expect(diff.layerOrderChanged).toBe(true);
-		expect(diff.removedUuids).toEqual([]);
 	});
 
-	test('added and removed uuids are reported', () => {
+	test('add and remove are reflected by layerOrderChanged', () => {
 		const allocator = new PriorityAllocator();
 		const prev = makePlan([dedicated('a')], [], new Map([['a', 'uuid-a']]));
 		const next = makePlan(
@@ -80,12 +77,12 @@ describe('diffPlans', () => {
 			])
 		);
 		const diff = diffPlans(prev, next, allocator);
-		expect(diff.addedUuids).toEqual(['uuid-b']);
-		expect(diff.removedUuids).toEqual([]);
+		expect(diff.orderedUuids).toEqual(['uuid-a', 'uuid-b']);
+		expect(diff.layerOrderChanged).toBe(true);
 
 		const back = diffPlans(next, prev, allocator);
-		expect(back.removedUuids).toEqual(['uuid-b']);
-		expect(back.addedUuids).toEqual([]);
+		expect(back.orderedUuids).toEqual(['uuid-a']);
+		expect(back.layerOrderChanged).toBe(true);
 	});
 
 	test('entry priority changes only cover changed entries', () => {

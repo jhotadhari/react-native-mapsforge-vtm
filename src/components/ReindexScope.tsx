@@ -32,9 +32,8 @@ const ReindexScope = ({ children, order }: ReindexScopeProps) => {
 	const contextValue = useMemo(
 		() => ({
 			scopeUid: uid,
-			...(order !== undefined && { scopeOrder: order }),
 		}),
-		[uid, order]
+		[uid]
 	);
 
 	return (
