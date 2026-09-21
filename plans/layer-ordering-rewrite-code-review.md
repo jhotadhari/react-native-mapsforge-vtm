@@ -226,3 +226,65 @@ Pre-existing items addressed opportunistically. Docs (S19) → Phase 7 CRITICAL 
 
 - CRITICAL #4 (extension API removal) → Phase 7 (docs) + Phase 8 (lockstep consumers)
 - S19 (stale `positionIndex`/`useLayerOrder` in docs) → Phase 7
+
+---
+
+# Code Review #3: Phase 6 (post-fix re-review)
+
+Range reviewed: `f4f035a..HEAD` (`7c4e691`). 40 non-plan files, 9 parallel read-only
+subagents (controller, managers/helpers, native layer/module/view, tests, examples,
+JS spec/context, components, compose, scene). Review marks updated to `7c4e691`.
+
+- **0 critical, 18 minor, ~13 suggestion findings** (plus pre-existing notes).
+- No fixes applied (no `--fix`). Findings feed fix batch 3 (before Phase 7).
+
+## Minor
+
+| # | File | Lines | Summary |
+|---|---|---|---|
+| M1 | `LayerStackController.java` | 176 | empty-plan branch hardcodes `notInPlanCount = 0` (wrong for stale/partial plan) — delegate to `verify(orderedUuids)` |
+| M2 | `LayerStackController.java` | 175 | redundant `lastLoggedMismatch = null` (verify() owns the reset) |
+| M3 | `MarkerLayerManager.java` | 608/271 | `getItemList().indexOf(...)` reads live list outside `synchronized(layer)` |
+| M4 | `MarkerLayerManager.java` | 731 | `entry.positionIndex` write outside `synchronized(layer)` (reads at 547/770 inside) |
+| M5 | `LayerHelper.java` | 130 | `removeLayerResolving` re-reads uuid inside `thenRun` (cross-thread) |
+| M6 | `Utils.java` | 234 | `rMapGetStringList` silently returns null for non-array (masks JS bug) |
+| M7 | `MapsforgeVtmView.java` | 93 | static `compositeListeners` holds strong ViewGroup/view refs → leak risk |
+| M8 | `MapsforgeVtmView.java` | 189 | restore `composite.foreign` can clobber a newer external listener |
+| M9 | `LayerManager.java` | 384 | `errorMessage` returns `""` for anonymous/local classes |
+| M10 | `LayerManager.java` | 465 | rollback `enqueueRemoveLayer` future ignored (silent leak on torn-down queue) |
+| M11 | `PathLayerManagerTest.java` | 779 | `verify(response).putString("error",…)` asserts the wrong map (false positive) |
+| M12 | `LayerManagerTest.java` | 230 | `appendPriority_isMaxValue` is tautological (no behavioral coverage) |
+| M13 | `LayerPath/LayerShape/Marker.tsx` | ~114 | `runFragmentUuid!` non-null assertion relies on non-local `enabled` invariant |
+| M14 | `useLayerEntry.ts` | 52 | `useLayoutEffect` declare only fixes LayerMarker, not SharedLayer (owner anchor + walk not ready) |
+| M15 | `SceneSync.ts` | 170 | `destroy()` `lastPlan = scene.plan()` isn't a clean baseline (scene never cleared) |
+| M16 | `SceneSync.ts` | 304 | reorder `.then`/`.catch` don't guard `destroyed` → stale resolution clobbers destroy resets |
+
+## Suggestions
+
+| # | File | Lines | Summary |
+|---|---|---|---|
+| S1 | `MapMutationQueue.java` | 310 | reorderPlan-wins-over-addPlan preference has no test coverage |
+| S2 | `MarkerLayerManager.java` | 500 | `sortedLocalIndices` descending sort now vestigial (all APPEND_PRIORITY) |
+| S3 | `MarkerLayerManager.java` | 536/1086 | duplicated scan+insert (createMarkers vs insertMarkerSorted) |
+| S4 | `MarkerLayerManager.java` | 281/668 | removal paths don't take `synchronized(layer)` (inconsistent) |
+| S5 | `MarkerLayerManager.java` | 747 | `applyEntryPriorities` holds layer lock across full rebuild+populate (hitch) |
+| S6 | `LayerManager.java` | 452 | throw message uses raw `e.getMessage()` — use `errorMessage()` |
+| S7 | `MapsforgeVtmView.java` | 143 | `computeIfAbsent` side effect + non-atomic restore; CHM implies false thread-safety |
+| S8 | `MapsforgeVtmView.java` | 227 | first-attach emit skip — add comment documenting the JS-mount guarantee |
+| S9 | `MapMutationQueueTest.java` | 248 | new destroy test omits `getInstance == null` assertion |
+| S10 | `layer-order-verification/index.tsx` | 499 | monotonic `id` index grows unbounded (extent/strokeWidth) |
+| S11 | `useNativeLayerLifecycle.ts` | 66 | `triggerCreate` guards captured `enabled` but calls latest `createRef.current` |
+| S12 | `ReindexScope.tsx` | 32 | add comment: `order` flows via scope anchor descriptor, not context |
+
+## Pre-existing (noted, not introduced by this range)
+
+- `useLayerEntry`/`useSceneUuidBinding` resolved uuid never detached on unmount (unbounded `scene.uuids` growth) — same root as M15.
+- `LayerScene` has no `clear()` — stale walk/entries/uuids leak across destroy/re-arm.
+
+## Interleaving (fix batch 3, before Phase 7)
+
+Correctness first: M15, M16 (destroy/teardown), M1+M2 (controller dedup), M3+M4
+(marker synchronization), M5+M6 (helpers), M8+M7 (listener restore/leak), M13 (restore
+runFragmentUuid fallback or reject), M14 (SharedLayer order-hint gate).
+Then tests: M11, M12, S9, S1. Then polish: M9, M10, S2–S8, S10–S12.
+Phase 7 docs unchanged; CRITICAL #4 + S19 still owned by Phase 7.
