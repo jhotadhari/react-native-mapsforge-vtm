@@ -1,6 +1,6 @@
 # Plan: Phase 7 — Documentation rewrite
 
-Status: **pending.**
+Status: **implemented** (commits `860721b`..`91dee29`).
 
 The layer-ordering rewrite (phases 1–6, branch `feature/layer-ordering-rewrite`) replaced the
 cursor-chain / `LayerOrderRegistry` / `useLayerOrder` / `positionIndex` architecture with a
