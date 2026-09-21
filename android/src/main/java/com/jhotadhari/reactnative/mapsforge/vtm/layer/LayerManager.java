@@ -375,6 +375,29 @@ public abstract class LayerManager<TEntry> {
 	// ── Internal ────────────────────────────────────────────────────────
 
 	/**
+	 * Best-effort error message for a caught throwable — never null, so a
+	 * failed batch item is always reported with some text (no phantom success).
+	 */
+	@NonNull
+	protected static String errorMessage( @NonNull Throwable t ) {
+		String msg = t.getMessage();
+		return msg != null ? msg : t.getClass().getSimpleName();
+	}
+
+	/**
+	 * Applies a gesture-support flag to every shared {@code VectorLayer}
+	 * fragment. Extracted from the Path/Shape managers' {@code syncGestureSupport}
+	 * so the flag stays consistent across the entry lifecycle in one place.
+	 */
+	protected void applyGestureSupport( boolean supportsGestures ) {
+		for ( Layer layer : sharedLayerFragments.values() ) {
+			if ( layer instanceof VectorLayer ) {
+				( (VectorLayer) layer ).setSupportsGestures( supportsGestures );
+			}
+		}
+	}
+
+	/**
 	 * Ensures a shared vtm Layer exists for the given {@code fragmentUuid}
 	 * and is registered in the map's layer list via {@link MapMutationQueue}.
 	 * Idempotent per fragment.
@@ -448,15 +471,12 @@ public abstract class LayerManager<TEntry> {
 	}
 
 	/**
-	 * Resolves the positionIndex from TurboModule params.
-	 * Defaults to {@link Integer#MAX_VALUE} (append) when absent.
+	 * Placeholder priority for newly created entries. JS no longer sends a
+	 * create-time positionIndex — within-fragment order is established
+	 * exclusively by {@code applyEntryPriorities} (sparse drawable/marker
+	 * priorities) after the entries exist, so new entries simply append.
 	 */
-	protected int resolvePositionIndex(@NonNull ReadableMap params) {
-		if (Utils.rMapHasKey(params, "positionIndex")) {
-			return params.getInt("positionIndex");
-		}
-		return Integer.MAX_VALUE;
-	}
+	protected static final int APPEND_PRIORITY = Integer.MAX_VALUE;
 
 	/**
 	 * Tears down this manager: removes the shared layer from the map and clears

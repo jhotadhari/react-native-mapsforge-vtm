@@ -299,7 +299,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			// Resolve fragment uuid for this marker.
 			String fragmentUuid = Utils.rMapHasKey( params, "fragmentUuid" )
 				? params.getString( "fragmentUuid" )
-				: "__vtm_shared_marker__0";
+				: MarkerLayerManager.DEFAULT_FRAGMENT_UUID;
 
 			// Create the marker entry via the manager.
 			String markerUuid = java.util.UUID.randomUUID().toString();

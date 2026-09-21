@@ -174,7 +174,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			? params.getDouble("gestureScreenDistance")
 			: 20d;
 
-		int positionIndex = resolvePositionIndex(params);
+		int positionIndex = APPEND_PRIORITY;
 
 		ShapeEntry entry = new ShapeEntry(
 			entryUuid,
@@ -347,8 +347,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				try {
 					ensureSharedLayer( fragmentUuid, Utils.rMapGetStringList( allParams[i], "layerUuids" ) );
 				} catch ( Exception e ) {
-					String msg = e.getMessage();
-					fragmentErrors.put( fragmentUuid, msg != null ? msg : e.getClass().getSimpleName() );
+					fragmentErrors.put( fragmentUuid, errorMessage(e) );
 				}
 			}
 		}
@@ -369,8 +368,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				// hoisted to once per batch below (O(n) instead of O(n²)).
 				super.create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
 			} catch ( Exception e ) {
-				String msg = e.getMessage();
-				errors[i] = msg != null ? msg : e.getClass().getSimpleName();
+				errors[i] = errorMessage(e);
 			}
 		}
 
@@ -427,8 +425,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				// once per batch below.
 				super.remove( uuid );
 			} catch ( Exception e ) {
-				String msg = e.getMessage();
-				resultItem.putString( "error", msg != null ? msg : e.getClass().getSimpleName() );
+				resultItem.putString( "error", errorMessage(e) );
 			}
 			results.pushMap( resultItem );
 		}
@@ -491,11 +488,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				break;
 			}
 		}
-		for (Layer layer : sharedLayerFragments.values()) {
-			if (layer instanceof VectorLayer) {
-				((VectorLayer) layer).setSupportsGestures(hasAny);
-			}
-		}
+		applyGestureSupport(hasAny);
 	}
 
 	// ── Style parsing ────────────────────────────────────────────────────

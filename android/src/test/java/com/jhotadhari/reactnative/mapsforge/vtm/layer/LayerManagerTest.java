@@ -223,35 +223,14 @@ public class LayerManagerTest {
     }
 
     // ------------------------------------------------------------------
-    // resolvePositionIndex
+    // APPEND_PRIORITY
     // ------------------------------------------------------------------
 
     @Test
-    public void resolvePositionIndex_present() {
-        String name = "test" + handle;
-        TestLayerManager mgr = (TestLayerManager) LayerManager.get(
-                handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
-
-        ReadableMap params = mock(ReadableMap.class);
-        when(params.hasKey("positionIndex")).thenReturn(true);
-        when(params.isNull("positionIndex")).thenReturn(false);
-        when(params.getInt("positionIndex")).thenReturn(5);
-
-        assertEquals(5, mgr.resolvePositionIndex(params));
-    }
-
-    @Test
-    public void resolvePositionIndex_absent() {
-        String name = "test" + handle;
-        TestLayerManager mgr = (TestLayerManager) LayerManager.get(
-                handle, mockMapView, name,
-                (nh, mv, n) -> new TestLayerManager(nh, mv, n));
-
-        ReadableMap params = mock(ReadableMap.class);
-        when(params.hasKey("positionIndex")).thenReturn(false);
-
-        assertEquals(Integer.MAX_VALUE, mgr.resolvePositionIndex(params));
+    public void appendPriority_isMaxValue() {
+        // New entries always append (Integer.MAX_VALUE); within-fragment order
+        // is established by applyEntryPriorities, not a create-time positionIndex.
+        assertEquals(Integer.MAX_VALUE, LayerManager.APPEND_PRIORITY);
     }
 
     // ------------------------------------------------------------------
