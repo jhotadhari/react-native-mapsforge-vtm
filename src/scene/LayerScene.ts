@@ -7,28 +7,22 @@
  * historical ordering bugs (stale cursors, sentinel churn, generation
  * stamps) can occur.
  *
- * Every mutation is recorded as a command (Command pattern) for replayable
- * debugging, and produces a fresh immutable LayerPlan (Memento) on demand.
- * Listeners (Observer pattern) are notified after each mutation.
+ * Every mutation bumps a monotonic version counter (so consumers can detect
+ * "the scene changed" cheaply) and produces a fresh immutable LayerPlan
+ * (Memento) on demand. Listeners (Observer pattern) are notified after each
+ * mutation.
  */
 
 import type { AnchorDescriptor, EntryDeclaration, LayerPlan } from './types';
 import { buildPlan } from './planBuilder';
 
-export type SceneCommand =
-	| { type: 'applyWalk'; sequence: AnchorDescriptor[] }
-	| { type: 'declareEntry'; entry: EntryDeclaration }
-	| { type: 'undeclareEntry'; uid: string }
-	| { type: 'attachUuid'; key: string; uuid: string }
-	| { type: 'detachUuid'; key: string };
-
 export class LayerScene {
 	private walk: AnchorDescriptor[] = [];
 	private entries = new Map<string, EntryDeclaration>();
 	private uuids = new Map<string, string>();
-	private commands: SceneCommand[] = [];
 	private listeners = new Set<() => void>();
 	private declarationSeq = 0;
+	private mutationVersion = 0;
 	private planDirty = true;
 	private cachedPlan: LayerPlan = {
 		layers: [],
@@ -39,8 +33,8 @@ export class LayerScene {
 
 	/** Replaces the committed anchor sequence (fresh walk result). */
 	applyWalk(sequence: AnchorDescriptor[]): void {
-		this.walk = sequence;
-		this.record({ type: 'applyWalk', sequence });
+		// Defensive copy — the caller must not be able to mutate the live walk.
+		this.walk = [...sequence];
 		this.mutated();
 	}
 
@@ -51,13 +45,11 @@ export class LayerScene {
 			...entry,
 			declarationSeq: this.declarationSeq,
 		});
-		this.record({ type: 'declareEntry', entry });
 		this.mutated();
 	}
 
 	undeclareEntry(uid: string): void {
 		if (this.entries.delete(uid)) {
-			this.record({ type: 'undeclareEntry', uid });
 			this.mutated();
 		}
 	}
@@ -65,13 +57,11 @@ export class LayerScene {
 	/** Records a resolved native uuid (dedicated layer, entry, or owner layer). */
 	attachUuid(key: string, uuid: string): void {
 		this.uuids.set(key, uuid);
-		this.record({ type: 'attachUuid', key, uuid });
 		this.mutated();
 	}
 
 	detachUuid(key: string): void {
 		if (this.uuids.delete(key)) {
-			this.record({ type: 'detachUuid', key });
 			this.mutated();
 		}
 	}
@@ -105,16 +95,13 @@ export class LayerScene {
 		};
 	}
 
-	/** Replayable mutation log — the debug/diagnostic backbone. */
-	commandLog(): readonly SceneCommand[] {
-		return this.commands;
-	}
-
-	private record(command: SceneCommand): void {
-		this.commands.push(command);
+	/** Monotonic mutation counter — bumps on every commit-phase mutation. */
+	version(): number {
+		return this.mutationVersion;
 	}
 
 	private mutated(): void {
+		this.mutationVersion++;
 		this.planDirty = true;
 		this.listeners.forEach((listener) => listener());
 	}

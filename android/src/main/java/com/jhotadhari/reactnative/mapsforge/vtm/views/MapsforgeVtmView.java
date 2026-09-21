@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.annotation.SuppressLint;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -21,6 +22,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @SuppressLint( "ViewConstructor" )
 public class MapsforgeVtmView extends LinearLayout {
@@ -70,25 +72,87 @@ public class MapsforgeVtmView extends LinearLayout {
 	 * descendants — anchors are the leaf markers of every ordering-relevant
 	 * component), while this view is attached. Detached-phase moves fire no
 	 * events, so {@link #onAttachedToWindow()} re-walks on (re)attach.
+	 *
+	 * <p>Multiple {@code MapsforgeVtmView}s can share one wrapper (multi-map).
+	 * A {@code ViewGroup} has a single hierarchy-listener slot, so each view
+	 * registers its own delegate into a per-wrapper {@link CompositeHierarchyListener};
+	 * the composite chains any pre-existing (foreign) listener and all registered
+	 * delegates, and the foreign listener is restored when the last view leaves.
 	 */
-	private ViewGroup.OnHierarchyChangeListener hierarchyChangeListener;
 	/** The wrapper the listener is installed on — cached so teardown never
 	 * depends on {@code getParent()} (null mid-detach). */
 	@Nullable
 	private ViewGroup wrapperView;
-	/** Any listener the wrapper had before ours — restored on removal. */
+	/** This view's own delegate registered in the wrapper's composite listener. */
 	@Nullable
-	private ViewGroup.OnHierarchyChangeListener previousListener;
+	private ViewGroup.OnHierarchyChangeListener ownDelegate;
+	/** Tracks first attach so the initial (spurious) anchors-changed emit is skipped. */
+	private boolean everAttached = false;
+
+	/** Per-wrapper composite listener registry, keyed by the wrapper ViewGroup. */
+	private static final ConcurrentHashMap<ViewGroup, CompositeHierarchyListener> compositeListeners =
+		new ConcurrentHashMap<>();
+
+	/**
+	 * A chain of hierarchy listeners: the wrapper's original (foreign) listener
+	 * plus one delegate per {@code MapsforgeVtmView}. Invokes all of them so
+	 * (a) the foreign listener keeps receiving events and (b) sibling map views
+	 * under the same wrapper don't clobber each other.
+	 */
+	private static final class CompositeHierarchyListener
+		implements ViewGroup.OnHierarchyChangeListener {
+
+		@Nullable
+		final ViewGroup.OnHierarchyChangeListener foreign;
+		final CopyOnWriteArrayList<ViewGroup.OnHierarchyChangeListener> delegates =
+			new CopyOnWriteArrayList<>();
+
+		CompositeHierarchyListener( @Nullable ViewGroup.OnHierarchyChangeListener foreign ) {
+			this.foreign = foreign;
+		}
+
+		@Override
+		public void onChildViewAdded( View parent, View child ) {
+			if ( foreign != null ) {
+				foreign.onChildViewAdded( parent, child );
+			}
+			for ( ViewGroup.OnHierarchyChangeListener delegate : delegates ) {
+				delegate.onChildViewAdded( parent, child );
+			}
+		}
+
+		@Override
+		public void onChildViewRemoved( View parent, View child ) {
+			if ( foreign != null ) {
+				foreign.onChildViewRemoved( parent, child );
+			}
+			for ( ViewGroup.OnHierarchyChangeListener delegate : delegates ) {
+				delegate.onChildViewRemoved( parent, child );
+			}
+		}
+	}
 
 	/** Installs the move-signal listener on the wrapper, preserving any
 	 * pre-existing listener. Idempotent. */
 	private void installHierarchyListener( @NonNull ViewGroup wrapper ) {
-		if ( hierarchyChangeListener != null ) {
+		if ( wrapperView != null ) {
 			return;
 		}
 		wrapperView = wrapper;
-		previousListener = getHierarchyChangeListener( wrapper );
-		hierarchyChangeListener = new ViewGroup.OnHierarchyChangeListener() {
+
+		CompositeHierarchyListener composite = compositeListeners.computeIfAbsent(
+			wrapper,
+			w -> {
+				// Seed the composite with the wrapper's current listener (read
+				// reflectively — there is no public getter) so it keeps firing.
+				CompositeHierarchyListener created =
+					new CompositeHierarchyListener( getHierarchyChangeListener( w ) );
+				w.setOnHierarchyChangeListener( created );
+				return created;
+			}
+		);
+
+		ownDelegate = new ViewGroup.OnHierarchyChangeListener() {
 			@Override
 			public void onChildViewAdded( View parent, View child ) {
 				if ( child instanceof VtmAnchorView ) {
@@ -103,24 +167,36 @@ public class MapsforgeVtmView extends LinearLayout {
 				}
 			}
 		};
-		wrapper.setOnHierarchyChangeListener( hierarchyChangeListener );
+		composite.delegates.add( ownDelegate );
 	}
 
-	/** Removes the move-signal listener via the cached wrapper reference and
-	 * restores any pre-existing listener. Idempotent. */
+	/** Removes this view's delegate via the cached wrapper reference and, when
+	 * it was the last one, restores the wrapper's original listener. Idempotent. */
 	private void removeHierarchyListener() {
-		if ( hierarchyChangeListener != null && wrapperView != null ) {
-			wrapperView.setOnHierarchyChangeListener( previousListener );
-		}
-		hierarchyChangeListener = null;
-		previousListener = null;
+		ViewGroup wrapper = wrapperView;
+		ViewGroup.OnHierarchyChangeListener delegate = ownDelegate;
 		wrapperView = null;
+		ownDelegate = null;
+		if ( wrapper == null || delegate == null ) {
+			return;
+		}
+
+		CompositeHierarchyListener composite = compositeListeners.get( wrapper );
+		if ( composite != null ) {
+			composite.delegates.remove( delegate );
+			if ( composite.delegates.isEmpty() ) {
+				// Last view gone — restore the wrapper's original listener.
+				compositeListeners.remove( wrapper );
+				wrapper.setOnHierarchyChangeListener( composite.foreign );
+			}
+		}
 	}
 
 	/**
 	 * Reads a ViewGroup's hierarchy-change listener. There is no public
-	 * getter — the private field is the only way to preserve a pre-existing
-	 * listener across our install/remove cycle.
+	 * getter — the private field is the only way to seed the composite with a
+	 * pre-existing listener. Best-effort: hidden-API restrictions may block the
+	 * read on API 28+; we degrade to {@code null} (and log) rather than crash.
 	 */
 	@Nullable
 	private static ViewGroup.OnHierarchyChangeListener getHierarchyChangeListener(
@@ -133,6 +209,8 @@ public class MapsforgeVtmView extends LinearLayout {
 			field.setAccessible( true );
 			return (ViewGroup.OnHierarchyChangeListener) field.get( group );
 		} catch ( Exception e ) {
+			Log.w( "MapsforgeVtmView",
+				"Failed to read pre-existing hierarchy listener: " + e );
 			return null;
 		}
 	}
@@ -143,10 +221,14 @@ public class MapsforgeVtmView extends LinearLayout {
 		if ( getParent() instanceof ViewGroup ) {
 			installHierarchyListener( (ViewGroup) getParent() );
 		}
-		// Anchors may have been moved while detached (the wrapper fires no
-		// hierarchy events for a detached tree) — re-walk on (re)attach so
-		// the scene heals.
-		emitAnchorsChanged();
+		if ( everAttached ) {
+			// Re-attach after a detach: anchors may have been moved while
+			// detached (the wrapper fires no hierarchy events for a detached
+			// tree) — re-walk so the scene heals. Skipped on first attach
+			// (no anchors/JS subscriber yet; the scene walks on its own mount).
+			emitAnchorsChanged();
+		}
+		everAttached = true;
 	}
 
 	@Override

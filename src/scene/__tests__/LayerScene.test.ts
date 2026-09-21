@@ -161,16 +161,21 @@ describe('LayerScene', () => {
 		expect(listener).toHaveBeenCalledTimes(5);
 	});
 
-	test('command log records every mutation for replay/debug', () => {
+	test('version counter bumps on every mutation', () => {
 		const scene = new LayerScene();
-		scene.applyWalk([dedicated('a')]);
-		scene.attachUuid('a', 'uuid-a');
-		scene.declareEntry(entry('e1', 'shared1', 'path'));
+		expect(scene.version()).toBe(0);
 
-		expect(scene.commandLog().map((c) => c.type)).toEqual([
-			'applyWalk',
-			'attachUuid',
-			'declareEntry',
-		]);
+		scene.applyWalk([dedicated('a')]);
+		expect(scene.version()).toBe(1);
+
+		scene.attachUuid('a', 'uuid-a');
+		expect(scene.version()).toBe(2);
+
+		scene.declareEntry(entry('e1', 'shared1', 'path'));
+		expect(scene.version()).toBe(3);
+
+		// A no-op detach (unknown key) must not bump the version.
+		scene.detachUuid('unknown');
+		expect(scene.version()).toBe(3);
 	});
 });

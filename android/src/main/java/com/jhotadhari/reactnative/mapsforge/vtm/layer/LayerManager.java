@@ -436,11 +436,10 @@ public abstract class LayerManager<TEntry> {
 				// The shared layer was added to the map by the queue flush,
 				// but destroy() already removed it from our tracking map.
 				// Remove it from the actual map layer list so it doesn't leak.
-				try {
-					queue.removeLayerSync(fragmentUuid);
-				} catch (Exception ignored) {
-					// Best-effort.
-				}
+				// This runs on the caller's (TurboModule) thread, so we must
+				// route through the async queue — removeLayerSync is UI-thread
+				// only and would mutate map().layers() un-serialized here.
+				queue.enqueueRemoveLayer(fragmentUuid);
 				throw new RuntimeException(
 					"Shared layer fragment '" + fragmentUuid
 						+ "' was destroyed while waiting for registration");

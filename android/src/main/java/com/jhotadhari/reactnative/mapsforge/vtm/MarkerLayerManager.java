@@ -515,22 +515,29 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				errors[i] = "Fragment not found: " + fragmentUuid;
 				continue;
 			}
-			List<MarkerInterface> itemList = fragmentLayer.getItemList();
 
-			// Find the insertion point: first existing marker with
-			// positionIndex > ours.
-			int insertAt = itemList.size();
-			for (int j = 0; j < itemList.size(); j++) {
-				MarkerInterface existing = itemList.get(j);
-				MarkerEntry existingEntry = allMarkers.get(
-					((MarkerItem) existing).getUid().toString());
-				if (existingEntry != null
-					&& existingEntry.positionIndex > positionIndex) {
-					insertAt = j;
-					break;
+			// The scan + insert is a read-modify-write over the live item
+			// list — serialize on the layer (the same monitor vtm's own
+			// accessors and the UI-thread hit-test path use) so the compound
+			// operation is atomic against applyEntryPriorities and gestures.
+			synchronized (fragmentLayer) {
+				List<MarkerInterface> itemList = fragmentLayer.getItemList();
+
+				// Find the insertion point: first existing marker with
+				// positionIndex > ours.
+				int insertAt = itemList.size();
+				for (int j = 0; j < itemList.size(); j++) {
+					MarkerInterface existing = itemList.get(j);
+					MarkerEntry existingEntry = allMarkers.get(
+						((MarkerItem) existing).getUid().toString());
+					if (existingEntry != null
+						&& existingEntry.positionIndex > positionIndex) {
+						insertAt = j;
+						break;
+					}
 				}
+				itemList.add(insertAt, markerItem);
 			}
-			itemList.add(insertAt, markerItem);
 		}
 		if (!sortedLocalIndices.isEmpty()) {
 			// Populate each affected fragment layer.
@@ -542,7 +549,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				if (populatedFragments.add(fragmentUuid)) {
 					ItemizedLayer fl = (ItemizedLayer) getSharedLayer(fragmentUuid);
 					if (fl != null) {
-						fl.populate();
+						synchronized (fl) {
+							fl.populate();
+						}
 					}
 				}
 			}
@@ -1067,20 +1076,25 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		int positionIndex,
 		@NonNull ItemizedLayer layer
 	) {
-		List<MarkerInterface> itemList = layer.getItemList();
-		// Find the first existing marker whose positionIndex > ours.
-		int insertAt = itemList.size();
-		for (int i = 0; i < itemList.size(); i++) {
-			MarkerInterface existing = itemList.get(i);
-			MarkerEntry existingEntry = allMarkers.get(((MarkerItem) existing).getUid().toString());
-			if (existingEntry != null && existingEntry.positionIndex > positionIndex) {
-				insertAt = i;
-				break;
+		// Scan + insert is a read-modify-write over the live item list —
+		// serialize on the layer (same monitor as applyEntryPriorities,
+		// vtm's accessors and the UI-thread hit-test path).
+		synchronized (layer) {
+			List<MarkerInterface> itemList = layer.getItemList();
+			// Find the first existing marker whose positionIndex > ours.
+			int insertAt = itemList.size();
+			for (int i = 0; i < itemList.size(); i++) {
+				MarkerInterface existing = itemList.get(i);
+				MarkerEntry existingEntry = allMarkers.get(((MarkerItem) existing).getUid().toString());
+				if (existingEntry != null && existingEntry.positionIndex > positionIndex) {
+					insertAt = i;
+					break;
+				}
 			}
+			// addItem(int, MarkerInterface) internally calls populate(), so no
+			// need for an explicit populate() here.
+			layer.addItem(insertAt, markerItem);
 		}
-		// addItem(int, MarkerInterface) internally calls populate(), so no
-		// need for an explicit populate() here.
-		layer.addItem(insertAt, markerItem);
 	}
 
 	/**

@@ -102,7 +102,7 @@ export class SceneSync {
 	private walkRequested = false;
 	private reorderRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	private reorderFailures = 0;
-	private lastAttemptLogLength = -1;
+	private lastAttemptVersion = -1;
 	/** Fragment uuid → computed assignment awaiting native confirmation. */
 	private pendingPriorityCommits = new Map<string, Map<string, number>>();
 
@@ -266,12 +266,12 @@ export class SceneSync {
 		}
 
 		this.syncInFlight = true;
-		const startedAt = this.scene.commandLog().length;
-		if (startedAt !== this.lastAttemptLogLength) {
+		const startedAt = this.scene.version();
+		if (startedAt !== this.lastAttemptVersion) {
 			// The scene mutated since the previous attempt — the plan is
 			// fresh, reset the failure streak.
 			this.reorderFailures = 0;
-			this.lastAttemptLogLength = startedAt;
+			this.lastAttemptVersion = startedAt;
 		}
 
 		// Entry priorities are independent of the layer stack — fire them
@@ -294,7 +294,7 @@ export class SceneSync {
 				this.lastPlan = plan;
 				// Mutations landed while the reorder was in-flight —
 				// re-sync with the freshest plan.
-				if (this.scene.commandLog().length !== startedAt) {
+				if (this.scene.version() !== startedAt) {
 					this.syncDebouncer.schedule();
 				}
 			})
