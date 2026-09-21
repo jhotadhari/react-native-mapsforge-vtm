@@ -90,3 +90,106 @@ CRITICAL #4 release coordination (straymap + ext packages updated in the same re
 ### Deferred / optional
 SUGGESTION #1–4, #6, #8, #9 (polish — pick up opportunistically in batches 1/2 where trivial;
 #8 trivially in batch 1 or 2), SUGGESTION #11 (remaining test gaps spread across batches).
+
+---
+
+# Code Review #2: Phase 5 + Fix Batches 1–2 + example flicker fix
+
+Range reviewed: `eb35439..HEAD` (`f4f035a`). 68 non-plan files, 11 parallel read-only
+subagents (native controller, managers, helpers, modules, views, tests, examples,
+NativeModules specs, components, compose hooks/queues, scene).
+
+Review marks updated to `f4f035a`.
+
+- **5 critical, 23 minor, ~30 suggestion findings** (plus pre-existing notes).
+- No fixes applied (no `--fix`). Findings below feed the Phase 6 plan.
+
+## Critical
+
+| # | File | Lines | Summary |
+|---|---|---|---|
+| C1 | `MapMutationQueue.java` / `LayerStackController.java` | 359 / 269 | `removeLayerSync` mutates `layers()` directly and is reachable from the TurboModule thread via `LayerManager.ensureSharedLayer`'s rollback path (not just UI-thread teardown). Violates the "only `flush()` touches `layers()`" invariant. |
+| C2 | `MapsforgeVtmView.java` | 91 | `previousListener` captured but never invoked — the wrapper's pre-existing hierarchy listener is silenced for the whole install window. |
+| C3 | `MapsforgeVtmView.java` | 90 | Multiple `MapsforgeVtmView`s under one wrapper clobber each other's listener; non-LIFO teardown restores a stale snapshot, disabling other views' move signals (multi-map). |
+| C4 | `MarkerLayerManager.java` | 533 | `createMarkers` insertion loop mutates the shared `mItemList` with no layer monitor — contradicts the `synchronized (layer)` added to `applyEntryPriorities`; UI-thread hit-test race → `ConcurrentModificationException`/wrong-index. |
+| C5 | `LayerScene.ts` | 114 | Command log grows unbounded (retains full `sequence` arrays) and doubles as the "did the scene mutate" signal (`commandLog().length`), so it can't be dropped/capped without breaking `SceneSync`. Long sessions leak. |
+
+## Minor
+
+| # | File | Lines | Summary |
+|---|---|---|---|
+| M1 | `LayerStackController.java` | 157 | `applyPlan` early-returns on empty resolved set without updating `previouslyReorderedUuids`/`lastVerifyResult` (stale dedup + stale dump). |
+| M2 | `LayerStackController.java` | 244 | `lastLoggedMismatch` never reset on a successful verify — a recurring mismatch is permanently suppressed. |
+| M3 | `LayerStackController.java` | 132 | `removeAll`/`removeLayerSync` don't remove uuids from `previouslyReorderedUuids` — a re-added fragment uuid is treated as already-seen. |
+| M4 | `MarkerLayerManager.java` | 250 | single-create `createEntry` dereferences `getSharedLayer(fragmentUuid)` with no null guard (batch path has one). |
+| M5 | `MarkerLayerManager.java` | 731 | tie-break comment ("earlier-created on top") unverified against vtm 0.29.0 render order; stale `Inlist.push()` reversal javadoc. |
+| M6 | `PathLayerManager.java`/`ShapeLayerManager.java` | 62 / 65 | hardcoded `__vtm_shared_path__0`/`__vtm_shared_shape__0` fallbacks no longer match the JS `frag:` id scheme; singular/plural inconsistency. |
+| M7 | `LayerHelper.java` | 125 | `removeLayerResolving` reads `params.getString("uuid")` eagerly — missing-uuid produces a worse/empty message and dead-codes `removeLayerAsync`'s own validation. |
+| M8 | `Utils.java` | 233 | `rMapGetStringList` does `getArray` with no type guard — non-array value throws. |
+| M9 | `MapsforgeVtmView.java` | 135 | reflection fallback swallows all exceptions and still clobbers the original listener with `null`. |
+| M10 | `MapsforgeVtmView.java` | 149 | `emitAnchorsChanged()` fires on initial attach before anchors/JS subscriber exist. |
+| M11 | `PathLayerManagerTest.java` | 767 | `createPaths_fragmentEnsureFailure_*` never asserts the per-item error in the returned batch response (false positive). |
+| M12 | `*LayerManagerTest.java` | — | hardcoded fragment uuids duplicated across dozens of test sites; a scheme rename breaks them silently. |
+| M13 | `layer-order-verification/index.tsx` | 488 | `nextRunIdRef.current++` mutates a ref inside the `setRunPaths` updater (impure updater). |
+| M14 | `layer-order-verification/index.tsx` | 409 | `runPathElements` rebuilt every render (~25 Hz) — inconsistent with the `useMemo` sibling; wrap in `useMemo(..., [runPaths])`. |
+| M15 | `LayerManager.java` | 455 | `resolvePositionIndex()` + managers still read the removed `positionIndex` key (dead append-default path; misleading javadoc). |
+| M16 | `LayerPath/LayerShape/Marker.tsx` | ~117 | `layerUuids` computed before `useLayerEntry.declareEntry` runs → fragment omitted from the atomic-add order hint on first create (transient wrong-z, healed ~16 ms). |
+| M17 | `LayerMarker.tsx` | 78 | `planWithResolved(anchorUid)` never places the owner's own fragment into `layerUuids` (marker layer's create order hint always incomplete). |
+| M18 | `useLayerEntry.ts` | 73 | grouped→standalone early-return never calls `detachUuid` — stale `scene.uuids` entry leaks into command log. |
+| M19 | `PathBatchQueue.ts`/`ShapeBatchQueue.ts` | 24 | guard checks `!result.response`, not `!result.response?.uuid` — present-but-empty response yields a phantom uuid (Marker queue does it right). |
+| M20 | `LayerScene.ts` | 42 | `applyWalk` stores/records the caller's array by reference (no defensive copy). |
+| M21 | `PriorityAllocator.ts` | 113 | front/back inserts grow priorities with no renumber floor/ceiling — unbounded drift, eventual int32 overflow. |
+| M22 | `SceneSync.ts` | 230 | walk retry uses fixed 250 ms delay with no backoff (inconsistent with reorder exponential backoff). |
+| M23 | `SceneSync.ts` | 156 | `destroy()` doesn't reset in-flight flags / last-applied state — a hung in-flight promise gates a StrictMode re-arm permanently. |
+
+## Suggestions
+
+| # | File | Lines | Summary |
+|---|---|---|---|
+| S1 | `LayerStackController.java` | 164 | CLEAR_EVENT loop reverse-searches `knownLayers` per layer (O(n²)); use `resolvedUuids.get(i)`. |
+| S2 | `LayerStackController.java` | 63 | `VerifyResult` mutable lists handed to cross-thread readers — wrap `Collections.unmodifiableList`. |
+| S3 | `LayerStackController.java` | 193 | self-check can't see JS-managed layers absent from the plan — add a present-but-not-in-plan diagnostic count. |
+| S4 | `MapContainer.java` | 135 | stale "Resolve uuids on the calling thread" comment. |
+| S5 | `MapMutationQueue.java` | 309 | "last plan-bearing mutation wins" can let a stale `AddLayer.desiredOrder` override a fresher `ReorderLayers`. |
+| S6 | three managers | — | triplicated batch scaffolding → shared helper (mirror JS `EntryBatchQueue`). |
+| S7 | `Path/ShapeLayerManager` | 486 | `syncGestureSupport()` duplicated verbatim → extract. |
+| S8 | `PathLayerManager.java` | 204 | misleading `vectorLayer.update();` indentation. |
+| S9 | `MarkerLayerManager.java` | 480 | assign `creationSeq` at validation time so tie-break + counter agree by construction. |
+| S10 | `LayerHelper.java` | 83 | `addLayerAsync` `desiredOrder`/`layerUuids` effectively dead for all callers — fix comment or pass uuids. |
+| S11 | `Utils.java` | 244 | `stringListToWritableArray` no null guard. |
+| S12 | `LayerMarker.java` | 302 | add `MarkerLayerManager.DEFAULT_FRAGMENT_UUID` constant (parity with Path/Shape). |
+| S13 | `LayerPathJts.java` | 305 | JTS layer drops `layerUuids`, appends then reorders — confirm acceptable transient for "guaranteed z-order". |
+| S14 | `MapsforgeVtmView.java` | 126 | replace reflection with a static per-wrapper composite listener (fixes C2/C3 cleanly). |
+| S15 | `LayerStackControllerTest.java` | 89 | `addAtStart` helper dead code. |
+| S16 | `MapMutationQueueTest.java` | 251 | `MAX_BATCH_SIZE` capping never exercised (only 5 enqueued). |
+| S17 | `MapMutationQueueTest.java` | 226 | `destroyRejectsPendingFutures` only covers `AddLayer`. |
+| S18 | `layer-order-verification/index.tsx` | 489 | use a monotonic counter for run-path index/color instead of `prev.length` (post-remove collisions). |
+| S19 | `docs/advanced/extending.md`, `AGENTS.md` | — | still document `positionIndex`/`useLayerOrder` (removed). Feeds Phase 7 CRITICAL #4. |
+| S20 | `LayerPath/LayerShape/Marker.tsx` | 112 | `runUuidFor(anchorUid)` fallback dead — drop the import/branch. |
+| S21 | `Marker.tsx` | 92 | `markerLayerUuid !== false` unreachable — tighten context type to `null | string`. |
+| S22 | `LayerMarker.tsx` | 186 | `injectVtmSortIndex` runs while children discarded (`!uuid`) — gate the memo on `uuid`. |
+| S23 | `LayerPath/LayerShape/Marker.tsx` | 117 | `planWithResolved` per-entry create is O(N²) for bulk creates. |
+| S24 | `EntryBatchQueue.ts` | 248 | `drainQueue` resolving pending removes fires `onRemove` post-unmount — confirm/document semantics. |
+| S25 | `EntryBatchQueue.test.ts` | 183 | re-arm test only covers safety-net path, not the microtask-wins path. |
+| S26 | `MarkerBatchQueue.ts` | 37 | `index: result.index as number` unchecked cast. |
+| S27 | `planDiff.ts` / `SceneSync.ts` | 35 / 258 | `addedUuids`/`removedUuids` implied by `layerOrderChanged` (dead branches) — prior SUGGESTION #1. |
+| S28 | `SceneSync.ts` | 270 | `commandLog().length` as scene-mutated proxy is fragile — introduce explicit `version`. |
+| S29 | `SceneSync.test.ts` | — | missing max-wait / stale-commit / nested-scope `planWithResolved` coverage. |
+| S30 | `planBuilder.ts` / `SceneSync.ts` | 79 / 43 | `blockStartOf`/`maxWaitPending` naming no longer matches behavior. |
+
+## Pre-existing (noted, not introduced by this range)
+
+- `LayerMarker.java:202` — spurious `test-uuid` `onMarkerEvent` emitted on every `triggerEvent` (real defect, predates branch).
+- `MarkerLayerManager` default fragment uuid singular/plural mismatch (`__vtm_shared_marker__0` vs `__vtm_shared_markers__0`) in the single-marker path.
+- `LayerZoomBoundsHelper.java:93` — initial enabled state uses `getMaxZoomLevel()` instead of current zoom.
+- `MapsforgeVtmView.java:69` — move signal only covers direct-child anchors (javadoc overstates).
+- 4 `@Ignore`d marker tests permanently dead (`createMarkers_populatesEntries`, `_handlesErrorGracefully`, `triggerAllMarkers_*`, `removeMarkers_*`).
+- `applyEntryPriorities_unknownFragmentIsNoOp` tests don't assert the `false` return.
+
+## Interleaving
+
+All findings feed **Phase 6 — debug + polish** (already agreed: absorb every remaining SUGGESTION).
+Grouping: 6a debug (S2, S3, S4, S14 + debug tree), 6b dead code (M15, S20, S21, S27, S30 + prior #7/#8),
+6c robustness (C1–C5, M1–M23 correctness items, S5, S13, S24), 6d refactor (S6, S7, S9, S10, S11, S12),
+6e tests (M11, M12, S15–S17, S25, S29 + prior #11 gaps).
+Pre-existing items addressed opportunistically. Docs (S19) → Phase 7 CRITICAL #4.
