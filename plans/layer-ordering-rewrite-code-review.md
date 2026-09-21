@@ -288,3 +288,21 @@ Correctness first: M15, M16 (destroy/teardown), M1+M2 (controller dedup), M3+M4
 runFragmentUuid fallback or reject), M14 (SharedLayer order-hint gate).
 Then tests: M11, M12, S9, S1. Then polish: M9, M10, S2–S8, S10–S12.
 Phase 7 docs unchanged; CRITICAL #4 + S19 still owned by Phase 7.
+
+## Fix batch 3 resolution (commits `bfe62da`, `2654b77`)
+
+### Addressed
+- M1, M2 (controller empty-plan → verify(), dedup), M3, M4 (marker index/positionIndex
+  under layer monitor), M5, M6 (helpers), M7, M8 (listener leak doc + restore guard),
+  M9, M10, S6 (errorMessage/getName + rollback future log), M13 (restore runFragmentUuid
+  fallback), M14 (SharedLayer order-hint gate via useSceneFragmentReady), M11, M12, S9, S1
+  (test fixes + reorder-plan coverage), S8, S10, S12 (comments + example cap).
+
+### Deferred (low-risk, documented)
+- S2, S3, S4, S5 — MarkerLayerManager sort/scan/lock refactors (deadlock/perf-sensitive)
+- S7 — MapsforgeVtmView CHM-vs-UI-thread: documented in M7 (kept CHM, access is UI-thread)
+- S11 — useNativeLayerLifecycle triggerCreate/enabled coupling (core lifecycle, risky)
+
+Device-verified: layer-order-verification (JS 5 = Native 5, SharedLayer grouping intact
+with the M14 gate), manyLayers (appliedMatchesExpected: true, notInPlanCount: 0),
+multi-map (Map A renders, no listener clobber). No mismatch/W-level ZOMBIE.
