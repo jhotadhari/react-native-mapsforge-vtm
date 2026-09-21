@@ -77,9 +77,10 @@ public class LayerHelper {
 
 		String resolvedUuid = uuid != null ? uuid : UUID.randomUUID().toString();
 
-		// The absolute target order (bottom → top) the JS side sends with the
-		// create — applied atomically with the add so the layer lands at its
-		// final position in the same flush.
+		// Optional absolute target order (bottom → top) carried by the create.
+		// Dedicated layers don't send it today — they append and the scene's
+		// reorderLayers places them. Shared-layer managers pass their plan
+		// directly via MapMutationQueue.enqueueAddLayer, not through here.
 		java.util.List<String> desiredOrder = Utils.rMapGetStringList(params, "layerUuids");
 
 		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
@@ -121,17 +122,15 @@ public class LayerHelper {
 	 * rejects with the failure message.
 	 */
 	public void removeLayerResolving( ReadableMap params, Promise promise ) {
-		try {
-			String uuid = params.getString( "uuid" );
-			removeLayerAsync( params )
-				.thenRun( () -> promise.resolve( uuid ) )
-				.exceptionally( t -> {
-					Utils.promiseReject( promise, t.getMessage() );
-					return null;
-				} );
-		} catch ( Exception e ) {
-			e.printStackTrace();
-			Utils.promiseReject( promise, e.getMessage() );
-		}
+		// Delegate validation to removeLayerAsync (which rejects with a clear
+		// "Missing uuid or nativeNodeHandle" message). The uuid is only read
+		// inside thenRun — after the async removal already succeeded — so a
+		// missing/absent uuid never reaches an eager params.getString here.
+		removeLayerAsync( params )
+			.thenRun( () -> promise.resolve( params.getString( "uuid" ) ) )
+			.exceptionally( t -> {
+				Utils.promiseReject( promise, t.getMessage() );
+				return null;
+			} );
 	}
 }

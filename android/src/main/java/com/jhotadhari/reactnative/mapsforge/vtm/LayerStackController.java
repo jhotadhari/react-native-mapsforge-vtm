@@ -131,6 +131,9 @@ public class LayerStackController {
 		}
 		for ( String uuid : removeUuids ) {
 			knownLayers.remove( uuid );
+			// A re-added fragment with the same deterministic uuid must be
+			// treated as genuinely new again (re-receive CLEAR_EVENT).
+			previouslyReorderedUuids.remove( uuid );
 		}
 	}
 
@@ -155,17 +158,28 @@ public class LayerStackController {
 			}
 		}
 		if ( orderedLayers.isEmpty() ) {
+			// Empty plan (bulk remove, or nothing resolved yet) — still clear
+			// the dedup set and record an empty verify so stale state doesn't
+			// survive to mislead the next plan or the debug dump.
+			previouslyReorderedUuids.clear();
+			lastLoggedMismatch = null;
+			lastVerifyResult = new VerifyResult(
+				true,
+				resolvedUuids,
+				new ArrayList<>()
+			);
 			return;
 		}
 
 		// Send CLEAR_EVENT to layers new to this ordered set so their own
 		// tile jobs (re-)schedule without a map-wide clear that would flash
-		// already-loaded tile layers.
-		for ( Layer layer : orderedLayers ) {
-			String layerUuid = getLayerUuidForLayer( layer );
+		// already-loaded tile layers. resolvedUuids is parallel to
+		// orderedLayers, so the uuid for orderedLayers.get(i) is resolvedUuids.get(i).
+		for ( int i = 0; i < orderedLayers.size(); i++ ) {
+			Layer layer = orderedLayers.get( i );
+			String layerUuid = resolvedUuids.get( i );
 			if (
-				layerUuid != null
-					&& ! previouslyReorderedUuids.contains( layerUuid )
+				!previouslyReorderedUuids.contains( layerUuid )
 					&& layer instanceof org.oscim.map.Map.UpdateListener
 			) {
 				( (org.oscim.map.Map.UpdateListener) layer ).onMapEvent(
@@ -249,6 +263,10 @@ public class LayerStackController {
 				Log.w( TAG, "Stack mismatch: expected=" + result.expectedUuids
 					+ " applied=" + result.appliedUuids );
 			}
+		} else {
+			// A healthy verify resets the dedup signature so the same mismatch
+			// re-appearing after a healthy period is logged again.
+			lastLoggedMismatch = null;
 		}
 		return result;
 	}
@@ -268,6 +286,7 @@ public class LayerStackController {
 	 */
 	public void removeLayerSync( @NonNull String uuid ) {
 		Layer layer = knownLayers.remove( uuid );
+		previouslyReorderedUuids.remove( uuid );
 		if ( layer != null && mapView.map() != null ) {
 			mapView.map().layers().remove( layer );
 		}
@@ -282,19 +301,6 @@ public class LayerStackController {
 	}
 
 	// ── Internal helpers ────────────────────────────────────────────────
-
-	/**
-	 * Returns the uuid for a given Layer by reverse-searching {@link #getKnownLayers()}.
-	 */
-	@Nullable
-	private String getLayerUuidForLayer( @NonNull Layer layer ) {
-		for ( Map.Entry<String, Layer> entry : knownLayers.entrySet() ) {
-			if ( entry.getValue() == layer ) {
-				return entry.getKey();
-			}
-		}
-		return null;
-	}
 
 	/**
 	 * Reorders mapView's layers to match orderedLayers using the minimum number of

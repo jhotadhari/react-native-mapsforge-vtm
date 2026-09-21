@@ -16,6 +16,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -223,11 +224,14 @@ public class Utils {
 
 	/**
 	 * Reads a string-array key (e.g. {@code layerUuids}) into a {@link List},
-	 * or null when the key is absent.
+	 * or null when the key is absent or not an array.
 	 */
 	@Nullable
 	public static List<String> rMapGetStringList( ReadableMap args, String key ) {
 		if ( ! rMapHasKey( args, key ) ) {
+			return null;
+		}
+		if ( args.getType( key ) != ReadableType.Array ) {
 			return null;
 		}
 		ReadableArray array = args.getArray( key );
@@ -240,11 +244,15 @@ public class Utils {
 
 	/**
 	 * Copies a {@link List} of strings into a fresh {@link WritableArray}.
+	 * A null list yields an empty array (defensive — callers pass a list that
+	 * is only non-null when the key was present, but never assume).
 	 */
-	public static WritableArray stringListToWritableArray( List<String> list ) {
+	public static WritableArray stringListToWritableArray( @Nullable List<String> list ) {
 		WritableArray array = new WritableNativeArray();
-		for ( String value : list ) {
-			array.pushString( value );
+		if ( list != null ) {
+			for ( String value : list ) {
+				array.pushString( value );
+			}
 		}
 		return array;
 	}

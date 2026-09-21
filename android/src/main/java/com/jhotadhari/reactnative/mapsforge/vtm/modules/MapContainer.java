@@ -132,10 +132,10 @@ public class MapContainer extends NativeMapContainerSpec {
 				Utils.promiseReject( promise, "Unable to find mapView" ); return;
 			}
 
-			// Resolve uuids on the calling thread (read-only lookup). The actual
-			// reorder — which mutates mapView.map().layers() — is enqueued into
-			// MapMutationQueue and serialized on the UI thread with all other
-			// layer mutations.
+			// Copy the raw uuid list on the calling thread. Resolution against
+			// the registered layers and the actual layers() mutation both happen
+			// later, on the UI thread, inside MapMutationQueue.flush() /
+			// LayerStackController.applyPlan.
 			ReadableArray layerUuids = params.getArray( "layerUuids" );
 			List<String> uuidList = new ArrayList<>();
 			for ( int i = 0; i < layerUuids.size(); i++ ) {

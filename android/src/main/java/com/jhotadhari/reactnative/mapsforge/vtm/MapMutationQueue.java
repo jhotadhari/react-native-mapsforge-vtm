@@ -303,17 +303,20 @@ public class MapMutationQueue {
 
 		// --- Step 3: apply the absolute plan ---
 		// Run after adds/removals so the plan sees the correct post-mutation
-		// state. The LAST plan-bearing mutation in the batch wins: a create
-		// carrying the desired order lands atomically at its final position
-		// in this same flush; plain reorderLayers calls are equivalent.
-		List<String> plan = null;
+		// state. A create-carried desiredOrder is a snapshot from the create's
+		// params, whereas a reorderLayers call is computed from the freshest
+		// scene state — so a reorderLayers plan wins over a create plan when
+		// both are present in the same batch.
+		List<String> reorderPlan = null;
+		List<String> addPlan = null;
 		for (Mutation mut : batch) {
 			if (mut instanceof ReorderLayers) {
-				plan = ((ReorderLayers) mut).orderedLayerUuids;
+				reorderPlan = ((ReorderLayers) mut).orderedLayerUuids;
 			} else if (mut instanceof AddLayer && ((AddLayer) mut).desiredOrder != null) {
-				plan = ((AddLayer) mut).desiredOrder;
+				addPlan = ((AddLayer) mut).desiredOrder;
 			}
 		}
+		List<String> plan = reorderPlan != null ? reorderPlan : addPlan;
 		if (plan != null) {
 			controller.applyPlan(plan);
 		}
