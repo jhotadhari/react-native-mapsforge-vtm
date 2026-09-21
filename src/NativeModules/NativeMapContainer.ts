@@ -151,6 +151,8 @@ export interface GetDebugLayerDumpResponse {
 	appliedMatchesExpected: boolean | null;
 	expectedUuids: ReadonlyArray<string> | null;
 	appliedUuids: ReadonlyArray<string> | null;
+	/** JS-managed layers on the map but absent from the plan (diagnostic). */
+	notInPlanCount: Int32 | null;
 }
 
 export interface Spec extends TurboModule {

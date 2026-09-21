@@ -591,10 +591,12 @@ public class MapContainer extends NativeMapContainerSpec {
 				response.putBoolean( "appliedMatchesExpected", verify.matches );
 				response.putArray( "expectedUuids", Utils.stringListToWritableArray( verify.expectedUuids ) );
 				response.putArray( "appliedUuids", Utils.stringListToWritableArray( verify.appliedUuids ) );
+				response.putInt( "notInPlanCount", verify.notInPlanCount );
 			} else {
 				response.putNull( "appliedMatchesExpected" );
 				response.putNull( "expectedUuids" );
 				response.putNull( "appliedUuids" );
+				response.putNull( "notInPlanCount" );
 			}
 
 			promise.resolve( response );

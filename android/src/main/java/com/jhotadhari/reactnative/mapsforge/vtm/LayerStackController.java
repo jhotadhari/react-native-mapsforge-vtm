@@ -9,6 +9,7 @@ import org.oscim.android.MapView;
 import org.oscim.layers.Layer;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +60,8 @@ public class LayerStackController {
 
 	/**
 	 * Result of a self-check: does the applied stack match the target plan?
+	 * Lists are defensive copies wrapped as unmodifiable — written on the UI
+	 * thread, read from the TurboModule thread.
 	 */
 	public static class VerifyResult {
 		public final boolean matches;
@@ -66,15 +69,22 @@ public class LayerStackController {
 		public final List<String> expectedUuids;
 		@NonNull
 		public final List<String> appliedUuids;
+		/** JS-managed layers present on the map but absent from the plan —
+		 * a non-zero value flags a partial/stale plan (diagnostic only). */
+		public final int notInPlanCount;
 
 		public VerifyResult(
 			boolean matches,
 			@NonNull List<String> expectedUuids,
-			@NonNull List<String> appliedUuids
+			@NonNull List<String> appliedUuids,
+			int notInPlanCount
 		) {
 			this.matches = matches;
-			this.expectedUuids = expectedUuids;
-			this.appliedUuids = appliedUuids;
+			this.expectedUuids =
+				Collections.unmodifiableList( new ArrayList<>( expectedUuids ) );
+			this.appliedUuids =
+				Collections.unmodifiableList( new ArrayList<>( appliedUuids ) );
+			this.notInPlanCount = notInPlanCount;
 		}
 	}
 
@@ -166,7 +176,8 @@ public class LayerStackController {
 			lastVerifyResult = new VerifyResult(
 				true,
 				resolvedUuids,
-				new ArrayList<>()
+				new ArrayList<>(),
+				0
 			);
 			return;
 		}
@@ -248,10 +259,23 @@ public class LayerStackController {
 			}
 		}
 
+		// Diagnostic: JS-managed layers on the map that the target plan does
+		// not mention at all — flags a partial/stale plan (present but absent
+		// from expected).
+		Set<String> targetSet = new HashSet<>( target );
+		int notInPlanCount = 0;
+		for ( int i = 0; i < mapView.map().layers().size(); i++ ) {
+			String uuid = layerToUuid.get( mapView.map().layers().get( i ) );
+			if ( uuid != null && !targetSet.contains( uuid ) ) {
+				notInPlanCount++;
+			}
+		}
+
 		VerifyResult result = new VerifyResult(
 			matches,
 			expectedUuids,
-			appliedUuids
+			appliedUuids,
+			notInPlanCount
 		);
 		lastVerifyResult = result;
 
