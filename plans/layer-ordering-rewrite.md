@@ -77,7 +77,7 @@ accumulated during render.
 | — | **Fix batch 1** (review findings, before Phase 5) | ✅ done — commits `d6405c1`..`c9f1987`, device-verified |
 | 5 | `LayerStackController` (absolute plans, `positionByUuid` removal, atomic create+apply, self-check) | ✅ done — commits `60cb00b`..`68532fc`, device-verified |
 | — | **Fix batch 2** (post-Phase-5 findings + re-review) | ✅ done — commits `786fccf`..`60d35a3`, device-verified |
-| 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | ✅ done — commits `c69343d`..`f69a759` (correctness + polish + debug), device verification pending |
+| 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | ✅ done — commits `c69343d`..`64c0164`, device-verified |
 | 7 | Docs rewrite (`layer-ordering.md`, `AGENTS.md`, extending.md), example verification matrix | pending |
 | 8 | Lockstep consumers (straymap, ext-path-color-ramp, ext-grib) + breaking release | pending |
 
