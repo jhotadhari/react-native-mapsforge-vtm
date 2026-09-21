@@ -279,8 +279,8 @@ const handle = useRef<number | null>(null);
 
 One-shot async JSON dump of every layer on the map — native ground truth
 (actual vtm `Layer` objects, their Java class names, z-indices, enabled
-state) plus the JS-side component registry (React render order, fragment
-assignments, generation counter).
+state) plus the JS-side scene-plan snapshot (React tree order, fragment
+assignments, resolved counts).
 
 ```tsx
 const { getDebugLayerDump } = useMap();

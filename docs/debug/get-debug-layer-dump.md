@@ -2,8 +2,8 @@
 
 Imperative debug method on `useMap()` that returns a complete JSON dump of every
 layer on the map — combining native ground truth (actual vtm `Layer` objects, their
-Java class names, z-indices, enabled state) with the JS-side component registry
-(React render order, fragment assignments, generation counter).
+Java class names, z-indices, enabled state) with the JS-side scene-plan snapshot
+(React tree order, fragment assignments, resolved counts).
 
 Unlike [`useLayerDebugInfo`](./use-layer-debug-info.md) (live, render-phase
 snapshot) and [`LayerDebugTree`](./layer-debug-tree.md) (visual overlay), this is
@@ -69,31 +69,30 @@ type DebugLayerDump = {
     enabled: boolean;
   }>;
 
-  // ── JS-side component registry ───────────────────────────────────
+  // ── JS-side scene-plan snapshot ──────────────────────────────────
 
   registry: {
-    orderLength: number;        // symbols in registry.order (incl. sentinels)
-    sentinelCount: number;      // ReindexScope placeholders awaiting children
-    resolvedCount: number;      // how many have resolved their native uuid
-    generation: number;         // MapContainer render generation counter
-    sharedLayerActive: boolean; // true when <SharedLayer> is present
-    fragmentIndices: Record<string, number>;  // per-type fragment counter
+    orderLength: number;        // desired native layer count (resolved items)
+    resolvedCount: number;      // resolved entry count across all fragments
+    fragmentCount: number;      // number of shared fragments
+    scopeCount: number;         // number of ReindexScope blocks
 
     layers: Array<{
-      index: number;            // position in React render order
+      index: number;            // position in the desired bottom→top order
       layerType: string | null; // e.g. "path", "marker", "mapsforge"
       uuid: string | null;      // resolved native uuid (null = still pending)
-      fragmentUuid: string | null; // shared-layer fragment uuid
+      fragmentUuid: string | null; // fragment uuid (frag:/run:) for fragment items
+      kind: 'layer' | 'fragment';
+      fragmentMemberCount: number;  // entries hosted by this item (1 for dedicated)
     }>;
 
-    /** Components grouped by their shared fragment UUID.
-     *  When <SharedLayer> is active: few entries with memberCount > 1.
-     *  Without <SharedLayer>: many entries with memberCount === 1. */
+    /** Fragments grouped by uuid. When <SharedLayer> is active: few entries
+     *  with memberCount > 1. Without: many entries with memberCount === 1. */
     fragmentSummary: Array<{
       fragmentUuid: string;
       layerType: string;
       memberCount: number;      // > 1 = components sharing a native layer
-      memberIndices: number[];  // which registry.layer indices belong
+      resolvedCount: number;
     }>;
   };
 };
@@ -101,9 +100,9 @@ type DebugLayerDump = {
 
 ## Interpreting the dump
 
-### Registry vs native — spot discrepancies
+### Scene plan vs native — spot discrepancies
 
-| Registry says | Native says | Meaning |
+| Scene plan says | Native says | Meaning |
 |---|---|---|
 | layer has `uuid` | missing from `layers[]` | Creation failed silently, or removal hasn't flushed yet |
 | no entry for `uuid` | `isJsManaged: true` in `layers[]` | Leak — a JS-managed layer wasn't cleaned up |
@@ -115,30 +114,28 @@ With `<SharedLayer>` active (e.g. 50 paths + 50 markers):
 
 ```json
 "fragmentSummary": [
-  { "fragmentUuid": "__vtm_shared_path__<scopeId>",  "memberCount": 50 },
-  { "fragmentUuid": "__vtm_shared_marker__<scopeId>", "memberCount": 50 }
+  { "fragmentUuid": "frag:<sharedId>:path",  "memberCount": 50 },
+  { "fragmentUuid": "frag:<sharedId>:marker", "memberCount": 50 }
 ]
 ```
 
-Without `<SharedLayer>` (same 50 pairs, interleaved):
+Without `<SharedLayer>` (same 50 pairs, interleaved), each type-run gets its own
+`run:<anchor>` fragment:
 
 ```json
 "fragmentSummary": [
-  { "fragmentUuid": "__vtm_shared_path__1",   "memberCount": 1 },
-  { "fragmentUuid": "__vtm_shared_marker__1", "memberCount": 1 },
-  { "fragmentUuid": "__vtm_shared_path__2",   "memberCount": 1 },
+  { "fragmentUuid": "run:<anchor1>", "memberCount": 1 },
+  { "fragmentUuid": "run:<anchor2>", "memberCount": 1 },
   // ...one entry per type-run boundary
 ]
 ```
 
-The `memberCount` tells you whether fragment sharing is actually working. The
-`fragmentUuid` suffix distinguishes shared-scope IDs (`_<scopeId>`) from
-incrementing per-type indices (`_1`, `_2`, …).
+The `memberCount` tells you whether fragment sharing is actually working.
 
 ## See also
 
 - **[useLayerDebugInfo](./use-layer-debug-info.md)** — Live, render-phase snapshot
-  of the JS-side registry (synchronous, no bridge crossing)
+  of the scene plan (synchronous, no bridge crossing)
 - **[LayerDebugTree](./layer-debug-tree.md)** — Visual debug overlay using
   `useLayerDebugInfo` internally
 - **[useMap()](../api/use-map.md)** — The hook that exposes `getDebugLayerDump`

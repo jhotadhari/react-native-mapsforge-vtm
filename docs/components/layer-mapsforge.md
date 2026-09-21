@@ -31,8 +31,8 @@ render-theme XML file.
 
 ## How it works
 
-`LayerMapsforge` creates three native layers kept contiguous via
-`useLayerOrder`:
+`LayerMapsforge` creates three native layers kept contiguous by the scene's
+tree-order plan:
 
 1. **Base tile layer** — renders map tiles from the `.map` file
 2. **Building layer** (optional, `hasBuildings`) — 3D building extrusion

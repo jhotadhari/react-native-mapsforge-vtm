@@ -64,7 +64,7 @@ The Java class name **exactly matches** the TurboModule registration string — 
 | Map layers | `Layer<SourceOrType>` (renders `null`, talks to TurboModule) | `LayerMapsforge`, `LayerPath`, `LayerMarker` |
 | Children / wrappers | Plain name, no `Layer` prefix | `Marker`, `SharedLayer`, `ReindexScope` |
 | Root | `MapContainer` (sole exception) | `MapContainer` |
-| Hooks | `use<Thing>()` | `useMap`, `useLayerOrder`, `useNativeLayerLifecycle`, `use<Layer>EventSubscription` |
+| Hooks | `use<Thing>()` | `useMap`, `useLayerAnchor`, `useLayerEntry`, `useNativeLayerLifecycle`, `use<Layer>EventSubscription` |
 | Contexts | `<Name>Context`; `null` = "not within provider" | `MapHandleContext`, `SharedLayerContext`, `MarkerLayerContext`, `ReindexContext` |
 
 TurboModule registration names match component names: `LayerFoo` → `NativeModules/NativeLayerFoo.ts` → registered as `'LayerFoo'`.
@@ -75,15 +75,17 @@ TurboModule registration names match component names: `LayerFoo` → `NativeModu
 |---|---|
 | **nativeNodeHandle** | Fabric handle of the map view (`findNodeHandle`). Every layer passes it to identify which map instance. |
 | **uuid** | Unique string from native `createLayer`/`createMarker`. Used for remove/update calls and event filtering. |
-| **fragment / fragmentUuid** | A block of same-type shared-layer components collapsed into one native `Layer`. Fragment UUIDs are prefixed `__vtm_shared_`. |
+| **fragment / fragmentUuid** | A block of same-type shared-layer components collapsed into one native `Layer`. Fragment UUIDs are deterministic: `frag:<owner>:<type>` (SharedLayer/LayerMarker) or `run:<anchor>` (implicit type-runs). |
 | **shared layer** | Many JS components → one native `Layer` (`LayerPath`, `LayerMarker`, `LayerShape`). Managed by `LayerManager<TEntry>`. |
 | **dedicated layer** | One JS component → one native `Layer` (`LayerPathJts`, `LayerMapsforge`, `LayerBitmapTile`, etc.). |
-| **LayerOrderRegistry** | Central data structure in `MapHandleContext` tracking every layer's document-order position (`Symbol` keyed), uuid, fragment, and type. |
-| **positionIndex** | Zero-based document-order index. Passed at creation time so layers land at correct z-order without a follow-up `reorderLayers`. |
+| **LayerScene** | The single source of truth for layer-stack ordering — mutated only from the commit phase; produces an immutable `plan()`. |
+| **SceneSync** | The presenter: debounced anchor walk + single-flight `reorderLayers`/`applyEntryPriorities` sync. |
+| **anchor** | An invisible `VtmAnchorView` rendered by scopes, fragment owners, and standalone layer components; the committed-tree walk reads anchors in tree order. |
+| **entry priority** | A sparse integer assigned by `PriorityAllocator` and applied natively via `applyEntryPriorities` — orders drawables/markers within a fragment (no create-time parameter). |
 | **MapMutationQueue** | The **only** place that calls `mapView.map().layers().add/remove` and `updateMap()` — serialises onto UI thread. |
 | **knownLayers** | `MapMutationQueue.getKnownLayers()` — `ConcurrentHashMap` of tracked UUIDs, thread-safe to read. |
 | **triggerEvent** | Programmatic gesture simulation (e.g. fire a marker's `onPress` from JS). Exposed as a `RefObject`. |
-| **ReindexScope** | Wrapper that resets `positionIndex` within its subtree. |
+| **ReindexScope** | Wrapper that renders a scope anchor marking the block's tree position and provides the `order` prop for cross-scope priority. |
 | **SharedLayer** | Wrapper that activates shared-layer grouping for its subtree — same-type layers collapse into one fragment per type. |
 | **MarkerBatchQueue** | Batches N `createMarker`/`removeMarker` calls → 1 `createMarkers`/`removeMarkers` bridge call. |
 | **scheduleUpdate** | Coalesced `updateMap()` — multiple calls per frame → 1 native `updateMap()` (via `AtomicBoolean` CAS + `Handler.post`). |

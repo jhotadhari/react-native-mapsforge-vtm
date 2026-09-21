@@ -17,9 +17,9 @@ import {
 
 `useMap()` is the React hook — it reads `nativeNodeHandle` from
 `MapHandleContext` and adds `getDebugLayerDump()` (which needs the JS-side
-`LayerOrderRegistry`). `createMapHandle()` is the pure factory — no React
-dependency, callable from anywhere. `createMapHandleRegistry()` is the
-singleton glue that lets React wire the handle and non-React code consume it.
+`scene` to build the scene-plan snapshot). `createMapHandle()` is the pure
+factory — no React dependency, callable from anywhere. `createMapHandleRegistry()`
+is the singleton glue that lets React wire the handle and non-React code consume it.
 
 ## createMapHandle(nativeNodeHandle)
 
