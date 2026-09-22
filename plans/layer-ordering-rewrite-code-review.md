@@ -306,3 +306,38 @@ Phase 7 docs unchanged; CRITICAL #4 + S19 still owned by Phase 7.
 Device-verified: layer-order-verification (JS 5 = Native 5, SharedLayer grouping intact
 with the M14 gate), manyLayers (appliedMatchesExpected: true, notInPlanCount: 0),
 multi-map (Map A renders, no listener clobber). No mismatch/W-level ZOMBIE.
+
+---
+
+# Code Review #4: fix batch 3 (post-Phase-7)
+
+Range reviewed: `7c4e691..27b670f` (fix batch 3 code + tests, excluding docs). 6 parallel
+read-only subagents (controller+marker, helpers+views, tests, example, components, scene).
+Review marks updated to `3648398`.
+
+- **0 critical, 6 minor, ~10 suggestion findings** (plus pre-existing notes).
+- Findings fed fix batch 4 (committed as `3648398`).
+
+## Minor (fixed in `3648398`)
+
+| # | File | Summary |
+|---|---|---|
+| M1 | `SceneSync.ts` | `destroyed` boolean guard reset on re-arm → stale reorder resolution clobbered state. Fixed with a `reorderSeq` generation counter (mirrors `walkSeq`). |
+| M2 | `MarkerLayerManager.java` | `applyEntryPriorities` positionIndex writes inside the lock could abort mid-lock on a malformed assignment. Fixed by pre-validating assignments before the lock. |
+| M3 | `MarkerLayerManager.java` | `synchronized(layer)` around `indexOf` was vestigial (vtm's hit-test doesn't lock). Fixed the overstating comment. |
+| M4 | `MapsforgeVtmView.java` | M8 restore-guard conflated "reflection blocked" with "listener changed", leaving a stale empty composite. Fixed: restore when the slot reads null or still holds our composite. |
+| M5 | `PathLayerManagerTest.java` | `verify(responseMap, never()).putString("error",…)` was tautological. Replaced with `putArray(eq("results"), any())`. |
+| M6 | `LayerPath/Shape/Marker.tsx` | `runUuidFor(anchorUid)` fallback self-keyed non-first type-run members. Fixed with `runFragmentUuid ?? scene.plan().runKeysByAnchor.get(anchorUid) ?? runUuidFor(anchorUid)`. |
+
+## Pre-existing (addressed)
+
+- `PriorityAllocator` never reset on `destroy()` → entry priorities not re-applied to
+  re-created fragments on StrictMode re-arm. Fixed with `PriorityAllocator.reset()` + call in `destroy()`.
+
+## Deferred (documented, not fixed)
+
+- `useSceneFragmentReady.getSnapshot` calls `scene.plan()` during render → O(N²) hot path
+  (consider a `hasFragment()` accessor).
+- vtm `ItemizedLayer.activateSelectedItems` hit-test reads `mItemList` without a monitor —
+  needs a vendored `ItemizedLayer` override (out of scope).
+- `LayerScene.clear()` does not notify listeners (documented; always followed by a notifying `applyWalk`).
