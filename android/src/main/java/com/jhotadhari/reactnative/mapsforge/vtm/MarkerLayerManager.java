@@ -249,19 +249,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			markerItem.setMarker(symbol);
 		}
 
-		int positionIndex = APPEND_PRIORITY;
-
-		// Add marker to the correct fragment's ItemizedLayer at the sorted position.
+		// Add marker to the correct fragment's ItemizedLayer (append — the real
+		// within-fragment order is applied later by applyEntryPriorities).
 		ItemizedLayer itemizedLayer = (ItemizedLayer) getSharedLayer(fragmentUuid);
 		if (itemizedLayer == null) {
 			throw new IllegalStateException(
 				"No shared ItemizedLayer for fragmentUuid '" + fragmentUuid
 					+ "'. Known fragments: " + sharedLayerFragments.keySet());
 		}
-		insertMarkerSorted(markerItem, positionIndex, itemizedLayer);
+		insertMarkerSorted(markerItem, itemizedLayer);
 
 		// Track.
-		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, positionIndex, entrySeqCounter.incrementAndGet());
+		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, APPEND_PRIORITY, entrySeqCounter.incrementAndGet());
 		allMarkers.put(entryUuid, entry);
 		if (group != null) {
 			group.memberMarkerUuids.add(entryUuid);
@@ -401,9 +400,8 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// used by applyEntryPriorities agree by construction.
 		long[] creationSeqs = new long[count];
 
-		// Collect successfully-validated markers for sorted insertion.
+		// Collect successfully-validated markers for insertion.
 		List<MarkerItem> itemsToAdd = new ArrayList<>(count);
-		List<Integer> positionIndices = new ArrayList<>(count);
 		List<Integer> sourceIndices = new ArrayList<>(count); // index into markersArray
 
 		// Ensure all required fragment layers exist upfront. A fragment
@@ -465,8 +463,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				String description = Utils.rMapHasKey(markerParams, "description")
 					? markerParams.getString("description") : "";
 
-				int positionIndex = APPEND_PRIORITY;
-
 				MarkerItem markerItem = new MarkerItem(
 					entryUuid,
 					title,
@@ -493,7 +489,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				}
 
 				itemsToAdd.add(markerItem);
-				positionIndices.add(positionIndex);
 				sourceIndices.add(i);
 				creationSeqs[i] = entrySeqCounter.incrementAndGet();
 			} catch (Exception e) {
@@ -501,27 +496,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 
-		// Sort markers by descending positionIndex so higher-priority markers
-		// are inserted first (ties preserve source order — the creation
-		// sequence assigned later mirrors this ordering so applyEntryPriorities
-		// rebuilds identically).
-		List<Integer> sortedLocalIndices = new ArrayList<>(itemsToAdd.size());
+		// New entries append (APPEND_PRIORITY placeholder). The real
+		// within-fragment order is established later by applyEntryPriorities
+		// (descending positionIndex, ties by ascending creationSeq), whose
+		// source-order creationSeq matches this append order — so the two
+		// paths agree and the transient append is immediately corrected.
 		for (int li = 0; li < itemsToAdd.size(); li++) {
-			sortedLocalIndices.add(li);
-		}
-		sortedLocalIndices.sort((a, b) -> {
-			int pa = positionIndices.get(a);
-			int pb = positionIndices.get(b);
-			if (pa != pb) return Integer.compare(pb, pa);
-			return Integer.compare(a, b); // stable: preserve source order for ties
-		});
-
-		// Insert sorted markers into their fragment's ItemizedLayer.
-		for (int si = 0; si < sortedLocalIndices.size(); si++) {
-			int li = sortedLocalIndices.get(si);
 			int i = sourceIndices.get(li);
 			MarkerItem markerItem = itemsToAdd.get(li);
-			int positionIndex = positionIndices.get(li);
 			String fragmentUuid = fragmentUuids[i];
 
 			ItemizedLayer fragmentLayer = (ItemizedLayer) getSharedLayer(fragmentUuid);
@@ -533,34 +515,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				continue;
 			}
 
-			// The scan + insert is a read-modify-write over the live item
-			// list — serialize on the layer (the same monitor vtm's own
-			// accessors and the UI-thread hit-test path use) so the compound
-			// operation is atomic against applyEntryPriorities and gestures.
 			synchronized (fragmentLayer) {
-				List<MarkerInterface> itemList = fragmentLayer.getItemList();
-
-				// Find the insertion point: first existing marker with
-				// positionIndex > ours.
-				int insertAt = itemList.size();
-				for (int j = 0; j < itemList.size(); j++) {
-					MarkerInterface existing = itemList.get(j);
-					MarkerEntry existingEntry = allMarkers.get(
-						((MarkerItem) existing).getUid().toString());
-					if (existingEntry != null
-						&& existingEntry.positionIndex > positionIndex) {
-						insertAt = j;
-						break;
-					}
-				}
-				itemList.add(insertAt, markerItem);
+				fragmentLayer.getItemList().add(markerItem);
 			}
 		}
-		if (!sortedLocalIndices.isEmpty()) {
+		if (!itemsToAdd.isEmpty()) {
 			// Populate each affected fragment layer.
 			Set<String> populatedFragments = new HashSet<>();
-			for (int si = 0; si < sortedLocalIndices.size(); si++) {
-				int li = sortedLocalIndices.get(si);
+			for (int li = 0; li < itemsToAdd.size(); li++) {
 				int i = sourceIndices.get(li);
 				String fragmentUuid = fragmentUuids[i];
 				if (populatedFragments.add(fragmentUuid)) {
@@ -575,8 +537,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		}
 
 		// Track all successfully created entries and assign result indices.
-		for (int si = 0; si < sortedLocalIndices.size(); si++) {
-			int li = sortedLocalIndices.get(si);
+		for (int li = 0; li < itemsToAdd.size(); li++) {
 			int i = sourceIndices.get(li);
 			if (errors[i] != null) {
 				// Insertion skipped (e.g. fragment vanished mid-batch) —
@@ -585,7 +546,6 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 			String entryUuid = entryUuids[i];
 			MarkerItem markerItem = itemsToAdd.get(li);
-			int positionIndex = positionIndices.get(li);
 
 			// Resolve group uuid (re-read from source params).
 			ReadableMap markerParams = allMarkerParams[i];
@@ -596,7 +556,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 
 			MarkerEntry entry = new MarkerEntry(
-				entryUuid, groupUuid, fragmentUuids[i], markerItem, positionIndex,
+				entryUuid, groupUuid, fragmentUuids[i], markerItem, APPEND_PRIORITY,
 				creationSeqs[i]);
 			entries.put(entryUuid, entry);
 			allMarkers.put(entryUuid, entry);
@@ -708,11 +668,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 	/**
 	 * Applies sparse priorities to entries of a shared fragment and rebuilds
-	 * the fragment's ItemizedLayer item list using the same
-	 * descending-positionIndex + creation-sequence tie-break ordering as
-	 * {@link #createMarkers}, so the two paths produce identical order. Only
-	 * fragments with changed entries receive this call; the JS scene emits
-	 * O(changed) assignments.
+	 * the fragment's ItemizedLayer item list in ascending positionIndex order
+	 * (lower z first), with equal priorities broken by ascending creationSeq.
+	 * Only fragments with changed entries receive this call; the JS scene
+	 * emits O(changed) assignments.
 	 *
 	 * @return true when the fragment exists and the assignments were applied;
 	 *         false when the fragment is missing (the caller must REJECT so
@@ -736,9 +695,9 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 
-		// Pre-validate assignments before entering the lock — a malformed
-		// assignment that throws (missing uuid/priority key) must not leave
-		// positionIndex partially updated mid-rebuild.
+		// Pre-validate assignments — a malformed assignment that throws
+		// (missing uuid/priority key) must not leave positionIndex partially
+		// updated.
 		final int assignmentCount = assignments.size();
 		String[] assignmentUuids = new String[ assignmentCount ];
 		int[] assignmentPriorities = new int[ assignmentCount ];
@@ -748,55 +707,42 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			assignmentPriorities[i] = assignment.getInt( "priority" );
 		}
 
-		// The rebuild is a read-modify-write over the live item list and must
-		// be serialized against vtm's own synchronized item-list accessors
-		// (addItem/removeItem/getItemList/populate). Note vtm's hit-test
-		// iteration (activateSelectedItems) does NOT acquire this monitor, so
-		// this serializes mutations, not the gesture read path. The
-		// positionIndex writes happen here too, so the reads below (sort +
-		// scan) see them with a proper happens-before edge.
+		// Update tracked positions + sort + build the ordered list — all
+		// outside the layer lock (these only touch MarkerEntry fields and the
+		// allMarkers map, never the live item list).
+		for ( int i = 0; i < assignmentCount; i++ ) {
+			MarkerEntry entry = allMarkers.get( assignmentUuids[i] );
+			// Guard against cross-fragment assignments: never touch an entry
+			// that doesn't belong to this fragment's layer.
+			if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
+				entry.positionIndex = assignmentPriorities[i];
+			}
+		}
+
+		// Sort ascending positionIndex (lower z first — the final item-list
+		// order); equal priorities break by creation sequence ascending, so
+		// an earlier-created marker keeps its place ahead of a later one.
+		fragmentEntries.sort( ( a, b ) -> {
+			if ( a.positionIndex != b.positionIndex ) {
+				return Integer.compare( a.positionIndex, b.positionIndex );
+			}
+			return Long.compare( a.creationSeq, b.creationSeq );
+		} );
+
+		List<MarkerInterface> ordered = new ArrayList<>( fragmentEntries.size() );
+		for ( MarkerEntry entry : fragmentEntries ) {
+			ordered.add( entry.markerItem );
+		}
+
+		// Swap the ordered list in under the layer monitor (serialized against
+		// the hit-test path, which ItemizedLayer.onGesture synchronizes on the
+		// same monitor). The sort above already ran outside the lock, so the
+		// critical section is O(n), not the previous O(n²) remove/scan/re-add.
 		synchronized ( layer ) {
-			// Update tracked positions (from the pre-validated assignments).
-			for ( int i = 0; i < assignmentCount; i++ ) {
-				MarkerEntry entry = allMarkers.get( assignmentUuids[i] );
-				// Guard against cross-fragment assignments: never touch an
-				// entry that doesn't belong to this fragment's layer.
-				if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
-					entry.positionIndex = assignmentPriorities[i];
-				}
-			}
-
 			List<MarkerInterface> itemList = layer.getItemList();
-			for ( MarkerEntry entry : fragmentEntries ) {
-				itemList.remove( entry.markerItem );
-			}
-
-			// Sort descending positionIndex (higher priority first); equal
-			// priorities break by creation sequence ascending — the same
-			// ordering createMarkers uses, so both paths agree.
-			fragmentEntries.sort( ( a, b ) -> {
-				if ( a.positionIndex != b.positionIndex ) {
-					return Integer.compare( b.positionIndex, a.positionIndex );
-				}
-				return Long.compare( a.creationSeq, b.creationSeq );
-			} );
-
-			for ( MarkerEntry entry : fragmentEntries ) {
-				int insertAt = itemList.size();
-				for ( int j = 0; j < itemList.size(); j++ ) {
-					MarkerInterface existing = itemList.get( j );
-					MarkerEntry existingEntry = allMarkers.get(
-						( (MarkerItem) existing ).getUid().toString() );
-					if ( existingEntry != null
-						&& existingEntry.positionIndex > entry.positionIndex ) {
-						insertAt = j;
-						break;
-					}
-				}
-				itemList.add( insertAt, entry.markerItem );
-			}
-
-			if ( !fragmentEntries.isEmpty() ) {
+			itemList.clear();
+			itemList.addAll( ordered );
+			if ( !ordered.isEmpty() ) {
 				layer.populate();
 			}
 		}
@@ -1101,32 +1047,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	}
 
 	/**
-	 * Inserts a marker into the shared ItemizedLayer at the position that
-	 * maintains ascending positionIndex order.
+	 * Appends a marker to the shared ItemizedLayer. New entries append
+	 * (APPEND_PRIORITY); the real within-fragment order is applied later by
+	 * {@link #applyEntryPriorities}. Serialized on the layer monitor.
 	 */
 	protected void insertMarkerSorted(
 		@NonNull MarkerItem markerItem,
-		int positionIndex,
 		@NonNull ItemizedLayer layer
 	) {
-		// Scan + insert is a read-modify-write over the live item list —
-		// serialize on the layer (same monitor as applyEntryPriorities,
-		// vtm's accessors and the UI-thread hit-test path).
 		synchronized (layer) {
-			List<MarkerInterface> itemList = layer.getItemList();
-			// Find the first existing marker whose positionIndex > ours.
-			int insertAt = itemList.size();
-			for (int i = 0; i < itemList.size(); i++) {
-				MarkerInterface existing = itemList.get(i);
-				MarkerEntry existingEntry = allMarkers.get(((MarkerItem) existing).getUid().toString());
-				if (existingEntry != null && existingEntry.positionIndex > positionIndex) {
-					insertAt = i;
-					break;
-				}
-			}
 			// addItem(int, MarkerInterface) internally calls populate(), so no
 			// need for an explicit populate() here.
-			layer.addItem(insertAt, markerItem);
+			layer.addItem(layer.getItemList().size(), markerItem);
 		}
 	}
 

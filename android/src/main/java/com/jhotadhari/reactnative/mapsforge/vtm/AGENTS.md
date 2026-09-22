@@ -107,12 +107,13 @@ calls into 1 `createMarkers` + 1 `removeMarkers` batch call, flushed on the micr
 
 ### Marker sort direction
 
-Markers inside a shared `ItemizedLayer` fragment are ordered by **descending** `positionIndex`
-(higher priority first); equal priorities break by **ascending `creationSeq`** — a monotonic
-sequence (`AtomicLong`) assigned in source order at validation time. Both `createMarkers` and the
-`applyEntryPriorities` rebuild use this ordering, so they agree deterministically. `positionIndex`
-is a sparse priority from the JS `PriorityAllocator`, applied via `applyEntryPriorities` (not a
-create-time param).
+Markers inside a shared `ItemizedLayer` fragment are ordered by **ascending** `positionIndex`
+(lower z first); equal priorities break by **ascending `creationSeq`** — a monotonic
+sequence (`AtomicLong`) assigned in source order at validation time. `applyEntryPriorities`
+rebuilds the item list in this order (sort outside the layer lock, then a single O(n) swap).
+`positionIndex` is a sparse priority from the JS `PriorityAllocator`, applied via
+`applyEntryPriorities` (not a create-time param); new markers append and are re-ordered on the
+next `applyEntryPriorities`.
 
 Path/Shape managers use `VectorLayer`, which sorts by `getPriority()` ascending — no tie-break.
 

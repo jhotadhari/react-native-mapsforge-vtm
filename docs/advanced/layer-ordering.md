@@ -92,7 +92,7 @@ vtm mechanism:
 |---|---|---|
 | `PathLayerManager` | `VectorLayer` | `drawable.setPriority(priority)` — sorts by `getPriority()` ascending |
 | `ShapeLayerManager` | `VectorLayer` | Same — `drawable.setPriority(priority)` |
-| `MarkerLayerManager` | `ItemizedLayer` | Descending `positionIndex` sort; equal priorities break by ascending `creationSeq` |
+| `MarkerLayerManager` | `ItemizedLayer` | Ascending `positionIndex` order (lower z first); equal priorities break by ascending `creationSeq` |
 
 ### `PriorityAllocator`
 
