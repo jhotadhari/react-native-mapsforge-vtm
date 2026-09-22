@@ -382,4 +382,30 @@ describe('SceneSync', () => {
 			],
 		});
 	});
+
+	test('sustained mutation burst flushes exactly once at the max-wait', async () => {
+		const sync = new SceneSync();
+		const scene = sync.getScene();
+		sync.setNativeNodeHandle(7);
+		sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+		mockEnumerate.mockResolvedValue({ anchors: ['ded'] });
+
+		sync.scheduleWalk();
+		await flush(); // walk lands → scene mutated → sync scheduled (16ms)
+
+		// Burst: keep mutating without ever letting the 16ms debounce elapse
+		// (each 5ms advance resets the debounce). The 250ms max-wait must still
+		// force a single flush.
+		for (let i = 0; i < 8; i++) {
+			scene.attachUuid('ded', `uuid-${i}`);
+			jest.advanceTimersByTime(5);
+			await Promise.resolve();
+		}
+
+		jest.advanceTimersByTime(250);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(mockReorder).toHaveBeenCalledTimes(1);
+	});
 });

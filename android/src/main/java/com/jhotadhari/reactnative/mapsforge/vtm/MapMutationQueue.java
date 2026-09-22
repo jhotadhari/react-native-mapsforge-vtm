@@ -263,7 +263,10 @@ public class MapMutationQueue {
 		// updateMap() call.  If more remain, another flush is posted below.
 		List<Mutation> batch = new ArrayList<>();
 		Mutation m;
-		while ((m = pending.poll()) != null && batch.size() < MAX_BATCH_SIZE) {
+		// Check the cap BEFORE polling — the previous `poll() != null && size < cap`
+		// order polled one extra mutation (dropping it) whenever the batch filled
+		// exactly to MAX_BATCH_SIZE.
+		while (batch.size() < MAX_BATCH_SIZE && (m = pending.poll()) != null) {
 			batch.add(m);
 		}
 		if (batch.isEmpty()) {

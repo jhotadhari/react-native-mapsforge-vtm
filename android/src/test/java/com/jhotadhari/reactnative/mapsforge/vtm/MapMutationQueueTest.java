@@ -29,9 +29,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -292,6 +294,25 @@ public class MapMutationQueueTest {
 
         assertEquals("knownLayers must have all " + total + " entries",
                 total, q.getKnownLayers().size());
+    }
+
+    @Test
+    public void batchProcessing_splitsBatchAtMaxSize() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        // MAX_BATCH_SIZE = 25 — 60 adds must flush in multiple passes.
+        int total = 60;
+        for (int i = 0; i < total; i++) {
+            q.enqueueAddLayer(mock(Layer.class), "uuid-" + i);
+        }
+
+        flushLooper();
+
+        assertEquals("knownLayers must have all " + total + " entries",
+                total, q.getKnownLayers().size());
+        // The batch is split (25 + 25 + 10), so updateMap() fires once per
+        // flush — more than a single call.
+        verify(mockMap, atLeast(2)).updateMap();
     }
 
     // -----------------------------------------------------------------------

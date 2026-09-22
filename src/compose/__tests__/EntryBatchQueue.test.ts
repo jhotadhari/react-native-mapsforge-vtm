@@ -204,4 +204,33 @@ describe('EntryBatchQueue', () => {
 			jest.useRealTimers();
 		}
 	});
+
+	test('microtask flush clears the max-wait timer and rearms the next cycle', async () => {
+		jest.useFakeTimers();
+		try {
+			const createMany = jest.fn(() =>
+				Promise.resolve({ results: [{ uuid: 'u1' }] })
+			);
+			const queue = makeQueue({ createMany });
+
+			// First cycle flushes via the microtask, before the max-wait fires.
+			queue.enqueueCreate({ nativeNodeHandle: 7, value: 'a' });
+			await flushMicrotasks();
+			expect(createMany).toHaveBeenCalledTimes(1);
+
+			// The microtask flush must have cleared the pending max-wait timer —
+			// advancing timers must NOT fire a stale second flush.
+			jest.advanceTimersByTime(20);
+			await flushMicrotasks();
+			expect(createMany).toHaveBeenCalledTimes(1);
+
+			// A later cycle arms a FRESH max-wait timer and flushes once.
+			queue.enqueueCreate({ nativeNodeHandle: 7, value: 'b' });
+			jest.advanceTimersByTime(20);
+			await flushMicrotasks();
+			expect(createMany).toHaveBeenCalledTimes(2);
+		} finally {
+			jest.useRealTimers();
+		}
+	});
 });
