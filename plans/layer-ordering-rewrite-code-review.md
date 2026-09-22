@@ -347,7 +347,20 @@ Review marks updated to `3648398`.
 # Pre-Phase-8 polish (backlog resolution)
 
 Status: **implemented** (commits `6dd9544`, `ca8057f`, `0601964`, `0bfc3bd`, `6391e3d`).
-Device smoke pending (markers + manyLayers/layer-order-verification).
+Device smoke **passed** (Pixel 6 Pro, Android 13).
+
+## Device smoke results
+
+- **manyLayers · SharedLayer ON · 50**: `appliedMatchesExpected: true`, `notInPlanCount: 0`,
+  2 fragments (path 50 / marker 50), `pendingMutations: 0`.
+- **manyLayers · SharedLayer OFF · 50**: 100 dedicated layers, JS=Native=101, no crash/mismatch.
+- **manyLayers · SharedLayer ON · 1000**: 2000 drawables → 2 fragments, `appliedMatchesExpected:
+  true`, `notInPlanCount: 0`, `resolvedCount: 2000`, `pendingMutations: 0`, no ZOMBIE/crash.
+- **markers hit-test**: tap Cairo → `itemSingleTapUp Cairo` (ItemizedLayer.onGesture sync override
+  fires; no CME).
+- **layer-order-verification**: SharedLayer OFF interleaved 6 items render in strict JSX order
+  (shape → path → marker → shape → path → marker), Native=8; SharedLayer ON collapses to 3
+  fragments with the marker fragment at `1/2`.
 
 ## Addressed
 
