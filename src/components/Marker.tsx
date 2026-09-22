@@ -81,6 +81,10 @@ const Marker = ({
 	});
 
 	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// A marker can be owned by either a LayerMarker (markerFragmentId) or a
+	// SharedLayer (sharedId) — `fragmentId = markerFragmentId ?? sharedId`, and
+	// the fragment uuid here must match the `fragmentUuidFor(fragmentId,
+	// 'marker')` used in the create callback below.
 	const ownerFragmentReady = useSceneFragmentReady(
 		isGrouped ? fragmentId : null,
 		'marker'
@@ -112,10 +116,12 @@ const Marker = ({
 			const fragmentUuid =
 				fragmentId !== null
 					? fragmentUuidFor(fragmentId, 'marker')
-					: // `enabled` normally guarantees runFragmentUuid is non-null,
-						// but keep the self-keying fallback so a broken invariant
-						// can't silently create under a null/unmanaged fragment.
-						(runFragmentUuid ?? runUuidFor(anchorUid));
+					: // The scene-authoritative run key, re-read from the live
+						// plan at create time; runUuidFor is the last-ditch only
+						// for a first/single member.
+						(runFragmentUuid ??
+						scene.plan().runKeysByAnchor.get(anchorUid) ??
+						runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.

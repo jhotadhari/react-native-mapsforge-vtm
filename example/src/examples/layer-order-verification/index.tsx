@@ -496,7 +496,9 @@ const ExampleComponent: FC<{
 				onAddRunPath={() => {
 					// Read/increment outside the updater (pure updater) and
 					// derive the index from the id — a monotonic counter, not
-					// prev.length, so removed members don't collide in size/color.
+					// prev.length — so each added path keeps a unique id/key and
+					// color cycle. Visual size/width is capped (MAX_RUN_PATH_INDEX)
+					// in buildRunPath.
 					const id = nextRunIdRef.current++;
 					setRunPaths((prev) => [
 						...prev,

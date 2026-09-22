@@ -164,4 +164,14 @@ export class PriorityAllocator {
 	forget(fragmentUuid: string): void {
 		this.prioritiesByFragment.delete(fragmentUuid);
 	}
+
+	/**
+	 * Drops ALL allocator state. Called on map teardown so a StrictMode re-arm
+	 * re-applies priorities to freshly re-created fragments (whose uuids are
+	 * identical across the double-mount — without this, `computeFor` sees an
+	 * unchanged `changed` set and never re-sends `applyEntryPriorities`).
+	 */
+	reset(): void {
+		this.prioritiesByFragment.clear();
+	}
 }

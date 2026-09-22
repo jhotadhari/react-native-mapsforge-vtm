@@ -116,10 +116,13 @@ const LayerPath = ({
 			const fragmentUuid =
 				sharedId !== null
 					? fragmentUuidFor(sharedId, 'path')
-					: // `enabled` normally guarantees runFragmentUuid is non-null,
-						// but keep the self-keying fallback so a broken invariant
-						// can't silently create under a null/unmanaged fragment.
-						(runFragmentUuid ?? runUuidFor(anchorUid));
+					: // The scene-authoritative run key. Re-read from the live
+						// plan at create time (a stale closure value can otherwise
+						// self-key a non-first member); runUuidFor is the last-ditch
+						// only for a first/single member whose run key isn't computed.
+						(runFragmentUuid ??
+						scene.plan().runKeysByAnchor.get(anchorUid) ??
+						runUuidFor(anchorUid));
 			usedFragmentUuidRef.current = fragmentUuid;
 			// The absolute target order: the plan as if this entry were
 			// already resolved — the fragment appears at its tree position.

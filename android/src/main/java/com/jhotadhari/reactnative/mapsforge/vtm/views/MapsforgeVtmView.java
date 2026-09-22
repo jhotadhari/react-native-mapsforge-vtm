@@ -196,10 +196,14 @@ public class MapsforgeVtmView extends LinearLayout {
 			composite.delegates.remove( delegate );
 			if ( composite.delegates.isEmpty() ) {
 				compositeListeners.remove( wrapper );
-				// Only restore the captured foreign listener if the wrapper
-				// still holds OUR composite — a newer external listener set
-				// mid-lifetime must not be clobbered by the stale seed.
-				if ( getHierarchyChangeListener( wrapper ) == composite ) {
+				// Restore the captured foreign listener only when the wrapper
+				// still holds OUR composite (or the slot reads null — which
+				// happens when hidden-API reflection blocks the read). A newer
+				// external listener (non-null, != our composite) set
+				// mid-lifetime is left untouched.
+				ViewGroup.OnHierarchyChangeListener current =
+					getHierarchyChangeListener( wrapper );
+				if ( current == composite || current == null ) {
 					wrapper.setOnHierarchyChangeListener( composite.foreign );
 				}
 			}

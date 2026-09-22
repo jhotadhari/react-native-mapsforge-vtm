@@ -103,7 +103,9 @@ export class LayerScene {
 	/**
 	 * Resets all state. Used on map teardown so a re-arm (StrictMode or
 	 * re-mount) starts from a genuinely clean baseline rather than a stale
-	 * walk/entries/uuids. Does not notify listeners — this is a teardown op.
+	 * walk/entries/uuids. Does NOT notify listeners — this is a teardown op,
+	 * and `destroy()` always follows it with a fresh `applyWalk` (which does
+	 * notify), so any still-mounted subscriber re-reads on the next walk.
 	 */
 	clear(): void {
 		this.walk = [];

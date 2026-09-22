@@ -103,6 +103,9 @@ export class SceneSync {
 	private walkRequested = false;
 	private reorderRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	private reorderFailures = 0;
+	/** Generation counter invalidated on destroy() — a stale reorder resolution
+	 * from a previous lifecycle must not clobber post-re-arm state (mirrors walkSeq). */
+	private reorderSeq = 0;
 	private lastAttemptVersion = -1;
 	/** Fragment uuid → computed assignment awaiting native confirmation. */
 	private pendingPriorityCommits = new Map<string, Map<string, number>>();
@@ -162,6 +165,7 @@ export class SceneSync {
 		// belong to the previous lifecycle.
 		this.walkSeq++;
 		this.walkRequested = false;
+		this.reorderSeq++;
 		// Reset in-flight/last-applied state so a StrictMode re-arm (or a
 		// hung in-flight promise) can't gate the presenter permanently, and
 		// the first post-re-arm sync diffs against a clean baseline.
@@ -170,6 +174,7 @@ export class SceneSync {
 		// Establish a genuinely clean baseline: clear the scene (walk/entries/
 		// uuids) so the first post-re-arm sync diffs against an empty plan.
 		this.scene.clear();
+		this.allocator.reset();
 		this.lastPlan = this.scene.plan();
 		this.lastAttemptVersion = -1;
 		this.walkFailures = 0;
@@ -296,6 +301,10 @@ export class SceneSync {
 		// the next mutation instead of being dropped forever.
 		this.applyEntryPriorityChanges(handle, plan, diff);
 
+		// Capture the reorder generation: a resolution that lands after a
+		// destroy()/re-arm (reorderSeq bumped) or after a newer sync started
+		// must be discarded, not applied to the fresh lifecycle.
+		const reorderSeq = this.reorderSeq;
 		const reorderPromise = hasLayerWork
 			? NativeMapContainer.reorderLayers({
 					nativeNodeHandle: handle,
@@ -305,9 +314,9 @@ export class SceneSync {
 
 		reorderPromise
 			.then(() => {
-				// A resolution that lands after destroy() must not clobber
-				// the reset state (lastPlan baseline, in-flight flags).
-				if (this.destroyed) {
+				// A resolution that lands after destroy()/re-arm must not
+				// clobber the reset state (lastPlan baseline, in-flight flags).
+				if (this.destroyed || reorderSeq !== this.reorderSeq) {
 					return;
 				}
 				this.syncInFlight = false;
@@ -320,7 +329,7 @@ export class SceneSync {
 				}
 			})
 			.catch(() => {
-				if (this.destroyed) {
+				if (this.destroyed || reorderSeq !== this.reorderSeq) {
 					return;
 				}
 				// Don't update lastPlan — the next sync retries.

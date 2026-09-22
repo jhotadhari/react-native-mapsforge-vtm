@@ -736,23 +736,33 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			}
 		}
 
-		// The rebuild is a read-modify-write over the live item list and
-		// must be serialized against vtm's own synchronized accessors and
-		// the UI-thread hit-test path — synchronize on the layer (the same
-		// monitor vtm uses) so the compound operation is atomic. The
+		// Pre-validate assignments before entering the lock — a malformed
+		// assignment that throws (missing uuid/priority key) must not leave
+		// positionIndex partially updated mid-rebuild.
+		final int assignmentCount = assignments.size();
+		String[] assignmentUuids = new String[ assignmentCount ];
+		int[] assignmentPriorities = new int[ assignmentCount ];
+		for ( int i = 0; i < assignmentCount; i++ ) {
+			ReadableMap assignment = assignments.getMap( i );
+			assignmentUuids[i] = assignment.getString( "uuid" );
+			assignmentPriorities[i] = assignment.getInt( "priority" );
+		}
+
+		// The rebuild is a read-modify-write over the live item list and must
+		// be serialized against vtm's own synchronized item-list accessors
+		// (addItem/removeItem/getItemList/populate). Note vtm's hit-test
+		// iteration (activateSelectedItems) does NOT acquire this monitor, so
+		// this serializes mutations, not the gesture read path. The
 		// positionIndex writes happen here too, so the reads below (sort +
 		// scan) see them with a proper happens-before edge.
 		synchronized ( layer ) {
-			// Update tracked positions.
-			for ( int i = 0; i < assignments.size(); i++ ) {
-				ReadableMap assignment = assignments.getMap( i );
-				String uuid = assignment.getString( "uuid" );
-				int priority = assignment.getInt( "priority" );
-				MarkerEntry entry = allMarkers.get( uuid );
+			// Update tracked positions (from the pre-validated assignments).
+			for ( int i = 0; i < assignmentCount; i++ ) {
+				MarkerEntry entry = allMarkers.get( assignmentUuids[i] );
 				// Guard against cross-fragment assignments: never touch an
 				// entry that doesn't belong to this fragment's layer.
 				if ( entry != null && fragmentUuid.equals( entry.fragmentUuid ) ) {
-					entry.positionIndex = priority;
+					entry.positionIndex = assignmentPriorities[i];
 				}
 			}
 

@@ -126,7 +126,7 @@ public class LayerHelper {
 		// completion (thenRun) runs on the UI thread and must not re-read the
 		// same ReadableMap key across threads.
 		if ( !Utils.rMapHasKey( params, "uuid" ) || !Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Utils.promiseReject( promise, "Undefined uuid or nativeNodeHandle" );
+			Utils.promiseReject( promise, "Missing uuid or nativeNodeHandle" );
 			return;
 		}
 		final String uuid = params.getString( "uuid" );

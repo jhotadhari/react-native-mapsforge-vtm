@@ -193,6 +193,13 @@ public class LayerStackControllerTest {
 		controller.applyPlan(new ArrayList<>());
 		controller.applyPlan(Arrays.asList("nope"));
 		assertEquals(Arrays.asList("l1"), appliedUuids());
+
+		// The empty/stale plan must still run the self-check and report the
+		// on-map JS-managed layer as present-but-not-in-plan (M1).
+		LayerStackController.VerifyResult result = controller.getLastVerifyResult();
+		assertNotNull(result);
+		assertTrue(result.matches);
+		assertEquals(1, result.notInPlanCount);
 	}
 
 	// -----------------------------------------------------------------------

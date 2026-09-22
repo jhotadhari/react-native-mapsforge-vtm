@@ -54,7 +54,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import org.mockito.MockedStatic;
 
@@ -805,9 +804,11 @@ public class PathLayerManagerTest {
                 assertEquals("No entries may be created when the fragment failed",
                         0, mgr.getEntries().size());
 
-                // The per-item error goes on the result item, never the response.
+                // The per-item error goes on the result item; the top-level
+                // response only carries the results array (never a "error"
+                // string — that would violate the per-item contract).
                 verify(resultItemMap).putString(eq("error"), anyString());
-                verify(responseMap, never()).putString(eq("error"), anyString());
+                verify(responseMap).putArray(eq("results"), any());
             } finally {
                 when(Arguments.createMap()).thenReturn(mockWritableMap);
             }
