@@ -135,9 +135,12 @@ import useLayerAnchor from './compose/useLayerAnchor';
 import type { UseLayerAnchorOptions } from './compose/useLayerAnchor';
 import useLayerEntry from './compose/useLayerEntry';
 import useSceneUuidBinding from './compose/useSceneUuidBinding';
+import useSceneFragmentUuid from './compose/useSceneFragmentUuid';
+import useSceneFragmentReady from './compose/useSceneFragmentReady';
 import { LayerScene } from './scene/LayerScene';
 import { SceneSync } from './scene/SceneSync';
 import { registerEntryPriorityHandler } from './scene/priorityHandlers';
+import { fragmentUuidFor, runUuidFor } from './scene/ids';
 import {
 	createMapHandle,
 	createMapHandleRegistry,
@@ -292,6 +295,10 @@ export {
 	type UseLayerAnchorOptions,
 	useLayerEntry,
 	useSceneUuidBinding,
+	useSceneFragmentUuid,
+	useSceneFragmentReady,
+	fragmentUuidFor,
+	runUuidFor,
 	LayerScene,
 	SceneSync,
 	registerEntryPriorityHandler,
