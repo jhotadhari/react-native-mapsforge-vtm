@@ -58,7 +58,11 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	private static final String TAG = "PathLayerManager";
 
 	public static final String NAME = "paths";
-	/** Fallback fragment uuid when batch params carry none (single implicit fragment). */
+	/**
+	 * Fallback fragment uuid when batch params carry none (single implicit
+	 * fragment). Legacy — the JS scene always sends deterministic `frag:`/`run:`
+	 * keys now, so this is only a safety net for callers that omit fragmentUuid.
+	 */
 	public static final String DEFAULT_FRAGMENT_UUID = "__vtm_shared_path__0";
 
 	// ── Factory ─────────────────────────────────────────────────────────

@@ -61,6 +61,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	/**
 	 * Default fragment UUID prefix used when JS doesn't supply one. Must match
 	 * the default in the owning TurboModule ({@code LayerShape.java}'s createLayer).
+	 * Legacy — the JS scene always sends deterministic `frag:`/`run:` keys now.
 	 */
 	public static final String DEFAULT_FRAGMENT_UUID = "__vtm_shared_shape__0";
 

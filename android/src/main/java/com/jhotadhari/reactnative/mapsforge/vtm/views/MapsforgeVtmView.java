@@ -68,10 +68,13 @@ public class MapsforgeVtmView extends LinearLayout {
 	 * touching a library component (identity-preserved element moves).
 	 * Fires onAnchorsChanged, which the JS presenter debounces into a walk.
 	 *
-	 * Coverage: direct-child VtmAnchorViews of the wrapper (and their
-	 * descendants — anchors are the leaf markers of every ordering-relevant
-	 * component), while this view is attached. Detached-phase moves fire no
-	 * events, so {@link #onAttachedToWindow()} re-walks on (re)attach.
+	 * Coverage: direct-child VtmAnchorViews of the wrapper only — the
+	 * hierarchy-change listener observes the wrapper's direct children, so an
+	 * anchor nested under an intermediate ViewGroup fires no move event. Such
+	 * moves are picked up by the re-attach re-walk instead.
+	 * Fires onAnchorsChanged, which the JS presenter debounces into a walk.
+	 * Detached-phase moves fire no events, so {@link #onAttachedToWindow()}
+	 * re-walks on (re)attach.
 	 *
 	 * <p>Multiple {@code MapsforgeVtmView}s can share one wrapper (multi-map).
 	 * A {@code ViewGroup} has a single hierarchy-listener slot, so each view
