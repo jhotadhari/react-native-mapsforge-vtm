@@ -341,3 +341,32 @@ Review marks updated to `3648398`.
 - vtm `ItemizedLayer.activateSelectedItems` hit-test reads `mItemList` without a monitor —
   needs a vendored `ItemizedLayer` override (out of scope).
 - `LayerScene.clear()` does not notify listeners (documented; always followed by a notifying `applyWalk`).
+
+---
+
+# Pre-Phase-8 polish (backlog resolution)
+
+Status: **implemented** (commits `6dd9544`, `ca8057f`, `0601964`, `0bfc3bd`, `6391e3d`).
+Device smoke pending (markers + manyLayers/layer-order-verification).
+
+## Addressed
+
+- **A (correctness)**: LayerMarker spurious `test-uuid` emit removed; LayerZoomBoundsHelper
+  initial zoom uses `getZoomLevel()`; ItemizedLayer.onGesture synchronized override closes the
+  marker hit-test CME race; useNativeLayerLifecycle guards on `enabledRef` (S11).
+- **B (perf)**: LayerScene `hasFragment()` + `fragmentUuids` Set → O(1) `useSceneFragmentReady`.
+- **C (marker refactors)**: S2/S3 removed the dead create-time sort+scan (entries append; real
+  order via applyEntryPriorities); S5 shrinks applyEntryPriorities to an O(n) swap (sort outside
+  the lock) and corrected ordering to ascending positionIndex. S4 resolved by A's onGesture override.
+- **D (tests)**: S16 batch-split test **also fixed a real drain-loop off-by-one** (one mutation
+  dropped per full batch); S25 microtask-wins re-arm test; S29 max-wait test; 4 @Ignore'd marker
+  tests revived.
+- **E (cosmetic/docs)**: M6 dead-fallback comments; MapsforgeVtmView move-signal coverage javadoc.
+
+## Deferred (documented, not fixed)
+
+- S23 `planWithResolved` caching for bulk creates (create-phase O(N²), lower priority than the
+  render-phase fix in B).
+- S29 stale-commit test (needs PriorityAllocator internal-state exposure).
+- MapsforgeVtmView descendant move-signal mechanism (javadoc corrected; mechanism deferred).
+- fragment entry-list dump (aspirational).
