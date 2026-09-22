@@ -57,6 +57,12 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 	removeRef.current = remove;
 	const uuidRef = useRef(uuid);
 	uuidRef.current = uuid;
+	// Mirror `enabled` so triggerCreate's guard always reflects the current
+	// eligibility, matching the always-latest `createRef.current` it invokes.
+	// Without this, a stale `enabled` captured in the closure can authorize a
+	// create built in a different render (S11).
+	const enabledRef = useRef(enabled);
+	enabledRef.current = enabled;
 
 	// Tracks whether the component is still mounted so in-flight create
 	// resolutions can detect that the component unmounted before the
@@ -70,7 +76,7 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 				triggerOnChange: false,
 			}
 		) => {
-			if (!enabled) {
+			if (!enabledRef.current) {
 				return;
 			}
 			setUuid(false);
@@ -109,7 +115,6 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 				});
 		},
 		[
-			enabled,
 			onError,
 		]
 	);
