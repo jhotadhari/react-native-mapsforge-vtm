@@ -29,6 +29,7 @@ export class LayerScene {
 		fragments: [],
 		scopes: [],
 		runKeysByAnchor: new Map(),
+		fragmentUuids: new Set(),
 	};
 
 	/** Replaces the committed anchor sequence (fresh walk result). */
@@ -86,6 +87,15 @@ export class LayerScene {
 		const virtualUuids = new Map(this.uuids);
 		virtualUuids.set(key, 'virtual');
 		return buildPlan(this.walk, this.entries, virtualUuids);
+	}
+
+	/**
+	 * O(1) membership check over the cached plan's fragment uuids — a cheap
+	 * alternative to `plan().fragments.some(f => f.uuid === uuid)` for the
+	 * React bindings (see `useSceneFragmentReady`).
+	 */
+	hasFragment(uuid: string): boolean {
+		return this.plan().fragmentUuids.has(uuid);
 	}
 
 	subscribe(listener: () => void): () => void {

@@ -104,6 +104,11 @@ export type LayerPlan = {
 	 * uuid (never self-key), otherwise the collapse is silently lost.
 	 */
 	runKeysByAnchor: Map<string, string>;
+	/**
+	 * The set of fragment uuids present in {@link #fragments} — an O(1)
+	 * membership check for the React bindings (`useSceneFragmentReady`).
+	 */
+	fragmentUuids: Set<string>;
 };
 
 export type ScopeInfo = {

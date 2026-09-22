@@ -32,8 +32,7 @@ const useSceneFragmentReady = (
 			// Not grouped — the fragment gate doesn't apply.
 			return true;
 		}
-		const uuid = fragmentUuidFor(fragmentId, layerType);
-		return scene.plan().fragments.some((f) => f.uuid === uuid);
+		return scene.hasFragment(fragmentUuidFor(fragmentId, layerType));
 	}, [
 		scene,
 		fragmentId,

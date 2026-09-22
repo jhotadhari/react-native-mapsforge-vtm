@@ -189,6 +189,7 @@ export const buildPlan = (
 			(a, b) => a.anchorIndex - b.anchorIndex
 		),
 		runKeysByAnchor,
+		fragmentUuids: new Set(fragments.map((f) => f.uuid)),
 	};
 };
 
