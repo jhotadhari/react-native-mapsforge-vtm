@@ -81,8 +81,8 @@ accumulated during render.
 | 7 | Docs rewrite (`layer-ordering.md`, `AGENTS.md`, `extending.md`), CHANGELOG breaking note | ✅ done — commits `860721b`..`91dee29` |
 | 8a | Lockstep consumers via yalc (ext-grib, ext-path-color-ramp migrated; straymap) | ✅ done — consumer repos uncommitted (per instruction) |
 | 8b | Scene-busy signal: `SceneSync.subscribeBusy`/`isBusy` + `useSceneBusy()` export + straymap `map:sync` bridge | ✅ done — commit `c66b67c`; straymap uncommitted |
-| 8c | Create-phase benchmark (micro jest + macro device baseline) | pending |
-| 8d | S23: per-fragment memoized `planWithResolved` (+ tests, re-benchmark) | pending |
+| 8c | Create-phase benchmark (micro jest + macro device baseline) | ✅ done — commits `b2f6e1e`; baseline + resolution recorded in `phase-8c-benchmark.md` |
+| 8d | Create-phase performance: S23 `planWithResolved` memoization + notification batching + `updateCoordinates` batching (8f) | ✅ done — commits `7c1634e`, `1535e17`; device-verified (21.5s → 1.9s @ 1000 pairs) |
 | 8e | Release sequence: library 0.9.0 → extensions bump/release → straymap bump/release | pending |
 
 ## Commits so far
