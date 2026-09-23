@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Scene-based layer ordering** — the cursor-chain / `LayerOrderRegistry` architecture is replaced by a scene model: `LayerScene` (single source of truth, commit-phase mutations, immutable `plan()`) + `SceneSync` (debounced walk + single-flight `reorderLayers`/`applyEntryPriorities`). Order is a function of committed state, derived from an anchor walk over the committed view tree.
 - **`LayerStackController`** — native absolute-plan applier (`MapMutationQueue`-serialized) with a post-apply self-check surfaced in `getDebugLayerDump()` (`appliedMatchesExpected`, `expectedUuids`, `appliedUuids`, `notInPlanCount`).
 - **Deterministic fragment keys** — `frag:<owner>:<type>` (SharedLayer/LayerMarker) and `run:<anchor>` (implicit type-runs).
+- **`useSceneBusy()`** — reactive hook (exported) signalling that the layer-scene presenter has pending/in-flight ordering work (walk, sync, entry-priority commits, or unapplied mutations). Consumers can wire it to a loading indicator; re-renders only on true↔false transitions.
+- **`SceneSync.subscribeBusy()` / `isBusy()`** — busy subscription for the scene presenter.
 
 ### Changed
 

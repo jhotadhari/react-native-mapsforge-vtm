@@ -137,6 +137,7 @@ import useLayerEntry from './compose/useLayerEntry';
 import useSceneUuidBinding from './compose/useSceneUuidBinding';
 import useSceneFragmentUuid from './compose/useSceneFragmentUuid';
 import useSceneFragmentReady from './compose/useSceneFragmentReady';
+import useSceneBusy from './compose/useSceneBusy';
 import { LayerScene } from './scene/LayerScene';
 import { SceneSync } from './scene/SceneSync';
 import { registerEntryPriorityHandler } from './scene/priorityHandlers';
@@ -297,6 +298,7 @@ export {
 	useSceneUuidBinding,
 	useSceneFragmentUuid,
 	useSceneFragmentReady,
+	useSceneBusy,
 	fragmentUuidFor,
 	runUuidFor,
 	LayerScene,

@@ -32,6 +32,10 @@ const REORDER_RETRY_MAX_MS = 4000;
 type Debouncer = {
 	schedule: () => void;
 	cancel: () => void;
+	/** True while a scheduled run has not yet been consumed by the debounce
+	 * or max-wait timer (i.e. a mutation arrived and the run is still
+	 * pending). */
+	isPending: () => boolean;
 };
 
 const createDebouncer = (run: () => void): Debouncer => {
@@ -85,6 +89,7 @@ const createDebouncer = (run: () => void): Debouncer => {
 			}
 			runPending = false;
 		},
+		isPending: () => runPending,
 	};
 };
 
@@ -109,6 +114,11 @@ export class SceneSync {
 	private lastAttemptVersion = -1;
 	/** Fragment uuid → computed assignment awaiting native confirmation. */
 	private pendingPriorityCommits = new Map<string, Map<string, number>>();
+	/** Scene version whose state is fully applied to native (lastPlan). */
+	private lastAppliedVersion = 0;
+	/** True while ordering work is pending or in-flight (see isBusy). */
+	private busy = false;
+	private busyListeners = new Set<() => void>();
 
 	private readonly walkDebouncer: Debouncer;
 	private readonly syncDebouncer: Debouncer;
@@ -116,11 +126,47 @@ export class SceneSync {
 	constructor() {
 		this.walkDebouncer = createDebouncer(this.walk);
 		this.syncDebouncer = createDebouncer(this.sync);
-		this.scene.subscribe(() => this.syncDebouncer.schedule());
+		this.scene.subscribe(() => {
+			this.syncDebouncer.schedule();
+			this.refreshBusy();
+		});
 	}
 
 	getScene(): LayerScene {
 		return this.scene;
+	}
+
+	/**
+	 * True while the presenter has ordering work to apply: a walk or sync is
+	 * scheduled (debounced) or in-flight, entry priorities are awaiting native
+	 * confirmation, or the scene has mutated since the last applied plan.
+	 */
+	isBusy(): boolean {
+		return this.busy;
+	}
+
+	subscribeBusy(listener: () => void): () => void {
+		this.busyListeners.add(listener);
+		return () => {
+			this.busyListeners.delete(listener);
+		};
+	}
+
+	/** Recomputes the busy flag and notifies listeners on a true↔false
+	 * transition. Called from every lifecycle point that can change it. */
+	private refreshBusy(): void {
+		const next =
+			this.walkDebouncer.isPending() ||
+			this.walkInFlight ||
+			this.walkRetryTimer !== null ||
+			this.syncDebouncer.isPending() ||
+			this.syncInFlight ||
+			this.pendingPriorityCommits.size > 0 ||
+			this.scene.version() !== this.lastAppliedVersion;
+		if (next !== this.busy) {
+			this.busy = next;
+			this.busyListeners.forEach((listener) => listener());
+		}
 	}
 
 	setNativeNodeHandle(handle: number | null): void {
@@ -154,6 +200,7 @@ export class SceneSync {
 	scheduleWalk(): void {
 		this.walkFailures = 0;
 		this.walkDebouncer.schedule();
+		this.refreshBusy();
 	}
 
 	/** Call when the map view is destroyed — cancels all pending timers. */
@@ -189,6 +236,10 @@ export class SceneSync {
 		}
 		this.pendingPriorityCommits.clear();
 		this.descriptors.clear();
+		// Fully applied clean baseline — nothing pending, and the scene
+		// version is now current so busy resolves to false.
+		this.lastAppliedVersion = this.scene.version();
+		this.refreshBusy();
 	}
 
 	private walk = (): void => {
@@ -203,6 +254,7 @@ export class SceneSync {
 			return;
 		}
 		this.walkInFlight = true;
+		this.refreshBusy();
 		const seq = ++this.walkSeq;
 		NativeMapContainer.enumerateAnchors({ nativeNodeHandle: handle })
 			.then(({ anchors }) => {
@@ -230,6 +282,7 @@ export class SceneSync {
 			.catch(() => {
 				this.walkInFlight = false;
 				this.settleWalkRequested();
+				this.refreshBusy();
 				// enumerateAnchors failed (early mount, teardown race).
 				// Retry with a small backoff — a permanently failed walk
 				// would leave the scene unsynced and keep standalone
@@ -283,10 +336,13 @@ export class SceneSync {
 
 		if (!hasLayerWork && diff.entryPriorityComputations.size === 0) {
 			this.lastPlan = plan;
+			this.lastAppliedVersion = this.scene.version();
+			this.refreshBusy();
 			return;
 		}
 
 		this.syncInFlight = true;
+		this.refreshBusy();
 		const startedAt = this.scene.version();
 		if (startedAt !== this.lastAttemptVersion) {
 			// The scene mutated since the previous attempt — the plan is
@@ -322,11 +378,13 @@ export class SceneSync {
 				this.syncInFlight = false;
 				this.reorderFailures = 0;
 				this.lastPlan = plan;
+				this.lastAppliedVersion = startedAt;
 				// Mutations landed while the reorder was in-flight —
 				// re-sync with the freshest plan.
 				if (this.scene.version() !== startedAt) {
 					this.syncDebouncer.schedule();
 				}
+				this.refreshBusy();
 			})
 			.catch(() => {
 				if (this.destroyed || reorderSeq !== this.reorderSeq) {
@@ -347,6 +405,7 @@ export class SceneSync {
 					}
 					this.reorderRetryTimer = setTimeout(this.sync, delay);
 				}
+				this.refreshBusy();
 			});
 	};
 
@@ -393,6 +452,7 @@ export class SceneSync {
 						);
 						this.pendingPriorityCommits.delete(fragmentUuid);
 					}
+					this.refreshBusy();
 				})
 				.catch(() => {
 					// Best-effort: without a commit the allocator still
@@ -404,6 +464,7 @@ export class SceneSync {
 					) {
 						this.pendingPriorityCommits.delete(fragmentUuid);
 					}
+					this.refreshBusy();
 				});
 		}
 
@@ -418,5 +479,6 @@ export class SceneSync {
 				this.pendingPriorityCommits.delete(fragmentUuid);
 			}
 		}
+		this.refreshBusy();
 	}
 }

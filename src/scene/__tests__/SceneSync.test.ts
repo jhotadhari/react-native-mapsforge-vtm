@@ -408,4 +408,72 @@ describe('SceneSync', () => {
 
 		expect(mockReorder).toHaveBeenCalledTimes(1);
 	});
+
+	describe('busy signal', () => {
+		test('not busy initially; busy during walk+sync; idle after settle', async () => {
+			const sync = new SceneSync();
+			expect(sync.isBusy()).toBe(false);
+
+			sync.setNativeNodeHandle(7);
+			// Walk scheduled → busy.
+			expect(sync.isBusy()).toBe(true);
+
+			mockEnumerate.mockResolvedValue({ anchors: [] });
+			await flush(); // walk
+			await flush(); // sync
+			expect(sync.isBusy()).toBe(false);
+		});
+
+		test('scene mutation marks busy until the sync applies', async () => {
+			const sync = new SceneSync();
+			const scene = sync.getScene();
+			sync.setNativeNodeHandle(7);
+			sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+			mockEnumerate.mockResolvedValue({ anchors: ['ded'] });
+			sync.scheduleWalk();
+			await flush();
+			await flush();
+			expect(sync.isBusy()).toBe(false);
+
+			scene.attachUuid('ded', 'uuid-ded');
+			expect(sync.isBusy()).toBe(true);
+			await flush();
+			await flush();
+			expect(sync.isBusy()).toBe(false);
+		});
+
+		test('destroy() clears the busy flag', () => {
+			const sync = new SceneSync();
+			sync.setNativeNodeHandle(7);
+			sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+			expect(sync.isBusy()).toBe(true);
+
+			sync.destroy();
+			expect(sync.isBusy()).toBe(false);
+		});
+
+		test('subscribeBusy notifies only on true↔false transitions', async () => {
+			const sync = new SceneSync();
+			const scene = sync.getScene();
+			const listener = jest.fn();
+			const unsub = sync.subscribeBusy(listener);
+
+			sync.setNativeNodeHandle(7); // false → true
+			expect(listener).toHaveBeenCalledTimes(1);
+
+			// Another schedule while already busy → no transition.
+			sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+			expect(listener).toHaveBeenCalledTimes(1);
+
+			mockEnumerate.mockResolvedValue({ anchors: ['ded'] });
+			await flush(); // walk
+			await flush(); // sync → true → false
+			expect(sync.isBusy()).toBe(false);
+			expect(listener).toHaveBeenCalledTimes(2);
+
+			unsub();
+			scene.attachUuid('ded', 'uuid-ded'); // transition, but unsubscribed
+			expect(listener).toHaveBeenCalledTimes(2);
+		});
+	});
 });
