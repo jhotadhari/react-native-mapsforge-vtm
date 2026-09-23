@@ -23,6 +23,7 @@ import {
 	enqueueCreatePath,
 	enqueueRemovePath,
 } from '../compose/PathBatchQueue';
+import { enqueueUpdatePath } from '../compose/PathUpdateBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import SharedLayerContext from '../context/SharedLayerContext';
@@ -205,10 +206,12 @@ const LayerPath = ({
 	]);
 
 	// Redraw the existing native layer in place when the line or its paint
-	// changes, instead of tearing down and recreating the layer.
+	// changes, instead of tearing down and recreating the layer. Batched —
+	// a bulk re-render (e.g. zoom re-simplification) collapses N per-entry
+	// updates into one native updateLayers call.
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
-			LayerPathModule.updateCoordinates({
+			enqueueUpdatePath({
 				nativeNodeHandle,
 				uuid,
 				coordinates,

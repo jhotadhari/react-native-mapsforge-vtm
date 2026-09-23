@@ -466,6 +466,42 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		return response;
 	}
 
+	/**
+	 * Updates multiple path entries in a single batch. Each item carries its
+	 * own uuid + new coordinates/paint; per-item errors are captured, and the
+	 * response mirrors the single updateCoordinates response for each item.
+	 * The coalesced scheduleUpdate collapses the per-entry updates into one
+	 * updateMap.
+	 */
+	@NonNull
+	public WritableMap updatePaths(
+		@NonNull ReadableArray pathsArray,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver
+	) {
+		int count = pathsArray.size();
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			ReadableMap params = pathsArray.getMap( i );
+			String uuid = Utils.rMapHasKey( params, "uuid" )
+				? params.getString( "uuid" ) : "";
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", uuid );
+			try {
+				WritableMap responseData = update( uuid, params, mapFragment, contentResolver );
+				if ( responseData != null ) {
+					resultItem.putMap( "response", responseData );
+				}
+			} catch ( Exception e ) {
+				resultItem.putString( "error", errorMessage(e) );
+			}
+			results.pushMap( resultItem );
+		}
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
+	}
+
 	// ── Path-specific public API ────────────────────────────────────────
 
 	/**

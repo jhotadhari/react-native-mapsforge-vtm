@@ -415,6 +415,36 @@ public class LayerPath extends NativeLayerPathSpec {
 	}
 
 	@ReactMethod
+	public void updateLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "paths" ) ) {
+				Utils.promiseReject( promise, "Undefined paths array" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				Utils.promiseReject( promise, "Unable to find mapFragment" ); return;
+			}
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager == null ) {
+				Utils.promiseReject( promise, "PathLayerManager not found" ); return;
+			}
+			WritableMap response = manager.updatePaths(
+				params.getArray( "paths" ),
+				mapFragment,
+				mapFragment.getActivity().getContentResolver()
+			);
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@ReactMethod
 	public void updateSupportsGestures( ReadableMap params, Promise promise ) {
 		try {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) ) {

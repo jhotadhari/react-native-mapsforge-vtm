@@ -69,7 +69,7 @@ export interface CreateLayerParams extends ModuleParams {
 	supportsGestures?: boolean;
 }
 
-interface UpdateCoordinatesParams {
+export interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
@@ -183,6 +183,11 @@ export interface CreateLayersParams {
 	paths: ReadonlyArray<CreateLayerParams>;
 }
 
+export interface UpdateLayersParams {
+	nativeNodeHandle: Int32;
+	paths: ReadonlyArray<UpdateCoordinatesParams>;
+}
+
 export interface RemoveLayersParams {
 	nativeNodeHandle: Int32;
 	uuids: ReadonlyArray<string>;
@@ -237,6 +242,11 @@ export interface Spec extends TurboModule {
 	 */
 	createLayers(params: CreateLayersParams): Promise<PathBatchResponse>;
 	removeLayers(params: RemoveLayersParams): Promise<RemoveLayersResponse>;
+	/**
+	 * Batch update — N path geometry/paint updates in one bridge call
+	 * (collapses the per-entry updateCoordinates churn on bulk re-render).
+	 */
+	updateLayers(params: UpdateLayersParams): Promise<PathBatchResponse>;
 
 	updateCoordinates(
 		params: UpdateCoordinatesParams
