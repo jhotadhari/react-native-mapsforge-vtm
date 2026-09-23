@@ -37,7 +37,7 @@ public class ItemizedLayer extends org.oscim.layers.marker.ItemizedLayer {
 	/**
 	 * Serializes gesture hit-testing against the item-list mutations the
 	 * managers perform under the layer monitor (createMarkers /
-	 * applyEntryPriorities / insertMarkerSorted). The upstream
+	 * applyEntryPriorities / appendMarker). The upstream
 	 * {@code activateSelectedItems} iterates {@code mItemList} without holding
 	 * the monitor, so a concurrent rebuild can throw
 	 * {@code ConcurrentModificationException} during a gesture. Synchronizing

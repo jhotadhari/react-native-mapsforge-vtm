@@ -595,7 +595,7 @@ public class MarkerLayerManagerTest {
         mgr.applyEntryPriorities(MarkerLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
 
         // Same order createMarkers would produce for priorities (2000, 1000):
-        // descending insertion puts the lower-priority item at index 0.
+        // ascending insertion puts the lower-priority item at index 0.
         assertEquals("positionIndex must be updated",
                 2000, allMarkers.get("uuid-1").positionIndex);
         assertEquals(2, itemList.size());
@@ -603,6 +603,48 @@ public class MarkerLayerManagerTest {
                 mi2, itemList.get(0));
         assertEquals("Higher-priority marker must be at index 1",
                 mi1, itemList.get(1));
+    }
+
+    @Test
+    public void applyEntryPriorities_preservesUntrackedLiveItem() throws Exception {
+        MarkerLayerManager mgr = createManagerWithFakeLayer();
+
+        // mi1/mi2 are tracked; "untracked" was added to the live item list but
+        // NOT yet tracked in allMarkers (simulating the mid-create window where
+        // createMarkers has added the item to the layer but not the entry).
+        MarkerItem mi1 = new MarkerItem("uuid-1", "m1", "d",
+                new GeoPoint(52.5, 13.4));
+        MarkerItem mi2 = new MarkerItem("uuid-2", "m2", "d",
+                new GeoPoint(52.6, 13.5));
+        MarkerItem untracked = new MarkerItem("uuid-untracked", "m3", "d",
+                new GeoPoint(52.7, 13.6));
+        itemList.add(mi1);
+        itemList.add(mi2);
+        itemList.add(untracked);
+
+        Field allMarkersField = MarkerLayerManager.class.getDeclaredField("allMarkers");
+        allMarkersField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, MarkerLayerManager.MarkerEntry> allMarkers =
+                (java.util.Map<String, MarkerLayerManager.MarkerEntry>)
+                        allMarkersField.get(mgr);
+        allMarkers.put("uuid-1", new MarkerLayerManager.MarkerEntry(
+                "uuid-1", MarkerLayerManager.ROOT_GROUP_UUID,
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi1, 0, 1L));
+        allMarkers.put("uuid-2", new MarkerLayerManager.MarkerEntry(
+                "uuid-2", MarkerLayerManager.ROOT_GROUP_UUID,
+                MarkerLayerManager.DEFAULT_FRAGMENT_UUID, mi2, 1000, 2L));
+
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(0);
+
+        mgr.applyEntryPriorities(MarkerLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
+
+        // The full clear()+addAll() swap must preserve the untracked item.
+        assertEquals("itemList must keep tracked + untracked markers",
+                3, itemList.size());
+        assertTrue("untracked item must survive the swap",
+                itemList.contains(untracked));
     }
 
     @Test

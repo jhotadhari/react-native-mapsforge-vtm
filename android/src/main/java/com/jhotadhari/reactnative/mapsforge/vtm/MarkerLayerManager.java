@@ -257,7 +257,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				"No shared ItemizedLayer for fragmentUuid '" + fragmentUuid
 					+ "'. Known fragments: " + sharedLayerFragments.keySet());
 		}
-		insertMarkerSorted(markerItem, itemizedLayer);
+		appendMarker(markerItem, itemizedLayer);
 
 		// Track.
 		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, APPEND_PRIORITY, entrySeqCounter.incrementAndGet());
@@ -498,7 +498,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		// New entries append (APPEND_PRIORITY placeholder). The real
 		// within-fragment order is established later by applyEntryPriorities
-		// (descending positionIndex, ties by ascending creationSeq), whose
+		// (ascending positionIndex, ties by ascending creationSeq), whose
 		// source-order creationSeq matches this append order — so the two
 		// paths agree and the transient append is immediately corrected.
 		for (int li = 0; li < itemsToAdd.size(); li++) {
@@ -740,9 +740,32 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// critical section is O(n), not the previous O(n²) remove/scan/re-add.
 		synchronized ( layer ) {
 			List<MarkerInterface> itemList = layer.getItemList();
+
+			// Preserve any item added to the live list after the snapshot above
+			// was taken (a concurrent create that hasn't yet tracked its entry
+			// in allMarkers). A full clear()+addAll() would otherwise drop it
+			// from the render list until the next applyEntryPriorities.
+			List<MarkerInterface> preserved = null;
+			Set<String> accountedUids = new HashSet<>();
+			for ( MarkerEntry entry : fragmentEntries ) {
+				accountedUids.add( entry.markerItem.getUid().toString() );
+			}
+			for ( MarkerInterface item : itemList ) {
+				String uid = ( (MarkerItem) item ).getUid().toString();
+				if ( ! accountedUids.contains( uid ) ) {
+					if ( preserved == null ) {
+						preserved = new ArrayList<>();
+					}
+					preserved.add( item );
+				}
+			}
+
 			itemList.clear();
 			itemList.addAll( ordered );
-			if ( !ordered.isEmpty() ) {
+			if ( preserved != null ) {
+				itemList.addAll( preserved );
+			}
+			if ( ! itemList.isEmpty() ) {
 				layer.populate();
 			}
 		}
@@ -874,8 +897,14 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			return null;
 		}
 
-		int size = layer.getItemList().size();
-		if (size == 0) {
+		// Defensive copy under the layer monitor — applyEntryPriorities mutates
+		// the item list (clear()+addAll()) on the modules thread, so an
+		// unsynchronized size()/get() loop here could observe a torn list.
+		List<MarkerInterface> items;
+		synchronized ( layer ) {
+			items = new ArrayList<>( layer.getItemList() );
+		}
+		if ( items.isEmpty() ) {
 			return null;
 		}
 
@@ -888,11 +917,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		int inside = -1;
 
 		int i = 0;
-		while (i < size && (
+		while (i < items.size() && (
 			!"first".equals(strategy)
 			|| ("first".equals(strategy) && inside == -1)
 		)) {
-			MarkerInterface item = layer.getItemList().get(i);
+			MarkerInterface item = items.get(i);
 			MarkerEntry entry = allMarkers.get(((MarkerItem) item).getUid().toString());
 			// Only consider markers in this group.
 			if (entry == null || !groupUuid.equals(entry.groupUuid)) {
@@ -982,12 +1011,16 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// Iterate all markers across all fragment layers.
 		for (Layer fragmentLayer : sharedLayerFragments.values()) {
 			ItemizedLayer layer = (ItemizedLayer) fragmentLayer;
-			int size = layer.getItemList().size();
-			if (size == 0) {
+			// Defensive copy under the layer monitor (see triggerGroupEvent).
+			List<MarkerInterface> items;
+			synchronized ( layer ) {
+				items = new ArrayList<>( layer.getItemList() );
+			}
+			if ( items.isEmpty() ) {
 				continue;
 			}
-			for (int i = 0; i < size; i++) {
-				MarkerInterface item = layer.getItemList().get(i);
+			for (int i = 0; i < items.size(); i++) {
+				MarkerInterface item = items.get(i);
 				MarkerEntry entry = allMarkers.get(((MarkerItem) item).getUid().toString());
 				if (entry == null) {
 					continue;
@@ -1051,7 +1084,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 	 * (APPEND_PRIORITY); the real within-fragment order is applied later by
 	 * {@link #applyEntryPriorities}. Serialized on the layer monitor.
 	 */
-	protected void insertMarkerSorted(
+	protected void appendMarker(
 		@NonNull MarkerItem markerItem,
 		@NonNull ItemizedLayer layer
 	) {
