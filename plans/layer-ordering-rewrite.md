@@ -83,6 +83,7 @@ accumulated during render.
 | 8b | Scene-busy signal: `SceneSync.subscribeBusy`/`isBusy` + `useSceneBusy()` export + straymap `map:sync` bridge | ✅ done — commit `c66b67c`; straymap uncommitted |
 | 8c | Create-phase benchmark (micro jest + macro device baseline) | ✅ done — commits `b2f6e1e`; baseline + resolution recorded in `phase-8c-benchmark.md` |
 | 8d | Create-phase performance: S23 `planWithResolved` memoization + notification batching + `updateCoordinates` batching (8f) | ✅ done — commits `7c1634e`, `1535e17`; device-verified (21.5s → 1.9s @ 1000 pairs) |
+| — | **Fix batch 5** (post-8d review: marker swap race, busy edge cases, update-path hardening, memo cap, cosmetic) | ✅ done — commits `67546d2`, `0f51aa6`, `55bf1da`, `2b648fa` |
 | 8e | Release sequence: library 0.9.0 → extensions bump/release → straymap bump/release | pending |
 
 ## Commits so far
