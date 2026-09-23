@@ -3,10 +3,11 @@
  *
  * LayerPath/LayerShape/Marker create callbacks each call
  * `scene.planWithResolved(entryUid)` to compute the atomic-add order hint
- * (`layerUuids`). planWithResolved is uncached — it builds the plan fresh each
- * call — so a burst of N creates costs O(N²). This benchmark measures that
- * create-phase cost; it is the baseline that the S23 memoization (per-fragment
- * caching) is meant to collapse to ~O(N log N).
+ * (`layerUuids`). planWithResolved is memoized per fragment/type-run (S23) —
+ * every entry of a fragment (and member of a run) yields an identical plan, so
+ * one build per fragment per mutation-version serves the whole create burst.
+ * This benchmark guards that invariant: scaling should stay ~flat (near-linear,
+ * dominated by the single plan build), not the pre-S23 O(N²) it replaced.
  *
  * Opt-in (skipped by default so the normal suite stays fast):
  *   BENCH=1 yarn test planWithResolved.perf

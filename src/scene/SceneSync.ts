@@ -127,6 +127,13 @@ export class SceneSync {
 		this.walkDebouncer = createDebouncer(this.walk);
 		this.syncDebouncer = createDebouncer(this.sync);
 		this.scene.subscribe(() => {
+			// A batched scene notification can land after destroy() (the
+			// scene's mutate() defers listener fan-out to a microtask) — guard
+			// so a post-teardown mutation never re-arms the debouncer and
+			// leaves `busy` stuck true.
+			if (this.destroyed) {
+				return;
+			}
 			this.syncDebouncer.schedule();
 			this.refreshBusy();
 		});
@@ -305,6 +312,11 @@ export class SceneSync {
 					WALK_RETRY_MAX_MS
 				);
 				this.walkRetryTimer = setTimeout(this.walk, delay);
+				// Recompute after arming the retry timer — the earlier
+				// refreshBusy() (above) ran while walkRetryTimer was still
+				// null, so busy would otherwise drop false for the whole
+				// backoff window.
+				this.refreshBusy();
 			});
 	};
 

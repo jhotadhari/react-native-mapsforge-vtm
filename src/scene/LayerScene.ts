@@ -17,6 +17,9 @@ import type { AnchorDescriptor, EntryDeclaration, LayerPlan } from './types';
 import { buildPlan } from './planBuilder';
 import { fragmentUuidFor } from './ids';
 
+/** Upper bound on distinct planWithResolved memo keys before a blunt reset. */
+const MAX_RESOLVED_PLAN_MEMO = 64;
+
 export class LayerScene {
 	private walk: AnchorDescriptor[] = [];
 	private entries = new Map<string, EntryDeclaration>();
@@ -110,6 +113,14 @@ export class LayerScene {
 		const virtualUuids = new Map(this.uuids);
 		virtualUuids.set(key, 'virtual');
 		const plan = buildPlan(this.walk, this.entries, virtualUuids);
+		// Bound the memo: distinct cache keys (fragment/run/anchor uids) are
+		// never reused, so a long-lived map with mount/unmount churn would
+		// otherwise accumulate stale O(N) plan snapshots until clear(). A blunt
+		// reset at the cap is fine — realistic maps have far fewer live keys,
+		// and the next burst simply rebuilds once per fragment.
+		if (this.resolvedPlanMemo.size >= MAX_RESOLVED_PLAN_MEMO) {
+			this.resolvedPlanMemo.clear();
+		}
 		this.resolvedPlanMemo.set(cacheKey, {
 			version: this.mutationVersion,
 			plan,

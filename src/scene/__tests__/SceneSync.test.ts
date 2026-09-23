@@ -453,6 +453,45 @@ describe('SceneSync', () => {
 			expect(sync.isBusy()).toBe(false);
 		});
 
+		test('busy stays true during a walk-retry backoff', async () => {
+			const sync = new SceneSync();
+			sync.setNativeNodeHandle(7);
+			sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+
+			mockEnumerate.mockRejectedValueOnce(new Error('walk failed'));
+			sync.scheduleWalk();
+			await flush(); // debounce fires; enumerate rejects; retry armed
+			await Promise.resolve();
+
+			// The walk retry is armed (backoff window) — busy must remain true.
+			expect(sync.isBusy()).toBe(true);
+
+			// Let the retry land and succeed → idle.
+			mockEnumerate.mockResolvedValue({ anchors: ['ded'] });
+			jest.advanceTimersByTime(250);
+			await flush();
+			await flush();
+			expect(sync.isBusy()).toBe(false);
+		});
+
+		test('a post-destroy scene mutation does not leave busy stuck true', async () => {
+			const sync = new SceneSync();
+			const scene = sync.getScene();
+			sync.setNativeNodeHandle(7);
+			sync.registerAnchor({ uid: 'ded', kind: 'layer' });
+
+			sync.destroy();
+			expect(sync.isBusy()).toBe(false);
+
+			// A mutation after destroy schedules a batched notification; when
+			// it flushes (microtask) the presenter is already destroyed and must
+			// not re-arm the debouncer.
+			scene.attachUuid('ded', 'uuid-ded');
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(sync.isBusy()).toBe(false);
+		});
+
 		test('subscribeBusy notifies only on true↔false transitions', async () => {
 			const sync = new SceneSync();
 			const scene = sync.getScene();
