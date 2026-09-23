@@ -51,6 +51,17 @@ describe('PathUpdateBatchQueue', () => {
 		await expect(p2).resolves.toEqual({ uuid: 'u2' });
 	});
 
+	test('resolves a synthesized response when an item carries no response', async () => {
+		mockUpdateLayers.mockResolvedValue({
+			results: [{ uuid: 'u1' }],
+		});
+
+		const p1 = enqueueUpdatePath({ nativeNodeHandle: 7, uuid: 'u1' });
+		await flushMicrotasks();
+
+		await expect(p1).resolves.toEqual({ uuid: 'u1', nativeNodeHandle: 7 });
+	});
+
 	test('rejects an update whose batch item carries an error', async () => {
 		mockUpdateLayers.mockResolvedValue({
 			results: [{ uuid: 'u1', error: 'nope' }],

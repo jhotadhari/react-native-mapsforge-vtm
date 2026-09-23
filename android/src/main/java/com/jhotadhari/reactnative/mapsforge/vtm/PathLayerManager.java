@@ -491,6 +491,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 				WritableMap responseData = update( uuid, params, mapFragment, contentResolver );
 				if ( responseData != null ) {
 					resultItem.putMap( "response", responseData );
+				} else {
+					// Entry gone (e.g. removed/re-keyed between the JS update
+					// and this batch) — a benign no-op. Log rather than emit a
+					// per-item error: surfacing an error would turn a normal
+					// update/remove race (line leaving the viewport during a
+					// zoom re-simplification) into a spurious onError.
+					Log.d( TAG, "updatePaths: entry not found (no-op) for uuid=" + uuid );
 				}
 			} catch ( Exception e ) {
 				resultItem.putString( "error", errorMessage(e) );

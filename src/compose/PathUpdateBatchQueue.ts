@@ -71,7 +71,15 @@ const flush = (nativeNodeHandle: number): void => {
 					op.reject(new Error(result.error));
 					continue;
 				}
-				op.resolve(result.response as LayerPathResponse);
+				// A benign no-op update (entry gone — update/remove race) carries
+				// no response; synthesize a minimal one so onChange never sees
+				// `undefined` (matches the old updateCoordinates `{}` contract).
+				op.resolve(
+					(result.response ?? {
+						uuid: result.uuid,
+						nativeNodeHandle,
+					}) as LayerPathResponse
+				);
 			}
 			for (let i = len; i < pending.length; i++) {
 				pending[i]!.reject(
@@ -92,7 +100,15 @@ const scheduleFlush = (nativeNodeHandle: number): void => {
 		return;
 	}
 	queue.flushScheduled = true;
-	Promise.resolve().then(() => flush(nativeNodeHandle));
+	const queued = queue;
+	Promise.resolve().then(() => {
+		// Identity guard: if the queue was drained and re-created for the same
+		// handle since this flush was scheduled (StrictMode remount), skip —
+		// the stale microtask must not touch the new lifecycle's queue.
+		if (queues.get(nativeNodeHandle) === queued) {
+			flush(nativeNodeHandle);
+		}
+	});
 	if (queue.maxWaitTimer === null) {
 		queue.maxWaitTimer = setTimeout(() => {
 			const q = queues.get(nativeNodeHandle);

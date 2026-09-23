@@ -403,6 +403,9 @@ public class LayerPath extends NativeLayerPathSpec {
 			if ( manager == null ) {
 				Utils.promiseReject( promise,"PathLayerManager not found" ); return;
 			}
+			if ( mapFragment.getActivity() == null ) {
+				Utils.promiseReject( promise,"Map activity detached" ); return;
+			}
 
 			WritableMap responseParams = manager.update( uuid, params, mapFragment,
 				mapFragment.getActivity().getContentResolver() );
@@ -431,6 +434,9 @@ public class LayerPath extends NativeLayerPathSpec {
 			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
 			if ( manager == null ) {
 				Utils.promiseReject( promise, "PathLayerManager not found" ); return;
+			}
+			if ( mapFragment.getActivity() == null ) {
+				Utils.promiseReject( promise, "Map activity detached" ); return;
 			}
 			WritableMap response = manager.updatePaths(
 				params.getArray( "paths" ),
