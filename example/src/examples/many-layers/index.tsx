@@ -1,4 +1,11 @@
-import { Fragment, useMemo, useState, useCallback, type FC } from 'react';
+import {
+	Fragment,
+	useMemo,
+	useState,
+	useCallback,
+	useEffect,
+	type FC,
+} from 'react';
 import {
 	View,
 	Text,
@@ -125,7 +132,10 @@ const Controls: FC<{
 						<Button
 							key={option}
 							title={`${option}`}
-							onPress={() => setCount(option)}
+							onPress={() => {
+								benchStart = Date.now();
+								setCount(option);
+							}}
 						/>
 					))}
 				</ControlRow>
@@ -172,6 +182,59 @@ const LayerDebugDumpButton: FC = () => {
 			<Text style={dumpStyles.text}>{'🐛 Dump'}</Text>
 		</Pressable>
 	);
+};
+
+/**
+ * Dev-only benchmark: measures press→settle for a count change. The count
+ * button records a timestamp in `benchStart` (on the JS thread, before the
+ * create burst); this component polls getDebugLayerDump() until the scene is
+ * settled and logs the elapsed time. Must be a MapContainer child for useMap().
+ */
+let benchStart = 0;
+
+const BenchmarkTimer: FC<{ count: number }> = ({ count }) => {
+	const { getDebugLayerDump } = useMap();
+
+	useEffect(() => {
+		if (benchStart === 0) {
+			return;
+		}
+		let cancelled = false;
+		let timer: ReturnType<typeof setTimeout>;
+		const poll = async () => {
+			if (cancelled) {
+				return;
+			}
+			try {
+				const dump = await getDebugLayerDump();
+				if (
+					dump.appliedMatchesExpected &&
+					dump.notInPlanCount === 0 &&
+					dump.pendingMutations === 0
+				) {
+					const elapsed = Date.now() - benchStart;
+					console.log(
+						`[Benchmark] count=${count} settled in ${elapsed}ms ` +
+							`(jsManaged=${dump.jsManagedCount}, totalLayers=${dump.totalLayers})`
+					);
+					benchStart = 0;
+					return;
+				}
+			} catch {
+				// Dump failed (map mid-teardown) — retry.
+			}
+			if (!cancelled) {
+				timer = setTimeout(poll, 50);
+			}
+		};
+		timer = setTimeout(poll, 50);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
+	}, [count, getDebugLayerDump]);
+
+	return null;
 };
 
 const ExampleComponent: FC<{
@@ -265,6 +328,7 @@ const ExampleComponent: FC<{
 						))}
 					{__DEV__ && <LayerDebugOverlay />}
 					{__DEV__ && <LayerDebugDumpButton />}
+					{__DEV__ && <BenchmarkTimer count={count} />}
 				</MapContainer>
 
 				<MapInfo info={info} />
