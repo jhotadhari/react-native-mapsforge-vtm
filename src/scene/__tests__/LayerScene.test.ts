@@ -144,21 +144,31 @@ describe('LayerScene', () => {
 		expect(scene.plan().fragments[0]!.entryUids).toEqual(['e2', 'e1']);
 	});
 
-	test('listeners are notified on every mutation and can unsubscribe', () => {
+	test('listeners are notified (batched) on mutation and can unsubscribe', async () => {
 		const scene = new LayerScene();
 		const listener = jest.fn();
 		const unsubscribe = scene.subscribe(listener);
 
+		// A synchronous burst coalesces into a single notification (S23).
 		scene.applyWalk([dedicated('a')]);
 		scene.attachUuid('a', 'uuid-a');
 		scene.declareEntry(entry('e1', 'shared1', 'path'));
 		scene.undeclareEntry('e1');
 		scene.detachUuid('a');
-		expect(listener).toHaveBeenCalledTimes(5);
+		expect(listener).not.toHaveBeenCalled();
+
+		await Promise.resolve();
+		expect(listener).toHaveBeenCalledTimes(1);
+
+		// A later mutation notifies again.
+		scene.attachUuid('a', 'uuid-b');
+		await Promise.resolve();
+		expect(listener).toHaveBeenCalledTimes(2);
 
 		unsubscribe();
-		scene.attachUuid('a', 'uuid-a');
-		expect(listener).toHaveBeenCalledTimes(5);
+		scene.attachUuid('a', 'uuid-c');
+		await Promise.resolve();
+		expect(listener).toHaveBeenCalledTimes(2);
 	});
 
 	test('version counter bumps on every mutation', () => {
@@ -177,5 +187,55 @@ describe('LayerScene', () => {
 		// A no-op detach (unknown key) must not bump the version.
 		scene.detachUuid('unknown');
 		expect(scene.version()).toBe(3);
+	});
+
+	test('planWithResolved memo reflects later mutations (S23 invalidation)', () => {
+		const scene = new LayerScene();
+		scene.applyWalk([
+			{ uid: 'sl1', kind: 'fragment', fragmentId: 'shared1' },
+		]);
+		scene.declareEntry(entry('e1', 'shared1', 'path', 0));
+
+		// Resolving e1 places the shared fragment (one entry).
+		const first = scene.planWithResolved('e1');
+		expect(first.layers.map((l) => l.uuid)).toEqual(['frag:shared1:path']);
+		expect(first.fragments[0]?.entryUids).toEqual(['e1']);
+
+		// A new entry of the same fragment is declared (mutation → memo stale).
+		scene.declareEntry(entry('e2', 'shared1', 'path', 1));
+		const second = scene.planWithResolved('e1');
+		expect(second.fragments[0]?.entryUids).toEqual(['e1', 'e2']);
+
+		// Same-fragment entry key yields the identical (shared) plan.
+		expect(scene.planWithResolved('e2').fragments[0]?.entryUids).toEqual([
+			'e1',
+			'e2',
+		]);
+	});
+
+	test('planWithResolved for a standalone run member shares the run-key memo', () => {
+		const scene = new LayerScene();
+		scene.applyWalk([
+			{ uid: 'a1', kind: 'layer', layerType: 'path', shared: true },
+			{ uid: 'a2', kind: 'layer', layerType: 'path', shared: true },
+		]);
+
+		// Resolving either member places the run fragment (both members).
+		const p1 = scene.planWithResolved('a1');
+		const p2 = scene.planWithResolved('a2');
+		expect(p1.layers.map((l) => l.uuid)).toEqual(['run:a1']);
+		expect(p2.layers.map((l) => l.uuid)).toEqual(['run:a1']);
+	});
+
+	test('clear() resets the planWithResolved memo', () => {
+		const scene = new LayerScene();
+		scene.applyWalk([
+			{ uid: 'sl1', kind: 'fragment', fragmentId: 'shared1' },
+		]);
+		scene.declareEntry(entry('e1', 'shared1', 'path'));
+		expect(scene.planWithResolved('e1').layers).toHaveLength(1);
+
+		scene.clear();
+		expect(scene.planWithResolved('e1').layers).toEqual([]);
 	});
 });

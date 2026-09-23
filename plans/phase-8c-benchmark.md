@@ -78,3 +78,61 @@ re-upload, per-entry `scheduleUpdate` churn, batch flush size).
 
 Re-run `BENCH=1 yarn test planWithResolved.perf` and the macro timer; record
 the delta here.
+
+---
+
+# Resolution (post-S23 + notification batching)
+
+## Corrected root cause
+
+The "native side dominates" conclusion above was **wrong** — it was based on a
+confounded macro. Two confounders were removed first:
+
+1. The `many-layers` example re-rendered 2N elements on every `onMapUpdate`
+   (`useMapInfo` `setInfo` per frame, un-memoized `layerPairs.map`) — sustained
+   JS churn at 25–60 Hz. Fixed by memoizing `pairElements`.
+2. The BenchmarkTimer polled the full `getDebugLayerDump()` every 50 ms
+   (serializing 2000 registry entries per poll — observer effect). Replaced
+   with `useSceneBusy()` as the settle signal + one final dump.
+
+After de-confounding, the real bottleneck was two JS-side O(N²) costs:
+
+- **`planWithResolved` per create** — fixed by S23 memoization (per-fragment +
+  per-run-key, invalidated by `mutationVersion`).
+- **The scene notification storm** — every mutation (declareEntry/attachUuid)
+  synchronously notified all N `useSceneFragmentReady` subscribers (≈2N²
+  listener invocations), and the first subscriber's `plan()` call rebuilt the
+  O(N log N) plan per mutation. Fixed by coalescing `LayerScene.mutated()`
+  notification into a single `Promise.resolve().then` flush (mutationVersion
+  still bumps synchronously, so memo invalidation stays exact).
+
+Native was **already coalesced** (`SimpleWorker.submit` dedupes; `createMarkers`
+already batches via direct `getItemList().add` + one `populate()` per fragment).
+
+## Results
+
+### Micro (`planWithResolved`, Node)
+
+| N | before (ms) | after (ms) |
+|---|---|---|
+| 1000 | 96.2 | 0.8 |
+| 4000 | 1122.8 | 2.7 |
+
+~415× faster; now ~O(1) amortized (one build per burst, memo hits thereafter).
+
+### Macro (device, `many-layers`)
+
+| transition | before | after |
+|---|---|---|
+| 50→1000 pairs | 21 501 ms | **1 919 ms** |
+| 1000→3000 pairs | pegged / never settled | **9 385 ms** |
+
+~11× faster on the clean create phase; 3000 pairs (6000 entries) now completes
+instead of pegging the CPU.
+
+### Remaining cost
+
+The residual ~9 s at 6000 entries is **native/bridge** (vtm `ItemizedLayer`/
+`VectorLayer` re-render of 6000 drawables + JS→native param serialization), not
+the JS scene model — a separate vtm-throughput concern, tracked as a possible
+follow-up.

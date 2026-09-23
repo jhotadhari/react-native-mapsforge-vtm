@@ -15,6 +15,7 @@
 
 import type { AnchorDescriptor, EntryDeclaration, LayerPlan } from './types';
 import { buildPlan } from './planBuilder';
+import { fragmentUuidFor } from './ids';
 
 export class LayerScene {
 	private walk: AnchorDescriptor[] = [];
@@ -31,6 +32,15 @@ export class LayerScene {
 		runKeysByAnchor: new Map(),
 		fragmentUuids: new Set(),
 	};
+	/** Entry uid → its deterministic fragment uuid (populated on declare). */
+	private entryFragment = new Map<string, string>();
+	/** planWithResolved memo: cacheKey (fragment/run/anchor) → {version, plan}. */
+	private resolvedPlanMemo = new Map<
+		string,
+		{ version: number; plan: LayerPlan }
+	>();
+	/** True while a batched listener-notification microtask is pending. */
+	private notifyScheduled = false;
 
 	/** Replaces the committed anchor sequence (fresh walk result). */
 	applyWalk(sequence: AnchorDescriptor[]): void {
@@ -46,11 +56,16 @@ export class LayerScene {
 			...entry,
 			declarationSeq: this.declarationSeq,
 		});
+		this.entryFragment.set(
+			entry.uid,
+			fragmentUuidFor(entry.fragmentId, entry.layerType)
+		);
 		this.mutated();
 	}
 
 	undeclareEntry(uid: string): void {
 		if (this.entries.delete(uid)) {
+			this.entryFragment.delete(uid);
 			this.mutated();
 		}
 	}
@@ -77,16 +92,29 @@ export class LayerScene {
 	}
 
 	/**
-	 * Pure, uncached: builds the plan as if {@code key} had a resolved uuid.
-	 * The plan only tests presence, so the value is irrelevant. Used by
-	 * components to compute the absolute target order they send with a
-	 * create call — the not-yet-resolved fragment appears at its correct
-	 * tree position in the result.
+	 * Pure, uncached plan as if {@code key} had a resolved uuid — the atomic-add
+	 * order hint. Memoized per fragment/run (S23): every entry of the same
+	 * fragment (and every member of the same type-run) yields an identical plan,
+	 * so one build per fragment per mutation-version serves the whole create
+	 * burst, collapsing the create-phase O(N²) to ~O(N log N).
 	 */
 	planWithResolved(key: string): LayerPlan {
+		const cacheKey =
+			this.entryFragment.get(key) ??
+			this.plan().runKeysByAnchor.get(key) ??
+			key;
+		const memo = this.resolvedPlanMemo.get(cacheKey);
+		if (memo !== undefined && memo.version === this.mutationVersion) {
+			return memo.plan;
+		}
 		const virtualUuids = new Map(this.uuids);
 		virtualUuids.set(key, 'virtual');
-		return buildPlan(this.walk, this.entries, virtualUuids);
+		const plan = buildPlan(this.walk, this.entries, virtualUuids);
+		this.resolvedPlanMemo.set(cacheKey, {
+			version: this.mutationVersion,
+			plan,
+		});
+		return plan;
 	}
 
 	/**
@@ -124,11 +152,28 @@ export class LayerScene {
 		this.declarationSeq = 0;
 		this.mutationVersion++;
 		this.planDirty = true;
+		this.entryFragment.clear();
+		this.resolvedPlanMemo.clear();
 	}
 
 	private mutated(): void {
 		this.mutationVersion++;
 		this.planDirty = true;
-		this.listeners.forEach((listener) => listener());
+		// Coalesce listener notification into a single microtask flush (S23):
+		// a commit-phase burst of N mutations (declareEntry/attachUuid per entry)
+		// notifies the N subscribers once instead of N times, collapsing the
+		// O(N²) subscriber-notification storm to ~O(N). mutationVersion still
+		// bumps synchronously per mutation, so plan/memo invalidation stays
+		// exact — only the (async) listener fan-out is batched. Uses
+		// Promise.resolve().then (real microtask, jest-fake-timer-safe) like
+		// EntryBatchQueue.
+		if (this.notifyScheduled) {
+			return;
+		}
+		this.notifyScheduled = true;
+		Promise.resolve().then(() => {
+			this.notifyScheduled = false;
+			this.listeners.forEach((listener) => listener());
+		});
 	}
 }

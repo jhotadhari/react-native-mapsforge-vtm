@@ -436,6 +436,7 @@ describe('SceneSync', () => {
 			expect(sync.isBusy()).toBe(false);
 
 			scene.attachUuid('ded', 'uuid-ded');
+			await Promise.resolve();
 			expect(sync.isBusy()).toBe(true);
 			await flush();
 			await flush();

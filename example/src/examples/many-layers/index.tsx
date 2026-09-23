@@ -4,6 +4,7 @@ import {
 	useState,
 	useCallback,
 	useEffect,
+	useRef,
 	type FC,
 } from 'react';
 import {
@@ -21,6 +22,7 @@ import {
 	Marker,
 	SharedLayer,
 	useMap,
+	useSceneBusy,
 	type Position,
 	type MarkerPaint,
 } from 'react-native-mapsforge-vtm';
@@ -187,52 +189,64 @@ const LayerDebugDumpButton: FC = () => {
 /**
  * Dev-only benchmark: measures press→settle for a count change. The count
  * button records a timestamp in `benchStart` (on the JS thread, before the
- * create burst); this component polls getDebugLayerDump() until the scene is
- * settled and logs the elapsed time. Must be a MapContainer child for useMap().
+ * create burst). This component uses useSceneBusy() as the cheap settle
+ * signal (no bridge polling), then does a single getDebugLayerDump() to
+ * verify appliedMatchesExpected/pendingMutations before logging. Must be a
+ * MapContainer child for useMap()/useSceneBusy().
  */
 let benchStart = 0;
 
 const BenchmarkTimer: FC<{ count: number }> = ({ count }) => {
 	const { getDebugLayerDump } = useMap();
+	const isSceneBusy = useSceneBusy();
+	const sawBusyRef = useRef(false);
+
+	// Arm on count change (the press handler already recorded benchStart).
+	useEffect(() => {
+		sawBusyRef.current = false;
+	}, [count]);
 
 	useEffect(() => {
 		if (benchStart === 0) {
 			return;
 		}
-		let cancelled = false;
-		let timer: ReturnType<typeof setTimeout>;
-		const poll = async () => {
-			if (cancelled) {
-				return;
-			}
-			try {
-				const dump = await getDebugLayerDump();
-				if (
-					dump.appliedMatchesExpected &&
-					dump.notInPlanCount === 0 &&
-					dump.pendingMutations === 0
-				) {
+		if (isSceneBusy) {
+			sawBusyRef.current = true;
+			return;
+		}
+		if (!sawBusyRef.current) {
+			return;
+		}
+		sawBusyRef.current = false;
+		// Busy → idle transition: verify once (rare tail retries shortly).
+		const verify = () => {
+			getDebugLayerDump()
+				.then((dump) => {
+					if (
+						!dump.appliedMatchesExpected ||
+						dump.notInPlanCount !== 0 ||
+						dump.pendingMutations !== 0
+					) {
+						setTimeout(verify, 50);
+						return;
+					}
 					const elapsed = Date.now() - benchStart;
 					console.log(
 						`[Benchmark] count=${count} settled in ${elapsed}ms ` +
 							`(jsManaged=${dump.jsManagedCount}, totalLayers=${dump.totalLayers})`
 					);
 					benchStart = 0;
-					return;
-				}
-			} catch {
-				// Dump failed (map mid-teardown) — retry.
-			}
-			if (!cancelled) {
-				timer = setTimeout(poll, 50);
-			}
+				})
+				.catch(() => {
+					setTimeout(verify, 50);
+				});
 		};
-		timer = setTimeout(poll, 50);
-		return () => {
-			cancelled = true;
-			clearTimeout(timer);
-		};
-	}, [count, getDebugLayerDump]);
+		verify();
+	}, [
+		isSceneBusy,
+		count,
+		getDebugLayerDump,
+	]);
 
 	return null;
 };
@@ -257,6 +271,27 @@ const ExampleComponent: FC<{
 	const paint: MarkerPaint = useMemo(
 		() => ({ text: '•', fillColor: '#00ff00' }),
 		[]
+	);
+
+	// Memoized element array — stable references across the ~25–60 Hz
+	// onMapUpdate re-renders, so React bails out of reconciling 2N children
+	// per frame (otherwise a 3000-pair load pegs the JS thread).
+	const pairElements = useMemo(
+		() =>
+			layerPairs.map((pair) => (
+				<Fragment key={pair.id}>
+					<LayerPath
+						key={`${pair.id}-path`}
+						coordinates={pair.pathCoordinates}
+					/>
+					<Marker
+						key={`${pair.id}-marker`}
+						position={pair.markerPosition}
+						paint={paint}
+					/>
+				</Fragment>
+			)),
+		[layerPairs, paint]
 	);
 
 	const stylesDynamic = useMemo(
@@ -295,37 +330,9 @@ const ExampleComponent: FC<{
 					<LayerBitmapTile />
 
 					{visible && useSharedLayer && (
-						<SharedLayer>
-							{layerPairs.map((pair) => (
-								<Fragment key={pair.id}>
-									<LayerPath
-										key={`${pair.id}-path`}
-										coordinates={pair.pathCoordinates}
-									/>
-									<Marker
-										key={`${pair.id}-marker`}
-										position={pair.markerPosition}
-										paint={paint}
-									/>
-								</Fragment>
-							))}
-						</SharedLayer>
+						<SharedLayer>{pairElements}</SharedLayer>
 					)}
-					{visible &&
-						!useSharedLayer &&
-						layerPairs.map((pair) => (
-							<Fragment key={pair.id}>
-								<LayerPath
-									key={`${pair.id}-path`}
-									coordinates={pair.pathCoordinates}
-								/>
-								<Marker
-									key={`${pair.id}-marker`}
-									position={pair.markerPosition}
-									paint={paint}
-								/>
-							</Fragment>
-						))}
+					{visible && !useSharedLayer && pairElements}
 					{__DEV__ && <LayerDebugOverlay />}
 					{__DEV__ && <LayerDebugDumpButton />}
 					{__DEV__ && <BenchmarkTimer count={count} />}
