@@ -383,3 +383,36 @@ Device smoke **passed** (Pixel 6 Pro, Android 13).
 - S29 stale-commit test (needs PriorityAllocator internal-state exposure).
 - MapsforgeVtmView descendant move-signal mechanism (javadoc corrected; mechanism deferred).
 - fragment entry-list dump (aspirational).
+
+---
+
+# Fix batch 5 — post-8d review findings
+
+Status: **implemented** (commits `67546d2`, `0f51aa6`, `55bf1da`, `2b648fa`).
+
+Findings from the code review of `3648398..HEAD` (Phase 8 work). Resolution:
+
+## Addressed
+
+- **CRITICAL #1 — marker swap race**: `applyEntryPriorities` now preserves any item added to the
+  live `ItemizedLayer` after the `allMarkers` snapshot (untracked-live-item), so the
+  `clear()`+`addAll()` swap can't drop a mid-create marker. Regression test added. (Latent under
+  the current single-threaded native-modules dispatch, but hardened regardless.)
+- **MINOR #1/#2 — busy-signal edge cases**: `refreshBusy()` now recomputes after arming the
+  walk-retry timer; the scene-subscriber callback guards against post-destroy batched
+  notifications re-arming the debouncer. Tests for both.
+- **MINOR #3 — memo growth**: `planWithResolved` memo capped (blunt clear at 64 keys; a
+  version-window sweep was rejected as it would evict mid-burst).
+- **MINOR #4/#6 — update-path no-response**: `updatePaths` logs (not errors) a null update (benign
+  remove/update race); the JS queue resolves a synthesized minimal response instead of `undefined`.
+- **MINOR #5 — trigger CME**: `triggerGroupEvent`/`triggerAllMarkers` read a defensive copy of
+  `getItemList()` under the layer monitor.
+- **MINOR #7 — NPE guard**: `LayerPath.updateLayers`/`updateCoordinates` null-guard
+  `mapFragment.getActivity()`.
+- **SUGGESTIONs**: perf-test header comment; drain microtask identity guard; stale
+  descending/sorted-insertion comments + `insertMarkerSorted`→`appendMarker` rename; duplicated
+  `MapsforgeVtmView` javadoc sentence.
+
+## Deferred
+
+- Nothing carried over — all review findings resolved.
