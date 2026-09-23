@@ -79,7 +79,11 @@ accumulated during render.
 | — | **Fix batch 2** (post-Phase-5 findings + re-review) | ✅ done — commits `786fccf`..`60d35a3`, device-verified |
 | 6 | Debug refinement (fragment entry lists, expected-vs-applied dump) | ✅ done — commits `c69343d`..`64c0164`, device-verified |
 | 7 | Docs rewrite (`layer-ordering.md`, `AGENTS.md`, `extending.md`), CHANGELOG breaking note | ✅ done — commits `860721b`..`91dee29` |
-| 8 | Lockstep consumers (straymap, ext-path-color-ramp, ext-grib) + breaking release | pending |
+| 8a | Lockstep consumers via yalc (ext-grib, ext-path-color-ramp migrated; straymap) | ✅ done — consumer repos uncommitted (per instruction) |
+| 8b | Scene-busy signal: `SceneSync.subscribeBusy`/`isBusy` + `useSceneBusy()` export + straymap `map:sync` bridge | ✅ done — commit `c66b67c`; straymap uncommitted |
+| 8c | Create-phase benchmark (micro jest + macro device baseline) | pending |
+| 8d | S23: per-fragment memoized `planWithResolved` (+ tests, re-benchmark) | pending |
+| 8e | Release sequence: library 0.9.0 → extensions bump/release → straymap bump/release | pending |
 
 ## Commits so far
 
