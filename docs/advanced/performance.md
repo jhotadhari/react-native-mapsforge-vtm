@@ -40,6 +40,29 @@ Markers are created via `MarkerBatchQueue`, which coalesces multiple
 `Marker` mounts into a single native bridge call. N markers don't mean N
 round trips — they're batched automatically.
 
+## Bulk create phase
+
+A large first render (or a big viewport change) declares N entries into the
+scene in one commit. Two optimizations keep that burst ~O(N log N) instead of
+O(N²):
+
+- **Memoized `planWithResolved`** — the per-create atomic-add order hint is
+  identical for every entry of the same fragment (and every member of the same
+  type-run), so it is computed once per fragment per mutation and reused.
+- **Batched scene notifications** — `LayerScene` coalesces listener fan-out
+  into one microtask flush, so a burst of N mutations notifies the N
+  subscribers once instead of N times.
+
+The residual cost of very large loads (thousands of entries) is native/bridge
+(vtm re-rendering the shared `ItemizedLayer`/`VectorLayer` drawables), not the
+JS scene model.
+
+## Batch updateCoordinates
+
+`LayerPath` geometry/paint updates are batched through a path-update queue:
+a bulk re-render (e.g. zoom re-simplification) collapses N per-entry
+`updateCoordinates` calls into one `updateLayers` bridge call per frame.
+
 ## Avoid unnecessary layer recreations
 
 Most layers recreate (remove then create) when a prop that's baked into

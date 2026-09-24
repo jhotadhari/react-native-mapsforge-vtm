@@ -19,9 +19,13 @@ renders may be partial or discarded). Methods:
 | `declareEntry(entry)` / `undeclareEntry(uid)` | Declares/removes an entry (drawable) inside a fragment owner. |
 | `attachUuid(key, uuid)` / `detachUuid(key)` | Records/clears a resolved native uuid for an anchor or entry uid. |
 | `plan()` | Returns a cached, immutable `LayerPlan` (rebuilt when dirty). |
-| `planWithResolved(key)` | Pure/uncached: builds the plan as if `key` had a resolved uuid — used by components to compute the atomic-add order hint. |
+| `planWithResolved(key)` | Builds the plan as if `key` had a resolved uuid — used by components to compute the atomic-add order hint. **Memoized per fragment/type-run** (cache key = fragment uuid / run key / anchor uid), invalidated by `mutationVersion`: every entry of a fragment (and member of a run) yields an identical plan, so one build per fragment per mutation serves the whole create burst. |
 | `version()` | Monotonic mutation counter — the presenter's "did the scene change" signal. |
 | `clear()` | Resets all state (map teardown / re-arm). |
+
+Notification fan-out is **batched**: `mutated()` bumps `mutationVersion` synchronously (memo/plan
+invalidation stays exact) but defers the listener loop to a single `Promise.resolve().then` flush,
+so a commit-phase burst of N mutations notifies the N subscribers once, not N times.
 
 ## `ids.ts` — deterministic fragment keys
 

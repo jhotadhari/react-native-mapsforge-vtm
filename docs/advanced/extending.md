@@ -51,8 +51,13 @@ import {
   useLayerAnchor,
   useLayerEntry,
   useSceneUuidBinding,
+  useSceneFragmentUuid,
+  useSceneFragmentReady,
+  useSceneBusy,
   useNativeLayerLifecycle,
   registerEntryPriorityHandler,
+  fragmentUuidFor,
+  runUuidFor,
   LayerScene,
   SceneSync,
 } from 'react-native-mapsforge-vtm';
@@ -115,6 +120,45 @@ const entryUid = useLayerEntry({
 
 Binds a resolved native uuid to an anchor/entry uid so the plan can resolve the
 fragment's position.
+
+#### `useSceneFragmentUuid(anchorUid)` — standalone type-run fragment key
+
+Returns the scene-authoritative fragment uuid (`run:<first-member>`) for a
+standalone shared layer's anchor. A standalone component must create its native
+entry under this key (never a self-keyed one) to keep the implicit type-run
+collapse alive. Returns `null` until the run key is known.
+
+```tsx
+const runFragmentUuid = useSceneFragmentUuid(anchorUid);
+// create under: runFragmentUuid ?? scene.plan().runKeysByAnchor.get(anchorUid) ?? runUuidFor(anchorUid)
+```
+
+#### `useSceneFragmentReady(fragmentId, layerType)` — grouped-entry readiness
+
+Reactive check that a grouped entry's owning fragment is present in the
+committed plan. Gate grouped entry creation on it so the atomic-add order hint
+is correct on first mount (avoids a transient wrong-z that would otherwise be
+self-healed only by the debounced reorder).
+
+```tsx
+const ready = useSceneFragmentReady(sharedId, 'path');
+```
+
+#### `useSceneBusy()` — ordering-work signal
+
+Reactive `boolean` that the layer-scene presenter has pending/in-flight ordering
+work (walk, sync, entry-priority commits, or unapplied mutations). Re-renders
+only on true↔false transitions — wire it to an app-level loading indicator.
+
+```tsx
+const busy = useSceneBusy();
+```
+
+#### `fragmentUuidFor(fragmentId, layerType)` / `runUuidFor(firstMemberUid)`
+
+Deterministic native-identity builders shared between the scene model and the
+React bindings — both sides must produce identical strings. `fragmentUuidFor`
+yields `frag:<owner>:<type>`; `runUuidFor` yields `run:<anchor>`.
 
 #### `registerEntryPriorityHandler(layerType, handler)` — priority bridge
 

@@ -262,6 +262,10 @@ outside this repo (e.g. `react-native-mapsforge-vtm-ext-grib`):
 | `useLayerAnchor` | Renders an anchor and registers its descriptor with the scene |
 | `useLayerEntry` | Declares an entry (drawable/marker) inside a fragment owner |
 | `useSceneUuidBinding` | Binds a resolved native uuid to an anchor/entry uid |
+| `useSceneFragmentUuid` | Scene-authoritative `run:<anchor>` key for a standalone type-run member |
+| `useSceneFragmentReady` | Readiness gate for grouped entries (owner fragment in the committed plan) |
+| `useSceneBusy` | Reactive signal of pending/in-flight ordering work (for loading indicators) |
+| `fragmentUuidFor` / `runUuidFor` | Deterministic native-identity builders (`frag:<owner>:<type>`, `run:<anchor>`) |
 | `LayerScene` / `SceneSync` | The scene model + presenter (advanced extension integration) |
 | `registerEntryPriorityHandler` | Registers the `applyEntryPriorities` bridge for a layer type |
 | `useNativeLayerLifecycle` | `null → false → uuid` state machine for native resource lifecycle |

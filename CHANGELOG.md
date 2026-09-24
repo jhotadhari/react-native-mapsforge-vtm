@@ -14,10 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Deterministic fragment keys** — `frag:<owner>:<type>` (SharedLayer/LayerMarker) and `run:<anchor>` (implicit type-runs).
 - **`useSceneBusy()`** — reactive hook (exported) signalling that the layer-scene presenter has pending/in-flight ordering work (walk, sync, entry-priority commits, or unapplied mutations). Consumers can wire it to a loading indicator; re-renders only on true↔false transitions.
 - **`SceneSync.subscribeBusy()` / `isBusy()`** — busy subscription for the scene presenter.
+- **Shared-layer extension hooks** — `useSceneFragmentUuid` (standalone type-run fragment key), `useSceneFragmentReady` (grouped-entry readiness gate), and the `fragmentUuidFor` / `runUuidFor` deterministic identity builders, exported for third-party shared-fragment layer types.
+- **`updateLayers` batch API** — `LayerPath` geometry/paint updates collapse into one native `updateLayers` call per frame (per-entry `updateCoordinates` batching), removing the per-line bridge churn on bulk re-render (e.g. zoom re-simplification).
 
 ### Changed
 
 - **Fragment UUID scheme** — shared-layer fragment UUIDs changed from `__vtm_shared_<type>__<index>` to `frag:<owner>:<type>` / `run:<anchor>`. Any code keying on the old strings must update.
+- **Create-phase performance** — `planWithResolved` is now memoized per fragment/type-run, and `LayerScene` batches listener notification into one microtask flush, collapsing the many-entry create phase from O(N²) to ~O(N log N).
 
 ### Removed
 

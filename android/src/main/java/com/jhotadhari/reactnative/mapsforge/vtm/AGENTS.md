@@ -105,6 +105,14 @@ calls into 1 `createMarkers` + 1 `removeMarkers` batch call, flushed on the micr
 (`Promise.resolve().then()`) with a 16ms safety max-wait `setTimeout`. Call
 `drainQueue(nativeNodeHandle)` on map destruction to reject pending operations.
 
+### Path update batching
+
+`PathUpdateBatchQueue` (`src/compose/PathUpdateBatchQueue.ts`) collapses N per-entry
+`updateCoordinates` calls into one native `updateLayers` call per frame (same microtask + 16ms
+max-wait pattern). Native side: `LayerPath.updateLayers` loops `PathLayerManager.updatePaths`,
+which calls `update()` per item (per-item error capture) and coalesces the `scheduleUpdate()`.
+A null `update()` (entry gone — a benign update/remove race) is logged, not errored.
+
 ### Marker sort direction
 
 Markers inside a shared `ItemizedLayer` fragment are ordered by **ascending** `positionIndex`
