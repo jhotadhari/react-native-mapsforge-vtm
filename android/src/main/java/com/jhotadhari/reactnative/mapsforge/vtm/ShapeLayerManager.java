@@ -6,12 +6,13 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
@@ -34,7 +35,11 @@ import org.oscim.layers.vector.geometries.Style;
 import org.oscim.utils.geom.GeomBuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,11 +58,10 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	private static final String TAG = "ShapeLayerManager";
 
 	public static final String NAME = "shapes";
-	/** Position in map.layers(): same tier as markers, above paths. */
-	public static final int BASE_POSITION = Integer.MAX_VALUE;
 	/**
 	 * Default fragment UUID prefix used when JS doesn't supply one. Must match
 	 * the default in the owning TurboModule ({@code LayerShape.java}'s createLayer).
+	 * Legacy — the JS scene always sends deterministic `frag:`/`run:` keys now.
 	 */
 	public static final String DEFAULT_FRAGMENT_UUID = "__vtm_shared_shape__0";
 
@@ -113,7 +117,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 	// ── Constructor ─────────────────────────────────────────────────────
 
 	protected ShapeLayerManager(int nativeNodeHandle, @NonNull MapView mapView, @NonNull String name) {
-		super(nativeNodeHandle, mapView, name, BASE_POSITION);
+		super(nativeNodeHandle, mapView, name);
 	}
 
 	// ── LayerManager contract ───────────────────────────────────────────
@@ -171,7 +175,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			? params.getDouble("gestureScreenDistance")
 			: 20d;
 
-		int positionIndex = resolvePositionIndex(params);
+		int positionIndex = APPEND_PRIORITY;
 
 		ShapeEntry entry = new ShapeEntry(
 			entryUuid,
@@ -270,7 +274,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 
 		double geoDist = entry.drawable.getGeometry().distance(point);
 		if (geoDist <= threshold) {
-			WritableMap params = new WritableNativeMap();
+			WritableMap params = Arguments.createMap();
 			params.putString("uuid", entry.shapeUuid);
 			params.putDouble("distance", geoDist);
 			org.locationtech.jts.geom.Coordinate[] nearestPoints =
@@ -309,7 +313,167 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 		syncGestureSupport();
 	}
 
+	// ── Batch creation / removal ──────────────────────────────────────
+
+	/**
+	 * Creates multiple shape entries in a single batch: ensures all required
+	 * fragment layers upfront, creates each entry, and calls updateMap once.
+	 * Per-item errors are captured; the response mirrors the single
+	 * createLayer response (uuid + nativeNodeHandle + shape type) per item.
+	 */
+	@NonNull
+	public WritableMap createShapes(
+		@NonNull ReadableArray shapesArray,
+		@NonNull MapFragment mapFragment,
+		@NonNull ContentResolver contentResolver,
+		@NonNull ReactApplicationContext reactContext
+	) throws Exception {
+		int count = shapesArray.size();
+		ReadableMap[] allParams = new ReadableMap[count];
+		String[] entryUuids = new String[count];
+		String[] errors = new String[count];
+
+		// Ensure all required fragment layers exist upfront. A fragment
+		// ensure that fails (e.g. map torn down mid-request) is recorded
+		// per fragment — the batch must never reject wholesale after
+		// teardown; the affected items report per-item errors instead.
+		Map<String, String> fragmentErrors = new HashMap<>();
+		Set<String> seenFragments = new HashSet<>();
+		for ( int i = 0; i < count; i++ ) {
+			allParams[i] = shapesArray.getMap( i );
+			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+				? allParams[i].getString( "fragmentUuid" )
+				: DEFAULT_FRAGMENT_UUID;
+			if ( seenFragments.add( fragmentUuid ) ) {
+				try {
+					ensureSharedLayer( fragmentUuid, Utils.rMapGetStringList( allParams[i], "layerUuids" ) );
+				} catch ( Exception e ) {
+					fragmentErrors.put( fragmentUuid, errorMessage(e) );
+				}
+			}
+		}
+
+		for ( int i = 0; i < count; i++ ) {
+			String entryUuid = UUID.randomUUID().toString();
+			entryUuids[i] = entryUuid;
+			String fragmentUuid = Utils.rMapHasKey( allParams[i], "fragmentUuid" )
+				? allParams[i].getString( "fragmentUuid" )
+				: DEFAULT_FRAGMENT_UUID;
+			String fragmentError = fragmentErrors.get( fragmentUuid );
+			if ( fragmentError != null ) {
+				errors[i] = fragmentError;
+				continue;
+			}
+			try {
+				// super.create — the per-item syncGestureSupport override is
+				// hoisted to once per batch below (O(n) instead of O(n²)).
+				super.create( entryUuid, fragmentUuid, allParams[i], mapFragment, contentResolver, reactContext );
+			} catch ( Exception e ) {
+				errors[i] = errorMessage(e);
+			}
+		}
+
+		// One gesture-support sync for the whole batch.
+		syncGestureSupport();
+		scheduleUpdate();
+
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", entryUuids[i] );
+			if ( errors[i] != null ) {
+				resultItem.putString( "error", errors[i] );
+			} else {
+				// Per-item response mirrors the single createLayer response
+				// ({uuid, nativeNodeHandle, shape: {type}}), nested under
+				// "response" so the batch result shape is uniform.
+				WritableMap itemResponse = Arguments.createMap();
+				itemResponse.putString( "uuid", entryUuids[i] );
+				if ( Utils.rMapHasKey( allParams[i], "nativeNodeHandle" ) ) {
+					itemResponse.putInt( "nativeNodeHandle", allParams[i].getInt( "nativeNodeHandle" ) );
+				}
+				ReadableMap shapeMap = Utils.rMapHasKey( allParams[i], "shape" )
+					? allParams[i].getMap( "shape" )
+					: null;
+				WritableMap shapeResponse = Arguments.createMap();
+				if ( shapeMap != null && Utils.rMapHasKey( shapeMap, "type" ) ) {
+					shapeResponse.putString( "type", shapeMap.getString( "type" ) );
+				}
+				itemResponse.putMap( "shape", shapeResponse );
+				resultItem.putMap( "response", itemResponse );
+			}
+			results.pushMap( resultItem );
+		}
+
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
+	}
+
+	/**
+	 * Removes multiple shape entries in a single batch.
+	 */
+	@NonNull
+	public WritableMap removeShapes( @NonNull ReadableArray shapeUuids ) {
+		int count = shapeUuids.size();
+		WritableArray results = Arguments.createArray();
+		for ( int i = 0; i < count; i++ ) {
+			String uuid = shapeUuids.getString( i );
+			WritableMap resultItem = Arguments.createMap();
+			resultItem.putString( "uuid", uuid );
+			try {
+				// super.remove — per-item syncGestureSupport hoisted to
+				// once per batch below.
+				super.remove( uuid );
+			} catch ( Exception e ) {
+				resultItem.putString( "error", errorMessage(e) );
+			}
+			results.pushMap( resultItem );
+		}
+		// One gesture-support sync for the whole batch.
+		syncGestureSupport();
+		WritableMap response = Arguments.createMap();
+		response.putArray( "results", results );
+		return response;
+	}
+
 	// ── Shape-specific public API ───────────────────────────────────────
+
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation. The upstream VectorLayer sorts drawables by
+	 * getPriority() on every frame, so no explicit re-sort is needed.
+	 *
+	 * @return true when the fragment exists and the assignments were applied;
+	 *         false when the fragment is missing (the caller must REJECT so
+	 *         the JS presenter keeps the state uncommitted and re-sends)
+	 */
+	public boolean applyEntryPriorities( @NonNull String fragmentUuid, @NonNull ReadableArray assignments ) {
+		VectorLayer layer = (VectorLayer) getSharedLayer( fragmentUuid );
+		if ( layer == null ) {
+			Log.d( TAG,
+				"ZOMBIE: applyEntryPriorities — getSharedLayer returned null for fragmentUuid="
+					+ fragmentUuid
+					+ " sharedLayerFragments keys=" + sharedLayerFragments.keySet() );
+			return false;
+		}
+		for ( int i = 0; i < assignments.size(); i++ ) {
+			ReadableMap assignment = assignments.getMap( i );
+			String uuid = assignment.getString( "uuid" );
+			int priority = assignment.getInt( "priority" );
+			ShapeEntry entry = entries.get( uuid );
+			// Guard against cross-fragment assignments: never touch an
+			// entry that doesn't belong to this fragment's layer.
+			if ( entry == null || !fragmentUuid.equals( entry.fragmentUuid ) ) {
+				continue;
+			}
+			entry.positionIndex = priority;
+			entry.drawable.setPriority( priority );
+		}
+		scheduleUpdate();
+		return true;
+	}
 
 	/**
 	 * Syncs the shared VectorLayer's {@code mSupportsGestures} flag to whether
@@ -325,11 +489,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 				break;
 			}
 		}
-		for (Layer layer : sharedLayerFragments.values()) {
-			if (layer instanceof VectorLayer) {
-				((VectorLayer) layer).setSupportsGestures(hasAny);
-			}
-		}
+		applyGestureSupport(hasAny);
 	}
 
 	// ── Style parsing ────────────────────────────────────────────────────
@@ -529,7 +689,7 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			if (eventCallback == null) {
 				return;
 			}
-			WritableMap payload = new WritableNativeMap();
+			WritableMap payload = Arguments.createMap();
 			if (eventParams.hasKey("uuid")) {
 				payload.putString("uuid", eventParams.getString("uuid"));
 			}

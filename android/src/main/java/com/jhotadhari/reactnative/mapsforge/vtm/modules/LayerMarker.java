@@ -198,9 +198,39 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			return;
 		}
 		WritableMap payload = manager.triggerGroupEvent( groupUuid, x, y, strategy );
-		// TEST: Always emit to verify emitOnMarkerEvent path works
-		{ WritableMap t = Arguments.createMap(); t.putString("uuid", "test-uuid"); t.putInt("index", -1); t.putString("markerLayerUuid", groupUuid); t.putString("event", "itemTrigger"); t.putInt("nativeNodeHandle", nativeNodeHandle); emitOnMarkerEvent(t); }
 		if ( payload != null ) { emitOnMarkerEvent( payload ); }
+	}
+
+
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation.
+	 */
+	@Override
+	public void applyEntryPriorities( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "fragmentUuid" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or fragmentUuid" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String fragmentUuid = params.getString( "fragmentUuid" );
+			ReadableArray assignments = Utils.rMapHasKey( params, "assignments" )
+				? params.getArray( "assignments" )
+				: null;
+
+			MarkerLayerManager manager = MarkerLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null && assignments != null ) {
+				if ( ! manager.applyEntryPriorities( fragmentUuid, assignments ) ) {
+					Utils.promiseReject( promise, "Fragment not found: " + fragmentUuid );
+					return;
+				}
+			}
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
 	}
 
 	@Override
@@ -267,7 +297,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			// Resolve fragment uuid for this marker.
 			String fragmentUuid = Utils.rMapHasKey( params, "fragmentUuid" )
 				? params.getString( "fragmentUuid" )
-				: "__vtm_shared_marker__0";
+				: MarkerLayerManager.DEFAULT_FRAGMENT_UUID;
 
 			// Create the marker entry via the manager.
 			String markerUuid = java.util.UUID.randomUUID().toString();

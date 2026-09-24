@@ -69,6 +69,13 @@ const bboxPaintA: PathPaint = { strokeColor: '#ff0000', strokeWidth: 3 };
 const bboxPaintB: PathPaint = { strokeColor: '#00ff00', strokeWidth: 3 };
 const bboxPaintC: PathPaint = { strokeColor: '#0000ff', strokeWidth: 3 };
 
+// Precomputed at module level — inline bboxToRing() calls in JSX would
+// regenerate the arrays on every render (map events at ~25Hz during
+// flyTo), firing native updateCoordinates and flickering the rectangles.
+const ringA: Position[] = bboxToRing(boundsA);
+const ringB: Position[] = bboxToRing(boundsB);
+const ringC: Position[] = bboxToRing(boundsC);
+
 const Controls: FC<{
 	mapWidth: number;
 	isBusy: boolean;
@@ -260,15 +267,15 @@ const ExampleComponent: FC<{
 
 					{/* Outline each hardcoded bbox so a fit/fly can be visually checked against it. */}
 					<LayerPath
-						coordinates={bboxToRing(boundsA)}
+						coordinates={ringA}
 						paint={bboxPaintA}
 					/>
 					<LayerPath
-						coordinates={bboxToRing(boundsB)}
+						coordinates={ringB}
 						paint={bboxPaintB}
 					/>
 					<LayerPath
-						coordinates={bboxToRing(boundsC)}
+						coordinates={ringC}
 						paint={bboxPaintC}
 					/>
 				</MapContainer>

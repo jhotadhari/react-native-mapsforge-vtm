@@ -107,6 +107,19 @@ const paintForCity = (city: {
 	fillColor: city.fillColor,
 });
 
+// Precomputed at module level — inline paintForCity() calls in JSX would
+// regenerate the paint on every render (map events at ~25Hz), firing
+// native updateMarker and flickering the markers.
+const citiesWithPaint = cities.map((city) => ({
+	...city,
+	paint: paintForCity(city),
+}));
+
+const extraCityWithPaint = {
+	...extraCity,
+	paint: paintForCity(extraCity),
+};
+
 const Controls: FC<{
 	mapWidth: number;
 	lastMarkerEvent: string;
@@ -193,22 +206,24 @@ const ExampleComponent: FC<{
 					<LayerBitmapTile />
 
 					<LayerMarker>
-						{cities.map((city) => (
+						{citiesWithPaint.map((city) => (
 							<Marker
 								key={city.key}
 								position={city.position}
 								title={city.name}
-								paint={paintForCity(city)}
+								paint={city.paint}
 								onEvent={handleMarkerEvent[city.key]}
 							/>
 						))}
 						{hasExtraCity && (
 							<Marker
-								key={extraCity.key}
-								position={extraCity.position}
-								title={extraCity.name}
-								paint={paintForCity(extraCity)}
-								onEvent={handleMarkerEvent[extraCity.key]}
+								key={extraCityWithPaint.key}
+								position={extraCityWithPaint.position}
+								title={extraCityWithPaint.name}
+								paint={extraCityWithPaint.paint}
+								onEvent={
+									handleMarkerEvent[extraCityWithPaint.key]
+								}
 							/>
 						)}
 					</LayerMarker>

@@ -129,11 +129,19 @@ import type { LayerDebugTreeProps } from './debug/LayerDebugTree';
 // Extension points — stable hooks/contexts that extension libraries
 // (e.g. react-native-mapsforge-vtm-ext-grib) use to create custom layer types.
 import MapHandleContext, {
-	createLayerOrderRegistry,
-	type LayerOrderRegistry,
 	type MapHandleContextValue,
 } from './context/MapHandleContext';
-import useLayerOrder from './compose/useLayerOrder';
+import useLayerAnchor from './compose/useLayerAnchor';
+import type { UseLayerAnchorOptions } from './compose/useLayerAnchor';
+import useLayerEntry from './compose/useLayerEntry';
+import useSceneUuidBinding from './compose/useSceneUuidBinding';
+import useSceneFragmentUuid from './compose/useSceneFragmentUuid';
+import useSceneFragmentReady from './compose/useSceneFragmentReady';
+import useSceneBusy from './compose/useSceneBusy';
+import { LayerScene } from './scene/LayerScene';
+import { SceneSync } from './scene/SceneSync';
+import { registerEntryPriorityHandler } from './scene/priorityHandlers';
+import { fragmentUuidFor, runUuidFor } from './scene/ids';
 import {
 	createMapHandle,
 	createMapHandleRegistry,
@@ -283,10 +291,19 @@ export {
 	// Extension points for external layer-type libraries
 	// (e.g. react-native-mapsforge-vtm-ext-grib).
 	MapHandleContext,
-	createLayerOrderRegistry,
-	type LayerOrderRegistry,
 	type MapHandleContextValue,
-	useLayerOrder,
+	useLayerAnchor,
+	type UseLayerAnchorOptions,
+	useLayerEntry,
+	useSceneUuidBinding,
+	useSceneFragmentUuid,
+	useSceneFragmentReady,
+	useSceneBusy,
+	fragmentUuidFor,
+	runUuidFor,
+	LayerScene,
+	SceneSync,
+	registerEntryPriorityHandler,
 	useNativeLayerLifecycle,
 	type CreateFlags,
 	type RemoveFlags,

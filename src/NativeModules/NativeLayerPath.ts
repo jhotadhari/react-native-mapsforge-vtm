@@ -61,17 +61,16 @@ export interface ModuleParams {
 	gestureScreenDistance?: Double;
 }
 
-interface CreateLayerParams extends ModuleParams {
-	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
+export interface CreateLayerParams extends ModuleParams {
+	layerUuids?: ReadonlyArray<string>;
+	nativeNodeHandle: Int32;
 	fragmentUuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
 	supportsGestures?: boolean;
 }
 
-interface UpdateCoordinatesParams {
+export interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
 	paint?: {
@@ -104,7 +103,6 @@ interface UpdateCoordinatesParams {
 
 interface UpdateGestureScreenDistanceParams {
 	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
 	uuid?: string;
 	gestureScreenDistance?: Double;
 
@@ -117,7 +115,6 @@ interface UpdateGestureScreenDistanceParams {
 
 interface UpdateSupportsGesturesParams {
 	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
 	uuid?: string;
 	supportsGestures?: boolean;
 
@@ -142,7 +139,6 @@ export interface PathTriggerParams {
 
 interface TriggerParamsCG {
 	nativeNodeHandle?: Int32;
-	positionIndex?: Int32;
 	uuid?: string;
 	x?: Double;
 	y?: Double;
@@ -158,6 +154,52 @@ interface ResponseBase {
 export interface LayerPathResponse extends ResponseBase {
 	coordinates?: Position[];
 	bbox?: Bbox;
+}
+
+export interface EntryPriorityAssignment {
+	uuid: string;
+	priority: Int32;
+}
+
+export interface ApplyEntryPrioritiesParams {
+	nativeNodeHandle: Int32;
+	fragmentUuid: string;
+	assignments: ReadonlyArray<EntryPriorityAssignment>;
+}
+
+export interface PathBatchResultItem {
+	uuid: string;
+	error?: string;
+	/** Per-item create response — mirrors the single createLayer response. */
+	response?: LayerPathResponse;
+}
+
+export interface PathBatchResponse {
+	results: ReadonlyArray<PathBatchResultItem>;
+}
+
+export interface CreateLayersParams {
+	nativeNodeHandle: Int32;
+	paths: ReadonlyArray<CreateLayerParams>;
+}
+
+export interface UpdateLayersParams {
+	nativeNodeHandle: Int32;
+	paths: ReadonlyArray<UpdateCoordinatesParams>;
+}
+
+export interface RemoveLayersParams {
+	nativeNodeHandle: Int32;
+	uuids: ReadonlyArray<string>;
+}
+
+export interface RemoveLayersResultItem {
+	uuid: string;
+	error?: string;
+}
+
+export interface RemoveLayersResponse {
+	results: ReadonlyArray<RemoveLayersResultItem>;
 }
 
 export interface LayerPathGestureResponse extends ResponseBase {
@@ -188,6 +230,23 @@ export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	createLayer(params: CreateLayerParams): Promise<LayerPathResponse>;
 	removeLayer(params: RemoveLayerParams): Promise<string>;
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the entries listed in `assignments` are touched — the scene's
+	 * PriorityAllocator emits O(changed) assignments per mutation.
+	 */
+	applyEntryPriorities(params: ApplyEntryPrioritiesParams): Promise<void>;
+	/**
+	 * Batch creation — N path entries in one bridge call (mirrors the
+	 * marker batch pipeline).
+	 */
+	createLayers(params: CreateLayersParams): Promise<PathBatchResponse>;
+	removeLayers(params: RemoveLayersParams): Promise<RemoveLayersResponse>;
+	/**
+	 * Batch update — N path geometry/paint updates in one bridge call
+	 * (collapses the per-entry updateCoordinates churn on bulk re-render).
+	 */
+	updateLayers(params: UpdateLayersParams): Promise<PathBatchResponse>;
 
 	updateCoordinates(
 		params: UpdateCoordinatesParams

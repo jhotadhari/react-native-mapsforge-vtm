@@ -1,8 +1,8 @@
 /**
  * External dependencies
  */
-import { useMemo, useState, type FC } from 'react';
-import { View, Text, Switch } from 'react-native';
+import { useMemo, useRef, useState, type FC } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import {
 	LayerBitmapTile,
 	LayerPath,
@@ -179,6 +179,79 @@ const items: LayerItem[] = [
 	},
 ];
 
+// ── Type-run section ──────────────────────────────────────────────────────
+//
+// Two+ consecutive standalone same-type layers (here: LayerPath) share ONE
+// native fragment keyed by the run's first member. This section is always
+// OUTSIDE the SharedLayer/ReindexScope wrappers, so the toggles never
+// affect it. Controls exercise the run lifecycle: append (collapse stays
+// at 1 fragment), remove-first (re-keys the run), and identity-preserved
+// reorder (move signal). The debug tree must always show the run row with
+// a growing 1/N member count and the native layer count must stay 1.
+
+const runCenter: Position = [-76.6, -9.2];
+const runPalette = [
+	'#ff8800',
+	'#00ccff',
+	'#ff4488',
+	'#88ff00',
+	'#cc44ff',
+	'#ffcc00',
+];
+// Cap the visual size/width so repeated add/remove cycles (which keep the id
+// monotonic) don't grow the rectangle/stroke unboundedly.
+const MAX_RUN_PATH_INDEX = runPalette.length - 1;
+
+interface RunPath {
+	id: number;
+	/** Precomputed at creation — inline computation in JSX would regenerate
+	 * arrays/paint on every render (map events at ~25Hz), firing native
+	 * updates and flickering the paths. */
+	coords: Position[];
+	paint: PathPaint;
+}
+
+const buildRunPath = (id: number, index: number, color: string): RunPath => {
+	const visualIndex = Math.min(index, MAX_RUN_PATH_INDEX);
+	return {
+		id,
+		coords: buildRunPathCoords(visualIndex),
+		paint: {
+			strokeColor: color,
+			strokeWidth: 6 + visualIndex * 2,
+		} as PathPaint,
+	};
+};
+
+const buildRunPathCoords = (index: number): Position[] => {
+	const extent = 0.045 + index * 0.014;
+	return [
+		[runCenter[0] - extent, runCenter[1] - extent],
+		[runCenter[0] + extent, runCenter[1] - extent],
+		[runCenter[0] + extent, runCenter[1] + extent],
+		[runCenter[0] - extent, runCenter[1] + extent],
+		[runCenter[0] - extent, runCenter[1] - extent],
+	];
+};
+
+const styles = StyleSheet.create({
+	actionRow: {
+		flexDirection: 'row',
+		gap: 8,
+		marginTop: 4,
+	},
+	actionButton: {
+		backgroundColor: '#333',
+		borderRadius: 4,
+		paddingHorizontal: 8,
+		paddingVertical: 6,
+	},
+	actionButtonText: {
+		color: '#fff',
+		fontSize: 12,
+	},
+});
+
 // ── Controls ────────────────────────────────────────────────────────────
 
 const Controls: FC<{
@@ -187,16 +260,24 @@ const Controls: FC<{
 	useSharedLayer: boolean;
 	useReindexScope: boolean;
 	reorderCount: number;
+	runCount: number;
 	onToggleSharedLayer: () => void;
 	onToggleReindexScope: () => void;
+	onAddRunPath: () => void;
+	onRemoveFirstRunPath: () => void;
+	onMoveLastRunPathToFront: () => void;
 }> = ({
 	width,
 	containerHeight,
 	useSharedLayer,
 	useReindexScope,
 	reorderCount,
+	runCount,
 	onToggleSharedLayer,
 	onToggleReindexScope,
+	onAddRunPath,
+	onRemoveFirstRunPath,
+	onMoveLastRunPathToFront,
 }) => {
 	const nativeLayerCount = useSharedLayer
 		? '3 fragments (1 Shape + 1 Path + 1 Marker)'
@@ -235,6 +316,52 @@ const Controls: FC<{
 					label="Reorder calls"
 					value={`${reorderCount}`}
 				/>
+			</ControlSection>
+
+			<ControlSection title="Type-run (standalone same-type)">
+				<View style={styles.actionRow}>
+					<Pressable
+						style={styles.actionButton}
+						onPress={onAddRunPath}
+					>
+						<Text style={styles.actionButtonText}>Add path</Text>
+					</Pressable>
+					<Pressable
+						style={styles.actionButton}
+						onPress={onRemoveFirstRunPath}
+					>
+						<Text style={styles.actionButtonText}>
+							Remove first
+						</Text>
+					</Pressable>
+					<Pressable
+						style={styles.actionButton}
+						onPress={onMoveLastRunPathToFront}
+					>
+						<Text style={styles.actionButtonText}>
+							Move last to front
+						</Text>
+					</Pressable>
+				</View>
+				<StatusLine
+					label="Run members"
+					value={`${runCount} paths`}
+				/>
+				<StatusLine
+					label="Expected native layers"
+					value={
+						runCount > 0
+							? '1 fragment (run:…) — debug row shows 1/N'
+							: '0'
+					}
+				/>
+				<Text style={sharedStyles.text}>
+					All run paths collapse into ONE native layer. Removing the
+					first member re-keys the run; moving members reorders within
+					the fragment. Watch the debug tree: the run row must show{' '}
+					<Text style={sharedStyles.boldText}>1/N</Text> (N = member
+					count) and the native layer count must stay 1.
+				</Text>
 			</ControlSection>
 
 			<ControlSection title="What to look for">
@@ -276,6 +403,28 @@ const ExampleComponent: FC<{
 	// Currently hardcoded — the native reorderLayers call is fire-and-forget
 	// from JS, so there is no built-in acknowledgment to count.
 	const reorderCount = 0;
+
+	// The standalone type-run: consecutive LayerPaths OUTSIDE the
+	// SharedLayer/ReindexScope wrappers. Starts with a 2-member run.
+	const [runPaths, setRunPaths] = useState<RunPath[]>(() => [
+		buildRunPath(1, 0, runPalette[0]!),
+		buildRunPath(2, 1, runPalette[1]!),
+	]);
+	const nextRunIdRef = useRef(3);
+
+	// Memoized like the sibling renderItems — rebuilt only when runPaths
+	// changes, not on every ~25Hz map-event re-render.
+	const runPathElements = useMemo(
+		() =>
+			runPaths.map((runPath) => (
+				<LayerPath
+					key={runPath.id}
+					coordinates={runPath.coords}
+					paint={runPath.paint}
+				/>
+			)),
+		[runPaths]
+	);
 
 	const renderItems = useMemo(() => {
 		return items.map((item) => {
@@ -341,8 +490,38 @@ const ExampleComponent: FC<{
 				useSharedLayer={useSharedLayer}
 				useReindexScope={useReindexScope}
 				reorderCount={reorderCount}
+				runCount={runPaths.length}
 				onToggleSharedLayer={() => setUseSharedLayer((v) => !v)}
 				onToggleReindexScope={() => setUseReindexScope((v) => !v)}
+				onAddRunPath={() => {
+					// Read/increment outside the updater (pure updater) and
+					// derive the index from the id — a monotonic counter, not
+					// prev.length — so each added path keeps a unique id/key and
+					// color cycle. Visual size/width is capped (MAX_RUN_PATH_INDEX)
+					// in buildRunPath.
+					const id = nextRunIdRef.current++;
+					setRunPaths((prev) => [
+						...prev,
+						buildRunPath(
+							id,
+							id - 1,
+							runPalette[(id - 1) % runPalette.length]!
+						),
+					]);
+				}}
+				onRemoveFirstRunPath={() =>
+					setRunPaths((prev) => prev.slice(1))
+				}
+				onMoveLastRunPathToFront={() =>
+					setRunPaths((prev) =>
+						prev.length > 1
+							? [
+									prev[prev.length - 1]!,
+									...prev.slice(0, prev.length - 1),
+								]
+							: prev
+					)
+				}
 			/>
 
 			<View style={stylesDynamic.containerMap}>
@@ -357,6 +536,7 @@ const ExampleComponent: FC<{
 					onError={handleMapEvent.onError}
 				>
 					<LayerBitmapTile />
+					{runPathElements}
 					{children}
 					{__DEV__ && <LayerDebugOverlay />}
 				</MapContainer>

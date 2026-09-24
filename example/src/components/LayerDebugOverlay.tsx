@@ -46,7 +46,7 @@ const LayerDebugOverlay: FC = () => {
 					Native: {info.estimatedNativeLayerCount}
 				</Text>
 				<Text style={sharedStyles.text}>
-					Grouped: {info.sharedLayerActive ? 'yes' : 'no'}
+					Grouped: {info.hasGroupedFragments ? 'yes' : 'no'}
 				</Text>
 			</View>
 			<LayerDebugTree maxHeight={130} />

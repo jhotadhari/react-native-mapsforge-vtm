@@ -13,10 +13,21 @@ import LayerPathModule, {
 } from '../NativeModules/NativeLayerPath';
 import type { ErrorBase } from '../types';
 import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useLayerEntry from '../compose/useLayerEntry';
+import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
+import useSceneFragmentReady from '../compose/useSceneFragmentReady';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
+import {
+	enqueueCreatePath,
+	enqueueRemovePath,
+} from '../compose/PathBatchQueue';
+import { enqueueUpdatePath } from '../compose/PathUpdateBatchQueue';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const moduleDefaults = LayerPathModule.getConstants();
 
@@ -36,8 +47,22 @@ const LayerPath = ({
 	onDoubleTap,
 	onTrigger,
 	triggerEvent,
-}: LayerPathProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+
+	vtmSortIndex,
+	order,
+}: LayerPathProps & {
+	/** Owner-injected sibling position inside a SharedLayer fragment. */
+	vtmSortIndex?: number;
+	/**
+	 * Explicit position inside a fragment. Overrides vtmSortIndex — use it
+	 * when the layer is nested inside wrapper components or host Views that
+	 * can't forward the injected index. Lower = earlier = lower z-order.
+	 */
+	order?: number;
+}) => {
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
+	const sharedId = useContext(SharedLayerContext);
+	const isGrouped = sharedId !== null;
 
 	const responseInclude = useMemo(
 		() => ({
@@ -52,15 +77,35 @@ const LayerPath = ({
 
 	const hasCoordinates = !!coordinates && coordinates.length > 0;
 
-	// positionIndex is computed by useLayerOrder during render (after the uuid
-	// declaration below) but must be available inside the create callback (which
-	// is defined here, before the declaration). A ref bridges the gap: it's set
-	// during render, then read when the async create callback fires.
-	const positionIndexRef = useRef<number>(-1);
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
+	// Standalone: this component contributes an anchor and belongs to an
+	// implicit type-run fragment. The fragment uuid is scene-authoritative
+	// (keyed by the run's first member) — creating under it keeps the
+	// collapse alive; self-keying would orphan members 2..N.
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+		layerType: 'path',
+		shared: true,
+		active: !isGrouped,
+	});
 
-	const { uuid } = useNativeLayerLifecycle({
-		enabled: !!nativeNodeHandle && hasCoordinates,
+	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// Grouped entries wait until their owning fragment is in the committed plan
+	// (owner anchor walked) so the atomic-add order hint is correct on mount.
+	const ownerFragmentReady = useSceneFragmentReady(
+		isGrouped ? sharedId : null,
+		'path'
+	);
+	// The fragment uuid the current native entry was created under — ground
+	// truth for detecting a run re-key (first member removed).
+	const usedFragmentUuidRef = useRef<string | null>(null);
+
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		// Standalone creation waits for the scene-resolved run key: without
+		// it the entry would land under a self-keyed (unmanaged) fragment.
+		enabled:
+			!!nativeNodeHandle &&
+			hasCoordinates &&
+			(isGrouped ? ownerFragmentReady : runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
 			if (!nativeNodeHandle || !coordinates) {
 				return Promise.reject<string>({
@@ -69,10 +114,27 @@ const LayerPath = ({
 					},
 				} as ErrorBase);
 			}
-			return LayerPathModule.createLayer({
+			const fragmentUuid =
+				sharedId !== null
+					? fragmentUuidFor(sharedId, 'path')
+					: // The scene-authoritative run key. Re-read from the live
+						// plan at create time (a stale closure value can otherwise
+						// self-key a non-first member); runUuidFor is the last-ditch
+						// only for a first/single member whose run key isn't computed.
+						(runFragmentUuid ??
+						scene.plan().runKeysByAnchor.get(anchorUid) ??
+						runUuidFor(anchorUid));
+			usedFragmentUuidRef.current = fragmentUuid;
+			// The absolute target order: the plan as if this entry were
+			// already resolved — the fragment appears at its tree position.
+			// The native side applies it atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(isGrouped ? entryUid : anchorUid)
+				.layers.map((l) => l.uuid);
+			return enqueueCreatePath({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
-				fragmentUuid: fragmentUuidRef.current,
+				fragmentUuid,
+				layerUuids,
 				supportsGestures,
 				coordinates,
 				...(paint && { paint }),
@@ -88,10 +150,7 @@ const LayerPath = ({
 			if (!nativeNodeHandle) {
 				return Promise.resolve(false);
 			}
-			return LayerPathModule.removeLayer({
-				nativeNodeHandle,
-				uuid: currentUuid,
-			})
+			return enqueueRemovePath(nativeNodeHandle, currentUuid)
 				.then((removedUuid) => {
 					triggerOnRemove && onRemove
 						? onRemove({ nativeNodeHandle, uuid: removedUuid })
@@ -106,15 +165,53 @@ const LayerPath = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'path');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	// Grouped (inside a SharedLayer): declare an entry instead of an anchor.
+	const entryUid = useLayerEntry({
+		active: isGrouped,
+		fragmentId: sharedId,
+		layerType: 'path',
+		sortIndex: order ?? vtmSortIndex,
+		uuid,
+	});
+
+	// Standalone: bind the resolved entry uuid to the anchor uid — the
+	// type-run fragment exists once one member resolved.
+	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
+
+	// Standalone: when the type-run re-keys (its first member was removed),
+	// the native entry must move to the new fragment — remove and recreate
+	// under the new key. `uuid` is a dep so a re-key that lands while the
+	// create is in-flight is caught when the stale uuid resolves.
+	useEffect(() => {
+		if (isGrouped || runFragmentUuid === null) {
+			return;
+		}
+		if (usedFragmentUuidRef.current === runFragmentUuid) {
+			return;
+		}
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
+	}, [
+		isGrouped,
+		runFragmentUuid,
+		uuid,
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	// Redraw the existing native layer in place when the line or its paint
-	// changes, instead of tearing down and recreating the layer.
+	// changes, instead of tearing down and recreating the layer. Batched —
+	// a bulk re-render (e.g. zoom re-simplification) collapses N per-entry
+	// updates into one native updateLayers call.
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
-			LayerPathModule.updateCoordinates({
+			enqueueUpdatePath({
 				nativeNodeHandle,
 				uuid,
 				coordinates,
@@ -191,7 +288,7 @@ const LayerPath = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 LayerPath.defaults = moduleDefaults;

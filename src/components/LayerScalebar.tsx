@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useRef } from 'react';
+import { useContext } from 'react';
 
 /**
  * Internal dependencies
@@ -10,7 +10,8 @@ import LayerScalebarModule, {
 	type LayerScalebarProps,
 } from '../NativeModules/NativeLayerScalebar';
 import type { ErrorBase } from '../types';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
@@ -18,7 +19,10 @@ import MapHandleContext from '../context/MapHandleContext';
 const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate }) => {
@@ -29,7 +33,6 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 			}
 			return LayerScalebarModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })
@@ -59,10 +62,9 @@ const LayerScalebar = ({ onCreate, onRemove, onError }: LayerScalebarProps) => {
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
-	return null;
+	return anchorElement;
 };
 
 export default LayerScalebar;

@@ -4,16 +4,20 @@ import android.content.ContentResolver;
 import android.os.Looper;
 
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.oscim.android.MapView;
@@ -30,18 +34,28 @@ import org.robolectric.annotation.Config;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.MockedStatic;
 
 /**
  * Robolectric unit tests for {@link PathLayerManager}.
@@ -58,6 +72,27 @@ import static org.mockito.Mockito.when;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 33)
 public class PathLayerManagerTest {
+
+    private static MockedStatic<Arguments> argumentsMock;
+    private static WritableMap mockWritableMap;
+
+    @BeforeClass
+    public static void setUpClass() {
+        // Mock Arguments.createArray/createMap so batch methods can build
+        // responses without native library loading in Robolectric.
+        argumentsMock = mockStatic(Arguments.class);
+        WritableArray mockArray = mock(WritableArray.class);
+        mockWritableMap = mock(WritableMap.class);
+        when(Arguments.createArray()).thenReturn(mockArray);
+        when(Arguments.createMap()).thenReturn(mockWritableMap);
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        if (argumentsMock != null) {
+            argumentsMock.close();
+        }
+    }
 
     private static int handleCounter = 400000;
 
@@ -133,11 +168,32 @@ public class PathLayerManagerTest {
      * {@code future.get()} deadlock.
      */
     private PathLayerManager createManagerWithFakeLayer() throws Exception {
+        return createManagerWithFakeLayer(PathLayerManager.DEFAULT_FRAGMENT_UUID);
+    }
+
+    /**
+     * Same as {@link #createManagerWithFakeLayer()}, but injects the mock
+     * layer under an arbitrary fragment uuid (e.g. a type-run key).
+     */
+    private PathLayerManager createManagerWithFakeLayer(String fragmentUuid) throws Exception {
         PathLayerManager mgr = PathLayerManager.get(handle, mockMapView);
-        Field f = LayerManager.class.getDeclaredField("sharedLayer");
+        Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
         f.setAccessible(true);
-        f.set(mgr, mockVectorLayer);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
+        fragments.put(fragmentUuid, mockVectorLayer);
         return mgr;
+    }
+
+    /**
+     * Reads the manager's sharedLayerFragments map via reflection.
+     */
+    private java.util.Map<String, Layer> getSharedLayerFragments(PathLayerManager mgr) throws Exception {
+        Field f = LayerManager.class.getDeclaredField("sharedLayerFragments");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Layer> fragments = (java.util.Map<String, Layer>) f.get(mgr);
+        return fragments;
     }
 
     /**
@@ -225,7 +281,7 @@ public class PathLayerManagerTest {
 
         String entryUuid = "path-entry-1";
         LayerManager.CreateResult<PathLayerManager.PathEntry> result =
-                mgr.create(entryUuid, params, mf, cr, rctx);
+                mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         assertNotNull("CreateResult must not be null", result);
         assertNotNull("PathEntry must not be null", result.entry);
@@ -243,6 +299,30 @@ public class PathLayerManagerTest {
                 mgr.getEntries().get(entryUuid));
     }
 
+    @Test
+    public void createEntry_appendsRegardlessOfPositionIndex() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap params = mockCoordParams(coords);
+        configureDefaultParamBehavior(params);
+        // A legacy JS caller still sending positionIndex — it must be ignored:
+        // new entries always append (APPEND_PRIORITY); applyEntryPriorities
+        // owns within-fragment order.
+        when(params.hasKey("positionIndex")).thenReturn(true);
+        when(params.getInt("positionIndex")).thenReturn(5);
+
+        LayerManager.CreateResult<PathLayerManager.PathEntry> result =
+                mgr.create("path-appends", PathLayerManager.DEFAULT_FRAGMENT_UUID,
+                        params, mf, cr, rctx);
+
+        assertEquals("create-time positionIndex must be ignored",
+                Integer.MAX_VALUE, result.entry.positionIndex);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void createEntry_missingCoordinates_throws() throws Exception {
         PathLayerManager mgr = createManagerWithFakeLayer();
@@ -255,7 +335,7 @@ public class PathLayerManagerTest {
         // No "coordinates" key -> the method should throw.
         when(params.hasKey("coordinates")).thenReturn(false);
 
-        mgr.create("bad-entry", params, mf, cr, rctx);
+        mgr.create("bad-entry", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -274,10 +354,18 @@ public class PathLayerManagerTest {
         when(empty.size()).thenReturn(0);
         when(params.getArray("coordinates")).thenReturn(empty);
 
-        mgr.create("empty-entry", params, mf, cr, rctx);
+        mgr.create("empty-entry", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
     }
 
     @Test
+    public void createEntry_withPaintParams() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = { {13.4, 52.5}, {13.5, 52.6} };
+        ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
         // Build a style map mock instead of a WritableNativeMap.
@@ -306,7 +394,7 @@ public class PathLayerManagerTest {
         when(params.getMap("paint")).thenReturn(styleMap);
 
         String entryUuid = "path-styled";
-        mgr.create(entryUuid, params, mf, cr, rctx);
+        mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         PathLayerManager.PathEntry entry = mgr.getEntries().get(entryUuid);
         assertNotNull("Entry must exist after create", entry);
@@ -332,7 +420,7 @@ public class PathLayerManagerTest {
         configureDefaultParamBehavior(params);
 
         String entryUuid = "path-to-remove";
-        mgr.create(entryUuid, params, mf, cr, rctx);
+        mgr.create(entryUuid, PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         // Sanity: entry and drawables exist.
         assertEquals(1, mgr.getEntries().size());
@@ -369,12 +457,12 @@ public class PathLayerManagerTest {
         double[][] coordsA = {{13.4, 52.5}, {13.5, 52.6}};
         ReadableMap paramsA = mockCoordParams(coordsA);
         configureDefaultParamBehavior(paramsA);
-        mgr.create("path-a", paramsA, mf, cr, rctx);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
 
         double[][] coordsB = {{13.6, 52.7}, {13.7, 52.8}, {13.8, 52.9}};
         ReadableMap paramsB = mockCoordParams(coordsB);
         configureDefaultParamBehavior(paramsB);
-        mgr.create("path-b", paramsB, mf, cr, rctx);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
 
         assertEquals("Two path entries must be registered",
                 2, mgr.getEntries().size());
@@ -402,9 +490,9 @@ public class PathLayerManagerTest {
         ReadableMap params = mockCoordParams(coords);
         configureDefaultParamBehavior(params);
 
-        mgr.create("path-1", params, mf, cr, rctx);
-        mgr.create("path-2", params, mf, cr, rctx);
-        mgr.create("path-3", params, mf, cr, rctx);
+        mgr.create("path-1", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
+        mgr.create("path-2", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
+        mgr.create("path-3", PathLayerManager.DEFAULT_FRAGMENT_UUID, params, mf, cr, rctx);
 
         assertEquals(3, mgr.getEntries().size());
 
@@ -425,11 +513,6 @@ public class PathLayerManagerTest {
         assertEquals("paths", PathLayerManager.NAME);
     }
 
-    @Test
-    public void basePosition_isMaxInt() {
-        assertEquals(Integer.MAX_VALUE, PathLayerManager.BASE_POSITION);
-    }
-
     // ------------------------------------------------------------------
     // Utility methods
     // ------------------------------------------------------------------
@@ -439,7 +522,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", 0,
+                "test-uuid", PathLayerManager.DEFAULT_FRAGMENT_UUID, 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
@@ -463,7 +546,7 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
 
         PathLayerManager.PathEntry entry = new PathLayerManager.PathEntry(
-                "test-uuid", 0,
+                "test-uuid", PathLayerManager.DEFAULT_FRAGMENT_UUID, 0,
                 new org.locationtech.jts.geom.Coordinate[]{}, false, 30f);
         mgr.getEntries().put("test-uuid", entry);
 
@@ -480,6 +563,313 @@ public class PathLayerManagerTest {
         PathLayerManager mgr = createManagerWithFakeLayer();
         // Should not throw.
         mgr.updateGestureScreenDistance("nonexistent", 100f);
+    }
+
+    // ------------------------------------------------------------------
+    // applyEntryPriorities
+    // ------------------------------------------------------------------
+
+    @Test
+    public void applyEntryPriorities_updatesEntryAndDrawablePriorities() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
+
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
+
+        ReadableMap assignmentA = mock(ReadableMap.class);
+        when(assignmentA.getString("uuid")).thenReturn("path-a");
+        when(assignmentA.getInt("priority")).thenReturn(100);
+        ReadableMap assignmentB = mock(ReadableMap.class);
+        when(assignmentB.getString("uuid")).thenReturn("path-b");
+        when(assignmentB.getInt("priority")).thenReturn(200);
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(2);
+        when(assignments.getMap(0)).thenReturn(assignmentA);
+        when(assignments.getMap(1)).thenReturn(assignmentB);
+
+        mgr.applyEntryPriorities(PathLayerManager.DEFAULT_FRAGMENT_UUID, assignments);
+
+        PathLayerManager.PathEntry entryA = mgr.getEntries().get("path-a");
+        PathLayerManager.PathEntry entryB = mgr.getEntries().get("path-b");
+        assertEquals(100, entryA.positionIndex);
+        assertEquals(200, entryB.positionIndex);
+        assertEquals("Entry A drawable priority must be updated",
+                100, entryA.drawables.get(0).getPriority());
+        assertEquals("Entry B drawable priority must be updated",
+                200, entryB.drawables.get(0).getPriority());
+    }
+
+    @Test
+    public void applyEntryPriorities_unknownFragmentIsNoOp() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ReadableArray assignments = mock(ReadableArray.class);
+        when(assignments.size()).thenReturn(0);
+        // Should not throw (ZOMBIE path logs a warning), and must return
+        // false so the JS presenter rejects and re-sends later.
+        assertFalse(mgr.applyEntryPriorities("unknown-fragment", assignments));
+    }
+
+    // ------------------------------------------------------------------
+    // Batch create / remove
+    // ------------------------------------------------------------------
+
+    @Test
+    public void createPaths_createsEntriesInOneBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals("Two path entries must be registered",
+                2, mgr.getEntries().size());
+        assertEquals("One drawable per 2-coordinate path",
+                2, addedDrawables.size());
+    }
+
+    /**
+     * The type-run collapse contract: all members of one run share the SAME
+     * fragment uuid (scene-authoritative, e.g. "run:layer_0"), so the native
+     * side must keep them in ONE shared layer — one fragment, N drawables.
+     */
+    @Test
+    public void createPaths_sameFragmentUuid_collapsesToOneFragment() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer("run:layer_0");
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        when(paramsA.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsA.getString("fragmentUuid")).thenReturn("run:layer_0");
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        when(paramsB.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsB.getString("fragmentUuid")).thenReturn("run:layer_0");
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals("Two path entries must be registered",
+                2, mgr.getEntries().size());
+        assertEquals("Both entries' drawables must live in the ONE shared layer",
+                2, addedDrawables.size());
+        assertEquals("One shared fragment must host the whole run",
+                1, getSharedLayerFragments(mgr).size());
+    }
+
+    /**
+     * #19: gesture-support sync is hoisted — one setSupportsGestures call
+     * per batch, not one per item.
+     */
+    @Test
+    public void createPaths_syncsGestureSupportOncePerBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        ReadableMap paramsC = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsC);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(3);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+        when(paths.getMap(2)).thenReturn(paramsC);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        assertEquals(3, mgr.getEntries().size());
+        verify(mockVectorLayer, times(1)).setSupportsGestures(anyBoolean());
+    }
+
+    /**
+     * #19: remove batch also syncs gesture support once.
+     */
+    @Test
+    public void removePaths_syncsGestureSupportOncePerBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
+        // Individual creates each synced once — reset before the batch.
+        clearInvocations(mockVectorLayer);
+
+        ReadableArray uuids = mock(ReadableArray.class);
+        when(uuids.size()).thenReturn(2);
+        when(uuids.getString(0)).thenReturn("path-a");
+        when(uuids.getString(1)).thenReturn("path-b");
+
+        mgr.removePaths(uuids);
+
+        assertEquals(0, mgr.getEntries().size());
+        verify(mockVectorLayer, times(1)).setSupportsGestures(anyBoolean());
+    }
+
+    /**
+     * #14: a fragment ensure failure (map torn down mid-request) must not
+     * reject the whole batch — nothing is created and the affected items
+     * report per-item errors.
+     */
+    @Test
+    public void createPaths_fragmentEnsureFailure_producesPerItemErrors() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer(); // fake at __vtm_shared_path__0
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        // A fragment with no injected fake layer → ensureSharedLayer goes
+        // through MapMutationQueue, which we mock as already torn down.
+        when(paramsA.hasKey("fragmentUuid")).thenReturn(true);
+        when(paramsA.getString("fragmentUuid")).thenReturn("run:gone");
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(1);
+        when(paths.getMap(0)).thenReturn(paramsA);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        try (MockedStatic<MapMutationQueue> queueMock = mockStatic(MapMutationQueue.class)) {
+            MapMutationQueue mockQueue = mock(MapMutationQueue.class);
+            CompletableFuture<String> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new RuntimeException("map torn down"));
+            when(mockQueue.enqueueAddLayer(any(), any(), any())).thenReturn(failed);
+            queueMock.when(() -> MapMutationQueue.get(anyInt(), any()))
+                    .thenReturn(mockQueue);
+
+            // Distinct mocks for the per-item result vs the top-level response,
+            // so the assertion can verify the error lands on the item, not the
+            // response (the shared setUpClass stub can't distinguish them).
+            WritableMap resultItemMap = mock(WritableMap.class);
+            WritableMap responseMap = mock(WritableMap.class);
+            when(Arguments.createMap()).thenReturn(resultItemMap, responseMap);
+            try {
+                // Must not throw — the batch resolves with per-item errors.
+                WritableMap response = mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+                assertEquals("No entries may be created when the fragment failed",
+                        0, mgr.getEntries().size());
+
+                // The per-item error goes on the result item; the top-level
+                // response only carries the results array (never a "error"
+                // string — that would violate the per-item contract).
+                verify(resultItemMap).putString(eq("error"), anyString());
+                verify(responseMap).putArray(eq("results"), any());
+            } finally {
+                when(Arguments.createMap()).thenReturn(mockWritableMap);
+            }
+        }
+    }
+
+    @Test
+    public void createPaths_capturesPerItemErrors() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        // First item valid, second missing coordinates.
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        ReadableMap paramsB = mock(ReadableMap.class);
+        configureDefaultParamBehavior(paramsB);
+        when(paramsB.hasKey("coordinates")).thenReturn(false);
+
+        ReadableArray paths = mock(ReadableArray.class);
+        when(paths.size()).thenReturn(2);
+        when(paths.getMap(0)).thenReturn(paramsA);
+        when(paths.getMap(1)).thenReturn(paramsB);
+
+        ReadableMap defaultResponseInclude = mock(ReadableMap.class);
+        when(defaultResponseInclude.getInt(anyString())).thenReturn(0);
+
+        mgr.createPaths(paths, mf, cr, rctx, defaultResponseInclude);
+
+        // Only the valid item registered.
+        assertEquals(1, mgr.getEntries().size());
+        assertEquals(1, addedDrawables.size());
+    }
+
+    @Test
+    public void removePaths_removesEntriesInOneBatch() throws Exception {
+        PathLayerManager mgr = createManagerWithFakeLayer();
+        ContentResolver cr = mock(ContentResolver.class);
+        ReactApplicationContext rctx = mock(ReactApplicationContext.class);
+        MapFragment mf = mock(MapFragment.class);
+
+        double[][] coords = {{13.4, 52.5}, {13.5, 52.6}};
+        ReadableMap paramsA = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsA);
+        mgr.create("path-a", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsA, mf, cr, rctx);
+        ReadableMap paramsB = mockCoordParams(coords);
+        configureDefaultParamBehavior(paramsB);
+        mgr.create("path-b", PathLayerManager.DEFAULT_FRAGMENT_UUID, paramsB, mf, cr, rctx);
+        assertEquals(2, mgr.getEntries().size());
+
+        ReadableArray uuids = mock(ReadableArray.class);
+        when(uuids.size()).thenReturn(2);
+        when(uuids.getString(0)).thenReturn("path-a");
+        when(uuids.getString(1)).thenReturn("path-b");
+
+        mgr.removePaths(uuids);
+
+        assertEquals("All entries must be removed", 0, mgr.getEntries().size());
+        assertTrue("All drawables must be removed", addedDrawables.isEmpty());
     }
 
     // ------------------------------------------------------------------

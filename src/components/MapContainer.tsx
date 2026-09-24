@@ -22,12 +22,14 @@ import MapsforgeVtmView, {
 	type MapContainerProps,
 } from '../NativeViews/MapsforgeVtmViewNativeComponent';
 import MapHandleContext, {
-	createLayerOrderRegistry,
-	type LayerOrderRegistry,
 	type MapHandleContextValue,
 } from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
 import { drainQueue } from '../compose/MarkerBatchQueue';
+import { drainPathQueue } from '../compose/PathBatchQueue';
+import { drainPathUpdateQueue } from '../compose/PathUpdateBatchQueue';
+import { drainShapeQueue } from '../compose/ShapeBatchQueue';
+import { SceneSync } from '../scene/SceneSync';
 
 const moduleDefaults = NativeMapContainer.getConstants();
 
@@ -116,68 +118,56 @@ const MapContainer = ({
 	const nativeNodeHandleRef = useRef(nativeNodeHandle);
 	nativeNodeHandleRef.current = nativeNodeHandle;
 
-	const registryRef = useRef<undefined | LayerOrderRegistry>(undefined);
-	if (!registryRef.current) {
-		registryRef.current = createLayerOrderRegistry();
+	// The layer scene (single source of truth for ordering) and its
+	// presenter. Both are stable for the lifetime of this map view.
+	const syncRef = useRef<undefined | SceneSync>(undefined);
+	if (!syncRef.current) {
+		syncRef.current = new SceneSync();
 	}
-	const registry = registryRef.current;
-	// Bump generation on every render so useLayerOrder can distinguish a full coherent
-	// render pass (where already-registered layers must be repositioned to match the
-	// current document order) from a solo re-render of a single layer (where they must not).
-	registry.generation++;
-	// Rebuild fragment indices from existing order so new layers added during this
-	// pass see the correct continuation index for their type-run. Without this, a
-	// newly-mounted same-type layer at the end of an existing run would default to
-	// fragment index 1 instead of sharing the run's index, causing a z-order
-	// violation (and a fragment-UUID collision with earlier layers that hold index 1).
-	{
-		let lastType: string | undefined;
-		registry.fragmentIndices.clear();
-		for (const id of registry.order) {
-			const t = registry.layerTypes.get(id);
-			if (t) {
-				if (lastType !== t) {
-					const idx = registry.fragmentIndices.get(t) ?? 0;
-					registry.fragmentIndices.set(t, idx + 1);
-				}
-				lastType = t;
-			}
-		}
-		// Seed cursorLayerType from the last layer in order, so a new same-type
-		// layer added at the end sees a type-match and correctly shares the last
-		// fragment index (no spurious increment).
-		registry.cursorLayerType = lastType;
-	}
-	// Reset on every render (not just mount): this is what gives useLayerOrder a fresh,
-	// reliable anchor at the start of each coherent render pass over `children`, so a layer
-	// that mounts/remounts there (e.g. a toggled-on <LayerPath/>) can insert itself in the
-	// right relative position instead of always landing at the end.
-	registry.cursor = undefined;
-	registry.sharedLayerActive = false;
+	const sync = syncRef.current;
+	const scene = sync.getScene();
 
-	// Drain the MarkerBatchQueue and cancel pending debounced reorderLayers
-	// timers on unmount, so they don't fire with a stale nativeNodeHandle
-	// after teardown (which would produce cosmetic console errors).
+	useEffect(() => {
+		sync.setNativeNodeHandle(nativeNodeHandle);
+	}, [sync, nativeNodeHandle]);
+
+	// Drain the MarkerBatchQueue and cancel pending walk/sync timers on
+	// unmount, so nothing fires with a stale nativeNodeHandle after teardown.
 	useEffect(() => {
 		return () => {
 			if (nativeNodeHandleRef.current != null) {
 				drainQueue(nativeNodeHandleRef.current);
+				drainPathQueue(nativeNodeHandleRef.current);
+				drainPathUpdateQueue(nativeNodeHandleRef.current);
+				drainShapeQueue(nativeNodeHandleRef.current);
 			}
-			registryRef.current!.destroy();
+			sync.destroy();
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	const mapHandleContextValue = useMemo<MapHandleContextValue>(
 		() => ({
 			nativeNodeHandle,
-			registry,
+			scene,
+			sync,
 		}),
-		[nativeNodeHandle, registry]
+		[
+			nativeNodeHandle,
+			scene,
+			sync,
+		]
 	);
 
 	const handleMapCreated = useCallback(() => {
 		setMapCreated(true);
 	}, []);
+
+	// Native hierarchy signal: an anchor view was added/removed under the
+	// wrapper (covers identity-preserved element moves) — re-walk.
+	const handleAnchorsChanged = useCallback(() => {
+		sync.scheduleWalk();
+	}, [sync]);
 
 	// Wire triggerEvent ref to native MapContainer.triggerEvent()
 	useEffect(() => {
@@ -256,11 +246,14 @@ const MapContainer = ({
 				onError={onError ? onError : null}
 				onTap={onTap ? onTap : null}
 				onLongPress={onLongPress ? onLongPress : null}
+				onAnchorsChanged={handleAnchorsChanged}
 				gnssFilter={gnssFilter ? gnssFilter : null}
 				onGnssPosition={onGnssPosition ? onGnssPosition : null}
 			/>
 			{mapCreated && (
-				<MarkerLayerContext.Provider value={{ markerLayerUuid: null }}>
+				<MarkerLayerContext.Provider
+					value={{ markerLayerUuid: null, fragmentId: null }}
+				>
 					<MapHandleContext.Provider value={mapHandleContextValue}>
 						{children}
 					</MapHandleContext.Provider>

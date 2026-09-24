@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-09-24
+
+### Added
+
+- **Scene-based layer ordering** — the cursor-chain / `LayerOrderRegistry` architecture is replaced by a scene model: `LayerScene` (single source of truth, commit-phase mutations, immutable `plan()`) + `SceneSync` (debounced walk + single-flight `reorderLayers`/`applyEntryPriorities`). Order is a function of committed state, derived from an anchor walk over the committed view tree.
+- **`LayerStackController`** — native absolute-plan applier (`MapMutationQueue`-serialized) with a post-apply self-check surfaced in `getDebugLayerDump()` (`appliedMatchesExpected`, `expectedUuids`, `appliedUuids`, `notInPlanCount`).
+- **Deterministic fragment keys** — `frag:<owner>:<type>` (SharedLayer/LayerMarker) and `run:<anchor>` (implicit type-runs).
+- **`useSceneBusy()`** — reactive hook (exported) signalling that the layer-scene presenter has pending/in-flight ordering work (walk, sync, entry-priority commits, or unapplied mutations). Consumers can wire it to a loading indicator; re-renders only on true↔false transitions.
+- **`SceneSync.subscribeBusy()` / `isBusy()`** — busy subscription for the scene presenter.
+- **Shared-layer extension hooks** — `useSceneFragmentUuid` (standalone type-run fragment key), `useSceneFragmentReady` (grouped-entry readiness gate), and the `fragmentUuidFor` / `runUuidFor` deterministic identity builders, exported for third-party shared-fragment layer types.
+- **`updateLayers` batch API** — `LayerPath` geometry/paint updates collapse into one native `updateLayers` call per frame (per-entry `updateCoordinates` batching), removing the per-line bridge churn on bulk re-render (e.g. zoom re-simplification).
+
+### Changed
+
+- **Fragment UUID scheme** — shared-layer fragment UUIDs changed from `__vtm_shared_<type>__<index>` to `frag:<owner>:<type>` / `run:<anchor>`. Any code keying on the old strings must update.
+- **Create-phase performance** — `planWithResolved` is now memoized per fragment/type-run, and `LayerScene` batches listener notification into one microtask flush, collapsing the many-entry create phase from O(N²) to ~O(N log N).
+
+### Removed
+
+- **`useLayerOrder` / `createLayerOrderRegistry` / `LayerOrderRegistry`** — replaced by `useLayerAnchor`, `useLayerEntry`, `useSceneUuidBinding`, `LayerScene`, and `SceneSync` (all exported from `src/index.tsx`).
+- **Create-time `positionIndex`** — the `positionIndex` param is no longer sent to native `createLayer`/`createMarker`. Within-fragment order is now applied via `applyEntryPriorities` using sparse priorities from `PriorityAllocator`.
+- **Synchronous `LayerHelper.addLayer` / `removeLayer`** — deleted; use `addLayerAsync` / `removeLayerAsync` (the only layer-mutation API).
+- **`SceneCommand` / `commandLog()`** — the replayable command log was removed; `LayerScene.version()` is the mutation signal.
+
 ## [0.8.3] - 2026-08-09
 
 ### Fixed
@@ -404,6 +428,7 @@ Just updated README.md
 
 First bumpy version
 
+[0.9.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.0...v0.8.1

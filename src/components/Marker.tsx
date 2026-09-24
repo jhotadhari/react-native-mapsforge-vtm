@@ -7,7 +7,6 @@ import { omit } from 'lodash-es';
 /**
  * Internal dependencies
  */
-// import { MarkerHotspotPlaces } from '../constants';
 import LayerMarkerModule, {
 	FontFamily,
 	FontStyle,
@@ -19,7 +18,11 @@ import {
 } from '../NativeModules/NativeLayerMarker';
 import type { ErrorBase } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useLayerEntry from '../compose/useLayerEntry';
+import useSceneFragmentUuid from '../compose/useSceneFragmentUuid';
+import useSceneFragmentReady from '../compose/useSceneFragmentReady';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import {
 	enqueueCreateMarker,
@@ -28,6 +31,8 @@ import {
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
+import SharedLayerContext from '../context/SharedLayerContext';
+import { fragmentUuidFor, runUuidFor } from '../scene/ids';
 
 const Marker = ({
 	title,
@@ -42,25 +47,64 @@ const Marker = ({
 	onPress,
 	onLongPress,
 	onTrigger,
-}: MarkerProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
-	const { markerLayerUuid } = useContext(MarkerLayerContext);
+	vtmSortIndex,
+	order,
+}: MarkerProps & {
+	/** Owner-injected sibling position inside a SharedLayer/LayerMarker fragment. */
+	vtmSortIndex?: number;
+	/**
+	 * Explicit position inside a fragment. Overrides vtmSortIndex — use it
+	 * when the marker is nested inside wrapper components or host Views that
+	 * can't forward the injected index. Lower = earlier = lower z-order.
+	 */
+	order?: number;
+}) => {
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
+	const { markerLayerUuid, fragmentId: markerFragmentId } =
+		useContext(MarkerLayerContext);
+	const sharedId = useContext(SharedLayerContext);
+
+	// Grouped when inside a LayerMarker or a SharedLayer wrapper.
+	const fragmentId = markerFragmentId ?? sharedId;
+	const isGrouped = fragmentId !== null;
 
 	const indexRef = useRef<number>(-1);
 	const justCreatedRef = useRef(false);
 	const createdPositionRef = useRef(position);
 	const createdPaintRef = useRef(paint);
-	const positionIndexRef = useRef<number>(-1);
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
 
-	const { uuid } = useNativeLayerLifecycle({
-		enabled: !!nativeNodeHandle && markerLayerUuid !== false && !!position,
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+		layerType: 'marker',
+		shared: true,
+		active: !isGrouped,
+	});
+
+	const runFragmentUuid = useSceneFragmentUuid(isGrouped ? null : anchorUid);
+	// A marker can be owned by either a LayerMarker (markerFragmentId) or a
+	// SharedLayer (sharedId) — `fragmentId = markerFragmentId ?? sharedId`, and
+	// the fragment uuid here must match the `fragmentUuidFor(fragmentId,
+	// 'marker')` used in the create callback below.
+	const ownerFragmentReady = useSceneFragmentReady(
+		isGrouped ? fragmentId : null,
+		'marker'
+	);
+	// The fragment uuid the current native entry was created under — ground
+	// truth for detecting a run re-key (first member removed).
+	const usedFragmentUuidRef = useRef<string | null>(null);
+
+	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
+		// Standalone creation waits for the scene-resolved run key: without
+		// it the entry would land under a self-keyed (unmanaged) fragment.
+		enabled:
+			!!nativeNodeHandle &&
+			!!position &&
+			(isGrouped ? ownerFragmentReady : runFragmentUuid !== null),
 		create: ({ triggerOnCreate, triggerOnChange }) => {
-			if (!nativeNodeHandle || markerLayerUuid === false || !position) {
+			if (!nativeNodeHandle || !position) {
 				return Promise.reject<string>({
 					userInfo: {
-						errorMsg:
-							'Missing nativeNodeHandle, markerLayerUuid or position',
+						errorMsg: 'Missing nativeNodeHandle or position',
 					},
 				} as ErrorBase);
 			}
@@ -69,6 +113,22 @@ const Marker = ({
 			// uuid resolution.
 			createdPositionRef.current = position;
 			createdPaintRef.current = paint;
+			const fragmentUuid =
+				fragmentId !== null
+					? fragmentUuidFor(fragmentId, 'marker')
+					: // The scene-authoritative run key, re-read from the live
+						// plan at create time; runUuidFor is the last-ditch only
+						// for a first/single member.
+						(runFragmentUuid ??
+						scene.plan().runKeysByAnchor.get(anchorUid) ??
+						runUuidFor(anchorUid));
+			usedFragmentUuidRef.current = fragmentUuid;
+			// The absolute target order: the plan as if this entry were
+			// already resolved — the fragment appears at its tree position.
+			// The native side applies it atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(isGrouped ? entryUid : anchorUid)
+				.layers.map((l) => l.uuid);
 			return enqueueCreateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -76,10 +136,8 @@ const Marker = ({
 				...(description && { description }),
 				...(position && { position }),
 				...(paint && { paint }),
-				positionIndex: positionIndexRef.current,
-				...(fragmentUuidRef.current && {
-					fragmentUuid: fragmentUuidRef.current,
-				}),
+				fragmentUuid,
+				layerUuids,
 			}).then((response: MarkerResponse) => {
 				indexRef.current = response.index;
 				justCreatedRef.current = true;
@@ -89,7 +147,7 @@ const Marker = ({
 			});
 		},
 		remove: (currentUuid, { triggerOnRemove }) => {
-			if (!nativeNodeHandle || markerLayerUuid === false) {
+			if (!nativeNodeHandle) {
 				return Promise.resolve(false);
 			}
 			return enqueueRemoveMarker(nativeNodeHandle, currentUuid)
@@ -107,9 +165,42 @@ const Marker = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'marker');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	const entryUid = useLayerEntry({
+		active: isGrouped,
+		fragmentId,
+		layerType: 'marker',
+		sortIndex: order ?? vtmSortIndex,
+		uuid,
+	});
+
+	useSceneUuidBinding(isGrouped ? null : anchorUid, uuid);
+
+	// Standalone: when the type-run re-keys (its first member was removed),
+	// the native entry must move to the new fragment — remove and recreate
+	// under the new key. `uuid` is a dep so a re-key that lands while the
+	// create is in-flight is caught when the stale uuid resolves.
+	useEffect(() => {
+		if (isGrouped || runFragmentUuid === null) {
+			return;
+		}
+		if (usedFragmentUuidRef.current === runFragmentUuid) {
+			return;
+		}
+		triggerRemove({ triggerOnRemove: false }).then((success) => {
+			if (success) {
+				triggerCreate({
+					triggerOnCreate: false,
+					triggerOnChange: true,
+				});
+			}
+		});
+	}, [
+		isGrouped,
+		runFragmentUuid,
+		uuid,
+		triggerRemove,
+		triggerCreate,
+	]);
 
 	// Update the existing native marker in place when its position or paint
 	// changes, instead of tearing down and recreating it.
@@ -126,7 +217,7 @@ const Marker = ({
 			// Props changed between the create enqueue and uuid
 			// resolution. Fall through to apply the update.
 		}
-		if (uuid && markerLayerUuid !== false && nativeNodeHandle) {
+		if (uuid && nativeNodeHandle) {
 			LayerMarkerModule.updateMarker({
 				nativeNodeHandle,
 				markerLayerUuid,
@@ -165,7 +256,7 @@ const Marker = ({
 		onTrigger,
 	});
 
-	return null;
+	return anchorElement;
 };
 
 Marker.HotspotPlaces = MarkerHotspotPlaces;

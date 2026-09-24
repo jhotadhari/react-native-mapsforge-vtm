@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import type { EventSubscription } from 'react-native';
 import { omit, pick } from 'lodash-es';
 
@@ -15,11 +15,14 @@ import LayerMarkerModule, {
 
 import type { ErrorBase, ErrorWithErrorMsg } from '../types';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
 import MarkerLayerContext from '../context/MarkerLayerContext';
+import { injectVtmSortIndex } from '../compose/injectVtmSortIndex';
+import { fragmentUuidFor } from '../scene/ids';
 
 const defaultsTrigger = pick(LayerMarkerModule.getConstants(), ['strategy']);
 
@@ -36,7 +39,7 @@ const LayerMarker = ({
 	onMarkerTrigger,
 	triggerEvent,
 }: LayerMarkerProps) => {
-	const { nativeNodeHandle } = useContext(MapHandleContext);
+	const { nativeNodeHandle, scene } = useContext(MapHandleContext);
 
 	const errorSubscription = useRef<null | EventSubscription>(null);
 
@@ -55,9 +58,13 @@ const LayerMarker = ({
 		};
 	}, [onError]);
 
-	const fragmentUuidRef = useRef<string | undefined>(undefined);
+	// The LayerMarker is a fragment owner: one anchor marking the marker
+	// layer's tree position; Marker children declare entries against its uid.
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'fragment',
+		layerType: 'marker',
+	});
 
-	const positionIndexRef = useRef<number>(-1);
 	const { uuid } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -66,10 +73,15 @@ const LayerMarker = ({
 					userInfo: { errorMsg: 'Missing nativeNodeHandle' },
 				} as ErrorBase);
 			}
+			// The absolute target order: the plan as if this group's layer
+			// were already resolved — applied atomically with the add.
+			const layerUuids = scene
+				.planWithResolved(anchorUid)
+				.layers.map((l) => l.uuid);
 			return LayerMarkerModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
-				fragmentUuid: fragmentUuidRef.current,
+				fragmentUuid: fragmentUuidFor(anchorUid, 'marker'),
+				layerUuids,
 				...(paint && { paint }),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
@@ -103,9 +115,9 @@ const LayerMarker = ({
 		onError,
 	});
 
-	const { positionIndex, fragmentUuid } = useLayerOrder(uuid, 'marker');
-	positionIndexRef.current = positionIndex;
-	fragmentUuidRef.current = fragmentUuid;
+	// Existence marker for the scene: the fragment enters the plan once the
+	// group uuid resolved.
+	useSceneUuidBinding(anchorUid, uuid);
 
 	useEffect(() => {
 		const remove = () => {
@@ -169,14 +181,28 @@ const LayerMarker = ({
 		onError,
 	]);
 
+	// Owner injection: Marker children get their sibling position as
+	// vtmSortIndex — the entry-order source for the scene. Gated on uuid so
+	// the walk/clone cost isn't paid while the layer uuid is unresolved and
+	// the children are discarded.
+	const injectedChildren = useMemo(
+		() => (uuid ? injectVtmSortIndex(children) : null),
+		[children, uuid]
+	);
+
 	if (!uuid) {
-		return null;
+		return anchorElement;
 	}
 
 	return (
-		<MarkerLayerContext.Provider value={{ markerLayerUuid: uuid }}>
-			{children}
-		</MarkerLayerContext.Provider>
+		<>
+			{anchorElement}
+			<MarkerLayerContext.Provider
+				value={{ markerLayerUuid: uuid, fragmentId: anchorUid }}
+			>
+				{injectedChildren}
+			</MarkerLayerContext.Provider>
+		</>
 	);
 };
 

@@ -77,13 +77,14 @@ public class LayerHelper {
 
 		String resolvedUuid = uuid != null ? uuid : UUID.randomUUID().toString();
 
-		// Position: if the caller provides a positionIndex, use it; otherwise append.
-		int positionIndex = Utils.rMapHasKey(params, "positionIndex")
-			? params.getInt("positionIndex")
-			: Integer.MAX_VALUE; // append
+		// Optional absolute target order (bottom → top) carried by the create.
+		// Dedicated layers don't send it today — they append and the scene's
+		// reorderLayers places them. Shared-layer managers pass their plan
+		// directly via MapMutationQueue.enqueueAddLayer, not through here.
+		java.util.List<String> desiredOrder = Utils.rMapGetStringList(params, "layerUuids");
 
 		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
-		CompletableFuture<String> future = queue.enqueueAddLayer(layer, resolvedUuid, positionIndex);
+		CompletableFuture<String> future = queue.enqueueAddLayer(layer, resolvedUuid, desiredOrder);
 
 		return future;
 	}
@@ -116,112 +117,24 @@ public class LayerHelper {
 		return queue.enqueueRemoveLayer(uuid);
 	}
 
-	// ------------------------------------------------------------------
-	// Legacy synchronous API (backward compat during migration)
-	// ------------------------------------------------------------------
-
 	/**
-	 * @deprecated Use {@link #addLayerAsync} instead. This method still directly
-	 *             mutates the map on the calling thread for backward compatibility
-	 *             with callers that haven't been migrated to the async API yet.
+	 * Async removal with promise plumbing: resolves with the removed uuid,
+	 * rejects with the failure message.
 	 */
-	@Deprecated
-	public String addLayer(Layer layer, ReadableMap params, String uuid) {
-		if (!Utils.rMapHasKey(params, "nativeNodeHandle")) { return null; }
-		int nativeNodeHandle = params.getInt("nativeNodeHandle");
-		MapView mapView = Utils.getMapView(reactContext, nativeNodeHandle);
-		if (null == mapView) { return null; }
-
-		String resolvedUuid = uuid != null ? uuid : UUID.randomUUID().toString();
-
-		MapMutationQueue queue = MapMutationQueue.get(nativeNodeHandle, mapView);
-
-		// Position-aware insertion: if the caller provides a positionIndex, insert
-		// the layer at that position among JS-managed layers instead of appending.
-		// This eliminates the need for a follow-up reorderLayers call to fix the
-		// order — the layer lands in its correct position from the start.
-		int positionIndex = Utils.rMapHasKey(params, "positionIndex")
-			? params.getInt("positionIndex")
-			: -1;
-
-		if (positionIndex >= 0) {
-			// Count JS-managed layers among current map layers to find the absolute
-			// insertion point corresponding to positionIndex.
-			// Build a HashSet once so the inner loop uses O(1) contains(),
-			// avoiding the O(n) ConcurrentHashMap.containsValue() scan per
-			// iteration (which makes this loop O(n²) per add → O(n³) overall).
-			java.util.Set<org.oscim.layers.Layer> knownSet =
-				new java.util.HashSet<>(queue.getKnownLayers().values());
-			int mapSize = mapView.map().layers().size();
-			int jsCount = 0;
-			int insertAt = mapSize; // default: append
-			for (int i = 0; i < mapSize; i++) {
-				org.oscim.layers.Layer l = mapView.map().layers().get(i);
-				if (knownSet.contains(l)) {
-					if (jsCount == positionIndex) {
-						insertAt = i;
-						break;
-					}
-					jsCount++;
-				}
-			}
-			mapView.map().layers().add(insertAt, layer);
-		} else {
-			// Legacy behavior: unconditional append.
-			mapView.map().layers().add(layer);
+	public void removeLayerResolving( ReadableMap params, Promise promise ) {
+		// Validate + read the uuid once, on the caller's thread — the async
+		// completion (thenRun) runs on the UI thread and must not re-read the
+		// same ReadableMap key across threads.
+		if ( !Utils.rMapHasKey( params, "uuid" ) || !Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+			Utils.promiseReject( promise, "Missing uuid or nativeNodeHandle" );
+			return;
 		}
-
-		mapView.map().updateMap();
-		queue.getKnownLayers().put(resolvedUuid, layer);
-
-		return resolvedUuid;
-	}
-
-	/**
-	 * @deprecated Use {@link #addLayerAsync} instead.
-	 */
-	@Deprecated
-	public String addLayer(Layer layer, ReadableMap params) {
-		String uuid = UUID.randomUUID().toString();
-		return addLayer(layer, params, uuid);
-	}
-
-	/**
-	 * @deprecated Use {@link #removeLayerAsync} instead. This method now delegates
-	 *             to {@link #removeLayerAsync} so that all layer removals go through
-	 *             {@link MapMutationQueue} and are serialized on the UI thread.
-	 */
-	@Deprecated
-	public void removeLayer(ReadableMap params, Promise promise) {
-		try {
-			if (!Utils.rMapHasKey(params, "uuid") || !Utils.rMapHasKey(params, "nativeNodeHandle")) {
-				Utils.promiseReject(promise, "Undefined uuid or nativeNodeHandle"); return;
-			}
-			String uuid = params.getString("uuid");
-
-			removeLayerAsync(params)
-				.thenRun(() -> promise.resolve(uuid))
-				.exceptionally(t -> {
-					Utils.promiseReject(promise, t.getMessage());
-					return null;
-				});
-		} catch (Exception e) {
-			e.printStackTrace();
-			Utils.promiseReject(promise, e.getMessage());
-		}
-	}
-
-	protected int getLayerIndexInMapLayers(int nativeNodeHandle, String uuid) {
-		MapView mapView = Utils.getMapView(reactContext, nativeNodeHandle);
-		if (null == mapView) {
-			return -1;
-		}
-
-		Layer layer = getLayer(nativeNodeHandle, uuid);
-		if (null == layer) {
-			return -1;
-		}
-
-		return mapView.map().layers().indexOf(layer);
+		final String uuid = params.getString( "uuid" );
+		removeLayerAsync( params )
+			.thenRun( () -> promise.resolve( uuid ) )
+			.exceptionally( t -> {
+				Utils.promiseReject( promise, t.getMessage() );
+				return null;
+			} );
 	}
 }

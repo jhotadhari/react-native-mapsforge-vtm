@@ -16,6 +16,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -28,9 +29,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -71,6 +74,10 @@ public class MapMutationQueueTest {
             backingList.add((int) inv.getArgument(0), (Layer) inv.getArgument(1));
             return null;
         }).when(mockLayers).add(anyInt(), any(Layer.class));
+        doAnswer(inv -> {
+            backingList.add((Layer) inv.getArgument(0));
+            return null;
+        }).when(mockLayers).add(any(Layer.class));
         doAnswer(inv -> backingList.remove((int) inv.getArgument(0)))
                 .when(mockLayers).remove(anyInt());
         doAnswer(inv -> backingList.remove((Layer) inv.getArgument(0)))
@@ -134,7 +141,7 @@ public class MapMutationQueueTest {
     @Test
     public void enqueueAddLayer_futureResolvesAfterFlush() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        CompletableFuture<String> future = q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        CompletableFuture<String> future = q.enqueueAddLayer(mock(Layer.class), "l1");
         assertFalse("Future must not be done before flush", future.isDone());
         flushLooper();
         assertTrue("Future must be done after flush", future.isDone());
@@ -144,7 +151,7 @@ public class MapMutationQueueTest {
     @Test
     public void enqueueAddLayer_layerAppearsInKnownLayers() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        q.enqueueAddLayer(mock(Layer.class), "l1");
         flushLooper();
         assertNotNull("knownLayers must contain l1", q.getKnownLayers().get("l1"));
     }
@@ -153,7 +160,7 @@ public class MapMutationQueueTest {
     public void enqueueAddLayer_layerAppearsInBackingList() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
         Layer l = mock(Layer.class);
-        q.enqueueAddLayer(l, "l1", 0);
+        q.enqueueAddLayer(l, "l1");
         flushLooper();
         assertEquals("backing list must have 1 layer", 1, backingList.size());
         assertEquals("backing list must contain the added layer", l, backingList.get(0));
@@ -166,7 +173,7 @@ public class MapMutationQueueTest {
     @Test
     public void enqueueRemoveLayer_futureResolvesAfterFlush() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        q.enqueueAddLayer(mock(Layer.class), "l1");
         flushLooper();
         CompletableFuture<Void> rf = q.enqueueRemoveLayer("l1");
         flushLooper();
@@ -177,7 +184,7 @@ public class MapMutationQueueTest {
     @Test
     public void enqueueRemoveLayer_layerRemovedFromKnownLayers() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        q.enqueueAddLayer(mock(Layer.class), "l1");
         flushLooper();
         q.enqueueRemoveLayer("l1");
         flushLooper();
@@ -189,7 +196,7 @@ public class MapMutationQueueTest {
     public void enqueueRemoveLayer_layerRemovedFromBackingList() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
         Layer l = mock(Layer.class);
-        q.enqueueAddLayer(l, "l1", 0);
+        q.enqueueAddLayer(l, "l1");
         flushLooper();
         q.enqueueRemoveLayer("l1");
         flushLooper();
@@ -203,7 +210,7 @@ public class MapMutationQueueTest {
     @Test
     public void removeLayerSync_removesFromKnownLayers() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        q.enqueueAddLayer(mock(Layer.class), "l1");
         flushLooper();
         assertNotNull(q.getKnownLayers().get("l1"));
         q.removeLayerSync("l1");
@@ -220,7 +227,7 @@ public class MapMutationQueueTest {
     @Test
     public void destroyRejectsPendingFutures() {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
-        CompletableFuture<String> future = q.enqueueAddLayer(mock(Layer.class), "l1", 0);
+        CompletableFuture<String> future = q.enqueueAddLayer(mock(Layer.class), "l1");
 
         // Destroy without flushing — MapMutationQueue.remove() calls destroy()
         MapMutationQueue.remove(handle);
@@ -239,6 +246,37 @@ public class MapMutationQueueTest {
         assertNull(MapMutationQueue.getInstance(handle));
     }
 
+    @Test
+    public void destroyRejectsPendingRemoveAndReorderFutures() {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+        CompletableFuture<Void> removeFuture = q.enqueueRemoveLayer("l1");
+        CompletableFuture<Void> reorderFuture = q.enqueueReorderLayers(
+                java.util.Collections.singletonList("l1"));
+
+        MapMutationQueue.remove(handle);
+
+        assertTrue("Remove future must be completed after destroy", removeFuture.isDone());
+        assertTrue("Reorder future must be completed after destroy", reorderFuture.isDone());
+        try {
+            removeFuture.get();
+            fail("Remove future must be rejected");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("MapMutationQueue destroyed"));
+        } catch (InterruptedException e) {
+            fail("Unexpected InterruptedException");
+        }
+        try {
+            reorderFuture.get();
+            fail("Reorder future must be rejected");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("MapMutationQueue destroyed"));
+        } catch (InterruptedException e) {
+            fail("Unexpected InterruptedException");
+        }
+        // getInstance must return null — queue was fully torn down.
+        assertNull(MapMutationQueue.getInstance(handle));
+    }
+
     // -----------------------------------------------------------------------
     // Batch size capping (MAX_BATCH_SIZE = 25)
     // -----------------------------------------------------------------------
@@ -249,7 +287,7 @@ public class MapMutationQueueTest {
 
         int total = 5;
         for (int i = 0; i < total; i++) {
-            q.enqueueAddLayer(mock(Layer.class), "uuid-" + i, i);
+            q.enqueueAddLayer(mock(Layer.class), "uuid-" + i);
         }
 
         flushLooper();
@@ -258,28 +296,164 @@ public class MapMutationQueueTest {
                 total, q.getKnownLayers().size());
     }
 
+    @Test
+    public void batchProcessing_splitsBatchAtMaxSize() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        // MAX_BATCH_SIZE = 25 — 60 adds must flush in multiple passes.
+        int total = 60;
+        for (int i = 0; i < total; i++) {
+            q.enqueueAddLayer(mock(Layer.class), "uuid-" + i);
+        }
+
+        flushLooper();
+
+        assertEquals("knownLayers must have all " + total + " entries",
+                total, q.getKnownLayers().size());
+        // The batch is split (25 + 25 + 10), so updateMap() fires once per
+        // flush — more than a single call.
+        verify(mockMap, atLeast(2)).updateMap();
+    }
+
     // -----------------------------------------------------------------------
-    // Position-index ordering
+    // Adds append — the absolute plan owns the order
     // -----------------------------------------------------------------------
 
     @Test
-    public void positionIndexOrdering() throws Exception {
+    public void addsAppendUntilPlanApplies() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
 
         Layer l1 = mock(Layer.class);
         Layer l0 = mock(Layer.class);
 
-        // Add position-1 first, then position-0 — flush should insert
-        // position-0 before position-1.
-        q.enqueueAddLayer(l1, "l1", 1);
-        q.enqueueAddLayer(l0, "l0", 0);
+        // Adds are appended in enqueue order — position is the plan's job.
+        q.enqueueAddLayer(l1, "l1");
+        q.enqueueAddLayer(l0, "l0");
         flushLooper();
 
         assertEquals("backing list must have 2 layers", 2, backingList.size());
-        assertEquals("l0 (position 0) must be first in backing list",
-                l0, backingList.get(0));
-        assertEquals("l1 (position 1) must be second in backing list",
-                l1, backingList.get(1));
+        assertEquals("l1 must be appended first", l1, backingList.get(0));
+        assertEquals("l0 must be appended second", l0, backingList.get(1));
+
+        // The absolute plan reorders them in the same batch machinery.
+        q.enqueueReorderLayers(Arrays.asList("l0", "l1"));
+        flushLooper();
+        assertEquals("plan must place l0 first", l0, backingList.get(0));
+        assertEquals("plan must place l1 second", l1, backingList.get(1));
+    }
+
+    @Test
+    public void desiredOrder_placesAddAtomically() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer existing = mock(Layer.class);
+        q.enqueueAddLayer(existing, "existing");
+        flushLooper();
+
+        // Add a new layer carrying the desired plan that places it FIRST —
+        // it must land at its final position in this single flush, never
+        // transiently appended on top.
+        Layer inserted = mock(Layer.class);
+        List<String> plan = new ArrayList<>();
+        plan.add("inserted");
+        plan.add("existing");
+        q.enqueueAddLayer(inserted, "inserted", plan);
+        flushLooper();
+
+        assertEquals(2, backingList.size());
+        assertEquals("inserted must be first per the carried plan",
+                inserted, backingList.get(0));
+        assertEquals("existing must be second", existing, backingList.get(1));
+    }
+
+    @Test
+    public void lastPlanInBatchWins() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // Two plans in one batch: the first puts a on top, the second (the
+        // freshest) puts b on top — only the last one may apply.
+        List<String> stalePlan = new ArrayList<>();
+        stalePlan.add("b");
+        stalePlan.add("a");
+        List<String> freshPlan = new ArrayList<>();
+        freshPlan.add("a");
+        freshPlan.add("b");
+        q.enqueueReorderLayers(stalePlan);
+        q.enqueueReorderLayers(freshPlan);
+        flushLooper();
+
+        assertEquals(a, backingList.get(0));
+        assertEquals(b, backingList.get(1));
+    }
+
+    @Test
+    public void addWithPlanAndReorderInSameBatch_lastWins() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        Layer c = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // One batch: an add carrying plan [c, a, b], then a pure reorder
+        // [a, b, c] — the reorder is later in the batch, so it must win.
+        List<String> addPlan = new ArrayList<>();
+        addPlan.add("c");
+        addPlan.add("a");
+        addPlan.add("b");
+        q.enqueueAddLayer(c, "c", addPlan);
+
+        List<String> reorderPlan = new ArrayList<>();
+        reorderPlan.add("a");
+        reorderPlan.add("b");
+        reorderPlan.add("c");
+        q.enqueueReorderLayers(reorderPlan);
+        flushLooper();
+
+        assertEquals("reorder must win over the earlier add plan", a, backingList.get(0));
+        assertEquals(b, backingList.get(1));
+        assertEquals(c, backingList.get(2));
+    }
+
+    @Test
+    public void reorderWinsEvenWhenAddIsLater() throws Exception {
+        MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
+
+        Layer a = mock(Layer.class);
+        Layer b = mock(Layer.class);
+        Layer c = mock(Layer.class);
+        q.enqueueAddLayer(a, "a");
+        q.enqueueAddLayer(b, "b");
+        flushLooper();
+
+        // Reorder FIRST, then an add carrying a conflicting plan — the reorder
+        // is earlier in the batch but must still win (a reorderLayers call
+        // reflects the freshest scene state; an add's desiredOrder is a
+        // create-time snapshot).
+        List<String> reorderPlan = new ArrayList<>();
+        reorderPlan.add("b");
+        reorderPlan.add("a");
+        q.enqueueReorderLayers(reorderPlan);
+
+        List<String> addPlan = new ArrayList<>();
+        addPlan.add("c");
+        addPlan.add("a");
+        addPlan.add("b");
+        q.enqueueAddLayer(c, "c", addPlan);
+        flushLooper();
+
+        // Reorder [b, a] applied; c (absent from the reorder plan) appended.
+        assertEquals("reorder must win over the later add plan", b, backingList.get(0));
+        assertEquals(a, backingList.get(1));
+        assertEquals(c, backingList.get(2));
     }
 
     // -----------------------------------------------------------------------
@@ -293,8 +467,8 @@ public class MapMutationQueueTest {
         Layer l0 = mock(Layer.class);
         Layer l1 = mock(Layer.class);
 
-        q.enqueueAddLayer(l0, "l0", 0);
-        q.enqueueAddLayer(l1, "l1", 1);
+        q.enqueueAddLayer(l0, "l0");
+        q.enqueueAddLayer(l1, "l1");
         flushLooper();
 
         // Reorder: swap positions
@@ -315,8 +489,8 @@ public class MapMutationQueueTest {
         Layer l0 = mock(Layer.class);
         Layer l1 = mock(Layer.class);
 
-        q.enqueueAddLayer(l0, "l0", 0);
-        q.enqueueAddLayer(l1, "l1", 1);
+        q.enqueueAddLayer(l0, "l0");
+        q.enqueueAddLayer(l1, "l1");
         flushLooper();
 
         assertEquals(l0, backingList.get(0));
@@ -340,8 +514,8 @@ public class MapMutationQueueTest {
     public void getKnownLayersReflectsCurrentState() throws Exception {
         MapMutationQueue q = MapMutationQueue.get(handle, mockMapView);
 
-        q.enqueueAddLayer(mock(Layer.class), "a", 0);
-        q.enqueueAddLayer(mock(Layer.class), "b", 1);
+        q.enqueueAddLayer(mock(Layer.class), "a");
+        q.enqueueAddLayer(mock(Layer.class), "b");
         flushLooper();
         assertEquals("knownLayers size must be 2 after adds", 2,
                 q.getKnownLayers().size());
@@ -365,8 +539,8 @@ public class MapMutationQueueTest {
         Layer l0 = mock(Layer.class);
         Layer l1 = mock(Layer.class);
 
-        q.enqueueAddLayer(l0, "l0", 0);
-        q.enqueueAddLayer(l1, "l1", 1);
+        q.enqueueAddLayer(l0, "l0");
+        q.enqueueAddLayer(l1, "l1");
         flushLooper();
         assertEquals(2, backingList.size());
 

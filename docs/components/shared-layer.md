@@ -33,16 +33,17 @@ UUID, reducing the number of native `Layer` objects and GPU draw calls.
 
 ## How it works
 
-`SharedLayer` sets `registry.sharedLayerActive = true` in `MapHandleContext`.
-During the render pass, `useLayerOrder` checks this flag: when active,
-same-type consecutive children share a fragment UUID. The native side sees
+`SharedLayer` provides a `SharedLayerContext` carrying a per-instance
+`fragmentId`. Same-type children declare entries against that `fragmentId`
+(via `useLayerEntry`), and the scene plan collapses all same-type entries into
+one deterministic fragment (`frag:<fragmentId>:<type>`). The native side sees
 fewer `Layer` objects, each containing multiple drawables.
 
 This is orthogonal to `ReindexScope`:
 - **SharedLayer** manages fragment assignment (which native layer a JS
   component lands in)
-- **ReindexScope** manages position ranges (where in the z-order those
-  fragments appear)
+- **ReindexScope** manages position (where in the z-order those fragments
+  appear)
 
 A layer can be in neither, either, or both.
 

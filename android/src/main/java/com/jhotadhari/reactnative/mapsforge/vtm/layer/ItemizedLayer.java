@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 
+import org.oscim.event.Gesture;
+import org.oscim.event.MotionEvent;
 import org.oscim.layers.marker.MarkerInterface;
 import org.oscim.layers.marker.MarkerSymbol;
 import org.oscim.map.Map;
@@ -30,5 +32,19 @@ public class ItemizedLayer extends org.oscim.layers.marker.ItemizedLayer {
 
 	public void setDefaultMarker( MarkerSymbol defaultMarker ) {
 		mDefaultMarker = defaultMarker;
+	}
+
+	/**
+	 * Serializes gesture hit-testing against the item-list mutations the
+	 * managers perform under the layer monitor (createMarkers /
+	 * applyEntryPriorities / appendMarker). The upstream
+	 * {@code activateSelectedItems} iterates {@code mItemList} without holding
+	 * the monitor, so a concurrent rebuild can throw
+	 * {@code ConcurrentModificationException} during a gesture. Synchronizing
+	 * the whole gesture path on the same {@code this} monitor closes that race.
+	 */
+	@Override
+	public synchronized boolean onGesture( Gesture gesture, MotionEvent motionEvent ) {
+		return super.onGesture( gesture, motionEvent );
 	}
 }

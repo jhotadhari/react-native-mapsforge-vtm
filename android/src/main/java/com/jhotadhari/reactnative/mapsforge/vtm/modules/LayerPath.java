@@ -11,6 +11,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
@@ -200,7 +201,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			// Resolve fragment uuid (from JS params).
 			String fragmentUuid = Utils.rMapHasKey( params, "fragmentUuid" )
 				? params.getString( "fragmentUuid" )
-				: "__vtm_shared_path__0";
+				: PathLayerManager.DEFAULT_FRAGMENT_UUID;
 
 			// Delegate to PathLayerManager (subclassable via createPathLayerManager).
 			PathLayerManager manager = createPathLayerManager( nativeNodeHandle, mapView );
@@ -219,6 +220,86 @@ public class LayerPath extends NativeLayerPathSpec {
 
 			promise.resolve( responseParams );
 		} catch( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	// ── Batch create / remove ──────────────────────────────────────────
+
+	@Override
+	public void createLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "paths" ) ) {
+				Utils.promiseReject( promise, "Undefined paths array" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapView || null == mapFragment ) {
+				Utils.promiseReject( promise, "Unable to find mapView or mapFragment" ); return;
+			}
+
+			ReadableMap defaultResponseInclude = Utils.rMapHasKey( params, "responseInclude" )
+				? params.getMap( "responseInclude" )
+				: (ReadableMap) getConstants().get( "responseInclude" );
+
+			PathLayerManager manager = createPathLayerManager( nativeNodeHandle, mapView );
+			manager.setEventCallback(( eventName, payload ) -> {
+				if ( "onPathEvent".equals( eventName ) ) {
+					emitOnPathEvent( payload );
+				}
+			});
+
+			WritableMap response = manager.createPaths(
+				params.getArray( "paths" ),
+				mapFragment,
+				mapFragment.getActivity().getContentResolver(),
+				getReactApplicationContext(),
+				defaultResponseInclude
+			);
+			promise.resolve( response );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void removeLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "uuids" ) ) {
+				Utils.promiseReject( promise, "Undefined uuids array" ); return;
+			}
+
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			ReadableArray uuids = params.getArray( "uuids" );
+
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager == null ) {
+				// Map already destroyed — resolve with empty results.
+				WritableMap response = Arguments.createMap();
+				WritableArray results = Arguments.createArray();
+				for ( int i = 0; i < uuids.size(); i++ ) {
+					WritableMap item = Arguments.createMap();
+					item.putString( "uuid", uuids.getString( i ) );
+					results.pushMap( item );
+				}
+				response.putArray( "results", results );
+				promise.resolve( response );
+				return;
+			}
+
+			WritableMap response = manager.removePaths( uuids );
+			promise.resolve( response );
+		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
 		}
@@ -262,6 +343,41 @@ public class LayerPath extends NativeLayerPathSpec {
 		emitOnPathEvent( eventParams );
 	}
 
+
+	/**
+	 * Applies sparse drawable priorities to entries of a shared fragment.
+	 * Only the listed entries are touched — the JS scene emits O(changed)
+	 * assignments per mutation.
+	 */
+	@Override
+	public void applyEntryPriorities( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "fragmentUuid" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or fragmentUuid" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			String fragmentUuid = params.getString( "fragmentUuid" );
+			ReadableArray assignments = Utils.rMapHasKey( params, "assignments" )
+				? params.getArray( "assignments" )
+				: null;
+
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager != null && assignments != null ) {
+				if ( ! manager.applyEntryPriorities( fragmentUuid, assignments ) ) {
+					// Fragment missing (e.g. a re-keyed run whose recreate
+					// hasn't landed yet) — reject so the JS presenter keeps
+					// the state uncommitted and re-sends on the next mutation.
+					Utils.promiseReject( promise, "Fragment not found: " + fragmentUuid );
+					return;
+				}
+			}
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
 	@ReactMethod
 	public void updateCoordinates( ReadableMap params, Promise promise ) {
 		try {
@@ -287,12 +403,48 @@ public class LayerPath extends NativeLayerPathSpec {
 			if ( manager == null ) {
 				Utils.promiseReject( promise,"PathLayerManager not found" ); return;
 			}
+			if ( mapFragment.getActivity() == null ) {
+				Utils.promiseReject( promise,"Map activity detached" ); return;
+			}
 
 			WritableMap responseParams = manager.update( uuid, params, mapFragment,
 				mapFragment.getActivity().getContentResolver() );
 
 			promise.resolve( responseParams != null ? responseParams : new WritableNativeMap() );
 		} catch( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@ReactMethod
+	public void updateLayers( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+			if ( ! Utils.rMapHasKey( params, "paths" ) ) {
+				Utils.promiseReject( promise, "Undefined paths array" ); return;
+			}
+			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
+			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
+			if ( null == mapFragment ) {
+				Utils.promiseReject( promise, "Unable to find mapFragment" ); return;
+			}
+			PathLayerManager manager = PathLayerManager.getInstance( nativeNodeHandle );
+			if ( manager == null ) {
+				Utils.promiseReject( promise, "PathLayerManager not found" ); return;
+			}
+			if ( mapFragment.getActivity() == null ) {
+				Utils.promiseReject( promise, "Map activity detached" ); return;
+			}
+			WritableMap response = manager.updatePaths(
+				params.getArray( "paths" ),
+				mapFragment,
+				mapFragment.getActivity().getContentResolver()
+			);
+			promise.resolve( response );
+		} catch ( Exception e ) {
 			e.printStackTrace();
 			Utils.promiseReject( promise, e.getMessage() );
 		}

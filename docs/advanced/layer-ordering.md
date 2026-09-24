@@ -2,169 +2,129 @@
 
 How z-order (draw order) works in `react-native-mapsforge-vtm`.
 
+## Overview
+
+Ordering is a **function of committed state, never accumulated during render**.
+`MapContainer` exposes a `LayerScene` (the single source of truth) plus a
+`SceneSync` presenter through `MapHandleContext`. Layer components render
+invisible `VtmAnchorView` host components (anchors) and declare entries into
+the scene via commit-phase hooks. The committed view tree is walked to produce
+the tree order, which drives an absolute native reorder.
+
+The invariant is the same as the DOM: a layer declared later in JSX (e.g. a
+`LayerMarker` after a `LayerPath`) always renders on top.
+
 ## Two-level ordering
 
-Ordering operates at two levels, both following React component tree order —
-a layer declared later in JSX (e.g. a `LayerMarker` after a `LayerPath`)
-always renders on top, same as later siblings paint on top in the DOM.
+Ordering operates at two levels, both following React component tree order.
 
 | Level | What | Mechanism |
 |---|---|---|
-| **Layer** | Native `Layer` objects in `map.layers()` | JS registry → LIS-based reorder |
-| **Drawable** | Individual drawables / markers within a shared fragment | `positionIndex` wired through to vtm sorting |
+| **Layer stack** | Native `Layer` objects in `map.layers()` (~5–30: scopes, fragments, dedicated layers) | anchor walk → scene plan → absolute `reorderLayers` (LIS) |
+| **Drawables** | Individual drawables / markers within a shared fragment (1000s of entries) | fragment owner declares ordered entry keys → sparse priorities → `applyEntryPriorities` |
 
-### Layer-level ordering
+## The scene model
 
-The `useLayerOrder` hook (called by every layer component during render) builds
-a shared `registry.order` array tracking React tree order. On the native side,
-`MapMutationQueue.reorderMinimalMoves()` syncs `map.layers()` to match this
-array using a **Longest Increasing Subsequence** algorithm — only layers that
-need to move are touched. When the first element is not in the LIS, the algorithm
-inserts before the first existing JS-managed layer rather than at index 0, to
-avoid mixing with vtm-internal layers.
+### Anchors and the walk
 
-### Drawable-level ordering within fragments
+`useLayerAnchor` (`src/compose/useLayerAnchor.tsx`) renders an invisible 0×0
+`VtmAnchorView` and registers an `AnchorDescriptor` with `SceneSync`. Scopes,
+fragment owners (`SharedLayer` / `LayerMarker`), and standalone layer
+components each render one anchor.
+
+`MapContainer.enumerateAnchors` walks the committed view tree under the map's
+wrapper `View` and returns the ordered anchor uids — this is the "walk". A
+hierarchy-change listener on the wrapper emits `onAnchorsChanged` as the move
+signal when anchors are added/removed/reordered.
+
+### `LayerScene`
+
+`LayerScene` (`src/scene/LayerScene.ts`) is mutated ONLY from the commit phase
+(`useLayoutEffect`/`useEffect`, never render — React renders may be partial or
+discarded). Mutations:
+
+| Method | What it does |
+|---|---|
+| `applyWalk(sequence)` | Replaces the committed anchor sequence (a fresh walk result). |
+| `declareEntry(entry)` / `undeclareEntry(uid)` | Declares/removes an entry (drawable) inside a fragment owner. |
+| `attachUuid(key, uuid)` / `detachUuid(key)` | Records/clears a resolved native uuid for an anchor or entry. |
+
+`plan()` returns a cached, immutable `LayerPlan`; `version()` is a monotonic
+counter bumped on every mutation (used by the presenter to detect changes).
+
+### `planBuilder`
+
+`buildPlan(walk, entries, uuids)` (`src/scene/planBuilder.ts`) is a pure
+function turning committed state into a bottom→top `LayerPlan`:
+
+- `layers` — the ordered native-layer uuid list.
+- `fragments` — per-fragment entry lists (all declared `entryUids` + resolved subset).
+- `scopes` — scope info (uid, `order`, anchor index).
+- `runKeysByAnchor` — the scene-authoritative fragment uuid per type-run member.
+
+Fragment keys are **deterministic**:
+
+- `frag:<owner>:<type>` for `SharedLayer`/`LayerMarker` fragments (e.g. `frag:<sharedId>:path`).
+- `run:<anchor>` for implicit type-run fragments (standalone same-type layers not wrapped in `SharedLayer`, keyed by the run's first member).
+
+### `SceneSync` (presenter)
+
+`SceneSync` (`src/scene/SceneSync.ts`) subscribes to the scene and drives the
+native side:
+
+1. A **debounced walk** (16ms / 250ms max-wait) calls `enumerateAnchors` and
+   feeds the result to `scene.applyWalk`.
+2. Every scene mutation schedules a **sync**: `scene.plan()` → `diffPlans`
+   against the last-applied plan → one absolute `reorderLayers` call plus
+   per-fragment `applyEntryPriorities` (single-flight, exponential backoff).
+
+The scene's `subscribe`/`version()` drive scheduling — no cursor, sentinel, or
+generation machinery.
+
+## Drawable ordering within fragments
 
 Within a shared-layer fragment (e.g. 50 `<LayerPath>` components sharing one
 native `VectorLayer`), individual drawables are ordered by vtm's internal
-sorting. Each native manager wires `positionIndex` through to the right vtm
-mechanism:
+sorting. Each native manager wires a sparse **priority** through to the right
+vtm mechanism:
 
 | Manager | vtm layer | Ordering |
 |---|---|---|
-| `PathLayerManager` | `VectorLayer` | `drawable.setPriority(positionIndex)` — sorts by `getPriority()` ascending |
-| `ShapeLayerManager` | `VectorLayer` | Same — `drawable.setPriority(positionIndex)` |
-| `MarkerLayerManager` | `ItemizedLayer` | Descending `positionIndex` sort before insertion — compensates for `Inlist.push()` reversal |
+| `PathLayerManager` | `VectorLayer` | `drawable.setPriority(priority)` — sorts by `getPriority()` ascending |
+| `ShapeLayerManager` | `VectorLayer` | Same — `drawable.setPriority(priority)` |
+| `MarkerLayerManager` | `ItemizedLayer` | Ascending `positionIndex` order (lower z first); equal priorities break by ascending `creationSeq` |
 
-## How `useLayerOrder` works
+### `PriorityAllocator`
 
-Every layer component calls `useLayerOrder` during render. It:
+`PriorityAllocator` (`src/scene/PriorityAllocator.ts`) assigns sparse integer
+priorities (step 1000, midpoint insertion) so a single insert/remove
+re-prioritizes O(changed) entries rather than the whole fragment. When a
+midpoint gap is exhausted — or priorities drift outside a safe band — the whole
+fragment is renumbered once (amortized O(1)).
 
-1. Registers the component in the shared `LayerOrderRegistry`, inserting at the
-   correct position using the **cursor chain** — React renders components in
-   deterministic depth-first document order, so the registry cursor always
-   points to the sibling that rendered immediately before this one.
-2. Returns a `positionIndex` (index in `registry.order`) and a `fragmentUuid`
-   (for shared-layer fragment assignment).
-3. On unmount, removes the component from the registry and triggers a debounced
-   native `reorderLayers` call.
+Priorities are applied natively via `applyEntryPriorities`, which returns
+`false` when the fragment is missing so the presenter rejects and re-sends.
 
-### Cursor chain integrity
+## Entry injection
 
-`MapContainer` resets `registry.cursor` to `undefined` at the start of each of
-its own renders and bumps `registry.generation`. Each `useLayerOrder` call sets
-`registry.cursor = id` (advancing it for the next sibling) and stamps
-`layerGenerations[id] = generation`.
-
-When a `useMemo`'d component skips re-render during a full pass, the cursor
-chain has a gap. Repositioning checks that all symbols between the previous and
-current position were stamped in this pass — if not, the cursor is stale and
-the move is skipped.
-
-### Scope-aware insertion
-
-When inside a `<ReindexScope>`, new layers use scope-aware insertion instead
-of the global cursor. This handles partial re-renders (e.g. Redux-triggered
-data updates) where `MapContainer` doesn't re-render and the global cursor
-is stale:
-
-1. Looks up the scope's most-recently-inserted sibling from
-   `lastSymbolPerScope` (O(1)) and inserts after it.
-2. If no sibling found (first child), scans for the scope's sentinel
-   placeholder and inserts after it.
-
-## The registry
-
-`MapContainer` creates a `LayerOrderRegistry`. Key fields:
-
-| Field | Purpose |
-|---|---|
-| `order` | Ordered list of layer identifiers (stable `Symbol`s) |
-| `cursor` | Most-recently-rendered sibling, reset each full render pass |
-| `generation` | Monotonically bumped each `MapContainer` render |
-| `sentinels` | Placeholder symbols for `<ReindexScope>` wrappers with no children yet |
-| `layerTypes` | Layer type per symbol (for fragment grouping) |
-| `fragmentIndices` / `fragmentUuids` | Per-type fragment counters and per-component fragment UUIDs |
-| `lastSymbolPerScope` | Per-scope most-recently-inserted symbol (O(1) sibling lookup) |
-| `scopeGenerations` | Per-scope counter bumped by `<ReindexScope>` renders |
-| `scopePriorities` | `order` prop values per scope |
-| `nativeDirtyCount` | Counter incremented by `markNativeDirty()` after each native `createLayer`/`removeLayer` resolution. Forces a `reorderLayers` call even when the UUID list is unchanged — prevents native z-order drift when individual drawables are added/removed within an already-existing shared fragment. Uses a counter + snapshot-subtract pattern so in-flight dirty events during an async reorder are not lost. |
-| `lastReorderWasEffective` | Set only on successful `reorderLayers` resolution (`.then()`), not before the call. Tracks whether the last applied reorder actually contained layers (`== snapshot.length > 0`). If the call fails (`.catch()`), the flag is NOT updated — the next `flush()` retries. |
+Entries are ordered by an owner-injected `vtmSortIndex` (recursively injected
+through arrays and `Fragment`s by `injectVtmSortIndex`) or the explicit `order`
+prop. Unindexed entries sort by declaration sequence.
 
 ## Async mounting
 
 When layers mount asynchronously (data loaded via React Query, storage restore,
-etc.), the cursor from the initial render pass may be stale. Three mechanisms
-preserve correct order:
+etc.), correct order is preserved without sentinels:
 
-1. **Sentinels** — `<ReindexScope>` pushes placeholder symbols during initial
-   render even with `null` children. When children later mount, they insert at
-   the sentinel's position.
-2. **Scope-aware insertion** — ignores the stale global cursor, uses
-   `lastSymbolPerScope` or the sentinel for the correct insertion point.
-3. **`order` prop** — explicit numeric priority on `<ReindexScope>`
+1. **Scope anchors** — a `<ReindexScope>` renders an anchor that permanently
+   marks the block's tree position; children that mount later land at their
+   correct tree position (the anchor IS the placeholder).
+2. **`order` prop** — explicit numeric priority on `<ReindexScope>`
    (`order={100}` renders before `order={200}`), regardless of mount timing.
+3. **Debounced re-walk** — anchor changes re-trigger the walk, and the plan is
+   re-applied atomically.
 
-## The reorder guard and `nativeDirtyCount`
-
-`flush()` (called by the debounced `scheduleSync`) builds a deduplicated ordered
-UUID list from `registry.order` and compares it against the last applied list.
-Three conditions must ALL be true for the reorder to be **skipped**:
-
-1. **`unchanged`** — the current `orderedUuids` is identical to
-   `lastAppliedUuids` (same length, same UUIDs at each position).
-2. **`lastReorderWasEffective`** — the last `reorderLayers` call actually
-   succeeded (`snapshot.length > 0`) and the flags were updated in `.then()`.
-3. **`nativeDirtyCount === 0`** — no `createLayer` or `removeLayer` calls have
-   resolved since the last successful reorder.
-
-If any condition fails, `reorderLayers` is called unconditionally.
-
-### Why `nativeDirtyCount` is needed
-
-Shared-layer fragments deduplicate UUIDs in `orderedUuids` — adding or removing
-a `LayerPath` within an existing `SharedLayer` fragment doesn't change the UUID
-list at all. Without the dirty counter, a `flush()` after a path insert/remove
-would see `unchanged = true` and skip the reorder. But the native side's
-internal z-order may have drifted because `createLayer`/`removeLayer` calls
-shifted drawables within the fragment.
-
-`markNativeDirty()` is called by `useNativeLayerLifecycle` after every
-`createLayer` / `removeLayer` resolution, and `flush()` checks the counter
-before deciding to skip.
-
-### Snapshot-subtract pattern
-
-The counter uses a snapshot-subtract pattern to handle in-flight events.  Because only one
-`reorderLayers` call is in-flight at a time (serialized via the `isReordering` flag),
-the subtraction is guaranteed correct — no overlapping snapshots can race.
-
-```
-flush():
-  dirtySnapshot = nativeDirtyCount        // e.g. 3
-  isReordering = true
-  reorderLayers(...)                      // async — takes ~1–2 frames
-    .then(() => {
-      isReordering = false
-      nativeDirtyCount -= dirtySnapshot   // 3 - 3 = 0
-      lastAppliedUuids = snapshot
-      lastReorderWasEffective = true
-      doFlush()                           // process changes that arrived during the wait
-    })
-    .catch(() => {
-      isReordering = false
-      // Flags NOT updated — next flush retries
-      doFlush()
-    })
-```
-
-If another `scheduleSync` fires while `isReordering` is true, its `flush()` returns early
-and is caught by `doFlush()` in `.then()` / `.catch()`.
-
-If `reorderLayers` **fails** (`.catch()`), the snapshot is NOT subtracted and
-`lastReorderWasEffective` is NOT updated. The next `flush()` retries — the
-unchanged guard sees `nativeDirtyCount > 0` (still the snapshot value) and
-forces a reorder, and the failed call's flags don't block the retry.
+## Fragments
 
 ### What are fragments?
 
@@ -175,24 +135,23 @@ native `VectorLayer` — each component is a drawable on that fragment.
 ### Fragment boundaries
 
 Fragments split at:
-- **Type-run boundaries** — consecutive same-type layers share a fragment;
-  a different type starts a new one (Path → Marker → Path = 3 fragments).
+
+- **Type-run boundaries** — consecutive same-type layers share a fragment; a
+  different type starts a new one (Path → Marker → Path = 3 fragments).
 - **Scope boundaries** — layers in different `<ReindexScope>` wrappers never
   share a fragment, even if same-type and consecutive in order.
 
 ### Fragment UUIDs
 
-Pattern: `__vtm_shared_<type>__<index>` (e.g. `__vtm_shared_path__1`).
-Inside a `<SharedLayer>`, the scope ID is used as the suffix so all children
-share one fragment. Outside, an incrementing per-type index advances on
-type-run boundaries.
+- `frag:<owner>:<type>` for `SharedLayer`/`LayerMarker` fragments (e.g. `frag:<sharedId>:path`).
+- `run:<anchor>` for implicit type-run fragments, keyed by the run's first member.
 
 ## `ReindexScope`
 
 Wraps children that need reindexing when they reorder outside React's
-reconciliation flow (e.g. Redux-driven list reordering). Also provides
-sentinels for async children and the `order` prop for explicit cross-scope
-priority.
+reconciliation flow (e.g. Redux-driven list reordering). It renders a scope
+anchor marking the block's tree position and carries the `order` prop for
+explicit cross-scope priority.
 
 See the [ReindexScope docs](../components/reindex-scope.md) for full details.
 
@@ -200,3 +159,4 @@ See the [ReindexScope docs](../components/reindex-scope.md) for full details.
 
 - **[useLayerDebugInfo](../debug/use-layer-debug-info.md)** — Introspect layer order at runtime
 - **[LayerDebugTree](../debug/layer-debug-tree.md)** — Visual debug overlay
+- **[getDebugLayerDump](../debug/get-debug-layer-dump.md)** — Native ground truth vs the scene plan

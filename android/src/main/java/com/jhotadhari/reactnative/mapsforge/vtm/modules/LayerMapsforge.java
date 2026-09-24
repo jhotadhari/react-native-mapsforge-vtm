@@ -155,7 +155,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 		if ( Utils.rMapHasKey( params, "uuid" ) ) {
 			helpersByUuid.remove( params.getString( "uuid" ) );
 		}
-		layerHelper.removeLayer( params, promise );
+		layerHelper.removeLayerResolving( params, promise );
 	}
 
 	@Override
@@ -197,7 +197,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 		if ( Utils.rMapHasKey( params, "uuid" ) ) {
 			helpersByUuid.remove( params.getString( "uuid" ) );
 		}
-		buildingLayerHelper.removeLayer( params, promise );
+		buildingLayerHelper.removeLayerResolving( params, promise );
 	}
 
 	@Override
@@ -230,7 +230,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 		if ( Utils.rMapHasKey( params, "uuid" ) ) {
 			helpersByUuid.remove( params.getString( "uuid" ) );
 		}
-		labelLayerHelper.removeLayer( params, promise );
+		labelLayerHelper.removeLayerResolving( params, promise );
 	}
 
 	@Override

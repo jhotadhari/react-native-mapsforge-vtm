@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect } from 'react';
 
 /**
  * Internal dependencies
@@ -12,7 +12,8 @@ import LayerHillshadingModule, {
 	type ShadingAlgorithmOptions,
 } from '../NativeModules/NativeLayerHillshading';
 import type { ErrorBase } from '../types';
-import useLayerOrder from '../compose/useLayerOrder';
+import useLayerAnchor from '../compose/useLayerAnchor';
+import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
@@ -83,7 +84,10 @@ const LayerHillshading = ({
 }: LayerHillshadingProps) => {
 	const { nativeNodeHandle } = useContext(MapHandleContext);
 
-	const positionIndexRef = useRef<number>(-1);
+	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
+		kind: 'layer',
+	});
+
 	const { uuid, triggerCreate, triggerRemove } = useNativeLayerLifecycle({
 		enabled: !!nativeNodeHandle && !!hgtDirPath,
 		create: ({ triggerOnCreate, triggerOnChange }) => {
@@ -96,7 +100,6 @@ const LayerHillshading = ({
 			}
 			return LayerHillshadingModule.createLayer({
 				nativeNodeHandle,
-				positionIndex: positionIndexRef.current,
 				hgtDirPath,
 				...(zoomMin !== undefined && { zoomMin }),
 				...(zoomMax !== undefined && { zoomMax }),
@@ -153,8 +156,7 @@ const LayerHillshading = ({
 		onError,
 	});
 
-	const { positionIndex } = useLayerOrder(uuid);
-	positionIndexRef.current = positionIndex;
+	useSceneUuidBinding(anchorUid, uuid);
 
 	// enabledZoomMin enabledZoomMax changed.
 	useEffect(() => {
@@ -207,7 +209,7 @@ const LayerHillshading = ({
 		triggerCreate,
 	]);
 
-	return null;
+	return anchorElement;
 };
 
 LayerHillshading.defaults = LayerHillshadingModule.getConstants();
