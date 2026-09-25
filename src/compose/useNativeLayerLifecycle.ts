@@ -69,6 +69,17 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 	// native resource was ready, and clean it up.
 	const mountedRef = useRef(true);
 
+	// Monotonic create generation. Every triggerCreate bumps it; a create
+	// resolution whose generation is no longer current (a newer create was
+	// issued while this one was in flight — e.g. a rapid re-key of the
+	// owning type-run fragment) must NOT write uuidRef/setUuid. Without
+	// this guard, out-of-order resolutions clobber the tracked uuid with a
+	// stale one: the newest native resource becomes untracked, unmount
+	// removes the stale uuid only, and the newest entry orphans as a
+	// zombie. Stale resolutions instead remove the resource they just
+	// created, so the native side never keeps an untracked duplicate.
+	const createGenRef = useRef(0);
+
 	const triggerCreate = useCallback(
 		(
 			flags: CreateFlags = {
@@ -79,26 +90,19 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 			if (!enabledRef.current) {
 				return;
 			}
+			const gen = ++createGenRef.current;
 			setUuid(false);
 			createRef
 				.current(flags)
 				.then((newUuid) => {
-					// Update uuidRef IMMEDIATELY so the unmount
-					// cleanup (which fires before React's re-render)
-					// can see the real uuid and call removeLayer.
-					// Without this, there is a race window where:
-					// 1. Promise resolves → sees mountedRef true
-					// 2. Component unmounts before React re-renders
-					// 3. Unmount cleanup sees uuidRef=false → skips
-					// 4. Native resource is orphaned (zombie).
-					uuidRef.current = newUuid;
-					if (!mountedRef.current) {
-						// Component unmounted while create was
-						// in-flight. The component's create() callback
-						// already fired onCreate (inside its own
-						// .then() before returning newUuid), so we
-						// fire onRemove to balance the lifecycle and
-						// clean up the native resource.
+					if (gen !== createGenRef.current || !mountedRef.current) {
+						// Superseded by a newer create cycle, or the
+						// component unmounted while this create was
+						// in-flight. Either way this native resource is
+						// untracked — remove it so it can't orphan.
+						// (Balanced with triggerOnRemove like the legacy
+						// unmount branch: create() already fired onCreate
+						// for this uuid when triggerOnCreate was set.)
 						removeRef
 							.current(newUuid, {
 								triggerOnRemove: true,
@@ -108,6 +112,15 @@ const useNativeLayerLifecycle = <TUuid extends string = string>({
 							});
 						return;
 					}
+					// Update uuidRef IMMEDIATELY so the unmount
+					// cleanup (which fires before React's re-render)
+					// can see the real uuid and call removeLayer.
+					// Without this, there is a race window where:
+					// 1. Promise resolves → sees mountedRef true
+					// 2. Component unmounts before React re-renders
+					// 3. Unmount cleanup sees uuidRef=false → skips
+					// 4. Native resource is orphaned (zombie).
+					uuidRef.current = newUuid;
 					setUuid(newUuid);
 				})
 				.catch((err: ErrorBase) => {

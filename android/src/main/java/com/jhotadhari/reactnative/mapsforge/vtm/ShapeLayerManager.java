@@ -122,6 +122,12 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 
 	// ── LayerManager contract ───────────────────────────────────────────
 
+	@Nullable
+	@Override
+	protected String entryFragmentUuid(@NonNull ShapeEntry entry) {
+		return entry.fragmentUuid;
+	}
+
 	@NonNull
 	@Override
 	protected Layer createSharedLayer() {

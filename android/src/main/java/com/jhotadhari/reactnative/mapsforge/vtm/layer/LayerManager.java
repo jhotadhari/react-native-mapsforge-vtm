@@ -3,6 +3,7 @@ package com.jhotadhari.reactnative.mapsforge.vtm.layer;
 import android.content.ContentResolver;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -325,8 +326,53 @@ public abstract class LayerManager<TEntry> {
 			// races with the map-level destroy().
 			if (!destroying.get()) {
 				removeEntryFromLayer(entry);
+				pruneFragmentIfEmpty(entryFragmentUuid(entry));
 			}
 			scheduleUpdate();
+		}
+	}
+
+	/**
+	 * Returns the fragment uuid an entry was created under, or null when the
+	 * entry kind has no shared fragment (e.g. markers, which manage their own
+	 * group lifecycle). Subclasses with fragment-hosted entries override this
+	 * so {@link #pruneFragmentIfEmpty} can reclaim emptied fragments.
+	 */
+	@Nullable
+	protected String entryFragmentUuid(@NonNull TEntry entry) {
+		return null;
+	}
+
+	/**
+	 * Removes a fragment's shared layer from the map once its last entry is
+	 * gone. Empty fragment layers otherwise linger on the map until teardown —
+	 * a leaked entry drawable inside one renders as a zombie line. Skipped
+	 * during destroy(), whose Phase 2 removes every fragment layer itself.
+	 */
+	protected void pruneFragmentIfEmpty(@Nullable String fragmentUuid) {
+		if (fragmentUuid == null || destroying.get()) {
+			return;
+		}
+		for (TEntry remaining : entries.values()) {
+			if (fragmentUuid.equals(entryFragmentUuid(remaining))) {
+				return;
+			}
+		}
+		synchronized (this) {
+			if (sharedLayerFragments.remove(fragmentUuid) == null) {
+				return;
+			}
+		}
+		MapMutationQueue queue = MapMutationQueue.getInstance(nativeNodeHandle);
+		if (queue != null) {
+			queue.enqueueRemoveLayer(fragmentUuid).exceptionally((t) -> {
+				Log.w(
+					"LayerManager",
+					"Failed to prune empty fragment layer '" + fragmentUuid
+						+ "': " + errorMessage(t)
+				);
+				return null;
+			});
 		}
 	}
 
