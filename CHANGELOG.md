@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Zombie path entries under rapid run re-keys** — `useNativeLayerLifecycle` now guards
+  create resolutions with a monotonic generation counter: a stale in-flight create resolution
+  self-removes its native resource instead of clobbering the tracked uuid (which orphaned the
+  newest entry and left it rendering as a zombie line).
+- **Empty fragment layers lingering on the map** — `LayerManager` prunes a fragment's shared
+  layer from the map when its last entry is removed (`PathLayerManager` and
+  `ShapeLayerManager` opt in), so leaked drawables can no longer render as zombies until
+  teardown.
+
 ## [0.9.0] - 2026-09-24
 
 ### Added
