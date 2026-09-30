@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [0.9.1] - 2026-09-30
 
 ### Fixed
@@ -441,6 +443,7 @@ Just updated README.md
 
 First bumpy version
 
+[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.1...HEAD
 [0.9.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3
