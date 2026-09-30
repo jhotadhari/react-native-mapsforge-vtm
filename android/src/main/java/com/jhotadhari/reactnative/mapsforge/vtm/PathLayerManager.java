@@ -124,6 +124,12 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	// ── LayerManager contract ───────────────────────────────────────────
 
+	@Nullable
+	@Override
+	protected String entryFragmentUuid(@NonNull PathEntry entry) {
+		return entry.fragmentUuid;
+	}
+
 	@NonNull
 	@Override
 	protected Layer createSharedLayer() {

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] - 2026-09-30
+
+### Fixed
+
+- **Zombie path entries under rapid run re-keys** — `useNativeLayerLifecycle` now guards
+  create resolutions with a monotonic generation counter: a stale in-flight create resolution
+  self-removes its native resource instead of clobbering the tracked uuid (which orphaned the
+  newest entry and left it rendering as a zombie line).
+- **Empty fragment layers lingering on the map** — `LayerManager` prunes a fragment's shared
+  layer from the map when its last entry is removed (`PathLayerManager` and
+  `ShapeLayerManager` opt in), so leaked drawables can no longer render as zombies until
+  teardown.
+
 ## [0.9.0] - 2026-09-24
 
 ### Added
@@ -428,6 +441,7 @@ Just updated README.md
 
 First bumpy version
 
+[0.9.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.1...v0.8.2
