@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
+  destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted
+  by `createFragment()` and removes the layout-change listener from `setupLayout()`,
+  and `manuallyLayoutChildren()` null-guards the fragment. A React drop of the map
+  view right after mount (e.g. settings restore toggling the container) no longer
+  crashes with a `NullPointerException` on `fixViewLayoutSize()`.
+
 ## [0.9.1] - 2026-09-30
 
 ### Fixed
