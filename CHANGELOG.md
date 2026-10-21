@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`setCorrectTextPacking`** — new `CanvasAdapter` TurboModule method bridging
+  `org.oscim.backend.CanvasAdapter.correctTextPacking`.
+
 ## [0.9.1] - 2026-09-30
 
 ### Fixed
