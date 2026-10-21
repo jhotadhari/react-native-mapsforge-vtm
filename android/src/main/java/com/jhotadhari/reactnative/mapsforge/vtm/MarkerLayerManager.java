@@ -353,11 +353,17 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		float dy = (float)(y - tmpPoint.y);
 
 		if (symbol.isInside(dx, dy)) {
+			GeoPoint markerGeo = entry.markerItem.getPoint();
 			WritableMap payload = Arguments.createMap();
 			payload.putString("uuid", entry.entryUuid);
 			payload.putString("markerLayerUuid", entry.groupUuid);
 			payload.putString("event", "itemTrigger");
 			payload.putDouble("distance", Math.sqrt(dx * dx + dy * dy));
+			payload.putArray("position", Utils.positionToWritableArray(
+				markerGeo.getLongitude(),
+				markerGeo.getLatitude(),
+				null
+			));
 			return payload;
 		}
 		return null;
@@ -954,6 +960,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 						payload.putString("markerLayerUuid", groupUuid);
 						payload.putString("event", "itemTrigger");
 						payload.putDouble("distance", d);
+						payload.putArray("position", Utils.positionToWritableArray(
+							mi.getPoint().getLongitude(),
+							mi.getPoint().getLatitude(),
+							null
+						));
 						emit("onMarkerEvent", payload);
 					}
 				}
@@ -968,6 +979,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			payload.putString("markerLayerUuid", groupUuid);
 			payload.putString("event", "itemTrigger");
 			payload.putDouble("distance", distNearest);
+			payload.putArray("position", Utils.positionToWritableArray(
+				mi.getPoint().getLongitude(),
+				mi.getPoint().getLatitude(),
+				null
+			));
 			return payload;
 		}
 		return null;
@@ -1041,6 +1057,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 						payload.putString("markerLayerUuid", entry.groupUuid);
 						payload.putString("event", "itemTrigger");
 						payload.putDouble("distance", geoDist);
+						payload.putArray("position", Utils.positionToWritableArray(
+							markerGeo.getLongitude(),
+							markerGeo.getLatitude(),
+							null
+						));
 						emit("onMarkerEvent", payload);
 						if ("first".equals(strategy)) {
 							return;
@@ -1058,12 +1079,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		if ("nearest".equals(strategy) && itemNearest != null) {
 			MarkerItem mi = (MarkerItem) itemNearest;
 			MarkerEntry entry = allMarkers.get(mi.getUid().toString());
+			GeoPoint nearestGeo = itemNearest.getPoint();
 			WritableMap payload = Arguments.createMap();
 			payload.putInt("index", iNearest);
 			payload.putString("uuid", mi.getUid().toString());
 			payload.putString("markerLayerUuid", entry != null ? entry.groupUuid : ROOT_GROUP_UUID);
 			payload.putString("event", "itemTrigger");
 			payload.putDouble("distance", distNearest);
+			payload.putArray("position", Utils.positionToWritableArray(
+				nearestGeo.getLongitude(),
+				nearestGeo.getLatitude(),
+				null
+			));
 			emit("onMarkerEvent", payload);
 		}
 	}
@@ -1117,11 +1144,17 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				if (entry == null) {
 					return false;
 				}
+				GeoPoint markerGeo = markerItem.getPoint();
 				WritableMap payload = Arguments.createMap();
 				payload.putInt("index", index);
 				payload.putString("uuid", markerItemUid);
 				payload.putString("markerLayerUuid", entry.groupUuid);
 				payload.putString("event", eventType);
+				payload.putArray("position", Utils.positionToWritableArray(
+					markerGeo.getLongitude(),
+					markerGeo.getLatitude(),
+					null
+				));
 				emit("onMarkerEvent", payload);
 				return false; // Don't consume — allow other gesture handlers to fire.
 			}

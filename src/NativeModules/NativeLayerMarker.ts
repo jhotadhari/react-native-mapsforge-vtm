@@ -97,6 +97,8 @@ export interface MarkerEvent extends ResponseBase {
 	index: Int32;
 	distance?: Double;
 	markerLayerUuid?: string; // Group uuid for per-layer filtering in shared ItemizedLayer
+	/** Marker position [lng, lat] (no altitude). */
+	position: Position;
 }
 
 interface CreateLayerParams extends ModuleLayerParams {
