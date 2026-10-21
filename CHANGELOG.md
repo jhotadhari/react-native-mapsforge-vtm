@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`labelsOrder` prop on `LayerMapsforge`** — renders the labels sub-layer inside its
+  own `ReindexScope` with the given order, so labels can be lifted above overlays drawn
+  on top of the map layer (e.g. route lines) while the map layer itself stays in place.
+  Undefined (default) keeps labels in the component's own scope.
+
 ### Fixed
 
 - **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
