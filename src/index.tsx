@@ -4,6 +4,7 @@ import type {
 	MapContainerProps,
 	TapEventResponse,
 	LongPressEventResponse,
+	MapTapHit,
 	GnssFilterNativeProps,
 	GnssPosition,
 } from './NativeViews/MapsforgeVtmViewNativeComponent';
@@ -161,6 +162,7 @@ export {
 	type MapContainerProps,
 	type TapEventResponse,
 	type LongPressEventResponse,
+	type MapTapHit,
 
 	// LayerMarker, Marker and NativeLayerMarker.
 	LayerMarker,

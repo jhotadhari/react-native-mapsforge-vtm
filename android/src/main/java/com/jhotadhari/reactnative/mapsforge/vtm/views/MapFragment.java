@@ -3,21 +3,28 @@ package com.jhotadhari.reactnative.mapsforge.vtm.views;
 import android.content.Context;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
-import com.jhotadhari.reactnative.mapsforge.vtm.layer.GestureLayer;
+import com.jhotadhari.reactnative.mapsforge.vtm.layer.HitTestLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.oscim.android.MapView;
 import org.oscim.core.MapPosition;
 import org.oscim.event.Event;
@@ -33,7 +40,7 @@ public class MapFragment extends Fragment {
 
 	private Map.UpdateListener updateListener;
 
-	private GestureLayer gestureLayer;
+	private HitTestLayer gestureLayer;
 
 	private GnssManager gnssManager;
 
@@ -113,9 +120,10 @@ public class MapFragment extends Fragment {
 			gestureLayer = null;
 		}
 
-		gestureLayer = new GestureLayer(
+		gestureLayer = new HitTestLayer(
 			mapView.map(),
-			( eventName, x, y ) -> {
+			getMapsforgeVtmView().getId(),
+			( eventName, x, y, hits ) -> {
 				MapsforgeVtmView parent = getMapsforgeVtmView();
 				if ( parent == null || mapView == null || mapView.map() == null ) {
 					return;
@@ -126,12 +134,100 @@ public class MapFragment extends Fragment {
 				payload.putDouble( "lat", geo.getLatitude() );
 				payload.putDouble( "x", x );
 				payload.putDouble( "y", y );
+				// codegen cannot type arrays of objects in event payloads —
+				// serialize the hit list to a JSON string for JS to parse.
+				payload.putString( "hits", serializeHits( hits ) );
 				parent.emitMapEvent( eventName, payload );
 			}
 		);
-		// Add at the highest index so it only receives gestures that marker/path
-		// layers returned false for (i.e. the tap missed their geometry).
-		mapView.map().layers().add( gestureLayer );
+		// Add at the LOWEST index so it runs before the geometry layers and
+		// aggregates hits across all layer managers. It never consumes, so
+		// the geometry layers' own gesture handling is unaffected.
+		mapView.map().layers().add( 0, gestureLayer );
+	}
+
+	/**
+	 * Serializes the hit-test payloads to a JSON string, element by element.
+	 * Every top-level element is guaranteed to be a JSON object — unlike
+	 * {@code new JSONArray(Arguments.toList(hits))}, whose
+	 * {@code JSONObject.wrap()} silently returns null on failure and would
+	 * produce malformed arrays that crash the JS consumers. Non-finite
+	 * numbers are skipped (they'd make the whole string fail to serialize),
+	 * and failures are logged instead of silently corrupting the payload.
+	 */
+	private String serializeHits( @NonNull com.facebook.react.bridge.WritableArray hits ) {
+		JSONArray json = new JSONArray();
+		for ( int i = 0; i < hits.size(); i++ ) {
+			ReadableMap hit = hits.getMap( i );
+			if ( hit == null ) {
+				Log.w( "MapFragment", "HitTestLayer: skipped non-map hit element at index " + i );
+				continue;
+			}
+			json.put( serializeHitObject( hit ) );
+		}
+		return json.toString();
+	}
+
+	@NonNull
+	private JSONObject serializeHitObject( @Nullable ReadableMap map ) {
+		JSONObject out = new JSONObject();
+		if ( map == null ) {
+			return out;
+		}
+		ReadableMapKeySetIterator it = map.keySetIterator();
+		while ( it.hasNextKey() ) {
+			String key = it.nextKey();
+			try {
+				switch ( map.getType( key ) ) {
+					case Null: out.put( key, JSONObject.NULL ); break;
+					case Boolean: out.put( key, map.getBoolean( key ) ); break;
+					case Number: {
+						double d = map.getDouble( key );
+						if ( Double.isFinite( d ) ) {
+							out.put( key, d );
+						}
+						break;
+					}
+					case String: out.put( key, map.getString( key ) ); break;
+					case Map: out.put( key, serializeHitObject( map.getMap( key ) ) ); break;
+					case Array: out.put( key, serializeHitArray( map.getArray( key ) ) ); break;
+					default: break;
+				}
+			} catch ( Exception e ) {
+				Log.w( "MapFragment", "HitTestLayer: failed to serialize hit key '" + key + "': " + e.getMessage() );
+			}
+		}
+		return out;
+	}
+
+	@NonNull
+	private JSONArray serializeHitArray( @Nullable ReadableArray array ) {
+		JSONArray out = new JSONArray();
+		if ( array == null ) {
+			return out;
+		}
+		for ( int i = 0; i < array.size(); i++ ) {
+			try {
+				switch ( array.getType( i ) ) {
+					case Null: out.put( JSONObject.NULL ); break;
+					case Boolean: out.put( array.getBoolean( i ) ); break;
+					case Number: {
+						double d = array.getDouble( i );
+						if ( Double.isFinite( d ) ) {
+							out.put( d );
+						}
+						break;
+					}
+					case String: out.put( array.getString( i ) ); break;
+					case Map: out.put( serializeHitObject( array.getMap( i ) ) ); break;
+					case Array: out.put( serializeHitArray( array.getArray( i ) ) ); break;
+					default: break;
+				}
+			} catch ( Exception e ) {
+				Log.w( "MapFragment", "HitTestLayer: failed to serialize array element " + i + ": " + e.getMessage() );
+			}
+		}
+		return out;
 	}
 
 	protected void bindUpdateListener() {

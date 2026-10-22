@@ -13,12 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   own `ReindexScope` with the given order, so labels can be lifted above overlays drawn
   on top of the map layer (e.g. route lines) while the map layer itself stays in place.
   Undefined (default) keeps labels in the component's own scope.
-- **`MarkerEvent.position`** — marker gesture and trigger events
-  (`itemSingleTapUp`, `itemLongPress`, `itemTrigger`) now carry the marker's
-  `[lng, lat]` position, matching the `eventPosition`/`nearestPoint` shape
-  of path/shape gesture responses.
+- **`MarkerEvent.position`** — marker gesture and trigger events carry the
+  marker's `[lng, lat]` position.
+- **Map-level tap/long-press hit aggregation** — `HitTestLayer` (lowest
+  layer index) collects hits from ALL layer managers into
+  `onTap`/`onLongPress` (`hits` field); `LayerManager.hitTestAll` uses a
+  lazily-built JTS `STRtree` over entry envelopes for O(log n + k) taps.
+  Replaces `GestureLayer`; never consumes, so per-layer events keep
+  working.
 
 ### Fixed
+
+- **Marker hit-tests always missed** — the default `Viewport.toScreenPoint`
+  overload is center-relative; marker hit-testing now uses absolute
+  coordinates plus a 30 dp anchor-distance fallback (programmatic trigger
+  path fixed too).
 
 - **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
   destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted
