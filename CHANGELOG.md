@@ -13,29 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   own `ReindexScope` with the given order, so labels can be lifted above overlays drawn
   on top of the map layer (e.g. route lines) while the map layer itself stays in place.
   Undefined (default) keeps labels in the component's own scope.
-- **`MarkerEvent.position`** — marker gesture and trigger events
-  (`itemSingleTapUp`, `itemLongPress`, `itemTrigger`) now carry the marker's
-  `[lng, lat]` position, matching the `eventPosition`/`nearestPoint` shape
-  of path/shape gesture responses.
-- **Map-level tap/long-press hit aggregation** — a new `HitTestLayer`
-  (added at the lowest layer index) collects hits from ALL layer managers
-  (paths, shapes, markers, and third-party extensions) into the
-  `onTap`/`onLongPress` events via an `hits` field (JSON-serialized array
-  of `MapTapHit`). `LayerManager.hitTestAll` resolves candidates through a
-  lazily-built JTS `STRtree` over entry envelopes, keeping per-tap cost
-  O(log n + k) even with thousands of entries. `GestureLayer` was removed
-  — tap/long-press emission now lives in the hit-test layer, which never
-  consumes, so per-layer gesture events keep working.
+- **`MarkerEvent.position`** — marker gesture and trigger events carry the
+  marker's `[lng, lat]` position.
+- **Map-level tap/long-press hit aggregation** — `HitTestLayer` (lowest
+  layer index) collects hits from ALL layer managers into
+  `onTap`/`onLongPress` (`hits` field); `LayerManager.hitTestAll` uses a
+  lazily-built JTS `STRtree` over entry envelopes for O(log n + k) taps.
+  Replaces `GestureLayer`; never consumes, so per-layer events keep
+  working.
 
 ### Fixed
 
-- **Marker hit-testing used center-relative screen coordinates** — the
-  default `Viewport.toScreenPoint` overload returns coordinates relative
-  to the map center, so marker gesture/trigger hit-tests always missed.
-  Marker hit-testing now uses absolute coordinates plus a
-  density-independent 30 dp anchor-distance fallback (symbol bounds still
-  take precedence); the programmatic trigger path had the same bug and is
-  fixed too.
+- **Marker hit-tests always missed** — the default `Viewport.toScreenPoint`
+  overload is center-relative; marker hit-testing now uses absolute
+  coordinates plus a 30 dp anchor-distance fallback (programmatic trigger
+  path fixed too).
 
 - **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
   destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted
