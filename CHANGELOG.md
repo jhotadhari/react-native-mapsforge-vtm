@@ -17,8 +17,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`itemSingleTapUp`, `itemLongPress`, `itemTrigger`) now carry the marker's
   `[lng, lat]` position, matching the `eventPosition`/`nearestPoint` shape
   of path/shape gesture responses.
+- **Map-level tap/long-press hit aggregation** — a new `HitTestLayer`
+  (added at the lowest layer index) collects hits from ALL layer managers
+  (paths, shapes, markers, and third-party extensions) into the
+  `onTap`/`onLongPress` events via an `hits` field (JSON-serialized array
+  of `MapTapHit`). `LayerManager.hitTestAll` resolves candidates through a
+  lazily-built JTS `STRtree` over entry envelopes, keeping per-tap cost
+  O(log n + k) even with thousands of entries. `GestureLayer` was removed
+  — tap/long-press emission now lives in the hit-test layer, which never
+  consumes, so per-layer gesture events keep working.
 
 ### Fixed
+
+- **Marker hit-testing used center-relative screen coordinates** — the
+  default `Viewport.toScreenPoint` overload returns coordinates relative
+  to the map center, so marker gesture/trigger hit-tests always missed.
+  Marker hit-testing now uses absolute coordinates plus a
+  density-independent 30 dp anchor-distance fallback (symbol bounds still
+  take precedence); the programmatic trigger path had the same bug and is
+  fixed too.
 
 - **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
   destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted

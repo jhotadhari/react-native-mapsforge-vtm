@@ -2,6 +2,7 @@ import { codegenNativeComponent } from 'react-native';
 import type {
 	Double,
 	DirectEventHandler,
+	Int32,
 } from 'react-native/Libraries/Types/CodegenTypes';
 import type { ViewProps } from 'react-native';
 import type { Dispatch, SetStateAction } from 'react';
@@ -28,11 +29,36 @@ interface ErrorWithErrorMsg {
 	errorMsg: string;
 }
 
+/**
+ * One hit of the map-level tap aggregation (see the native HitTestLayer).
+ * `manager` identifies the LayerManager that produced it ("paths",
+ * "shapes", "markers", "paths_colorramp", …); the remaining fields are
+ * the manager's own hitTestEntry payload (paths/ramps: distance +
+ * nearestPoint; markers: distance + position + markerLayerUuid).
+ */
+export interface MapTapHit {
+	manager: string;
+	uuid: string;
+	index?: Int32;
+	distance?: Double;
+	position?: Position;
+	nearestPoint?: Position;
+	eventPosition?: Position;
+	markerLayerUuid?: string;
+	event?: string;
+}
+
 export interface TapEventResponse {
 	lng: Double;
 	lat: Double;
 	x: Double;
 	y: Double;
+	/**
+	 * JSON-serialized Array<MapTapHit> — codegen cannot type arrays of
+	 * objects in event payloads, so the native side serializes to a
+	 * string. Consumers parse with JSON.parse(hits ?? '[]').
+	 */
+	hits?: string;
 }
 
 // Reuse the same shape for longPress (codegen can't follow type aliases across
@@ -42,6 +68,7 @@ export interface LongPressEventResponse {
 	lat: Double;
 	x: Double;
 	y: Double;
+	hits?: string;
 }
 
 // Codegen limitation: nested objects become ReadableMap on the Java side
