@@ -73,6 +73,10 @@ jobs:
         if: env.turbo_cache_hit != 1
         run: echo "sdk.dir=$ANDROID_HOME" > example/android/local.properties
 
+      - name: Generate codegen artifacts
+        if: env.turbo_cache_hit != 1
+        run: npx bob build --target codegen
+
       - name: Build example for Android
         env:
           JAVA_OPTS: "-XX:MaxHeapSize=6g"
