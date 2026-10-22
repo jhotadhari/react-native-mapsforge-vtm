@@ -335,6 +335,19 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		return null;
 	}
 
+	@Nullable
+	@Override
+	protected Envelope entryEnvelope(@NonNull PathEntry entry) {
+		if (entry.drawables.isEmpty()) {
+			return null;
+		}
+		Envelope envelope = new Envelope();
+		for (LineDrawable drawable : entry.drawables) {
+			envelope.expandToInclude(drawable.getGeometry().getEnvelopeInternal());
+		}
+		return envelope;
+	}
+
 	// ── Override create/remove to sync gesture support ────────────────
 
 	@NonNull

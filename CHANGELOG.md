@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-10-22
+
+### Added
+
+- **`labelsOrder` prop on `LayerMapsforge`** — renders the labels sub-layer inside its
+  own `ReindexScope` with the given order, so labels can be lifted above overlays drawn
+  on top of the map layer (e.g. route lines) while the map layer itself stays in place.
+  Undefined (default) keeps labels in the component's own scope.
+- **`MarkerEvent.position`** — marker gesture and trigger events carry the
+  marker's `[lng, lat]` position.
+- **Map-level tap/long-press hit aggregation** — `HitTestLayer` (lowest
+  layer index) collects hits from ALL layer managers into
+  `onTap`/`onLongPress` (`hits` field); `LayerManager.hitTestAll` uses a
+  lazily-built JTS `STRtree` over entry envelopes for O(log n + k) taps.
+  Replaces `GestureLayer`; never consumes, so per-layer events keep
+  working.
+
+### Fixed
+
+- **Marker hit-tests always missed** — the default `Viewport.toScreenPoint`
+  overload is center-relative; marker hit-testing now uses absolute
+  coordinates plus a 30 dp anchor-distance fallback (programmatic trigger
+  path fixed too).
+- **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
+  destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted
+  by `createFragment()` and removes the layout-change listener from `setupLayout()`,
+  and `manuallyLayoutChildren()` null-guards the fragment. A React drop of the map
+  view right after mount (e.g. settings restore toggling the container) no longer
+  crashes with a `NullPointerException` on `fixViewLayoutSize()`.
+
 ## [0.9.1] - 2026-09-30
 
 ### Fixed
@@ -441,6 +471,7 @@ Just updated README.md
 
 First bumpy version
 
+[0.10.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3

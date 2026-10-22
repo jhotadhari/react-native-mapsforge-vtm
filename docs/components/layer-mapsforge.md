@@ -13,6 +13,7 @@ primary layer for displaying OpenStreetMap data without a network connection.
 | `renderOverlays` | `string[]` | — | Initial overlay sub-options |
 | `hasBuildings` | `boolean` | `false` | Enable 3D building rendering |
 | `hasLabels` | `boolean` | `false` | Show text labels on a separate layer |
+| `labelsOrder` | `number` | — | Lifts the label layer into its own `ReindexScope` at this order; undefined keeps labels contiguous with the map layer |
 | `enabledZoomMin` | `number` | `0` | Minimum zoom at which the layer is visible |
 | `enabledZoomMax` | `number` | `22` | Maximum zoom at which the layer is visible |
 | `onCreate` | `(response: LayerMapsforgeResponse) => void` | — | Fires after the native layer is created |
@@ -39,6 +40,11 @@ tree-order plan:
 3. **Label layer** (optional, `hasLabels`) — text labels on top of buildings
 
 Toggling `hasBuildings` or `hasLabels` mounts/unmounts the sub-layer.
+
+When `labelsOrder` is set, the label layer is instead wrapped in its own
+`ReindexScope` with that order, so it can be lifted above overlays drawn on
+top of the map layer (e.g. route lines) while the base and building layers
+stay in place.
 
 ## LayerMapsforgeResponse
 

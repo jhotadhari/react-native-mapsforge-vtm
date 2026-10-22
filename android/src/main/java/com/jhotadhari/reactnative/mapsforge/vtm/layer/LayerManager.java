@@ -8,17 +8,22 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.oscim.android.MapView;
 import org.oscim.core.GeoPoint;
 import org.oscim.layers.Layer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +87,24 @@ public abstract class LayerManager<TEntry> {
 	@Nullable
 	public static LayerManager<?> getInstance(int nativeNodeHandle, @NonNull String name) {
 		return instances.get(instanceKey(nativeNodeHandle, name));
+	}
+
+	/**
+	 * Returns ALL managers registered for the given map view
+	 * ({@code nativeNodeHandle}). Used by the map-level hit-test layer to
+	 * aggregate hits across every manager — paths, shapes, markers, and
+	 * third-party extensions (e.g. the color-ramp path manager).
+	 */
+	@NonNull
+	public static List<LayerManager<?>> getAllInstances(int nativeNodeHandle) {
+		String prefix = nativeNodeHandle + ":";
+		List<LayerManager<?>> result = new ArrayList<>();
+		for (Map.Entry<String, LayerManager<?>> entry : instances.entrySet()) {
+			if (entry.getKey().startsWith(prefix)) {
+				result.add(entry.getValue());
+			}
+		}
+		return result;
 	}
 
 	/**
@@ -276,6 +299,17 @@ public abstract class LayerManager<TEntry> {
 		float gestureScreenDistance
 	);
 
+	/**
+	 * Bounding envelope of {@code entry}'s geometry, used to index entries
+	 * for the spatial hit-test in {@link #hitTestAll(float, float)}.
+	 * Subclasses override to enable O(log n) tap queries; the default
+	 * (null) falls back to a linear scan of that entry.
+	 */
+	@Nullable
+	protected Envelope entryEnvelope(@NonNull TEntry entry) {
+		return null;
+	}
+
 	// ── Public API (called by TurboModules) ─────────────────────────────
 
 	/**
@@ -306,6 +340,7 @@ public abstract class LayerManager<TEntry> {
 
 		CreateResult<TEntry> result = createEntry(entryUuid, params, mapFragment, contentResolver, reactContext);
 		entries.put(entryUuid, result.entry);
+		hitTestIndexDirty.set(true);
 
 		// Trigger a map update so the new geometry is picked up,
 		// coalesced onto the UI thread via scheduleUpdate().
@@ -320,6 +355,7 @@ public abstract class LayerManager<TEntry> {
 	public void remove(@NonNull String entryUuid) {
 		TEntry entry = entries.remove(entryUuid);
 		if (entry != null) {
+			hitTestIndexDirty.set(true);
 			// Skip removeEntryFromLayer if destroy() is already running —
 			// its Phase 1 iteration will handle cleanup of all entries.
 			// This prevents double-processing when per-layer remove()
@@ -393,6 +429,7 @@ public abstract class LayerManager<TEntry> {
 			return null;
 		}
 		UpdateResult result = updateEntry(entry, params, mapFragment, contentResolver);
+		hitTestIndexDirty.set(true);
 		scheduleUpdate();
 		return result.responseData;
 	}
@@ -416,6 +453,117 @@ public abstract class LayerManager<TEntry> {
 		// Default gestureScreenDistance — subclasses that track per-entry
 		// sensitivity should use the entry's own value, not this parameter.
 		return hitTestEntry(entry, x, y, eventPoint, 30f);
+	}
+
+	// ── Spatial hit-testing (map-level tap aggregation) ─────────────────
+
+	/**
+	 * Search radius for the spatial index query, in dp. Generous so any
+	 * per-entry gestureScreenDistance (typically 20-30 dp) is covered —
+	 * the precise threshold is enforced by {@link #hitTestEntry} itself.
+	 * Converted to physical px per tap using the display density.
+	 */
+	private static final float HIT_TEST_QUERY_RADIUS_DP = 64f;
+
+	/**
+	 * Gesture threshold passed to {@link #hitTestEntry} for entries
+	 * without their own sensitivity (e.g. markers' anchor-distance
+	 * fallback), in dp. Aligned with the app-side
+	 * {@code ROUTING_GESTURE_THRESHOLD_DP} (30 dp).
+	 */
+	private static final float HIT_TEST_THRESHOLD_DP = 30f;
+
+	/** Lazily built STRtree over entry envelopes. Rebuilt on demand after
+	 *  entry mutations flag {@link #hitTestIndexDirty}. */
+	private transient STRtree hitTestIndex;
+
+	/** Entries without a usable envelope — scanned linearly per tap. */
+	@NonNull
+	private transient List<String> hitTestEntriesWithoutEnvelope = new ArrayList<>();
+
+	private final AtomicBoolean hitTestIndexDirty = new AtomicBoolean(true);
+
+	/**
+	 * Hit-tests ALL entries of this manager against screen coordinates,
+	 * using the lazily-built spatial index so per-tap cost stays
+	 * O(log n + k) even with thousands of entries. Runs on the main
+	 * thread (gesture dispatch). Thresholds are density-independent
+	 * (dp-based) and converted to physical px here.
+	 *
+	 * @return the payloads of every hit entry (each with the entry's uuid
+	 *         guaranteed set), as a WritableArray
+	 */
+	@NonNull
+	public WritableArray hitTestAll(float x, float y) {
+		WritableArray hits = Arguments.createArray();
+		if (entries.isEmpty()) {
+			return hits;
+		}
+		float density = mapView.getResources().getDisplayMetrics().density;
+		float thresholdPx = HIT_TEST_THRESHOLD_DP * density;
+		float queryRadiusPx = HIT_TEST_QUERY_RADIUS_DP * density;
+		GeoPoint eventPoint = mapView.map().viewport().fromScreenPoint(x, y);
+
+		// Screen-space query radius in coordinate space.
+		GeoPoint cornerA = mapView.map().viewport().fromScreenPoint(
+			x - queryRadiusPx, y + queryRadiusPx);
+		GeoPoint cornerB = mapView.map().viewport().fromScreenPoint(
+			x + queryRadiusPx, y - queryRadiusPx);
+		Envelope queryEnvelope = new Envelope(
+			Math.min(cornerA.getLongitude(), cornerB.getLongitude()),
+			Math.max(cornerA.getLongitude(), cornerB.getLongitude()),
+			Math.min(cornerA.getLatitude(), cornerB.getLatitude()),
+			Math.max(cornerA.getLatitude(), cornerB.getLatitude())
+		);
+
+		STRtree index = getOrBuildHitTestIndex();
+		@SuppressWarnings("unchecked")
+		List<String> candidateUuids = index.query(queryEnvelope);
+		for (String entryUuid : candidateUuids) {
+			TEntry entry = entries.get(entryUuid);
+			if (entry == null) {
+				continue;
+			}
+			WritableMap payload = hitTestEntry(entry, x, y, eventPoint, thresholdPx);
+			if (payload != null) {
+				payload.putString("uuid", entryUuid);
+				hits.pushMap(payload);
+			}
+		}
+		// Entries without envelopes get no spatial pruning.
+		for (String entryUuid : hitTestEntriesWithoutEnvelope) {
+			TEntry entry = entries.get(entryUuid);
+			if (entry == null) {
+				continue;
+			}
+			WritableMap payload = hitTestEntry(entry, x, y, eventPoint, thresholdPx);
+			if (payload != null) {
+				payload.putString("uuid", entryUuid);
+				hits.pushMap(payload);
+			}
+		}
+		return hits;
+	}
+
+	private STRtree getOrBuildHitTestIndex() {
+		if (hitTestIndex != null && !hitTestIndexDirty.get()) {
+			return hitTestIndex;
+		}
+		STRtree index = new STRtree();
+		List<String> withoutEnvelope = new ArrayList<>();
+		for (Map.Entry<String, TEntry> entry : entries.entrySet()) {
+			Envelope envelope = entryEnvelope(entry.getValue());
+			if (envelope == null || envelope.isNull()) {
+				withoutEnvelope.add(entry.getKey());
+				continue;
+			}
+			index.insert(envelope, entry.getKey());
+		}
+		index.build();
+		hitTestIndex = index;
+		hitTestEntriesWithoutEnvelope = withoutEnvelope;
+		hitTestIndexDirty.set(false);
+		return index;
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────
@@ -562,6 +710,9 @@ public abstract class LayerManager<TEntry> {
 		// Signal that we're tearing down so concurrent remove() calls
 		// skip their own removeEntryFromLayer — Phase 1 handles it all.
 		destroying.set(true);
+		hitTestIndexDirty.set(true);
+		hitTestIndex = null;
+		hitTestEntriesWithoutEnvelope = new ArrayList<>();
 
 		// Remove all entries' geometry from their fragment layers.
 		for (TEntry entry : entries.values()) {
@@ -610,6 +761,11 @@ public abstract class LayerManager<TEntry> {
 	@NonNull
 	public String getSharedLayerUuid() {
 		return sharedLayerUuid;
+	}
+
+	@NonNull
+	public String getName() {
+		return name;
 	}
 
 	@NonNull

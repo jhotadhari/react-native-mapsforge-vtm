@@ -102,6 +102,14 @@ export type LayerMapsforgeProps = {
 	renderOverlays?: string[];
 	hasBuildings?: boolean;
 	hasLabels?: boolean;
+	/**
+	 * Optional explicit ordering priority for the labels sub-layer, applied
+	 * by wrapping it in a ReindexScope with this order. When undefined the
+	 * labels stay in the component's own scope (tree position). An explicit
+	 * order overrides the enclosing scope's order, so labels can be lifted
+	 * above overlays drawn on top of the map layer (e.g. route lines).
+	 */
+	labelsOrder?: number;
 	enabledZoomMin?: number;
 	enabledZoomMax?: number;
 	onCreate?: null | ((response: LayerMapsforgeResponse) => void);

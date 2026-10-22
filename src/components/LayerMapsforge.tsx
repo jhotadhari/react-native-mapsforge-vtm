@@ -17,6 +17,7 @@ import useSceneUuidBinding from '../compose/useSceneUuidBinding';
 import useNativeLayerLifecycle from '../compose/useNativeLayerLifecycle';
 import reportNativeError from '../reportNativeError';
 import MapHandleContext from '../context/MapHandleContext';
+import ReindexScope from './ReindexScope';
 
 /**
  * Buildings and labels each get their own real native layer (and uuid),
@@ -123,6 +124,7 @@ const LayerMapsforge = ({
 	renderOverlays,
 	hasBuildings = true,
 	hasLabels = true,
+	labelsOrder,
 	enabledZoomMin,
 	enabledZoomMax,
 	onCreate,
@@ -255,7 +257,19 @@ const LayerMapsforge = ({
 					removeSubLayer={LayerMapsforgeModule.removeBuildingLayer}
 				/>
 			)}
-			{hasLabels && uuid && (
+			{hasLabels && uuid && labelsOrder !== undefined && (
+				<ReindexScope order={labelsOrder}>
+					<LayerMapsforgeSubLayer
+						parentUuid={uuid}
+						enabledZoomMin={enabledZoomMin}
+						enabledZoomMax={enabledZoomMax}
+						onError={onError}
+						createSubLayer={LayerMapsforgeModule.createLabelLayer}
+						removeSubLayer={LayerMapsforgeModule.removeLabelLayer}
+					/>
+				</ReindexScope>
+			)}
+			{hasLabels && uuid && labelsOrder === undefined && (
 				<LayerMapsforgeSubLayer
 					parentUuid={uuid}
 					enabledZoomMin={enabledZoomMin}

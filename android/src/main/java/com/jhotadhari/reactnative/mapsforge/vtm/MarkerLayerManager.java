@@ -17,6 +17,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.layer.ItemizedLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
+import org.locationtech.jts.geom.Envelope;
 import org.oscim.android.MapView;
 import org.oscim.backend.CanvasAdapter;
 import org.oscim.core.GeoPoint;
@@ -338,29 +339,56 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// For triggerEvent on a specific marker: check if the point is inside
 		// the marker's symbol bounds.
 		Viewport viewport = mapView.map().viewport();
-		viewport.toScreenPoint(entry.markerItem.getPoint(), tmpPoint);
+		// Absolute screen coordinates — the default overload is
+		// relative-to-center, which can't be compared against tap
+		// coordinates.
+		viewport.toScreenPoint(entry.markerItem.getPoint(), false, tmpPoint);
 
 		MarkerSymbol symbol = entry.markerItem.getMarker();
 		ItemizedLayer layer = (ItemizedLayer) getSharedLayer(entry.fragmentUuid);
 		if (symbol == null && layer != null) {
 			symbol = layer.getDefaultMarker();
 		}
-		if (symbol == null) {
-			return null;
-		}
 
 		float dx = (float)(x - tmpPoint.x);
 		float dy = (float)(y - tmpPoint.y);
+		float screenDistance = (float) Math.sqrt(dx * dx + dy * dy);
 
-		if (symbol.isInside(dx, dy)) {
-			WritableMap payload = Arguments.createMap();
-			payload.putString("uuid", entry.entryUuid);
-			payload.putString("markerLayerUuid", entry.groupUuid);
-			payload.putString("event", "itemTrigger");
-			payload.putDouble("distance", Math.sqrt(dx * dx + dy * dy));
-			return payload;
+		// Defensive: a marker without a (correct) symbol is hit-tested by
+		// screen distance against its anchor point — same for taps within
+		// the gesture threshold of the anchor that miss the symbol bounds.
+		if (symbol == null || symbol.isInside(dx, dy) || screenDistance <= gestureScreenDistance) {
+			return buildMarkerHitPayload(entry, screenDistance);
 		}
 		return null;
+	}
+
+	@NonNull
+	private WritableMap buildMarkerHitPayload(@NonNull MarkerEntry entry, float distance) {
+		GeoPoint markerGeo = entry.markerItem.getPoint();
+		WritableMap payload = Arguments.createMap();
+		payload.putString("uuid", entry.entryUuid);
+		payload.putString("markerLayerUuid", entry.groupUuid);
+		payload.putString("event", "itemTrigger");
+		payload.putDouble("distance", distance);
+		payload.putArray("position", Utils.positionToWritableArray(
+			markerGeo.getLongitude(),
+			markerGeo.getLatitude(),
+			null
+		));
+		return payload;
+	}
+
+	@Nullable
+	@Override
+	protected Envelope entryEnvelope(@NonNull MarkerEntry entry) {
+		GeoPoint point = entry.markerItem.getPoint();
+		return new Envelope(
+			point.getLongitude(),
+			point.getLongitude(),
+			point.getLatitude(),
+			point.getLatitude()
+		);
 	}
 
 	// ── Group management (LayerMarker backward compat) ──────────────────
@@ -928,7 +956,10 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				i++;
 				continue;
 			}
-			viewport.toScreenPoint(item.getPoint(), tmpPoint);
+			// Absolute screen coordinates — the default overload is
+			// relative-to-center, which can't be compared against tap
+			// coordinates.
+			viewport.toScreenPoint(item.getPoint(), false, tmpPoint);
 			MarkerSymbol it = item.getMarker();
 			it = it != null ? it : layer.getDefaultMarker();
 			if (it == null) {
@@ -954,6 +985,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 						payload.putString("markerLayerUuid", groupUuid);
 						payload.putString("event", "itemTrigger");
 						payload.putDouble("distance", d);
+						payload.putArray("position", Utils.positionToWritableArray(
+							mi.getPoint().getLongitude(),
+							mi.getPoint().getLatitude(),
+							null
+						));
 						emit("onMarkerEvent", payload);
 					}
 				}
@@ -968,6 +1004,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			payload.putString("markerLayerUuid", groupUuid);
 			payload.putString("event", "itemTrigger");
 			payload.putDouble("distance", distNearest);
+			payload.putArray("position", Utils.positionToWritableArray(
+				mi.getPoint().getLongitude(),
+				mi.getPoint().getLatitude(),
+				null
+			));
 			return payload;
 		}
 		return null;
@@ -1041,6 +1082,11 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 						payload.putString("markerLayerUuid", entry.groupUuid);
 						payload.putString("event", "itemTrigger");
 						payload.putDouble("distance", geoDist);
+						payload.putArray("position", Utils.positionToWritableArray(
+							markerGeo.getLongitude(),
+							markerGeo.getLatitude(),
+							null
+						));
 						emit("onMarkerEvent", payload);
 						if ("first".equals(strategy)) {
 							return;
@@ -1058,12 +1104,18 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		if ("nearest".equals(strategy) && itemNearest != null) {
 			MarkerItem mi = (MarkerItem) itemNearest;
 			MarkerEntry entry = allMarkers.get(mi.getUid().toString());
+			GeoPoint nearestGeo = itemNearest.getPoint();
 			WritableMap payload = Arguments.createMap();
 			payload.putInt("index", iNearest);
 			payload.putString("uuid", mi.getUid().toString());
 			payload.putString("markerLayerUuid", entry != null ? entry.groupUuid : ROOT_GROUP_UUID);
 			payload.putString("event", "itemTrigger");
 			payload.putDouble("distance", distNearest);
+			payload.putArray("position", Utils.positionToWritableArray(
+				nearestGeo.getLongitude(),
+				nearestGeo.getLatitude(),
+				null
+			));
 			emit("onMarkerEvent", payload);
 		}
 	}
@@ -1117,11 +1169,17 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				if (entry == null) {
 					return false;
 				}
+				GeoPoint markerGeo = markerItem.getPoint();
 				WritableMap payload = Arguments.createMap();
 				payload.putInt("index", index);
 				payload.putString("uuid", markerItemUid);
 				payload.putString("markerLayerUuid", entry.groupUuid);
 				payload.putString("event", eventType);
+				payload.putArray("position", Utils.positionToWritableArray(
+					markerGeo.getLongitude(),
+					markerGeo.getLatitude(),
+					null
+				));
 				emit("onMarkerEvent", payload);
 				return false; // Don't consume — allow other gesture handlers to fire.
 			}

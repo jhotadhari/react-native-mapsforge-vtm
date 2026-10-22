@@ -18,6 +18,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.layer.VectorLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.operation.distance.DistanceOp;
 import org.oscim.android.MapView;
 import org.oscim.backend.canvas.Color;
@@ -293,6 +294,12 @@ public class ShapeLayerManager extends LayerManager<ShapeLayerManager.ShapeEntry
 			return params;
 		}
 		return null;
+	}
+
+	@Nullable
+	@Override
+	protected Envelope entryEnvelope(@NonNull ShapeEntry entry) {
+		return entry.drawable.getGeometry().getEnvelopeInternal();
 	}
 
 	// ── Override create/remove to sync gesture support ──────────────────

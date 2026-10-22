@@ -29,6 +29,14 @@ public class MapsforgeVtmView extends LinearLayout {
 
 	private MapFragment mapFragment;
 
+	/** One-shot layout runnable posted after createFragment(); cancelled in destroy(). */
+	@Nullable
+	private Runnable pendingLayoutRunnable;
+
+	/** Layout-change listener installed by setupLayout(); removed in destroy(). */
+	@Nullable
+	private View.OnLayoutChangeListener layoutListener;
+
 	private double width;	// dp
 	private double height;	// dp
 
@@ -569,7 +577,8 @@ public class MapsforgeVtmView extends LinearLayout {
 				// new child view may not have been measured yet. Post a
 				// one-shot layout so the MapView gets correct dimensions
 				// before any layer tries to load tiles.
-				post( () -> manuallyLayoutChildren( MapsforgeVtmView.this ) );
+				pendingLayoutRunnable = () -> manuallyLayoutChildren( MapsforgeVtmView.this );
+				post( pendingLayoutRunnable );
 			}
 		}
 	}
@@ -583,6 +592,14 @@ public class MapsforgeVtmView extends LinearLayout {
 	 */
 	public void destroy() {
 		removeHierarchyListener();
+		if ( null != pendingLayoutRunnable ) {
+			removeCallbacks( pendingLayoutRunnable );
+			pendingLayoutRunnable = null;
+		}
+		if ( null != layoutListener ) {
+			removeOnLayoutChangeListener( layoutListener );
+			layoutListener = null;
+		}
 		if ( null != mapFragment ) {
 			int handle = this.getId();
 			mapFragment.onDestroy();
@@ -610,14 +627,15 @@ public class MapsforgeVtmView extends LinearLayout {
 		// the other, continuously recreating GL surfaces and preventing
 		// tiles from loading (gray map) or corrupting textures (black
 		// tiles).
-		view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+		layoutListener = new View.OnLayoutChangeListener() {
 			@Override
 			public void onLayoutChange(View v, int left, int top, int right,
 					int bottom, int oldLeft, int oldTop, int oldRight,
 					int oldBottom) {
 				manuallyLayoutChildren((ViewGroup) v);
 			}
-		});
+		};
+		view.addOnLayoutChangeListener(layoutListener);
 	}
 
 	public void manuallyLayoutChildren(ViewGroup view) {
@@ -635,7 +653,12 @@ public class MapsforgeVtmView extends LinearLayout {
 			);
 		}
 
-		mapFragment.fixViewLayoutSize();
+		// The fragment may be gone (destroy() ran before a pending layout
+		// callback/runnable got cancelled) — layout the children but skip
+		// the fragment sizing in that case.
+		if ( null != mapFragment ) {
+			mapFragment.fixViewLayoutSize();
+		}
 	}
 
 	// ------------------------------------------------------------------
