@@ -14,7 +14,13 @@ import { injectVtmSortIndex } from '../injectVtmSortIndex';
 
 const Layer = (_props: { vtmSortIndex?: number }) => null;
 const MemoLayer = memo(Layer);
-const RefLayer = forwardRef<null, { vtmSortIndex?: number }>(Layer);
+// Declare the ref param — React warns (console.error) when a forwardRef
+// render function omits it.
+const RefLayer = forwardRef<null, { vtmSortIndex?: number }>(
+	function LayerRef(_props, _ref) {
+		return null;
+	}
+);
 RefLayer.displayName = 'RefLayer';
 
 const sortIndexesOf = (nodes: unknown): number[] => {
