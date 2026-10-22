@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.10.0] - 2026-10-22
 
 ### Added
 
@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overload is center-relative; marker hit-testing now uses absolute
   coordinates plus a 30 dp anchor-distance fallback (programmatic trigger
   path fixed too).
-
 - **Crash on startup map-remount race** — `MapsforgeVtmView` could dereference a
   destroyed `MapFragment`: `destroy()` now cancels the one-shot layout runnable posted
   by `createFragment()` and removes the layout-change listener from `setupLayout()`,
@@ -472,7 +471,7 @@ Just updated README.md
 
 First bumpy version
 
-[Unreleased]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.1...HEAD
+[0.10.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/jhotadhari/react-native-mapsforge-vtm/compare/v0.8.2...v0.8.3
