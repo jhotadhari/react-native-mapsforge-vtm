@@ -173,13 +173,19 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 	@Override
 	public void removeLayer( ReadableMap params, Promise promise ) {
 		if ( Utils.rMapHasKey( params, "uuid" ) && Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
-			Layer layer = layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) ).get( params.getString( "uuid" ) );
-			if ( layer instanceof BitmapTileLayer ) {
-				// Layers().remove() only detaches the layer from the map's list, it doesn't call
-				// onDetach() (that only happens on a full map/Layers destroy) -- so close the
-				// underlying MBTiles SQLite connection explicitly here, otherwise it leaks every time
-				// this layer is torn down and recreated (e.g. on mapFile/transparentColor change).
-				( (BitmapTileLayer) layer ).onDetach();
+			// Teardown race: getLayers() returns null once the map view
+			// is destroyed. Guard before dereferencing — this used to
+			// NPE here (Map.get on a null reference) during destroy.
+			Map<String, Layer> layers = layerHelper.getLayers( params.getInt( "nativeNodeHandle" ) );
+			if ( null != layers ) {
+				Layer layer = layers.get( params.getString( "uuid" ) );
+				if ( layer instanceof BitmapTileLayer ) {
+					// Layers().remove() only detaches the layer from the map's list, it doesn't call
+					// onDetach() (that only happens on a full map/Layers destroy) -- so close the
+					// underlying MBTiles SQLite connection explicitly here, otherwise it leaks every time
+					// this layer is torn down and recreated (e.g. on mapFile/transparentColor change).
+					( (BitmapTileLayer) layer ).onDetach();
+				}
 			}
 		}
 		layerHelper.removeLayerResolving( params, promise );
