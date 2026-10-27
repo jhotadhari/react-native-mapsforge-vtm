@@ -26,7 +26,10 @@ const reportNativeError = (
 	err: ErrorBase,
 	onError?: null | ((err: ErrorBase) => void)
 ) => {
-	if (isMapViewGoneError(err)) {
+	// A bare rejection carrying no payload at all (err === undefined) is
+	// teardown noise by definition — nothing of value can be lost by
+	// silencing it. The debug log still records it.
+	if (err == null || isMapViewGoneError(err)) {
 		console.debug('[map] ignored command during teardown', err);
 		return;
 	}

@@ -98,6 +98,14 @@ describe('reportNativeError', () => {
 		expect(debugSpy).toHaveBeenCalled();
 	});
 
+	it('silences a bare rejection without any payload and skips onError', () => {
+		const onError = jest.fn();
+		reportNativeError(undefined as any, onError);
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(onError).not.toHaveBeenCalled();
+		expect(debugSpy).toHaveBeenCalled();
+	});
+
 	it('reports real errors and fires onError', () => {
 		const onError = jest.fn();
 		const err = { userInfo: { errorMsg: 'some real failure' } } as any;
