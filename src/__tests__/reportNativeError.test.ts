@@ -32,12 +32,21 @@ describe('isMapViewGoneError', () => {
 		).toBe(true);
 	});
 
+	it('matches a shapeless rejection (no userInfo, no message)', () => {
+		expect(
+			isMapViewGoneError({ code: 'error', nativeStackAndroid: [] })
+		).toBe(true);
+	});
+
 	it('rejects unrelated errors', () => {
 		expect(
 			isMapViewGoneError({
 				code: 'error',
 				userInfo: { errorMsg: 'boom' },
 			})
+		).toBe(false);
+		expect(
+			isMapViewGoneError({ code: 'error', message: 'something real' })
 		).toBe(false);
 		expect(isMapViewGoneError(undefined)).toBe(false);
 		expect(isMapViewGoneError(null)).toBe(false);
