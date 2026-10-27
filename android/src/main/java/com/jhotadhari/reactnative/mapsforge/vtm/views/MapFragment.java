@@ -81,6 +81,13 @@ public class MapFragment extends Fragment {
 			updateViewportValue( "roll" );
 			updateInteractionEnabled();
 			updateUpdateListener();
+			// Re-apply the stored gnssFilter prop. The prop can arrive
+			// before this fragment exists (cold start / surface
+			// recreation race) — setGnssFilter only applies it when the
+			// fragment is already there, so without this call the GNSS
+			// listener never starts and no positions flow until the
+			// prop changes (e.g. a GNSS toggle).
+			updateGnssFilter();
 			bindGestureLayer();
 		} catch ( Exception e ) {
 			e.printStackTrace();
