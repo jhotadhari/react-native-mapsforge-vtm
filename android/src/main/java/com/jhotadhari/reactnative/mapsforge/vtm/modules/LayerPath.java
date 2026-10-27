@@ -189,7 +189,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			ReadableMap responseInclude = Utils.rMapHasKey( params, "responseInclude" )
@@ -241,7 +241,7 @@ public class LayerPath extends NativeLayerPathSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise, "Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			ReadableMap defaultResponseInclude = Utils.rMapHasKey( params, "responseInclude" )
@@ -392,7 +392,7 @@ public class LayerPath extends NativeLayerPathSpec {
 
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapFragment ) {

@@ -247,7 +247,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 			MapView mapView = Utils.getMapView(getReactApplicationContext(), nativeNodeHandle);
 			MapFragment mapFragment = Utils.getMapFragment(getReactApplicationContext(), nativeNodeHandle);
 			if (null == mapView || null == mapFragment) {
-				Utils.promiseReject(promise, "Unable to find mapView or mapFragment");
+				Utils.promiseRejectMapViewGone( promise );
 				return;
 			}
 
@@ -368,7 +368,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 
 			MapView mapView = Utils.getMapView(getReactApplicationContext(), nativeNodeHandle);
 			if (null == mapView) {
-				Utils.promiseReject(promise, "Unable to find mapView");
+				Utils.promiseRejectMapViewGone( promise );
 				return;
 			}
 
@@ -444,7 +444,7 @@ public class LayerPathJts extends NativeLayerPathJtsSpec {
 
 			MapView mapView = Utils.getMapView(getReactApplicationContext(), nativeNodeHandle);
 			if (null == mapView) {
-				Utils.promiseReject(promise, "Unable to find mapView");
+				Utils.promiseRejectMapViewGone( promise );
 				return;
 			}
 

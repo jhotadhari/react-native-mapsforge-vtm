@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
+import android.util.Log;
+
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -70,6 +72,10 @@ public class LayerHelper {
 		int nativeNodeHandle = params.getInt("nativeNodeHandle");
 		MapView mapView = Utils.getMapView(reactContext, nativeNodeHandle);
 		if (null == mapView) {
+			// Teardown race — JS dispatched a layer command while the
+			// Activity/map is being destroyed. Log quietly; the JS side
+			// swallows "Unable to find mapView" rejections.
+			Log.d("ReactNative", "LayerHelper.addLayerAsync: map view not found (teardown)");
 			CompletableFuture<String> f = new CompletableFuture<>();
 			f.completeExceptionally(new RuntimeException("Unable to find mapView"));
 			return f;
@@ -108,6 +114,8 @@ public class LayerHelper {
 		String uuid = params.getString("uuid");
 		MapView mapView = Utils.getMapView(reactContext, nativeNodeHandle);
 		if (null == mapView) {
+			// Teardown race — see addLayerAsync above.
+			Log.d("ReactNative", "LayerHelper.removeLayerAsync: map view not found (teardown)");
 			CompletableFuture<Void> f = new CompletableFuture<>();
 			f.completeExceptionally(new RuntimeException("Unable to find mapView"));
 			return f;

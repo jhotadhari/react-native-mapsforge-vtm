@@ -72,7 +72,7 @@ public class LayerShape extends NativeLayerShapeSpec {
 			MapView mapView = Utils.getMapView(getReactApplicationContext(), nativeNodeHandle);
 			MapFragment mapFragment = Utils.getMapFragment(getReactApplicationContext(), nativeNodeHandle);
 			if (null == mapView || null == mapFragment) {
-				Utils.promiseReject(promise, "Unable to find mapView or mapFragment");
+				Utils.promiseRejectMapViewGone( promise );
 				return;
 			}
 
@@ -189,7 +189,7 @@ public class LayerShape extends NativeLayerShapeSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise, "Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			ShapeLayerManager manager = ShapeLayerManager.get( nativeNodeHandle, mapView );
@@ -262,7 +262,7 @@ public class LayerShape extends NativeLayerShapeSpec {
 
 			MapView mapView = Utils.getMapView(getReactApplicationContext(), nativeNodeHandle);
 			if (null == mapView) {
-				Utils.promiseReject(promise, "Unable to find mapView");
+				Utils.promiseRejectMapViewGone( promise );
 				return;
 			}
 			MapFragment mapFragment = Utils.getMapFragment(getReactApplicationContext(), nativeNodeHandle);

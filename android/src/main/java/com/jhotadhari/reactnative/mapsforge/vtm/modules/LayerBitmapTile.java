@@ -66,7 +66,7 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Get params, assign defaults.
@@ -135,7 +135,7 @@ public class LayerBitmapTile extends NativeLayerBitmapTileSpec {
 			}
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Get params, assign defaults.

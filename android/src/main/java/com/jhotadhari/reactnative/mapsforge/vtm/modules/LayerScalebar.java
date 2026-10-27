@@ -45,7 +45,7 @@ public class LayerScalebar extends NativeLayerScalebarSpec {
 
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Create scaleBar and add to map.

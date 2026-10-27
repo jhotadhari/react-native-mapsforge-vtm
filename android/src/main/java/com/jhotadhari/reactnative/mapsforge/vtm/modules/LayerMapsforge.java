@@ -100,7 +100,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			if ( ! Utils.rMapHasKey( params, "mapFile" ) ) {
@@ -260,7 +260,7 @@ public class LayerMapsforge extends NativeLayerMapsforgeSpec {
 		}
 		int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 		if ( null == Utils.getMapView( getReactApplicationContext(), nativeNodeHandle ) ) {
-			Utils.promiseReject( promise, "Unable to find mapView" ); return null;
+			Utils.promiseRejectMapViewGone( promise ); return null;
 		}
 		Layer parent = LayerHelper.getLayer( nativeNodeHandle, params.getString( "parentUuid" ) );
 		if ( ! ( parent instanceof VectorTileLayer ) ) {

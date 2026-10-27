@@ -6,6 +6,7 @@ import android.content.UriPermission;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.util.DisplayMetrics;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
@@ -208,6 +209,25 @@ public class Utils {
 			// Graceful fallback when WritableNativeMap is unavailable
 			// (e.g., in Robolectric tests without native library support).
 			promise.reject( "error", errorMsg != null ? errorMsg : "Unknown error" );
+		}
+	}
+
+	/**
+	 * Rejects the given promise when the map view is gone — a teardown
+	 * race, not a bug: JS dispatches layer/map commands while the
+	 * Activity/map is being destroyed.  Rejects with code
+	 * "MAP_VIEW_GONE" so the JS side (reportNativeError) can swallow it
+	 * silently instead of spamming console.error / LogBox toasts.
+	 */
+	public static void promiseRejectMapViewGone( Promise promise ) {
+		Log.d( "ReactNative", "Skipping map command: map view not found (teardown)" );
+		try {
+			WritableMap error = new WritableNativeMap();
+			error.putString( "errorMsg", "Unable to find mapView" );
+			promise.reject( "MAP_VIEW_GONE", error );
+		} catch ( Throwable t ) {
+			// Graceful fallback when WritableNativeMap is unavailable.
+			promise.reject( "MAP_VIEW_GONE", "Unable to find mapView" );
 		}
 	}
 

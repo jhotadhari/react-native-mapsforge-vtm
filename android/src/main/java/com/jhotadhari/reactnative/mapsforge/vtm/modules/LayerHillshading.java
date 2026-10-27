@@ -73,7 +73,7 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 			}
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			if ( ! Utils.rMapHasKey( params, "hgtDirPath" ) ) {

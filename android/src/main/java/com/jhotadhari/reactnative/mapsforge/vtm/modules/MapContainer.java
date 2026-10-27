@@ -128,7 +128,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Copy the raw uuid list on the calling thread. Resolution against
@@ -172,7 +172,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			List<Promise> pendingPromises = new ArrayList<>();
@@ -335,7 +335,7 @@ public class MapContainer extends NativeMapContainerSpec {
 
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			MapPosition mapPosition = mapView.map().getMapPosition();
@@ -532,7 +532,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			int nativeNodeHandle = params.getInt( "nativeNodeHandle" );
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise, "Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			MapMutationQueue queue = MapMutationQueue.getInstance( nativeNodeHandle );

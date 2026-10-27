@@ -242,7 +242,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Resolve the default marker symbol for this group (may be null).
@@ -276,7 +276,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "position" ) ) {
 				Utils.promiseReject( promise,"Marker does not have a position" ); return;
@@ -346,8 +346,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MapFragment mapFragment = Utils.getMapFragment(
 				getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,
-					"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			MarkerLayerManager manager = MarkerLayerManager.get(
@@ -461,7 +460,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;
@@ -493,7 +492,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			MapFragment mapFragment = Utils.getMapFragment( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView || null == mapFragment ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 			if ( ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise,"Undefined uuid" ); return;

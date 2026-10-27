@@ -72,7 +72,7 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), nativeNodeHandle );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			if ( ! Utils.rMapHasKey( params, "mapFile" ) ) {
@@ -198,7 +198,7 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 			}
 			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
 			if ( null == mapView ) {
-				Utils.promiseReject( promise,"Unable to find mapView or mapFragment" ); return;
+				Utils.promiseRejectMapViewGone( promise ); return;
 			}
 
 			// Get params, assign defaults.
