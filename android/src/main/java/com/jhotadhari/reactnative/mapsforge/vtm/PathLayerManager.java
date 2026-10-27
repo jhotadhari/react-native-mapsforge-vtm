@@ -93,6 +93,10 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		public Coordinate[] jtsCoordinates;
 		public boolean supportsGestures;
 		public float gestureScreenDistance;
+		/** Style the drawables were last drawn with (reused for
+		 * append-only updates that carry no new paint). */
+		@Nullable
+		public Style lastStyle;
 
 		public PathEntry(
 			@NonNull String pathUuid,
@@ -210,7 +214,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 				"No shared VectorLayer found for fragmentUuid '" + fragmentUuid
 					+ "'. Known fragments: " + sharedLayerFragments.keySet());
 		}
-		drawSegments(jtsCoordinates, styleBuilder, entryUuid, vectorLayer, entry);
+		drawSegments(jtsCoordinates, styleBuilder.build(), entryUuid, vectorLayer, entry);
 		vectorLayer.update();
 
 		return new CreateResult<>(entry, null);
@@ -257,31 +261,50 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getArray("coordinates")
 			: null;
 
-
 		ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
 			? params.getMap("paint")
 			: null;
 
-		// Remove old drawables.
-		for (LineDrawable d : entry.drawables) {
-			drawableToEntry.remove(d);
-			layer.remove(d);
-		}
-		entry.drawables.clear();
+		Coordinate[] jtsCoordinates = coordinates != null && coordinates.size() > 0
+			? readableArrayToJtsCoordinates(coordinates)
+			: null;
 
-		// Parse new coordinates (if provided).
-		if (coordinates != null && coordinates.size() > 0) {
-			Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(
-				coordinates
-			);
+		// Append-only fast path: the new coordinates extend the previous
+		// ones (same prefix) and no paint change was sent. Instead of
+		// removing every drawable and re-adding them (which flickers on
+		// every appended point, e.g. live track recording), only the new
+		// segment drawables are added on top of the existing ones.
+		boolean appendOnly = jtsCoordinates != null
+			&& jtsCoordinates.length > 0
+			&& styleMap == null
+			&& entry.jtsCoordinates != null
+			&& jtsCoordinates.length >= entry.jtsCoordinates.length
+			&& sameCoordinatePrefix(entry.jtsCoordinates, jtsCoordinates);
+
+		if (appendOnly) {
+			appendSegments(entry, jtsCoordinates, layer);
+			entry.jtsCoordinates = jtsCoordinates;
+		} else {
+			// Remove old drawables.
+			for (LineDrawable d : entry.drawables) {
+				drawableToEntry.remove(d);
+				layer.remove(d);
+			}
+			entry.drawables.clear();
+
+			// Redraw with the new coordinates (if provided).
 			if (jtsCoordinates != null && jtsCoordinates.length > 0) {
 				entry.jtsCoordinates = jtsCoordinates;
 
-				// Parse new style (or reuse old style's builder defaults).
-				Style.Builder styleBuilder = getStyleBuilder(styleMap);
+				// Parse new style, or reuse the style the entry was last
+				// drawn with when this update carries no paint.
+				Style style = styleMap != null
+					? getStyleBuilder(styleMap).build()
+					: (entry.lastStyle != null
+						? entry.lastStyle
+						: new Style.Builder().build());
 
-				// Redraw.
-				drawSegments(jtsCoordinates, styleBuilder, entry.pathUuid, layer, entry);
+				drawSegments(jtsCoordinates, style, entry.pathUuid, layer, entry);
 			}
 		}
 
@@ -298,6 +321,57 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		}
 
 		return new UpdateResult(responseData);
+	}
+
+	/**
+	 * True when every coordinate in {@code oldCoords} equals the coordinate
+	 * at the same index in {@code newCoords} (exact x/y/z comparison) —
+	 * i.e. {@code newCoords} only appended points.
+	 */
+	private static boolean sameCoordinatePrefix(
+		@NonNull Coordinate[] oldCoords,
+		@NonNull Coordinate[] newCoords
+	) {
+		if (newCoords.length < oldCoords.length) {
+			return false;
+		}
+		for (int i = 0; i < oldCoords.length; i++) {
+			Coordinate a = oldCoords[i];
+			Coordinate b = newCoords[i];
+			if (a == null || b == null || a.x != b.x || a.y != b.y || a.z != b.z) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Adds LineDrawable segments for the coordinates appended to
+	 * {@code entry.jtsCoordinates} — the existing drawables stay untouched,
+	 * so the path grows without a teardown/rebuild (no flicker).
+	 */
+	private void appendSegments(
+		@NonNull PathEntry entry,
+		@NonNull Coordinate[] jtsCoordinates,
+		@NonNull VectorLayer vectorLayer
+	) {
+		Style style = entry.lastStyle != null
+			? entry.lastStyle
+			: new Style.Builder().build();
+		int oldLength = entry.jtsCoordinates.length;
+		for (int i = oldLength; i < jtsCoordinates.length; i++) {
+			// New segment from the previously last point (i - 1) to i.
+			double[] segment = new double[4];
+			segment[0] = jtsCoordinates[i].x;
+			segment[1] = jtsCoordinates[i].y;
+			segment[2] = jtsCoordinates[i - 1].x;
+			segment[3] = jtsCoordinates[i - 1].y;
+			LineDrawable drawable = new LineDrawable(segment, style);
+			vectorLayer.add(drawable);
+			drawableToEntry.put(drawable, entry.pathUuid);
+			drawable.setPriority(entry.positionIndex);
+			entry.drawables.add(drawable);
+		}
 	}
 
 	@Nullable
@@ -736,12 +810,12 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	 */
 	protected void drawSegments(
 		@NonNull Coordinate[] jtsCoordinates,
-		@NonNull Style.Builder styleBuilder,
+		@NonNull Style style,
 		@NonNull String entryUuid,
 		@NonNull VectorLayer vectorLayer,
 		@NonNull PathEntry entry
 	) {
-		Style style = styleBuilder.build();
+		entry.lastStyle = style;
 		for (int i = 0; i < jtsCoordinates.length; i++) {
 			if (i != 0) {
 				double[] segment = new double[4];

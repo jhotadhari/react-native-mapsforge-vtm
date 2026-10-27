@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Live path flicker on append** — `PathLayerManager.updateEntry` tore down and rebuilt
+  every `LineDrawable` of a path on each update. Coordinates that only extend the
+  previous ones (same prefix) now append just the new segment drawables and reuse the
+  entry's last style — live paths (e.g. track recording) grow without the
+  remove/redraw flicker. `LayerPath` only sends `paint` when it changed, enabling the
+  native append-only fast path; a paint change still triggers a full redraw.
 - **Teardown-race command failures are silent** — layer/map commands dispatched while
   the map view is being destroyed now reject with the `MAP_VIEW_GONE` code and
   `reportNativeError` swallows teardown-shaped rejections (`console.debug` only, no

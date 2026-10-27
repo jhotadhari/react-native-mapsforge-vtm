@@ -209,13 +209,22 @@ const LayerPath = ({
 	// changes, instead of tearing down and recreating the layer. Batched —
 	// a bulk re-render (e.g. zoom re-simplification) collapses N per-entry
 	// updates into one native updateLayers call.
+	//
+	// `paint` is only included when it actually changed: the native side
+	// treats a paint-less update as an append-only candidate and reuses the
+	// entry's last style, which lets live paths (e.g. track recording) grow
+	// without a teardown/rebuild flicker.
+	const prevPaintJsonRef = useRef<string | null>(null);
+	const paintJson = paint ? JSON.stringify(paint) : null;
 	useEffect(() => {
 		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
+			const paintChanged = prevPaintJsonRef.current !== paintJson;
+			prevPaintJsonRef.current = paintJson;
 			enqueueUpdatePath({
 				nativeNodeHandle,
 				uuid,
 				coordinates,
-				...(paint && { paint }),
+				...(paintChanged && paint && { paint }),
 				...(responseInclude && { responseInclude }),
 			})
 				.then((response: LayerPathResponse) => {
@@ -230,6 +239,7 @@ const LayerPath = ({
 		nativeNodeHandle,
 		coordinates,
 		paint,
+		paintJson,
 		responseInclude,
 		onChange,
 		onError,
