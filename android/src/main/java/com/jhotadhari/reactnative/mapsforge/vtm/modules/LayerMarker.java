@@ -25,6 +25,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.views.MapFragment;
 
 import org.oscim.android.MapView;
+import org.oscim.android.canvas.AndroidCanvas;
 import org.oscim.backend.CanvasAdapter;
 import org.oscim.backend.canvas.Bitmap;
 import org.oscim.backend.canvas.Canvas;
@@ -84,11 +85,12 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		final String fontStyle;
 		final Float textPositionX;
 		final Float textPositionY;
+		final double rotation;
 
 		MarkerBitmapParams(
 			int width, int height, String fillColor, String strokeColor, String text, String filePath,
 			int strokeWidth, int textMargin, String textColor, int textSize, String fontFamily,
-			String fontStyle, Float textPositionX, Float textPositionY
+			String fontStyle, Float textPositionX, Float textPositionY, double rotation
 		) {
 			this.width = width;
 			this.height = height;
@@ -104,6 +106,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 			this.fontStyle = fontStyle;
 			this.textPositionX = textPositionX;
 			this.textPositionY = textPositionY;
+			this.rotation = rotation;
 		}
 
 		@Override
@@ -116,6 +119,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 				&& strokeWidth == that.strokeWidth
 				&& textMargin == that.textMargin
 				&& textSize == that.textSize
+				&& Double.compare( rotation, that.rotation ) == 0
 				&& Objects.equals( fillColor, that.fillColor )
 				&& Objects.equals( strokeColor, that.strokeColor )
 				&& Objects.equals( text, that.text )
@@ -131,7 +135,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		public int hashCode() {
 			return Objects.hash(
 				width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
-				textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
+				textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY, rotation
 			);
 		}
 	}
@@ -158,6 +162,7 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		symbol.putString( "strokeColor", null );
 		symbol.putInt( "strokeWidth", 5 );
 		symbol.putString( "hotspotPlace", "CENTER" );
+		symbol.putDouble( "rotation", 0 );
 		symbol.putString( "text", null );
 		symbol.putInt( "textMargin", 10 );
 		symbol.putNull( "textPositionX" );
@@ -586,9 +591,15 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		} else {
 			textPositionY = null;
 		}
+		// Quantized to whole degrees: the params are the static bitmap
+		// cache key, and raw continuous bearings would grow it unboundedly
+		// (one cached bitmap per distinct rotation value). 1° granularity
+		// is invisible at marker sizes.
+		double rotation = Utils.rMapHasKey( symbolMap, "rotation" ) ? symbolMap.getDouble( "rotation" ) : symbolConstants.getDouble( "rotation" );
+		rotation = Math.round( rotation );
 		return new MarkerBitmapParams(
 			width, height, fillColor, strokeColor, text, filePath, strokeWidth, textMargin,
-			textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY
+			textColor, textSize, fontFamily, fontStyle, textPositionX, textPositionY, rotation
 		);
 	}
 
@@ -663,6 +674,16 @@ public class LayerMarker extends NativeLayerMarkerSpec {
 		Bitmap markerBitmap = CanvasAdapter.newBitmap( width, height, 0 );
 		Canvas markerCanvas = CanvasAdapter.newCanvas();
 		markerCanvas.setBitmap( markerBitmap );
+
+		// Rotate about the marker center before drawing so the whole
+		// symbol (image, circles, text) is rotated in one pass. The
+		// canvas backend is always AndroidCanvas on Android; non-Android
+		// backends simply skip rotation.
+		if ( params.rotation != 0 && markerCanvas instanceof AndroidCanvas ) {
+			( (AndroidCanvas) markerCanvas ).canvas.rotate(
+				(float) params.rotation, width / 2f, height / 2f
+			);
+		}
 
 		if ( null != imageBitmap ) {
 			markerCanvas.drawBitmapScaled( imageBitmap );

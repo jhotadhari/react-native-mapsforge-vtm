@@ -204,6 +204,9 @@ export interface MarkerPaint {
 	strokeColor?: `#${string}`;
 	strokeWidth?: Int32;
 	hotspotPlace?: (typeof MarkerHotspotPlaces)[number];
+	/** Degrees clockwise, applied about the marker center, relative to a
+	 * north-up map (map bearing 0). Whole degrees. */
+	rotation?: Double;
 	text?: null | string;
 	textColor?: `#${string}`;
 	textSize?: Int32;
