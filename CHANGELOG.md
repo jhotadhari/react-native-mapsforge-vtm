@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Teardown-race command failures are silent** — layer/map commands dispatched while
+  the map view is being destroyed now reject with the `MAP_VIEW_GONE` code and
+  `reportNativeError` swallows teardown-shaped rejections (`console.debug` only, no
+  `onError`), including RN placeholder-message and payload-free rejections. Dev logs,
+  LogBox and user-facing toasts stay clean across Activity destroys/recreates.
+- **NPE in `LayerMBTilesBitmap.removeLayer`** — `layerHelper.getLayers()` returns null
+  once the map view is destroyed; the unchecked dereference threw inside the
+  `@ReactMethod` during teardown (surfaced as "Exception in HostFunction" rejections).
+  The lookup is now null-guarded.
+- **`gnssFilter` lost when the map fragment was created after the prop** —
+  `setGnssFilter` only applied the filter when the fragment already existed; on cold
+  start or surface recreation the prop could arrive first and the GNSS listener never
+  started (GNSS showed on but no positions flowed until the prop changed). The stored
+  filter is now re-applied from `createMapView`.
+
 ## [0.10.0] - 2026-10-22
 
 ### Added
