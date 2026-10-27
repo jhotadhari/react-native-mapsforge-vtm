@@ -302,7 +302,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 					? getStyleBuilder(styleMap).build()
 					: (entry.lastStyle != null
 						? entry.lastStyle
-						: new Style.Builder().build());
+						: Style.builder().build());
 
 				drawSegments(jtsCoordinates, style, entry.pathUuid, layer, entry);
 			}
@@ -357,7 +357,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	) {
 		Style style = entry.lastStyle != null
 			? entry.lastStyle
-			: new Style.Builder().build();
+			: Style.builder().build();
 		int oldLength = entry.jtsCoordinates.length;
 		for (int i = oldLength; i < jtsCoordinates.length; i++) {
 			// New segment from the previously last point (i - 1) to i.
