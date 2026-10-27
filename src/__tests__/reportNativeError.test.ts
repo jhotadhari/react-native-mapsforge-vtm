@@ -38,6 +38,26 @@ describe('isMapViewGoneError', () => {
 		).toBe(true);
 	});
 
+	it('matches the RN placeholder message without userInfo', () => {
+		expect(
+			isMapViewGoneError({
+				code: 'error',
+				message: 'Error not specified.',
+				nativeStackAndroid: [],
+			})
+		).toBe(true);
+	});
+
+	it('does not silence the placeholder message when userInfo carries a real error', () => {
+		expect(
+			isMapViewGoneError({
+				code: 'error',
+				message: 'Error not specified.',
+				userInfo: { errorMsg: 'real failure' },
+			})
+		).toBe(false);
+	});
+
 	it('rejects unrelated errors', () => {
 		expect(
 			isMapViewGoneError({

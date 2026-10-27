@@ -8,18 +8,19 @@ const MAP_VIEW_GONE = /Unable to find mapView/;
  * silently ignored so dev logs and LogBox stay clean and no onError
  * toast fires for it.
  *
- * Also covers shapeless rejections (no userInfo AND no message) that
- * occur when a @ReactMethod throws an exception without a message while
- * the map is gone — TurboModule interop rejects with the raw exception
- * and the JS err carries neither field.  Every meaningful rejection in
- * this library carries userInfo.errorMsg or a message, so nothing of
- * value is swallowed here.
+ * Also covers payload-free rejections: RN's PromiseImpl rejects with
+ * the placeholder message "Error not specified." when a rejection
+ * carries neither a message nor userInfo (defaults).  Every meaningful
+ * rejection in this library carries userInfo.errorMsg or a real
+ * message, so nothing of value is swallowed here.
  */
 export const isMapViewGoneError = (err: any) =>
 	err?.code === 'MAP_VIEW_GONE' ||
 	MAP_VIEW_GONE.test(String(err?.userInfo?.errorMsg ?? '')) ||
 	MAP_VIEW_GONE.test(String(err?.message ?? '')) ||
-	(err != null && err.userInfo == null && err.message == null);
+	(err != null &&
+		err.userInfo?.errorMsg == null &&
+		(err.message == null || err.message === 'Error not specified.'));
 
 const reportNativeError = (
 	err: ErrorBase,
