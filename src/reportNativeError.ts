@@ -30,7 +30,7 @@ const reportNativeError = (
 		console.debug('[map] ignored command during teardown', err);
 		return;
 	}
-	console.error('ERROR', err?.userInfo?.errorMsg);
+	console.error('ERROR', err);
 	onError ? onError(err) : null;
 };
 

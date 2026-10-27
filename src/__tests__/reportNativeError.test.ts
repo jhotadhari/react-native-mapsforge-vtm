@@ -102,7 +102,7 @@ describe('reportNativeError', () => {
 		const onError = jest.fn();
 		const err = { userInfo: { errorMsg: 'some real failure' } } as any;
 		reportNativeError(err, onError);
-		expect(errorSpy).toHaveBeenCalledWith('ERROR', 'some real failure');
+		expect(errorSpy).toHaveBeenCalledWith('ERROR', err);
 		expect(onError).toHaveBeenCalledWith(err);
 	});
 });
