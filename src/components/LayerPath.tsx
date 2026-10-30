@@ -12,6 +12,7 @@ import LayerPathModule, {
 	type PathTriggerParams,
 } from '../NativeModules/NativeLayerPath';
 import type { ErrorBase } from '../types';
+import { splitPathCoordinates } from '../utils/screenPosition';
 import useLayerPathEventSubscription from '../compose/useLayerPathEventSubscription';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
@@ -72,10 +73,18 @@ const LayerPath = ({
 		[responseIncludeParams]
 	);
 
+	// Split the coordinates prop into the geographic coordinates and the
+	// screen-anchored point descriptors. The string sugar ('50%', '100dp')
+	// is normalized here — only numeric values cross the bridge.
+	const { geoCoordinates, screenPoints } = useMemo(
+		() => splitPathCoordinates(coordinates ?? []),
+		[coordinates]
+	);
+
 	// onTrigger is different, it doesn't require native gesture detection.
 	const supportsGestures = !!onPress || !!onLongPress || !!onDoubleTap;
 
-	const hasCoordinates = !!coordinates && coordinates.length > 0;
+	const hasCoordinates = geoCoordinates.length > 0 || screenPoints.length > 0;
 
 	// Standalone: this component contributes an anchor and belongs to an
 	// implicit type-run fragment. The fragment uuid is scene-authoritative
@@ -136,7 +145,10 @@ const LayerPath = ({
 				fragmentUuid,
 				layerUuids,
 				supportsGestures,
-				coordinates,
+				coordinates: geoCoordinates,
+				// Always sent (possibly empty): the key itself carries the
+				// "replace the anchor set" semantics on the native side.
+				screenPoints,
 				...(paint && { paint }),
 				...(responseInclude && { responseInclude }),
 				...(gestureScreenDistance && { gestureScreenDistance }),
@@ -217,13 +229,16 @@ const LayerPath = ({
 	const prevPaintJsonRef = useRef<string | null>(null);
 	const paintJson = paint ? JSON.stringify(paint) : null;
 	useEffect(() => {
-		if (uuid && nativeNodeHandle && coordinates && coordinates.length > 0) {
+		if (uuid && nativeNodeHandle && hasCoordinates) {
 			const paintChanged = prevPaintJsonRef.current !== paintJson;
 			prevPaintJsonRef.current = paintJson;
 			enqueueUpdatePath({
 				nativeNodeHandle,
 				uuid,
-				coordinates,
+				coordinates: geoCoordinates,
+				// Always sent (possibly empty): the key itself carries the
+				// "replace the anchor set" semantics on the native side.
+				screenPoints,
 				...(paintChanged && paint && { paint }),
 				...(responseInclude && { responseInclude }),
 			})
@@ -237,7 +252,9 @@ const LayerPath = ({
 	}, [
 		uuid,
 		nativeNodeHandle,
-		coordinates,
+		hasCoordinates,
+		geoCoordinates,
+		screenPoints,
 		paint,
 		paintJson,
 		responseInclude,

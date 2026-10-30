@@ -8,6 +8,7 @@ import type {
 import type { Position as GeoJsonPosition } from 'geojson';
 import type { RefObject } from 'react';
 import type { ErrorBase } from '../types';
+import type { ScreenPointSugar } from '../utils/screenPosition';
 
 /*
  * Type should be redeclared because of codegen ts parser doesn't allow imported type
@@ -16,6 +17,21 @@ import type { ErrorBase } from '../types';
  * Mirrors geojson's `Position` ( `[ lng, lat, alt? ]` ), but using `Double` as required by codegen.
  */
 type Position = ReadonlyArray<Double>;
+
+/*
+ * Screen-anchored point override — codegen-local mirror of the public
+ * ScreenPosition in utils/screenPosition.ts (the parser can't handle the
+ * imported type). Pins one point of the resolved coordinate list to a
+ * position on the map's screen ('fraction' of the viewport, default, or
+ * 'dp'), re-resolved by the Java side on every map movement.
+ */
+export type ScreenPosition = {
+	/** Index into the resolved point list (geo + anchored). */
+	index?: Int32;
+	x: Double;
+	y: Double;
+	unit?: string; // 'fraction' | 'dp'
+};
 
 // 0	never include in response.
 // 1	include in lifeCycle response.
@@ -73,6 +89,12 @@ export interface CreateLayerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
 	fragmentUuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
+	/**
+	 * Screen-anchored point overrides. Anchored points are inserted into
+	 * `coordinates` at their `index` and re-resolved per frame on the Java
+	 * side (no JS round trips while panning).
+	 */
+	screenPoints?: ReadonlyArray<ScreenPosition>;
 	supportsGestures?: boolean;
 }
 
@@ -80,6 +102,11 @@ export interface UpdateCoordinatesParams {
 	nativeNodeHandle?: Int32;
 	uuid?: string;
 	coordinates?: ReadonlyArray<Position>; // geojson LineString-style `coordinates`
+	/**
+	 * Screen-anchored point overrides. Key present = replace the whole
+	 * anchor set (empty array clears it); absent = keep existing anchors.
+	 */
+	screenPoints?: ReadonlyArray<ScreenPosition>;
 	paint?: {
 		// PathPaint
 		strokeWidth?: Double;
@@ -219,7 +246,13 @@ export interface LayerPathGestureResponse extends ResponseBase {
 
 export type LayerPathProps = {
 	filePath?: null | `/${string}` | `content://${string}`;
-	coordinates?: GeoJsonPosition[]; // e.g. a geojson LineString's `coordinates`
+	/**
+	 * e.g. a geojson LineString's `coordinates`. Elements may additionally
+	 * be screen-anchored points — `['50%', '50%']`, `['100dp', '24dp']`,
+	 * or `{ x, y, unit }` — pinned to the map's screen and updated by the
+	 * Java side on every map movement (see ScreenPosition).
+	 */
+	coordinates?: (GeoJsonPosition | ScreenPointSugar)[];
 	responseInclude?: PathResponseInclude;
 	gestureScreenDistance?: number;
 	paint?: PathPaint;

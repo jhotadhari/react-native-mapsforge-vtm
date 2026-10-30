@@ -30,6 +30,7 @@ import org.oscim.backend.CanvasAdapter;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
 import org.oscim.core.GeoPoint;
+import org.oscim.core.MapPosition;
 import org.oscim.layers.Layer;
 import org.oscim.layers.vector.geometries.Drawable;
 import org.oscim.layers.vector.geometries.LineDrawable;
@@ -96,6 +97,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		public final List<LineDrawable> drawables = new ArrayList<>();
 		@NonNull
 		public Coordinate[] jtsCoordinates;
+		/**
+		 * Screen-anchored point overrides. Empty when the path is purely
+		 * geographic. Anchored coordinates are resolved per frame by
+		 * {@link #updateAnchoredEntries(MapView)}.
+		 */
+		@NonNull
+		public final List<ScreenAnchorPoint> anchors = new ArrayList<>();
 		public boolean supportsGestures;
 		public float gestureScreenDistance;
 		/** Style the drawables were last drawn with (reused for
@@ -169,7 +177,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		ReadableArray coordinates = Utils.rMapHasKey(params, "coordinates")
 			? params.getArray("coordinates")
 			: null;
-		if (coordinates == null || coordinates.size() == 0) {
+		List<ScreenAnchorPoint> anchors = parseScreenPoints(params);
+		if ((coordinates == null || coordinates.size() == 0) && anchors.isEmpty()) {
 			throw new IllegalArgumentException("Unable to parse coordinates");
 		}
 
@@ -189,8 +198,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getString("fragmentUuid")
 			: DEFAULT_FRAGMENT_UUID;
 
-		// Parse coordinates.
-		Coordinate[] jtsCoordinates = readableArrayToJtsCoordinates(coordinates);
+		// Parse coordinates and merge in the screen-anchored points.
+		Coordinate[] jtsCoordinates = buildResolvedCoordinates(
+			readableArrayToJtsCoordinates(coordinates == null
+				? Arguments.createArray()
+				: coordinates),
+			anchors
+		);
 		if (jtsCoordinates == null || jtsCoordinates.length == 0) {
 			throw new IllegalArgumentException("Unable to parse coordinates");
 		}
@@ -211,6 +225,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			supportsGestures,
 			(float) gestureScreenDistance
 		);
+		entry.anchors.addAll(anchors);
 
 		// Draw LineDrawable segments onto the fragment's VectorLayer.
 		VectorLayer vectorLayer = (VectorLayer) getSharedLayer(fragmentUuid);
@@ -221,6 +236,10 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		}
 		drawSegments(jtsCoordinates, styleBuilder.build(), entryUuid, vectorLayer, entry);
 		vectorLayer.update();
+
+		if (!anchors.isEmpty()) {
+			registerScreenAnchorFrameCallback();
+		}
 
 		return new CreateResult<>(entry, null);
 	}
@@ -270,16 +289,40 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			? params.getMap("paint")
 			: null;
 
+		// screenPoints key present = replace the whole anchor set (an empty
+		// array clears it); absent = keep the existing anchors.
+		boolean anchorsProvided = Utils.rMapHasKey(params, "screenPoints");
+		if (anchorsProvided) {
+			entry.anchors.clear();
+			entry.anchors.addAll(parseScreenPoints(params));
+		}
+		boolean anchored = !entry.anchors.isEmpty();
+
 		Coordinate[] jtsCoordinates = coordinates != null && coordinates.size() > 0
 			? readableArrayToJtsCoordinates(coordinates)
 			: null;
+
+		if (anchored && jtsCoordinates != null) {
+			// Re-insert the anchored slots into the new geo coordinates.
+			jtsCoordinates = buildResolvedCoordinates(jtsCoordinates, entry.anchors);
+		} else if (anchored && anchorsProvided) {
+			// Anchor set changed without new coordinates: rebuild from the
+			// entry's existing geo points (drop the previous anchor slots).
+			jtsCoordinates = buildResolvedCoordinates(
+				extractGeoCoordinates(entry.jtsCoordinates, entry.anchors),
+				entry.anchors
+			);
+		}
 
 		// Append-only fast path: the new coordinates extend the previous
 		// ones (same prefix) and no paint change was sent. Instead of
 		// removing every drawable and re-adding them (which flickers on
 		// every appended point, e.g. live track recording), only the new
 		// segment drawables are added on top of the existing ones.
-		boolean appendOnly = jtsCoordinates != null
+		// Anchored entries are excluded: their stored coordinates mutate
+		// per frame, so a prefix comparison would be meaningless.
+		boolean appendOnly = !anchored
+			&& jtsCoordinates != null
 			&& jtsCoordinates.length > 0
 			&& styleMap == null
 			&& entry.jtsCoordinates != null
@@ -334,6 +377,14 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		}
 
 		layer.update();
+
+		// Keep the per-frame anchor updater bound exactly while some entry
+		// is anchored.
+		if (anchored) {
+			registerScreenAnchorFrameCallback();
+		} else {
+			unregisterScreenAnchorFrameCallback();
+		}
 
 		// Build response including bounds if requested.
 		ReadableMap responseInclude = Utils.rMapHasKey(params, "responseInclude")
@@ -440,6 +491,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		if (entry.drawables.isEmpty()) {
 			return null;
 		}
+		if (!entry.anchors.isEmpty()) {
+			// Anchored endpoints move with the viewport every frame — a
+			// world envelope keeps the spatial hit-test index valid without
+			// per-frame rebuilds. The exact hit test still uses the live
+			// geometry.
+			return new Envelope(-180, 180, -90, 90);
+		}
 		Envelope envelope = new Envelope();
 		for (LineDrawable drawable : entry.drawables) {
 			envelope.expandToInclude(drawable.getGeometry().getEnvelopeInternal());
@@ -469,6 +527,204 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	public void remove(@NonNull String entryUuid) {
 		super.remove(entryUuid);
 		syncGestureSupport();
+		unregisterScreenAnchorFrameCallback();
+	}
+
+	// ── Screen-anchored points ─────────────────────────────────────────
+
+	/**
+	 * True while a per-frame callback is registered with
+	 * {@link ScreenAnchorRegistry} for this map view. The callback is bound
+	 * exactly while at least one entry has screen-anchored points.
+	 */
+	private volatile boolean frameCallbackRegistered = false;
+
+	private final ScreenAnchorRegistry.FrameCallback screenAnchorFrameCallback = this::updateAnchoredEntries;
+
+	@NonNull
+	private static List<ScreenAnchorPoint> parseScreenPoints(@NonNull ReadableMap params) {
+		List<ScreenAnchorPoint> anchors = new ArrayList<>();
+		if (!Utils.rMapHasKey(params, "screenPoints")) {
+			return anchors;
+		}
+		ReadableArray screenPoints = params.getArray("screenPoints");
+		if (screenPoints == null) {
+			return anchors;
+		}
+		for (int i = 0; i < screenPoints.size(); i++) {
+			ScreenAnchorPoint anchor = ScreenAnchorPoint.fromReadableMap(screenPoints.getMap(i));
+			if (anchor != null) {
+				anchors.add(anchor);
+			}
+		}
+		return anchors;
+	}
+
+	@Nullable
+	private static ScreenAnchorPoint anchorAt(
+		@NonNull List<ScreenAnchorPoint> anchors,
+		int index
+	) {
+		for (ScreenAnchorPoint anchor : anchors) {
+			if (anchor.index == index) {
+				return anchor;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Merges geo coordinates and anchored slots into the resolved point
+	 * list. Each anchor is resolved against the current viewport (falling
+	 * back to the map position center when the viewport has no size yet —
+	 * the first real frame event then corrects it).
+	 */
+	@Nullable
+	private Coordinate[] buildResolvedCoordinates(
+		@NonNull Coordinate[] geoCoordinates,
+		@NonNull List<ScreenAnchorPoint> anchors
+	) {
+		if (geoCoordinates.length == 0 && anchors.isEmpty()) {
+			return null;
+		}
+		Coordinate[] resolved = new Coordinate[geoCoordinates.length + anchors.size()];
+		int geoIdx = 0;
+		for (int i = 0; i < resolved.length; i++) {
+			ScreenAnchorPoint anchor = anchorAt(anchors, i);
+			if (anchor != null) {
+				anchor.resolve(mapView);
+				if (anchor.isResolved()) {
+					resolved[i] = new Coordinate(anchor.lng, anchor.lat, 0);
+				} else {
+					MapPosition mp = mapView.map().getMapPosition();
+					resolved[i] = new Coordinate(mp.getLongitude(), mp.getLatitude(), 0);
+				}
+			} else {
+				if (geoIdx >= geoCoordinates.length) {
+					throw new IllegalArgumentException(
+						"screenPoints indices exceed the provided coordinates");
+				}
+				resolved[i] = geoCoordinates[geoIdx++];
+			}
+		}
+		if (geoIdx != geoCoordinates.length) {
+			throw new IllegalArgumentException(
+				"screenPoints indices skip provided coordinates");
+		}
+		return resolved;
+	}
+
+	/** Drops the coordinates at the anchored slots from a resolved list. */
+	@NonNull
+	private static Coordinate[] extractGeoCoordinates(
+		@NonNull Coordinate[] resolved,
+		@NonNull List<ScreenAnchorPoint> anchors
+	) {
+		Coordinate[] geo = new Coordinate[resolved.length - anchors.size()];
+		int g = 0;
+		for (int i = 0; i < resolved.length; i++) {
+			if (anchorAt(anchors, i) != null) {
+				continue;
+			}
+			geo[g++] = resolved[i];
+		}
+		return geo;
+	}
+
+	private void registerScreenAnchorFrameCallback() {
+		if (!frameCallbackRegistered) {
+			frameCallbackRegistered = true;
+			ScreenAnchorRegistry.register(nativeNodeHandle, mapView, screenAnchorFrameCallback);
+		}
+	}
+
+	private void unregisterScreenAnchorFrameCallback() {
+		if (frameCallbackRegistered && !hasAnchoredEntries()) {
+			frameCallbackRegistered = false;
+			ScreenAnchorRegistry.unregister(nativeNodeHandle, screenAnchorFrameCallback);
+		}
+	}
+
+	private boolean hasAnchoredEntries() {
+		for (PathEntry entry : entries.values()) {
+			if (!entry.anchors.isEmpty()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Per-frame entry point (registered with {@link ScreenAnchorRegistry}):
+	 * re-resolves every anchored coordinate against the live viewport and
+	 * mutates the touched segment drawables in place. Runs on the map event
+	 * thread; the mutation sequence is serialized against the shared
+	 * VectorLayer's {@code processFeatures} (worker thread) via its monitor.
+	 */
+	private void updateAnchoredEntries(@NonNull MapView mapView) {
+		for (PathEntry entry : entries.values()) {
+			if (entry.anchors.isEmpty()) {
+				continue;
+			}
+			VectorLayer layer = (VectorLayer) getSharedLayer(entry.fragmentUuid);
+			if (layer == null) {
+				continue;
+			}
+			boolean changed = false;
+			for (ScreenAnchorPoint anchor : entry.anchors) {
+				changed |= anchor.resolveAndCheckChanged(mapView);
+			}
+			if (!changed) {
+				continue;
+			}
+			int pointCount = entry.jtsCoordinates.length;
+			synchronized (layer) {
+				for (ScreenAnchorPoint anchor : entry.anchors) {
+					int i = anchor.index;
+					if (i < 0 || i >= pointCount) {
+						continue;
+					}
+					entry.jtsCoordinates[i].x = anchor.lng;
+					entry.jtsCoordinates[i].y = anchor.lat;
+					// drawables.get(j) spans points j -> j+1, so point i is
+					// the end of segment i-1 and the start of segment i.
+					if (i > 0 && i - 1 < entry.drawables.size()) {
+						updateDrawableEndpoint(entry.drawables.get(i - 1), 1, anchor, layer);
+					}
+					if (i < pointCount - 1 && i < entry.drawables.size()) {
+						updateDrawableEndpoint(entry.drawables.get(i), 0, anchor, layer);
+					}
+				}
+			}
+			// Recompile the shared layer's geometry on its worker thread so
+			// the mutated drawables reach the renderer this frame.
+			layer.update();
+		}
+	}
+
+	/**
+	 * Moves one endpoint of a segment drawable: remove with the old bbox
+	 * (still matches the QuadTree entry), mutate the JTS geometry in place,
+	 * re-add with the fresh bbox. Must be called while holding the layer's
+	 * monitor.
+	 */
+	private static void updateDrawableEndpoint(
+		@NonNull LineDrawable drawable,
+		int coordIndex,
+		@NonNull ScreenAnchorPoint anchor,
+		@NonNull VectorLayer layer
+	) {
+		layer.remove(drawable);
+		Geometry geometry = drawable.getGeometry();
+		if (geometry instanceof LineString) {
+			LineString line = (LineString) geometry;
+			line.getCoordinateSequence().setOrdinate(coordIndex, 0, anchor.lng);
+			line.getCoordinateSequence().setOrdinate(coordIndex, 1, anchor.lat);
+			// Invalidate JTS's cached envelope so the re-add indexes the
+			// new bbox.
+			line.geometryChanged();
+		}
+		layer.add(drawable);
 	}
 
 	// ── Batch creation / removal ──────────────────────────────────────
@@ -1058,6 +1314,10 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	@Override
 	protected void destroy() {
+		if (frameCallbackRegistered) {
+			frameCallbackRegistered = false;
+			ScreenAnchorRegistry.unregister(nativeNodeHandle, screenAnchorFrameCallback);
+		}
 		drawableToEntry.clear();
 		super.destroy();
 	}

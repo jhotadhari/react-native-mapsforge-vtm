@@ -19,7 +19,7 @@ excellent performance for large path counts (50–1000+).
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `coordinates` | `Position[]` | — | Array of `[lng, lat, alt?]` tuples defining the polyline |
+| `coordinates` | `(GeoJsonPosition \| ScreenPointSugar)[]` | — | Array of `[lng, lat, alt?]` tuples — or screen-anchored points (`['50%', '50%']`, `['100dp', '24dp']`, `{ x, y, unit }`) — defining the polyline |
 | `paint` | `PathPaint` | defaults | Stroke/fill/stipple styling |
 | `responseInclude` | `PathResponseInclude` | — | Fields to include in gesture events |
 | `onPress` | `(e: PathTriggerEvent) => void` | — | Tap on this path's geometry |
@@ -29,6 +29,41 @@ excellent performance for large path counts (50–1000+).
 | `onRemove` | `(response: ResponseBase) => void` | — | Fires after the native drawable is removed |
 | `onChange` | `(response: LayerPathResponse) => void` | — | Fires when a prop change triggers recreation |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
+
+## Screen-anchored points
+
+Any element of `coordinates` may be a **screen-anchored point** instead of a
+geographic tuple. The Java side re-resolves the geographic coordinate for
+anchored points on **every map movement** (per frame, on the map event
+thread) — no JS round trips — so the point stays glued to its screen position
+during pan, zoom, and rotate. This is the escape hatch for geometry that must
+connect a native layer to a viewport-relative position (e.g. a line from a
+marker to the map center).
+
+| Form | Meaning |
+|---|---|
+| `['50%', '50%']` | 50% of viewport width/height (top-left origin) |
+| `['100dp', '24dp']` | 100 × 24 dp from the top-left |
+| `{ x: 0.5, y: 0.5 }` | numeric fraction form (0–1, `unit` defaults to `'fraction'`) |
+| `{ x: 120, y: 24, unit: 'dp' }` | numeric dp form |
+
+Notes:
+
+- The string sugar is normalized in JS; only numeric `screenPoints` cross the
+  bridge.
+- Anchored points keep their JSX order — `coordinates={[[lng, lat], ['50%', '50%']]}`
+  draws from the geographic point to the viewport center.
+- Anchored entries are excluded from the append-only fast path (their stored
+  coordinates mutate per frame) and get a world-envelope hit-test index.
+- The per-frame updater binds only while anchored entries exist; maps without
+  anchored geometry pay nothing.
+
+```tsx
+<LayerPath
+	coordinates={[[13.405, 52.52], ['50%', '50%']]}
+	paint={{ strokeColor: '#000000', strokeWidth: 2, fixed: true }}
+/>
+```
 
 ## PathPaint
 
