@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`gnssAltitude` in the `onGnssPosition` payload** — the raw GNSS altitude
+  (independent of the filter's `altitudeSource`), alongside the resolved `altitude`,
+  so consumers can display the raw fix while recording still stores the DEM value.
+
 ### Fixed
 
 - **Live path flicker on append** — `PathLayerManager.updateEntry` tore down and rebuilt

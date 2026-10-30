@@ -176,23 +176,28 @@ public class GnssManager {
 				}
 			}
 
+			// Raw GNSS altitude, independent of altitudeSource.  Consumers
+			// that want the raw fix (e.g. the live altitude display) read
+			// this instead of the resolved `altitude` below.
+			Double gnssAltitude = location.hasAltitude()
+				? location.getAltitude() : null;
+
 			Double altitude = null;
 			switch (altitudeSource) {
 				case "dem-only":
 					altitude = demAlt != null ? demAlt.doubleValue() : null;
 					break;
 				case "gnss-only":
-					altitude = location.hasAltitude()
-						? location.getAltitude() : null;
+					altitude = gnssAltitude;
 					break;
 				case "dem-preferred":
 					altitude = demAlt != null
 						? demAlt.doubleValue()
-						: (location.hasAltitude() ? location.getAltitude() : null);
+						: gnssAltitude;
 					break;
 				case "gnss-preferred":
-					altitude = location.hasAltitude()
-						? location.getAltitude()
+					altitude = gnssAltitude != null
+						? gnssAltitude
 						: (demAlt != null ? demAlt.doubleValue() : null);
 					break;
 			}
@@ -204,6 +209,11 @@ public class GnssManager {
 				payload.putDouble("altitude", altitude);
 			} else {
 				payload.putNull("altitude");
+			}
+			if (gnssAltitude != null) {
+				payload.putDouble("gnssAltitude", gnssAltitude);
+			} else {
+				payload.putNull("gnssAltitude");
 			}
 			payload.putDouble("bearing", location.hasBearing()
 				? location.getBearing() : -1);
@@ -240,6 +250,7 @@ public class GnssManager {
 			err.putDouble("lng", 0);
 			err.putDouble("lat", 0);
 			err.putNull("altitude");
+			err.putNull("gnssAltitude");
 			err.putDouble("bearing", -1);
 			err.putDouble("accuracy", 0);
 			err.putDouble("speed", 0);

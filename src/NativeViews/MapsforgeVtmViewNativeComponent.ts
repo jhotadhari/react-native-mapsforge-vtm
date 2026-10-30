@@ -86,6 +86,8 @@ export interface GnssPosition {
 	lng: Double;
 	lat: Double;
 	altitude: Double | null;
+	/** Raw GNSS altitude, independent of the filter's altitudeSource. */
+	gnssAltitude: Double | null;
 	bearing: Double;
 	accuracy: Double;
 	speed: Double;
