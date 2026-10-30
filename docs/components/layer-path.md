@@ -49,6 +49,8 @@ type PathPaint = {
 };
 ```
 
+`PathPaint` also supports a repeating line texture: `textureFilePath` (PNG from Android assets) with `stipple` as the repeat period in px, `stippleColor` as tint, `transparent` to blend gaps over the map, and `fixed` to keep it zoom-stable.
+
 ## Gesture callbacks
 
 Gesture events include the hit-tested position and the drawable's uuid:

@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm;
 
 import android.content.ContentResolver;
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -25,6 +26,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.operation.distance.DistanceOp;
 import org.oscim.android.MapView;
+import org.oscim.backend.CanvasAdapter;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
 import org.oscim.core.GeoPoint;
@@ -32,8 +34,11 @@ import org.oscim.layers.Layer;
 import org.oscim.layers.vector.geometries.Drawable;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
+import org.oscim.renderer.bucket.TextureItem;
 import org.oscim.utils.geom.GeomBuilder;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -194,7 +199,7 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		ReadableMap styleMap = Utils.rMapHasKey(params, "paint")
 			? params.getMap("paint")
 			: null;
-		Style.Builder styleBuilder = getStyleBuilder(styleMap);
+		Style.Builder styleBuilder = getStyleBuilder(styleMap, reactContext);
 
 		int positionIndex = APPEND_PRIORITY;
 
@@ -281,7 +286,29 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			&& jtsCoordinates.length >= entry.jtsCoordinates.length
 			&& sameCoordinatePrefix(entry.jtsCoordinates, jtsCoordinates);
 
-		if (appendOnly) {
+		// The effective style after this update — needed upfront so
+		// patterned entries (texture / stipple) can take their
+		// single-drawable path even when this update carries no paint.
+		Style effectiveStyle = styleMap != null
+			? getStyleBuilder(styleMap, mapFragment.getActivity()).build()
+			: entry.lastStyle;
+		boolean patterned = effectiveStyle != null
+			&& (effectiveStyle.texture != null || effectiveStyle.stipple != 0);
+
+		if (patterned && jtsCoordinates != null && jtsCoordinates.length > 0) {
+			// Patterned entries render as ONE drawable spanning the whole
+			// polyline (see drawSegments) — keep the texture/dash length
+			// accumulating continuously by rebuilding that drawable with
+			// the new coordinates instead of appending per-segment
+			// drawables (which would restart the pattern at each segment).
+			entry.jtsCoordinates = jtsCoordinates;
+			for (LineDrawable d : entry.drawables) {
+				drawableToEntry.remove(d);
+				layer.remove(d);
+			}
+			entry.drawables.clear();
+			drawSegments(jtsCoordinates, effectiveStyle, entry.pathUuid, layer, entry);
+		} else if (appendOnly) {
 			appendSegments(entry, jtsCoordinates, layer);
 			entry.jtsCoordinates = jtsCoordinates;
 		} else {
@@ -298,11 +325,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 				// Parse new style, or reuse the style the entry was last
 				// drawn with when this update carries no paint.
-				Style style = styleMap != null
-					? getStyleBuilder(styleMap).build()
-					: (entry.lastStyle != null
-						? entry.lastStyle
-						: Style.builder().build());
+				Style style = effectiveStyle != null
+					? effectiveStyle
+					: Style.builder().build();
 
 				drawSegments(jtsCoordinates, style, entry.pathUuid, layer, entry);
 			}
@@ -695,12 +720,52 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 
 	// ── Internal helpers ────────────────────────────────────────────────
 
+	/** Decoded line textures shared across all path layers (asset path → texture). */
+	private static final Map<String, TextureItem> textureCache = new ConcurrentHashMap<>();
+
+	/**
+	 * Returns the (shared, lazily decoded) line texture for the given
+	 * Android assets path, or null when the asset can't be read.
+	 */
+	@Nullable
+	public static TextureItem getTextureItem(
+		@NonNull String assetPath,
+		@NonNull Context context
+	) {
+		return textureCache.computeIfAbsent(assetPath, path -> {
+			try {
+				InputStream is = context.getAssets().open(path);
+				try (is) {
+					// repeat=true (GL_REPEAT wrap): the fixed-texture
+					// shader samples with mod(s + 1, 2) — with the default
+					// CLAMP_TO_EDGE the first stipple window would show
+					// only the tile's right edge. REPEAT makes the pattern
+					// period exactly `stipple` px with the tile filling it.
+					return new TextureItem(CanvasAdapter.decodeBitmap(is), true);
+				}
+			} catch (IOException e) {
+				Log.w(TAG, "Unable to decode line texture asset: " + path, e);
+				return null;
+			}
+		});
+	}
+
 	/**
 	 * Mirrors {@code LayerPath.getStyleBuilderFromMap} — kept here so
 	 * PathLayerManager is self-contained.
 	 */
 	@NonNull
 	protected Style.Builder getStyleBuilder(@Nullable ReadableMap styleMap) {
+		// Kept as an overload for subclasses (e.g. the color-ramp
+		// extension) that override the single-argument form.
+		return getStyleBuilder(styleMap, null);
+	}
+
+	@NonNull
+	protected Style.Builder getStyleBuilder(
+		@Nullable ReadableMap styleMap,
+		@Nullable Context context
+	) {
 		// Hard-coded defaults matching LayerPath.getTypedExportedConstants.
 		double strokeWidth = 4d;
 		String strokeColor = "#ff0000";
@@ -717,6 +782,8 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		Style.Builder styleBuilder = Style.builder();
 		styleBuilder.strokeWidth((float) strokeWidth);
 		styleBuilder.strokeColor(Color.parseColor(Objects.requireNonNull(strokeColor)));
+
+		boolean patterned = false;
 
 		if (styleMap != null) {
 			if (styleMap.hasKey("fillColor")) {
@@ -754,6 +821,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			}
 			if (styleMap.hasKey("stipple")) {
 				styleBuilder.stipple(styleMap.getInt("stipple"));
+				if (styleMap.getInt("stipple") != 0) {
+					patterned = true;
+				}
 			}
 			if (styleMap.hasKey("stippleColor")) {
 				styleBuilder.stippleColor(Color.parseColor(
@@ -768,6 +838,23 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			if (styleMap.hasKey("textureRepeat")) {
 				styleBuilder.textureRepeat(styleMap.getBoolean("textureRepeat"));
 			}
+			if (styleMap.hasKey("textureFilePath")) {
+				String textureFilePath = styleMap.getString("textureFilePath");
+				if (textureFilePath != null && !textureFilePath.isEmpty()) {
+					TextureItem texture = context != null
+						? getTextureItem(textureFilePath, context)
+						: null;
+					if (texture != null) {
+						styleBuilder.texture(texture);
+						patterned = true;
+						// A texture without a period would sample with
+						// u_pscale == 0 (degenerate texture coordinates).
+						if (!styleMap.hasKey("stipple")) {
+							styleBuilder.stipple(64);
+						}
+					}
+				}
+			}
 			if (styleMap.hasKey("heightOffset")) {
 				styleBuilder.heightOffset((float) styleMap.getDouble("heightOffset"));
 			}
@@ -777,6 +864,18 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			if (styleMap.hasKey("transparent")) {
 				styleBuilder.transparent(styleMap.getBoolean("transparent"));
 			}
+		}
+
+		// The engine's LineTexBucket computes the extrusion width as
+		// `lb.scale * width / s` with s = f / (f / 4) = 4 for vector
+		// layers (UNSCALE_COORD = 4), while solid LineBuckets use
+		// `width / sqrt(div)` with div = 4 → width / 2. Patterned styles
+		// therefore render at HALF the solid width for the same
+		// strokeWidth — compensate here so textured/stippled paths match
+		// solid ones exactly. TEXLINE buckets only ever serve vector
+		// layers, so the factor is zoom-invariant and exact.
+		if (patterned) {
+			styleBuilder.strokeWidth((float) (strokeWidth * 2.0));
 		}
 
 		return styleBuilder;
@@ -807,6 +906,12 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 	/**
 	 * Draws LineDrawable segments onto the shared VectorLayer.
 	 * Mirrors {@code LayerPath.drawLineForCoordinates}.
+	 *
+	 * Patterned styles (texture / stipple) are drawn as ONE drawable
+	 * spanning all coordinates: the engine accumulates the texture/dash
+	 * length per drawable, so per-segment drawables would restart the
+	 * pattern at every segment and crumble at low zoom (segments shorter
+	 * than the pattern period on screen).
 	 */
 	protected void drawSegments(
 		@NonNull Coordinate[] jtsCoordinates,
@@ -816,6 +921,22 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		@NonNull PathEntry entry
 	) {
 		entry.lastStyle = style;
+
+		if (style.texture != null || style.stipple != 0) {
+			double[] coords = new double[jtsCoordinates.length * 2];
+			int c = 0;
+			for (Coordinate jts : jtsCoordinates) {
+				coords[c++] = jts.x;
+				coords[c++] = jts.y;
+			}
+			LineDrawable drawable = new LineDrawable(coords, style);
+			vectorLayer.add(drawable);
+			drawableToEntry.put(drawable, entryUuid);
+			drawable.setPriority(entry.positionIndex);
+			entry.drawables.add(drawable);
+			return;
+		}
+
 		for (int i = 0; i < jtsCoordinates.length; i++) {
 			if (i != 0) {
 				double[] segment = new double[4];

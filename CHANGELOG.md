@@ -9,12 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`textureFilePath` on `LayerPath` paint** — repeating line texture (PNG from
+  Android assets) following the path direction; `stipple` sets the repeat period,
+  `stippleColor` tints it, `transparent` blends gaps over the map. Known
+  limitations (engine-level): the pattern phase quantizes at very low zoom and
+  re-anchors during pan.
 - **`gnssAltitude` in the `onGnssPosition` payload** — the raw GNSS altitude
   (independent of the filter's `altitudeSource`), alongside the resolved `altitude`,
   so consumers can display the raw fix while recording still stores the DEM value.
 
 ### Fixed
 
+- **Patterned path styles rendered at half the solid width** — the engine's
+  `LineTexBucket` computes the extrusion width as `width / s` (`s = 4` for
+  vector layers) while solid `LineBucket`s use `width / sqrt(div)` (`div = 4`),
+  so textured/stippled `LayerPath` styles drew at half the strokeWidth of solid
+  lines. The bridge now doubles the strokeWidth for patterned styles so both
+  render identically (factor is zoom-invariant; solid styles unchanged).
+- **Patterned path styles restarted at every segment** — textured/stippled
+  `LayerPath` entries were drawn as one drawable per segment and the engine
+  resets the pattern length per drawable; at low zoom segments shorter than
+  the pattern period crumbled into fragments. Patterned entries now render
+  as a single drawable spanning the whole polyline, keeping the pattern
+  phase continuous at every zoom (solid styles are unchanged).
 - **Live path flicker on append** — `PathLayerManager.updateEntry` tore down and rebuilt
   every `LineDrawable` of a path on each update. Coordinates that only extend the
   previous ones (same prefix) now append just the new segment drawables and reuse the

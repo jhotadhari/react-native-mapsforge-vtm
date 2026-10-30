@@ -33,6 +33,7 @@ import org.oscim.backend.canvas.Paint;
 import org.oscim.core.GeoPoint;
 import org.oscim.layers.vector.geometries.LineDrawable;
 import org.oscim.layers.vector.geometries.Style;
+import org.oscim.renderer.bucket.TextureItem;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -103,6 +104,8 @@ public class LayerPath extends NativeLayerPathSpec {
 		styleBuilder.strokeWidth( (float) strokeWidth );
 		styleBuilder.strokeColor( Color.parseColor( Objects.requireNonNull( strokeColor ) ) );
 
+		boolean patterned = false;
+
 		if ( Utils.rMapHasKey( styleMap, "fillColor" ) ) {
 			styleBuilder.fillColor( Color.parseColor( Objects.requireNonNull( styleMap.getString("fillColor" ) ) ) );
 		}
@@ -137,6 +140,9 @@ public class LayerPath extends NativeLayerPathSpec {
 		}
 		if ( Utils.rMapHasKey( styleMap, "stipple" ) ) {
 			styleBuilder.stipple( (int) styleMap.getInt( "stipple" ) );
+			if ( styleMap.getInt( "stipple" ) != 0 ) {
+				patterned = true;
+			}
 		}
 		if ( Utils.rMapHasKey( styleMap, "stippleColor" ) ) {
 			styleBuilder.stippleColor( Color.parseColor( Objects.requireNonNull( styleMap.getString("stippleColor" ) ) ) );
@@ -150,6 +156,22 @@ public class LayerPath extends NativeLayerPathSpec {
 		if ( Utils.rMapHasKey( styleMap, "textureRepeat" ) ) {
 			styleBuilder.textureRepeat( styleMap.getBoolean( "textureRepeat" ) );
 		}
+		if ( Utils.rMapHasKey( styleMap, "textureFilePath" ) ) {
+			String textureFilePath = styleMap.getString( "textureFilePath" );
+			if ( null != textureFilePath && ! textureFilePath.isEmpty() ) {
+				TextureItem texture = PathLayerManager.getTextureItem(
+					textureFilePath,
+					getReactApplicationContext()
+				);
+				if ( null != texture ) {
+					styleBuilder.texture( texture );
+					patterned = true;
+					if ( ! Utils.rMapHasKey( styleMap, "stipple" ) ) {
+						styleBuilder.stipple( 64 );
+					}
+				}
+			}
+		}
 		if ( Utils.rMapHasKey( styleMap, "heightOffset" ) ) {
 			styleBuilder.heightOffset( (float) styleMap.getDouble( "heightOffset" ) );
 		}
@@ -159,6 +181,15 @@ public class LayerPath extends NativeLayerPathSpec {
 		if ( Utils.rMapHasKey( styleMap, "transparent" ) ) {
 			styleBuilder.transparent( styleMap.getBoolean( "transparent" ) );
 		}
+
+		// Mirror of PathLayerManager.getStyleBuilder: the engine renders
+		// patterned (textured/stippled) vector-layer styles at half the
+		// solid width (LineTexBucket s = 4 vs LineBucket sqrt(div) = 2) —
+		// double the strokeWidth so they match solid lines exactly.
+		if ( patterned ) {
+			styleBuilder.strokeWidth( (float) ( strokeWidth * 2.0 ) );
+		}
+
 		return styleBuilder;
 	}
 

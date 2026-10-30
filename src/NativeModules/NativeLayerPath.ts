@@ -42,6 +42,13 @@ export type PathPaint = {
 	stippleWidth?: Double;
 	dropDistance?: Double;
 	textureRepeat?: boolean;
+	/**
+	 * Android assets path of a PNG tile rendered repeatedly along the
+	 * path (oriented in coordinate order). `stipple` sets the repeat
+	 * period in px, `stippleColor` tints the tile, `transparent` blends
+	 * the tile's transparent areas over the map.
+	 */
+	textureFilePath?: string;
 	heightOffset?: Double;
 	randomOffset?: boolean;
 	transparent?: boolean;
@@ -90,6 +97,7 @@ export interface UpdateCoordinatesParams {
 		stippleWidth?: Double;
 		dropDistance?: Double;
 		textureRepeat?: boolean;
+		textureFilePath?: string;
 		heightOffset?: Double;
 		randomOffset?: boolean;
 		transparent?: boolean;
