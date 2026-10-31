@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.views;
 
 import android.content.Context;
+import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,6 +22,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.HitTestLayer;
+import com.jhotadhari.reactnative.mapsforge.vtm.gnss.CompassManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager;
 
 import org.json.JSONArray;
@@ -43,6 +45,8 @@ public class MapFragment extends Fragment {
 	private HitTestLayer gestureLayer;
 
 	private GnssManager gnssManager;
+
+	private CompassManager compassManager;
 
 
 
@@ -88,6 +92,10 @@ public class MapFragment extends Fragment {
 			// listener never starts and no positions flow until the
 			// prop changes (e.g. a GNSS toggle).
 			updateGnssFilter();
+			// Same race applies to the compass — re-apply the stored
+			// compassEnabled prop so azimuth events flow even when the
+			// prop arrived before the fragment existed.
+			updateCompassEnabled();
 			bindGestureLayer();
 		} catch ( Exception e ) {
 			e.printStackTrace();
@@ -435,6 +443,42 @@ public class MapFragment extends Fragment {
 		}
 	}
 
+	/**
+	 * Start or stop the device-compass sensor based on the current
+	 * {@code compassEnabled} prop on the parent {@link MapsforgeVtmView}.
+	 */
+	public void updateCompassEnabled() {
+		MapsforgeVtmView parent = getMapsforgeVtmView();
+		if ( null == parent ) return;
+
+		// Stop any existing listener first.
+		if ( null != compassManager ) {
+			compassManager.stop();
+			compassManager = null;
+		}
+
+		if ( !parent.getCompassEnabled() ) return;
+
+		Context ctx = getContext();
+		if ( null == ctx ) return;
+
+		SensorManager sm = (SensorManager) ctx.getSystemService( Context.SENSOR_SERVICE );
+		if ( null == sm ) return;
+
+		compassManager = CompassManager.create(
+			sm,
+			azimuth -> {
+				WritableMap payload = Arguments.createMap();
+				payload.putDouble( "azimuth", azimuth );
+				parent.emitDeviceAzimuth( payload );
+			}
+		);
+
+		if ( null != compassManager ) {
+			compassManager.start();
+		}
+	}
+
 	@Override
 	public void onPause() {
 		if ( null != mapView && null != getMapsforgeVtmView() ) {
@@ -481,6 +525,10 @@ public class MapFragment extends Fragment {
 		if ( null != gnssManager ) {
 			gnssManager.stop();
 			gnssManager = null;
+		}
+		if ( null != compassManager ) {
+			compassManager.stop();
+			compassManager = null;
 		}
 		// Tear down LayerManagers FIRST — they need a live mapView to remove
 		// their shared layers from mapView.map().layers(). Then tear down the

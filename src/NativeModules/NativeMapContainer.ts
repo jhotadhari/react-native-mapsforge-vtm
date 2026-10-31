@@ -32,6 +32,7 @@ export interface ModuleParams {
 	maxRoll: Double;
 	emitsMapUpdateEvents: null | boolean;
 	emitsHardwareKeyUp: ReadonlyArray<string>;
+	compassEnabled: boolean;
 	tileSize?: Double;
 	density?: Double;
 }

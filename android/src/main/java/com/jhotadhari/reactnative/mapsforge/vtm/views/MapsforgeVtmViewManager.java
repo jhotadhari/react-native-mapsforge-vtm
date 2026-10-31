@@ -209,6 +209,14 @@ public class MapsforgeVtmViewManager extends SimpleViewManager<MapsforgeVtmView>
 		}
 	}
 
+	@ReactProp( name = "compassEnabled" )
+	@Override
+	public void setCompassEnabled( MapsforgeVtmView view, boolean value ) {
+		if ( view != null ) {
+			view.setCompassEnabled( value );
+		}
+	}
+
 	/**
 	 * Called when React Native permanently removes this native view
 	 * (e.g. MapContainer is unmounted).  Tear down the MapFragment

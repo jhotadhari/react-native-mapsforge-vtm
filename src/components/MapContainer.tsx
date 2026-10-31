@@ -76,6 +76,8 @@ const MapContainer = ({
 	onLongPress,
 	gnssFilter,
 	onGnssPosition,
+	compassEnabled = moduleDefaults.compassEnabled,
+	onDeviceAzimuth,
 }: MapContainerProps & {
 	hgtDirPath?: string | null;
 	triggerEvent?: MutableRefObject<null | ((params: TriggerParams) => void)>;
@@ -249,6 +251,10 @@ const MapContainer = ({
 				onAnchorsChanged={handleAnchorsChanged}
 				gnssFilter={gnssFilter ? gnssFilter : null}
 				onGnssPosition={onGnssPosition ? onGnssPosition : null}
+				compassEnabled={
+					isBoolean(compassEnabled) ? compassEnabled : false
+				}
+				onDeviceAzimuth={onDeviceAzimuth ? onDeviceAzimuth : null}
 			/>
 			{mapCreated && (
 				<MarkerLayerContext.Provider
