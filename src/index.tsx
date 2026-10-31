@@ -19,7 +19,16 @@ import type {
 	MarkerResponse,
 	MarkerPaint,
 	MarkerTriggerParams,
+	ScreenPosition as MarkerScreenPosition,
 } from './NativeModules/NativeLayerMarker';
+
+import LayerLabel from './components/LayerLabel';
+import type {
+	LabelPaint,
+	LabelPosition,
+	LabelResponse,
+	LayerLabelProps,
+} from './NativeModules/NativeLayerLabel';
 
 import LayerBitmapTile from './components/LayerBitmapTile';
 import type { LayerBitmapTileProps } from './NativeModules/NativeLayerBitmapTile';
@@ -34,6 +43,7 @@ import type {
 	PathResponseInclude,
 	PathTriggerEvent,
 	PathTriggerParams,
+	ScreenPosition as PathScreenPosition,
 } from './NativeModules/NativeLayerPath';
 
 import LayerPathJts from './components/LayerPathJts';
@@ -49,6 +59,14 @@ import type {
 
 import LayerScalebar from './components/LayerScalebar';
 import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
+
+import LayerScreenLine from './components/LayerScreenLine';
+import type {
+	LayerScreenLineProps,
+	LineResponse,
+	ScreenLinePaint,
+	ScreenPosition as ScreenLineScreenPosition,
+} from './NativeModules/NativeScreenLine';
 
 import LayerShape from './components/LayerShape';
 import type {
@@ -155,6 +173,15 @@ import useNativeLayerLifecycle, {
 	type RemoveFlags,
 } from './compose/useNativeLayerLifecycle';
 
+import type {
+	ScreenPosition,
+	ScreenPositionUnit,
+	ScreenPointObject,
+	ScreenPointString,
+	ScreenPointSugar,
+	ScreenOrGeoPosition,
+} from './utils/screenPosition';
+
 export {
 	// MapContainer and MapsforgeVtmViewNativeComponent.
 	MapContainer,
@@ -174,6 +201,14 @@ export {
 	type MarkerPaint,
 	type LayerMarkerProps,
 	type MarkerProps,
+	type MarkerScreenPosition,
+
+	// LayerLabel and NativeLayerLabel.
+	LayerLabel,
+	type LabelPaint,
+	type LabelPosition,
+	type LabelResponse,
+	type LayerLabelProps,
 
 	// LayerBitmapTile and NativeLayerBitmapTile.
 	LayerBitmapTile,
@@ -189,6 +224,7 @@ export {
 	type LayerPathResponse,
 	type LayerPathGestureResponse,
 	type LayerPathProps,
+	type PathScreenPosition,
 
 	// LayerPathJts and NativeLayerPathJts.
 	LayerPathJts,
@@ -203,6 +239,13 @@ export {
 	// LayerScalebar and NativeLayerScalebar.
 	LayerScalebar,
 	type LayerScalebarProps,
+
+	// LayerScreenLine and NativeScreenLine.
+	LayerScreenLine,
+	type ScreenLinePaint,
+	type LineResponse,
+	type LayerScreenLineProps,
+	type ScreenLineScreenPosition,
 
 	// LayerShape and NativeLayerShape.
 	LayerShape,
@@ -311,6 +354,16 @@ export {
 	type RemoveFlags,
 	useMapEventInterval,
 	useViewportBbox,
+
+	// Screen-anchored positions — the escape hatch that pins a point of a
+	// native layer to the map's screen, re-resolved on the Java side per
+	// frame. See docs/components/layer-path.md.
+	type ScreenPosition,
+	type ScreenPositionUnit,
+	type ScreenPointString,
+	type ScreenPointObject,
+	type ScreenPointSugar,
+	type ScreenOrGeoPosition,
 };
 
 // Shared path response type — union of both PathResponseInclude variants.

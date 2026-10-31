@@ -105,6 +105,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		 * validation so both createMarkers and applyEntryPriorities agree).
 		 */
 		public final long creationSeq;
+		/**
+		 * When set, the marker is pinned to a screen position instead of a
+		 * geographic one. The geographic coordinate is resolved per frame by
+		 * {@link #updateAnchoredMarkers(MapView)}. Null for plain markers.
+		 */
+		@Nullable
+		public ScreenAnchorPoint screenPosition;
 
 		public MarkerEntry(
 			@NonNull String entryUuid,
@@ -212,14 +219,28 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		// Ensure the group exists (creates root group lazily if needed).
 		ensureGroup(groupUuid, fragmentUuid, null, APPEND_PRIORITY);
 
-		// Resolve marker position.
+		// Resolve marker position. A screen-pinned marker still carries a
+		// placeholder geographic position (JS sends [0, 0]) — the real
+		// coordinate is resolved from the current viewport below.
 		if (!Utils.rMapHasKey(params, "position")) {
 			throw new IllegalArgumentException("Marker does not have a position");
 		}
 		ReadableArray position = params.getArray("position");
 
+		ScreenAnchorPoint screenPosition = Utils.rMapHasKey(params, "screenPosition")
+			&& !params.isNull("screenPosition")
+			? ScreenAnchorPoint.fromReadableMap(params.getMap("screenPosition"))
+			: null;
+		if (screenPosition != null) {
+			screenPosition.resolve(mapView);
+		}
+
 		String title = Utils.rMapHasKey(params, "title") ? params.getString("title") : "";
 		String description = Utils.rMapHasKey(params, "description") ? params.getString("description") : "";
+
+		GeoPoint initialGeo = screenPosition != null && screenPosition.isResolved()
+			? new GeoPoint(screenPosition.lat, screenPosition.lng)
+			: new GeoPoint(Utils.latFromPosition(position), Utils.lngFromPosition(position));
 
 		// Create MarkerItem. Use the group's default symbol if the marker doesn't
 		// provide its own — the caller (LayerMarker.java) resolves the symbol and
@@ -239,10 +260,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 			entryUuid,
 			title,
 			description,
-			new GeoPoint(
-				Utils.latFromPosition(position),
-				Utils.lngFromPosition(position)
-			)
+			initialGeo
 		);
 
 		// Symbol will be set by the caller via setMarkerSymbol, or we set the group default.
@@ -262,9 +280,13 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 
 		// Track.
 		MarkerEntry entry = new MarkerEntry(entryUuid, groupUuid, fragmentUuid, markerItem, APPEND_PRIORITY, entrySeqCounter.incrementAndGet());
+		entry.screenPosition = screenPosition;
 		allMarkers.put(entryUuid, entry);
 		if (group != null) {
 			group.memberMarkerUuids.add(entryUuid);
+		}
+		if (screenPosition != null) {
+			registerScreenAnchorFrameCallback();
 		}
 
 		WritableMap responseData = new WritableNativeMap();
@@ -295,6 +317,7 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		if (group != null) {
 			group.memberMarkerUuids.remove(entry.entryUuid);
 		}
+		unregisterScreenAnchorFrameCallback();
 	}
 
 	@NonNull
@@ -317,11 +340,39 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 				Utils.latFromPosition(position),
 				Utils.lngFromPosition(position)
 			);
+			// A geographic reposition clears any screen pin.
+			entry.screenPosition = null;
+			positionChanged = true;
+		}
+
+		if (Utils.rMapHasKey(params, "screenPosition")) {
+			if (!params.isNull("screenPosition")) {
+				ScreenAnchorPoint screenPosition = ScreenAnchorPoint.fromReadableMap(
+					params.getMap("screenPosition"));
+				if (screenPosition != null) {
+					screenPosition.resolve(mapView);
+					entry.markerItem.geoPoint = new GeoPoint(
+						screenPosition.lat, screenPosition.lng);
+				}
+				entry.screenPosition = screenPosition;
+			} else {
+				// Explicit null clears the screen pin (marker stays where
+				// it is).
+				entry.screenPosition = null;
+			}
 			positionChanged = true;
 		}
 
 		if (positionChanged && layer != null) {
 			layer.populate();
+		}
+
+		// Keep the per-frame anchor updater bound exactly while some marker
+		// is screen-pinned.
+		if (hasScreenPinnedMarkers()) {
+			registerScreenAnchorFrameCallback();
+		} else {
+			unregisterScreenAnchorFrameCallback();
 		}
 
 		return new UpdateResult(null);
@@ -1186,10 +1237,75 @@ public class MarkerLayerManager extends LayerManager<MarkerLayerManager.MarkerEn
 		};
 	}
 
+	// ── Screen-pinned markers ───────────────────────────────────────────
+
+	/**
+	 * True while a per-frame callback is registered with
+	 * {@link ScreenAnchorRegistry} for this map view.
+	 */
+	private volatile boolean frameCallbackRegistered = false;
+
+	private final ScreenAnchorRegistry.FrameCallback screenAnchorFrameCallback = this::updateAnchoredMarkers;
+
+	private boolean hasScreenPinnedMarkers() {
+		for (MarkerEntry entry : allMarkers.values()) {
+			if (entry.screenPosition != null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void registerScreenAnchorFrameCallback() {
+		if (!frameCallbackRegistered) {
+			frameCallbackRegistered = true;
+			ScreenAnchorRegistry.register(nativeNodeHandle, mapView, screenAnchorFrameCallback);
+		}
+	}
+
+	private void unregisterScreenAnchorFrameCallback() {
+		if (frameCallbackRegistered && !hasScreenPinnedMarkers()) {
+			frameCallbackRegistered = false;
+			ScreenAnchorRegistry.unregister(nativeNodeHandle, screenAnchorFrameCallback);
+		}
+	}
+
+	/**
+	 * Per-frame entry point (registered with {@link ScreenAnchorRegistry}):
+	 * re-resolves every screen-pinned marker's coordinate against the live
+	 * viewport and mutates its {@link MarkerItem} in place — the marker
+	 * renderer draws items per frame from their live GeoPoints, so no
+	 * geometry recompile is needed.
+	 */
+	private void updateAnchoredMarkers(@NonNull MapView mapView) {
+		Set<String> touchedFragments = new HashSet<>();
+		for (MarkerEntry entry : allMarkers.values()) {
+			ScreenAnchorPoint anchor = entry.screenPosition;
+			if (anchor == null) {
+				continue;
+			}
+			if (!anchor.resolveAndCheckChanged(mapView)) {
+				continue;
+			}
+			entry.markerItem.geoPoint = new GeoPoint(anchor.lat, anchor.lng);
+			touchedFragments.add(entry.fragmentUuid);
+		}
+		for (String fragmentUuid : touchedFragments) {
+			ItemizedLayer layer = (ItemizedLayer) getSharedLayer(fragmentUuid);
+			if (layer != null) {
+				layer.populate();
+			}
+		}
+	}
+
 	@Override
 	protected void destroy() {
 		allMarkers.clear();
 		groups.clear();
+		if (frameCallbackRegistered) {
+			frameCallbackRegistered = false;
+			ScreenAnchorRegistry.unregister(nativeNodeHandle, screenAnchorFrameCallback);
+		}
 		super.destroy();
 	}
 }

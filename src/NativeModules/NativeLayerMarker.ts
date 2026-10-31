@@ -5,8 +5,10 @@ import type {
 	EventEmitter,
 	Int32,
 } from 'react-native/Libraries/Types/CodegenTypes';
+import type { Position as GeoJsonPosition } from 'geojson';
 import type { ErrorBase } from '../types';
 import type { RefObject } from 'react';
+import type { ScreenPointSugar } from '../utils/screenPosition';
 
 /*
  * Type should be redeclared because of codegen ts parser doesn't allow imported type
@@ -15,6 +17,18 @@ import type { RefObject } from 'react';
  * Mirrors geojson's `Position` ( `[ lng, lat, alt? ]` ), but using `Double` as required by codegen.
  */
 type Position = ReadonlyArray<Double>;
+
+/*
+ * Screen-anchored position override — codegen-local mirror of the public
+ * ScreenPosition in utils/screenPosition.ts. Pins the marker to a position
+ * on the map's screen ('fraction' of the viewport, default, or 'dp'),
+ * re-resolved by the Java side on every map movement.
+ */
+export type ScreenPosition = {
+	x: Double;
+	y: Double;
+	unit?: string; // 'fraction' | 'dp'
+};
 
 interface ResponseBase {
 	uuid: string;
@@ -122,6 +136,12 @@ export interface CreateMarkerParams extends ModuleParams {
 	nativeNodeHandle: Int32;
 	markerLayerUuid: string | null; // null = root group (no LayerMarker wrapper)
 	fragmentUuid?: string;
+	/**
+	 * Screen-anchored position override. When set, the marker's geographic
+	 * position is resolved from this screen position (re-resolved per frame
+	 * on the Java side); `position` still carries a placeholder `[0, 0]`.
+	 */
+	screenPosition?: ScreenPosition;
 }
 
 export interface CreateMarkersParams {
@@ -175,6 +195,11 @@ interface UpdateMarkerParams extends ModuleLayerParams {
 	markerLayerUuid?: string | null;
 	uuid?: string;
 	position?: null | Position;
+	/**
+	 * Screen-anchored position override. Set to replace/keep the screen pin
+	 * (a null value clears it); absent = unchanged.
+	 */
+	screenPosition?: null | ScreenPosition;
 }
 
 interface TriggerParamsBase {
@@ -232,7 +257,13 @@ export type LayerMarkerProps = {
 };
 
 export type MarkerProps = {
-	position: CreateMarkerParams['position'];
+	/**
+	 * Geographic position `[lng, lat]` — or a screen-anchored point
+	 * (`['50%', '50%']`, `['100dp', '24dp']`, or `{ x, y, unit }`) pinned
+	 * to the map's screen and updated by the Java side on every map
+	 * movement (see ScreenPosition).
+	 */
+	position: (GeoJsonPosition | ScreenPointSugar) | null;
 	title?: CreateMarkerParams['title'];
 	description?: CreateMarkerParams['description'];
 	paint?: MarkerPaint;

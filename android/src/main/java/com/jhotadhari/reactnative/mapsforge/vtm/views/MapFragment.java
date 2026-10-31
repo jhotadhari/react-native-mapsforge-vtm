@@ -490,6 +490,11 @@ public class MapFragment extends Fragment {
 		int handle = parent != null ? parent.getId() : 0;
 		if ( parent != null ) {
 			com.jhotadhari.reactnative.mapsforge.vtm.layer.LayerManager.removeAll( handle );
+			// Tear down any per-frame screen-anchor callbacks while the
+			// mapView (and its event dispatcher) is still alive.
+			if ( mapView != null ) {
+				com.jhotadhari.reactnative.mapsforge.vtm.ScreenAnchorRegistry.clear( handle, mapView );
+			}
 			com.jhotadhari.reactnative.mapsforge.vtm.MapMutationQueue.remove( handle );
 			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.removeElevationReader( handle, parent.getReactContext() );
 				com.jhotadhari.reactnative.mapsforge.vtm.MapPositionWriter

@@ -11,12 +11,14 @@ import com.facebook.react.module.model.ReactModuleInfoProvider;
 import com.facebook.react.uimanager.ViewManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.CanvasAdapter;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerHillshading;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerLabel;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMapsforge;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMarker;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMBTilesBitmap;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerPath;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerPathJts;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerScalebar;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerScreenLine;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerShape;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerBitmapTile;
@@ -52,6 +54,9 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 		if ( LayerMarker.NAME.equals( s ) ) {
 			return new LayerMarker( reactApplicationContext );
 		}
+		if ( LayerLabel.NAME.equals( s ) ) {
+			return new LayerLabel( reactApplicationContext );
+		}
 		if ( LayerPath.NAME.equals( s ) ) {
 			return new LayerPath( reactApplicationContext );
 		}
@@ -60,6 +65,9 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 		}
 		if ( LayerScalebar.NAME.equals( s ) ) {
 			return new LayerScalebar( reactApplicationContext );
+		}
+		if ( LayerScreenLine.NAME.equals( s ) ) {
+			return new LayerScreenLine( reactApplicationContext );
 		}
 		if ( LayerShape.NAME.equals( s ) ) {
 			return new LayerShape( reactApplicationContext );
@@ -127,6 +135,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 					false,							// isCxxModule
 					true							// isTurboModule
 				) );
+				map.put( LayerLabel.NAME, new ReactModuleInfo(
+					LayerLabel.NAME,				// name
+					LayerLabel.NAME,				// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
 				map.put( LayerPath.NAME, new ReactModuleInfo(
 					LayerPath.NAME,					// name
 					LayerPath.NAME,					// className
@@ -146,6 +162,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 				map.put( LayerScalebar.NAME, new ReactModuleInfo(
 					LayerScalebar.NAME,				// name
 					LayerScalebar.NAME,				// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
+				map.put( LayerScreenLine.NAME, new ReactModuleInfo(
+					LayerScreenLine.NAME,			// name
+					LayerScreenLine.NAME,			// className
 					false,							// canOverrideExistingModule
 					false,							// needsEagerInit
 					false,							// isCxxModule

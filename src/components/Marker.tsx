@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import { omit } from 'lodash-es';
 
 /**
@@ -17,6 +17,7 @@ import {
 	type MarkerResponse,
 } from '../NativeModules/NativeLayerMarker';
 import type { ErrorBase } from '../types';
+import { normalizeMarkerPosition } from '../utils/screenPosition';
 import useMarkerEventSubscription from '../compose/useMarkerEventSubscription';
 import useLayerAnchor from '../compose/useLayerAnchor';
 import useLayerEntry from '../compose/useLayerEntry';
@@ -72,6 +73,15 @@ const Marker = ({
 	const justCreatedRef = useRef(false);
 	const createdPositionRef = useRef(position);
 	const createdPaintRef = useRef(paint);
+
+	// Split the position prop into the geographic position and the screen
+	// anchor. Sugar positions (['50%', '50%']) become a placeholder geo
+	// position plus the screenPosition descriptor — only numeric values
+	// cross the bridge.
+	const resolvedPosition = useMemo(
+		() => normalizeMarkerPosition(position),
+		[position]
+	);
 
 	const { uid: anchorUid, element: anchorElement } = useLayerAnchor({
 		kind: 'layer',
@@ -134,7 +144,7 @@ const Marker = ({
 				markerLayerUuid,
 				...(title && { title }),
 				...(description && { description }),
-				...(position && { position }),
+				...resolvedPosition,
 				...(paint && { paint }),
 				fragmentUuid,
 				layerUuids,
@@ -222,7 +232,9 @@ const Marker = ({
 				nativeNodeHandle,
 				markerLayerUuid,
 				uuid,
-				...(position && { position }),
+				// Always sent (possibly as screenPosition): the update
+				// replaces the previous position/pin state.
+				...resolvedPosition,
 				...(paint && { paint }),
 			})
 				.then((updatedUuid: string) => {
@@ -243,6 +255,7 @@ const Marker = ({
 		markerLayerUuid,
 		nativeNodeHandle,
 		position,
+		resolvedPosition,
 		paint,
 		onChange,
 		onError,

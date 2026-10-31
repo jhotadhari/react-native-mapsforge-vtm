@@ -7,7 +7,7 @@ An individual map marker rendered as a native drawable. Must be a child of
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `position` | `Position` (`[lng, lat, alt?]`) | — | Marker position |
+| `position` | `Position` (`[lng, lat, alt?]`) or screen-anchored point | — | Marker position |
 | `paint` | `MarkerPaint` | — | Marker appearance |
 | `onPress` | `(e: MarkerEvent) => void` | — | Tap on this marker |
 | `onLongPress` | `(e: MarkerEvent) => void` | — | Long press on this marker |
@@ -16,6 +16,19 @@ An individual map marker rendered as a native drawable. Must be a child of
 | `onRemove` | `(response: ResponseBase) => void` | — | Fires after the marker is removed |
 | `onChange` | `(response: MarkerResponse) => void` | — | Fires on prop changes |
 | `onError` | `(err: ErrorBase) => void` | — | Fires on native errors |
+
+### Screen-anchored positions
+
+`position` may be a **screen-anchored point** — `['50%', '50%']`,
+`['100dp', '24dp']`, or `{ x, y, unit }` — pinning the marker to a position
+on the map's screen. The Java side re-resolves the marker's geographic
+coordinate on every map movement (per frame), so a screen-pinned marker
+stays glued to its screen position during pan/zoom/rotate with zero bridge
+crossings:
+
+```tsx
+<Marker position={['50%', '50%']} paint={{ ... }} />
+```
 
 ## MarkerPaint
 

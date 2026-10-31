@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`LayerScreenLine`** — a polyline rebuilt natively on the GL thread
+  every rendered frame from the frame's own sync viewport
+  (`ScreenLineRenderer`): screen-anchored points (`['50%', '50%']`,
+  `['100dp', '24dp']`, `{ x, y, unit }`) track the screen with **zero
+  latency** — no worker thread, no spatial index, no bridge crossings,
+  bearing/tilt-correct. The zero-lag sibling of `LayerPath` (whose
+  anchored points recompile asynchronously and trail by 1–2 frames) for
+  lines that must stay glued to the viewport while panning.
+- **Screen-anchored points on `LayerPath` and `Marker`** — any element of
+  `LayerPath`'s `coordinates` (or a `Marker`'s `position`) may be a
+  screen-anchored point (`['50%', '50%']`, `['100dp', '24dp']`, or
+  `{ x, y, unit }`) instead of a geographic tuple. The Java side re-resolves
+  the geographic coordinate on **every map movement** (a per-frame map event
+  listener, bound only while anchored geometry exists and independent of
+  `emitsMapUpdateEvents`) — the pinned point stays glued to its screen
+  position during pan/zoom/rotate with zero bridge crossings.
+- **`LayerLabel`** — a text label rendered into the map itself (native
+  bitmap layer at a screen position): pixel-perfect alignment with
+  map-rendered geometry, no overlay lag, text center-aligned. With
+  `followPosition`, the Java side re-positions the label per frame so it
+  rides the line's axis through the screen anchor and that point — always
+  placed beyond the anchor, away from the follow point, at `offsetDp`,
+  hidden when closer than ~5dp. Taps land in the map's hit aggregation
+  (`manager: 'labels'`).
 - **`textureFilePath` on `LayerPath` paint** — repeating line texture (PNG from
   Android assets) following the path direction; `stipple` sets the repeat period,
   `stippleColor` tints it, `transparent` blends gaps over the map. Known

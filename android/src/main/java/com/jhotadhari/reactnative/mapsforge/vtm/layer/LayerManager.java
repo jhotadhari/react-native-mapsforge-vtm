@@ -338,7 +338,17 @@ public abstract class LayerManager<TEntry> {
 			Utils.rMapGetStringList(params, "layerUuids")
 		);
 
-		CreateResult<TEntry> result = createEntry(entryUuid, params, mapFragment, contentResolver, reactContext);
+		CreateResult<TEntry> result;
+		try {
+			result = createEntry(entryUuid, params, mapFragment, contentResolver, reactContext);
+		} catch (Exception e) {
+			// A failed createEntry must not leak the shared layer it was
+			// about to use: prune the fragment (a no-op when other entries
+			// still use it) so the JS scene retry-loop doesn't churn around
+			// a zombie layer.
+			pruneFragmentIfEmpty(fragmentUuid);
+			throw e;
+		}
 		entries.put(entryUuid, result.entry);
 		hitTestIndexDirty.set(true);
 
