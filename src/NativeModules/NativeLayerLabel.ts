@@ -39,7 +39,12 @@ export type LabelPaint = {
 };
 
 export interface ModuleParams {
-	paint?: LabelPaint;
+	// Inlined (not the LabelPaint alias): codegen rejects aliases in
+	// getConstants() return types — mirrors ModuleParams in NativeLayerPath.
+	paint?: {
+		fontSize?: Int32;
+		textColor?: string;
+	};
 }
 
 export interface CreateLabelParams extends ModuleParams {
@@ -65,7 +70,7 @@ export interface CreateLabelParams extends ModuleParams {
 	fallbackOffsetDp?: Double;
 }
 
-export interface UpdateLabelParams extends ModuleParams {
+export interface UpdateLabelParams {
 	nativeNodeHandle?: Int32;
 	uuid?: string;
 	text?: string;
@@ -73,6 +78,18 @@ export interface UpdateLabelParams extends ModuleParams {
 	followPosition?: Position;
 	gapDp?: Double;
 	fallbackOffsetDp?: Double;
+	paint?: {
+		// LabelPaint
+		fontSize?: Int32;
+		textColor?: string;
+		backgroundColor?: string;
+		backgroundAlpha?: Double;
+		borderRadius?: Int32;
+		paddingHorizontal?: Int32;
+		paddingVertical?: Int32;
+		fontFamily?: string;
+		fontStyle?: string;
+	};
 }
 
 export interface RemoveLabelParams {
