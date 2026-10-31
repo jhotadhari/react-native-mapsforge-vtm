@@ -67,6 +67,7 @@ public class MapsforgeVtmView extends LinearLayout {
 	private double maxRoll;
 	private boolean emitsMapUpdateEvents;
 	private ReadableMap gnssFilter;
+	private boolean compassEnabled;
 
 	public MapsforgeVtmView( ThemedReactContext context ) { super(context); }
 
@@ -537,6 +538,17 @@ public class MapsforgeVtmView extends LinearLayout {
 		return gnssFilter;
 	}
 
+	public void setCompassEnabled( boolean compassEnabled ) {
+		this.compassEnabled = compassEnabled;
+		if ( null != mapFragment ) {
+			mapFragment.updateCompassEnabled();
+		}
+	}
+
+	public boolean getCompassEnabled() {
+		return compassEnabled;
+	}
+
 	/**
 	 * Emit a {@code onGnssPosition} event to JS.
 	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager}
@@ -544,6 +556,15 @@ public class MapsforgeVtmView extends LinearLayout {
 	 */
 	public void emitGnssPosition( WritableMap payload ) {
 		emitMapEvent( "onGnssPosition", payload );
+	}
+
+	/**
+	 * Emit a {@code onDeviceAzimuth} event to JS.
+	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.CompassManager}
+	 * on azimuth changes (throttled, whole degrees).
+	 */
+	public void emitDeviceAzimuth( WritableMap payload ) {
+		emitMapEvent( "onDeviceAzimuth", payload );
 	}
 
 	public void createFragment() {

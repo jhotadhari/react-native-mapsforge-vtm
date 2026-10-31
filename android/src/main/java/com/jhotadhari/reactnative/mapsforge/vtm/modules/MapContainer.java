@@ -111,6 +111,7 @@ public class MapContainer extends NativeMapContainerSpec {
 			constants.put( "density", (double) getReactApplicationContext()
 				.getResources().getDisplayMetrics().density );
 			constants.put( "emitsMapUpdateEvents", null );
+		constants.put( "compassEnabled", false );
 		WritableArray emitsHardwareKeyUp = new WritableNativeArray();
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_UP" );
 		emitsHardwareKeyUp.pushString( "KEYCODE_VOLUME_DOWN" );

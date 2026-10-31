@@ -94,6 +94,12 @@ export interface GnssPosition {
 	timestamp: Double;
 }
 
+export interface DeviceAzimuth {
+	/** Compass azimuth (degrees 0-360 clockwise from magnetic north) of
+	 * the device's facing direction, whole degrees. */
+	azimuth: Double;
+}
+
 interface MapViewProps extends ViewProps {
 	width?: Double;
 	height?: Double;
@@ -116,6 +122,8 @@ interface MapViewProps extends ViewProps {
 	maxRoll?: Double;
 	emitsMapUpdateEvents: boolean;
 	gnssFilter?: Readonly<GnssFilterNativeProps> | null;
+	/** Enables the device-compass sensor and onDeviceAzimuth events. */
+	compassEnabled?: boolean;
 	onMapCreated?: DirectEventHandler<Readonly<{}>> | null;
 	onMapUpdate?: DirectEventHandler<Readonly<MapEventResponse>> | null;
 	onPause?: DirectEventHandler<Readonly<MapEventResponse>> | null;
@@ -124,6 +132,7 @@ interface MapViewProps extends ViewProps {
 	onTap?: DirectEventHandler<Readonly<TapEventResponse>> | null;
 	onLongPress?: DirectEventHandler<Readonly<LongPressEventResponse>> | null;
 	onGnssPosition?: DirectEventHandler<Readonly<GnssPosition>> | null;
+	onDeviceAzimuth?: DirectEventHandler<Readonly<DeviceAzimuth>> | null;
 	/**
 	 * Fired when an anchor view is added or removed under the map's wrapper
 	 * View (includes pure reorders that bypass every React commit hook).
@@ -156,6 +165,7 @@ export type MapContainerProps = {
 	maxRoll?: MapViewProps['maxRoll'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];
 	gnssFilter?: MapViewProps['gnssFilter'];
+	compassEnabled?: MapViewProps['compassEnabled'];
 	onMapUpdate?: MapViewProps['onMapUpdate'];
 	onPause?: MapViewProps['onPause'];
 	onResume?: MapViewProps['onResume'];
@@ -163,6 +173,7 @@ export type MapContainerProps = {
 	onTap?: MapViewProps['onTap'];
 	onLongPress?: MapViewProps['onLongPress'];
 	onGnssPosition?: MapViewProps['onGnssPosition'];
+	onDeviceAzimuth?: MapViewProps['onDeviceAzimuth'];
 	onAnchorsChanged?: MapViewProps['onAnchorsChanged'];
 };
 
