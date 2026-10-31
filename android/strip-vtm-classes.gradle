@@ -152,6 +152,30 @@ appProject.gradle.projectsEvaluated {
         it.name == 'react-native-mapsforge-vtm'
     }
 
+    // ── Vendored-jar detection ──────────────────────────────────────
+    // react-native-mapsforge-vtm may ship vtm jars under
+    // android/libs/<version>/ instead of resolving from a repository
+    // (vtm 0.31.0 has no published artifacts — jitpack build broken,
+    // Maven publishing disabled after the OSSRH end-of-life).  When
+    // found, the vendored JAR is the canonical strip target and takes
+    // precedence over declared-coordinate and cache detection below.
+
+    def vendoredVtmJar = null
+    if (coreLibProject) {
+        def libsDir = new File(coreLibProject.projectDir, 'android/libs')
+        if (libsDir.exists()) {
+            libsDir.eachDir { verDir ->
+                def coreJar = new File(verDir, "vtm-${verDir.name}.jar")
+                if (coreJar.exists()) {
+                    vendoredVtmJar = coreJar
+                }
+            }
+        }
+    }
+    if (vendoredVtmJar) {
+        logger.lifecycle('[strip-vtm] Vendored vtm JAR detected: {}', vendoredVtmJar)
+    }
+
     def vtmGroup = 'com.github.mapsforge.vtm'
     def vtmName = 'vtm'
     def vtmVersion = null
@@ -212,6 +236,12 @@ appProject.gradle.projectsEvaluated {
         }
     }
 
+    if (vendoredVtmJar) {
+        vtmVersion = vendoredVtmJar.parentFile.name
+        logger.lifecycle('[strip-vtm] Overriding strip target with vendored vtm {}',
+            vtmVersion)
+    }
+
     if (!vtmVersion) {
         System.err.println('[strip-vtm] Could not determine vtm version — skipping JAR strip')
         return
@@ -240,17 +270,23 @@ appProject.gradle.projectsEvaluated {
 
             resolvedJarPaths.clear()
 
-            try {
-                def vtmDep = appProject.dependencies.create(
-                    "${vtmGroup}:${vtmName}:${vtmVersion}")
-                def vtmConfig = appProject.configurations.detachedConfiguration(vtmDep)
-                vtmConfig.files.each { f ->
-                    resolvedJarPaths.add(f.absolutePath)
+            if (vendoredVtmJar != null) {
+                resolvedJarPaths.add(vendoredVtmJar.absolutePath)
+                logger.lifecycle('[strip-vtm] Using vendored vtm JAR: {}',
+                    vendoredVtmJar)
+            } else {
+                try {
+                    def vtmDep = appProject.dependencies.create(
+                        "${vtmGroup}:${vtmName}:${vtmVersion}")
+                    def vtmConfig = appProject.configurations.detachedConfiguration(vtmDep)
+                    vtmConfig.files.each { f ->
+                        resolvedJarPaths.add(f.absolutePath)
+                    }
+                    logger.lifecycle('[strip-vtm] Resolved vtm JAR via detached config: {}',
+                        resolvedJarPaths)
+                } catch (Exception e) {
+                    logger.warn('[strip-vtm] Detached config resolution failed: {}', e.message)
                 }
-                logger.lifecycle('[strip-vtm] Resolved vtm JAR via detached config: {}',
-                    resolvedJarPaths)
-            } catch (Exception e) {
-                logger.warn('[strip-vtm] Detached config resolution failed: {}', e.message)
             }
 
             // Also scan transform caches (v4 = AGP 8.x) for transformed copies.

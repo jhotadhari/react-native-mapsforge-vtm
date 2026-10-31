@@ -77,6 +77,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   started (GNSS showed on but no positions flowed until the prop changed). The stored
   filter is now re-applied from `createMapView`.
 
+### Changed
+
+- **vtm/mapsforge bumped 0.29.0 → 0.31.0 via vendored jars** — vtm 0.31.0
+  (which ships the text-label packing fix, mapsforge/vtm PR #1314) has no
+  published artifacts: the JitPack build is broken and Maven publishing was
+  disabled after the OSSRH end-of-life. The 0.31.0 jars are now committed
+  under `android/libs/vtm-0.31.0/` and consumed via `files(...)`; the
+  mapsforge artifacts (`mapsforge-core/map/map-android`) stay on JitPack at
+  0.30.0. TODO: swap the vendored jars back to coordinates when upstream
+  publishes 0.31.0.
+
 ## [0.10.0] - 2026-10-22
 
 ### Added
