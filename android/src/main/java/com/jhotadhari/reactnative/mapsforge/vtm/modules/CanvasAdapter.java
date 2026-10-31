@@ -36,4 +36,9 @@ public class CanvasAdapter extends NativeCanvasAdapterSpec {
 		org.oscim.backend.CanvasAdapter.symbolScale = (float) scale;
 	}
 
+	@Override
+	public void setCorrectTextPacking( boolean correct ) {
+		org.oscim.backend.CanvasAdapter.correctTextPacking = correct;
+	}
+
 }

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`setCorrectTextPacking`** — new `CanvasAdapter` TurboModule method bridging
+  `org.oscim.backend.CanvasAdapter.correctTextPacking`.
 - **`LayerScreenLine`** — a polyline rebuilt natively on the GL thread
   every rendered frame from the frame's own sync viewport
   (`ScreenLineRenderer`): screen-anchored points (`['50%', '50%']`,

@@ -6,6 +6,7 @@ export interface Spec extends TurboModule {
 	setTextScale(scale: Double): void;
 	setLineScale(scale: Double): void;
 	setSymbolScale(scale: Double): void;
+	setCorrectTextPacking(correct: boolean): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('CanvasAdapter');
