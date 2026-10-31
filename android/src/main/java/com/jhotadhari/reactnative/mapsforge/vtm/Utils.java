@@ -213,6 +213,18 @@ public class Utils {
 	}
 
 	/**
+	 * Rejects the given promise with an error derived from a throwable: its
+	 * message when present, its class name otherwise — a null message must
+	 * never degrade into a misleading generic error.
+	 */
+	public static void promiseReject( Promise promise, Throwable throwable ) {
+		String errorMsg = throwable.getMessage() != null
+			? throwable.getMessage()
+			: throwable.getClass().getName();
+		promiseReject( promise, errorMsg );
+	}
+
+	/**
 	 * Rejects the given promise when the map view is gone — a teardown
 	 * race, not a bug: JS dispatches layer/map commands while the
 	 * Activity/map is being destroyed.  Rejects with code

@@ -25,6 +25,9 @@ import org.oscim.core.GeoPoint;
 import org.oscim.core.Point;
 import org.oscim.layers.Layer;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * One {@link BitmapLabelLayer} (stock vtm {@code BitmapRenderer}) per label
  * entry: the label text + bubble are rasterized into a bitmap once per text
@@ -419,7 +422,7 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 		textPainter.setStyle(Paint.Style.FILL);
 		textPainter.setTextSize(fontSizePx);
 		textPainter.setTypeface(getFontFamily(entry.fontFamily), getFontStyle(entry.fontStyle));
-		textPainter.setColor(Color.parseColor(entry.textColor));
+		textPainter.setColor(parseLabelColor(entry.textColor, 1f));
 
 		String[] lines = text.split("\n", -1);
 		float lineHeight = textPainter.getTextHeight("Ag");
@@ -444,14 +447,11 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 		// abstraction has no rect primitive. Skipped on non-Android backends
 		// (same cast pattern as the marker rotation).
 		if (entry.backgroundColor != null
-			&& entry.backgroundColor.startsWith("#")
 			&& canvas instanceof AndroidCanvas) {
 			android.graphics.Paint bgPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
 			bgPaint.setStyle(android.graphics.Paint.Style.FILL);
-			bgPaint.setColor(android.graphics.Color.parseColor(entry.backgroundColor));
-			if (entry.backgroundAlpha < 1f) {
-				bgPaint.setAlpha(Math.round(entry.backgroundAlpha * 255f));
-			}
+			// backgroundAlpha is folded into the parsed color (parseLabelColor).
+			bgPaint.setColor(parseLabelColor(entry.backgroundColor, entry.backgroundAlpha));
 			float radius = entry.borderRadius * density;
 			((AndroidCanvas) canvas).canvas.drawRoundRect(0f, 0f, w, h, radius, radius, bgPaint);
 		}
@@ -561,5 +561,42 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 			pot <<= 1;
 		}
 		return pot;
+	}
+
+	/**
+	 * Matches CSS rgb()/rgba() colors — oscim's Color.parseColor only accepts
+	 * hex, but theme colors (e.g. react-native-paper's) are rgba() strings.
+	 */
+	private static final Pattern RGBA_COLOR_PATTERN = Pattern.compile(
+		"^rgba?\\s*\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*(?:,\\s*(\\d*\\.?\\d+)\\s*)?\\)$"
+	);
+
+	/**
+	 * Parses a label paint color: hex (#rgb/#rrggbb/#aarrggbb via oscim's
+	 * Color) or CSS rgb()/rgba(). {@code alphaMultiplier} (0..1) is applied
+	 * on top — used to fold the bubble's backgroundAlpha into the color.
+	 */
+	private static int parseLabelColor(@NonNull String color, float alphaMultiplier) {
+		String trimmed = color.trim();
+		Matcher matcher = RGBA_COLOR_PATTERN.matcher(trimmed);
+		if (matcher.matches()) {
+			int r = clampColorComponent(matcher.group(1));
+			int g = clampColorComponent(matcher.group(2));
+			int b = clampColorComponent(matcher.group(3));
+			int a = matcher.group(4) != null
+				? Math.round(Float.parseFloat(matcher.group(4)) * 255f)
+				: 255;
+			a = Math.max(0, Math.min(255, Math.round(a * alphaMultiplier)));
+			return Color.get(a, r, g, b);
+		}
+		int parsed = Color.parseColor(trimmed);
+		return alphaMultiplier < 1f ? Color.fade(parsed, alphaMultiplier) : parsed;
+	}
+
+	private static int clampColorComponent(@Nullable String value) {
+		if (value == null) {
+			return 0;
+		}
+		return Math.max(0, Math.min(255, Integer.parseInt(value)));
 	}
 }

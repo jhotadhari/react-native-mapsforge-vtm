@@ -90,7 +90,7 @@ public class LayerLabel extends NativeLayerLabelSpec {
 			promise.resolve( responseParams );
 		} catch ( Exception e ) {
 			e.printStackTrace();
-			Utils.promiseReject( promise, e.getMessage() );
+			Utils.promiseReject( promise, e );
 		}
 	}
 
@@ -125,7 +125,7 @@ public class LayerLabel extends NativeLayerLabelSpec {
 			promise.resolve( responseParams != null ? responseParams : new WritableNativeMap() );
 		} catch ( Exception e ) {
 			e.printStackTrace();
-			Utils.promiseReject( promise, e.getMessage() );
+			Utils.promiseReject( promise, e );
 		}
 	}
 
@@ -154,7 +154,7 @@ public class LayerLabel extends NativeLayerLabelSpec {
 			promise.resolve( uuid );
 		} catch ( Exception e ) {
 			e.printStackTrace();
-			Utils.promiseReject( promise, e.getMessage() );
+			Utils.promiseReject( promise, e );
 		}
 	}
 }

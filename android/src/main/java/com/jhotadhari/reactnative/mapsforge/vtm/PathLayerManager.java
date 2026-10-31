@@ -292,6 +292,10 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		// screenPoints key present = replace the whole anchor set (an empty
 		// array clears it); absent = keep the existing anchors.
 		boolean anchorsProvided = Utils.rMapHasKey(params, "screenPoints");
+		// Snapshot BEFORE replacing: the rebuild-without-coordinates branch
+		// below must drop the OLD anchor slots from the stored coordinates,
+		// not the freshly parsed ones (indices may have shifted).
+		List<ScreenAnchorPoint> previousAnchors = new ArrayList<>(entry.anchors);
 		if (anchorsProvided) {
 			entry.anchors.clear();
 			entry.anchors.addAll(parseScreenPoints(params));
@@ -307,9 +311,9 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 			jtsCoordinates = buildResolvedCoordinates(jtsCoordinates, entry.anchors);
 		} else if (anchored && anchorsProvided) {
 			// Anchor set changed without new coordinates: rebuild from the
-			// entry's existing geo points (drop the previous anchor slots).
+			// entry's existing geo points (drop the PREVIOUS anchor slots).
 			jtsCoordinates = buildResolvedCoordinates(
-				extractGeoCoordinates(entry.jtsCoordinates, entry.anchors),
+				extractGeoCoordinates(entry.jtsCoordinates, previousAnchors),
 				entry.anchors
 			);
 		}
