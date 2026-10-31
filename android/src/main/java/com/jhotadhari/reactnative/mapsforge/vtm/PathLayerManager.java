@@ -690,13 +690,24 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 					}
 					entry.jtsCoordinates[i].x = anchor.lng;
 					entry.jtsCoordinates[i].y = anchor.lat;
-					// drawables.get(j) spans points j -> j+1, so point i is
-					// the end of segment i-1 and the start of segment i.
+					// Patterned styles render as ONE drawable spanning all
+					// points in order — the anchor sits at coord `i`.
+					boolean patternedSingleDrawable = entry.lastStyle != null
+						&& (entry.lastStyle.texture != null || entry.lastStyle.stipple != 0)
+						&& entry.drawables.size() == 1;
+					if (patternedSingleDrawable) {
+						updateDrawableEndpoint(entry.drawables.get(0), i, anchor, layer);
+						continue;
+					}
+					// Per-segment drawables: drawables.get(j) spans points
+					// j -> j+1 with the coordinates stored REVERSED
+					// ([point_{j+1}, point_j], see drawSegments) — so point
+					// i is coord 0 of segment i-1 and coord 1 of segment i.
 					if (i > 0 && i - 1 < entry.drawables.size()) {
-						updateDrawableEndpoint(entry.drawables.get(i - 1), 1, anchor, layer);
+						updateDrawableEndpoint(entry.drawables.get(i - 1), 0, anchor, layer);
 					}
 					if (i < pointCount - 1 && i < entry.drawables.size()) {
-						updateDrawableEndpoint(entry.drawables.get(i), 0, anchor, layer);
+						updateDrawableEndpoint(entry.drawables.get(i), 1, anchor, layer);
 					}
 				}
 			}
@@ -722,11 +733,13 @@ public class PathLayerManager extends LayerManager<PathLayerManager.PathEntry> {
 		Geometry geometry = drawable.getGeometry();
 		if (geometry instanceof LineString) {
 			LineString line = (LineString) geometry;
-			line.getCoordinateSequence().setOrdinate(coordIndex, 0, anchor.lng);
-			line.getCoordinateSequence().setOrdinate(coordIndex, 1, anchor.lat);
-			// Invalidate JTS's cached envelope so the re-add indexes the
-			// new bbox.
-			line.geometryChanged();
+			if (coordIndex >= 0 && coordIndex < line.getNumPoints()) {
+				line.getCoordinateSequence().setOrdinate(coordIndex, 0, anchor.lng);
+				line.getCoordinateSequence().setOrdinate(coordIndex, 1, anchor.lat);
+				// Invalidate JTS's cached envelope so the re-add indexes the
+				// new bbox.
+				line.geometryChanged();
+			}
 		}
 		layer.add(drawable);
 	}

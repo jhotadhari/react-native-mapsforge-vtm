@@ -572,23 +572,51 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 	);
 
 	/**
-	 * Parses a label paint color: hex (#rgb/#rrggbb/#aarrggbb via oscim's
-	 * Color) or CSS rgb()/rgba(). {@code alphaMultiplier} (0..1) is applied
-	 * on top — used to fold the bubble's backgroundAlpha into the color.
+	 * Matches CSS hex shorthand (#RGB / #RGBA) — neither oscim's nor
+	 * Android's Color.parseColor accepts the shorthand forms, but themes
+	 * (e.g. react-native-paper's '#000') emit them.
+	 */
+	private static final Pattern HEX_SHORTHAND_PATTERN = Pattern.compile(
+		"^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])?$"
+	);
+
+	/**
+	 * Parses a label paint color: hex (#rgb/#rgba/#rrggbb/#aarrggbb) or CSS
+	 * rgb()/rgba(). {@code alphaMultiplier} (0..1) is applied on top — used
+	 * to fold the bubble's backgroundAlpha into the color.
 	 */
 	private static int parseLabelColor(@NonNull String color, float alphaMultiplier) {
 		String trimmed = color.trim();
-		Matcher matcher = RGBA_COLOR_PATTERN.matcher(trimmed);
-		if (matcher.matches()) {
-			int r = clampColorComponent(matcher.group(1));
-			int g = clampColorComponent(matcher.group(2));
-			int b = clampColorComponent(matcher.group(3));
-			int a = matcher.group(4) != null
-				? Math.round(Float.parseFloat(matcher.group(4)) * 255f)
+
+		Matcher rgbaMatcher = RGBA_COLOR_PATTERN.matcher(trimmed);
+		if (rgbaMatcher.matches()) {
+			int r = clampColorComponent(rgbaMatcher.group(1));
+			int g = clampColorComponent(rgbaMatcher.group(2));
+			int b = clampColorComponent(rgbaMatcher.group(3));
+			int a = rgbaMatcher.group(4) != null
+				? Math.round(Float.parseFloat(rgbaMatcher.group(4)) * 255f)
 				: 255;
 			a = Math.max(0, Math.min(255, Math.round(a * alphaMultiplier)));
 			return Color.get(a, r, g, b);
 		}
+
+		Matcher shorthandMatcher = HEX_SHORTHAND_PATTERN.matcher(trimmed);
+		if (shorthandMatcher.matches()) {
+			// Expand #RGB -> #RRGGBB and #RGBA -> #AARRGGBB (alpha first —
+			// the packing oscim/Android expect).
+			String nibbleA = shorthandMatcher.group(4);
+			String expanded = nibbleA != null
+				? "#" + nibbleA + nibbleA
+					+ shorthandMatcher.group(1) + shorthandMatcher.group(1)
+					+ shorthandMatcher.group(2) + shorthandMatcher.group(2)
+					+ shorthandMatcher.group(3) + shorthandMatcher.group(3)
+				: "#" + shorthandMatcher.group(1) + shorthandMatcher.group(1)
+					+ shorthandMatcher.group(2) + shorthandMatcher.group(2)
+					+ shorthandMatcher.group(3) + shorthandMatcher.group(3);
+			int parsed = Color.parseColor(expanded);
+			return alphaMultiplier < 1f ? Color.fade(parsed, alphaMultiplier) : parsed;
+		}
+
 		int parsed = Color.parseColor(trimmed);
 		return alphaMultiplier < 1f ? Color.fade(parsed, alphaMultiplier) : parsed;
 	}
