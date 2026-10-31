@@ -6,17 +6,15 @@
  * vtm classes in the org.oscim.* package without causing "Type X is defined
  * multiple times" errors.
  *
- * **Scoping:** Repository-resolved vtm JARs are temporarily patched during
- * the build via `zip -d` (with a .orig backup).  On build completion —
- * success or failure — the original JAR is restored, so the shared Gradle
- * cache is never left in a broken state for other projects on the same
- * machine.  Vendored JARs (shipped under the core library's
- * `android/libs/<version>/`) are patched PERSISTENTLY instead: they live in
- * the app's own node_modules copy and are re-created pristine on every
- * install, and a restored-at-build-end patch would leave AGP's
- * desugar/mergeExtDex tasks UP-TO-DATE against the original content.
- * Source files in the core library are excluded via Gradle's source-set
- * API rather than deleted.
+ * **Scoping:** The vtm JAR is temporarily patched during the build via
+ * `zip -d` (with a .orig backup).  On build completion — success or
+ * failure — the original JAR is restored, so the shared Gradle cache and
+ * the app's node_modules are never left in a broken state.  Vendored JARs
+ * (shipped under the core library's `android/libs/<version>/`) are patched
+ * at CONFIGURATION time (AGP fingerprints desugar/mergeExtDex file inputs
+ * during configuration, before any task runs), then restored at
+ * buildFinished like everything else.  Source files in the core library
+ * are excluded via Gradle's source-set API rather than deleted.
  *
  * ---------------------------------------------------------------------------
  * USAGE (in the app's android/app/build.gradle):
@@ -262,14 +260,104 @@ appProject.gradle.projectsEvaluated {
 
     def resolvedJarPaths = [] as Set
 
-    // Vendored jars live inside the app's own node_modules copy and are
-    // re-created pristine on every install (yalc/npm).  Unlike the shared
-    // Gradle cache JARs, they are patched PERSISTENTLY (no .orig backup /
-    // restore): AGP snapshots the file inputs of desugar/mergeExtDex at
-    // configuration time, so a patch that is reverted at buildFinished
-    // would leave those tasks permanently UP-TO-DATE against the original
-    // content.
-    def vendoredJarPaths = [] as Set
+    // ── Entry-collection helper ───────────────────────────────────────────
+    // Shared by the config-time vendored-JAR patch and the execution-time
+    // strip task.  Returns the JAR entries matching the shadowed classes.
+
+    def collectEntriesToRemove = { File jar ->
+        def entries = []
+        try {
+            new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                zf.entries().each { entry ->
+                    def name = entry.name
+                    if (exactEntries.contains(name)) {
+                        entries.add(name)
+                    } else {
+                        for (int i = 0; i < dollarPrefixes.size(); i++) {
+                            if (name.startsWith(dollarPrefixes[i]) &&
+                                name.endsWith('.class')) {
+                                entries.add(name)
+                                break
+                            }
+                        }
+                    }
+                }
+
+                // ── Scan META-INF/versions/ for multi-release JAR copies ──
+                zf.entries().each { entry ->
+                    def name = entry.name
+                    if (!name.startsWith('META-INF/versions/'))
+                        return
+                    def versionClassPath = name.replaceFirst(
+                        /^META-INF\/versions\/\d+\//, '')
+                    if (exactEntries.contains(versionClassPath)) {
+                        entries.add(name)
+                    } else {
+                        for (int i = 0; i < dollarPrefixes.size(); i++) {
+                            if (versionClassPath.startsWith(
+                                    dollarPrefixes[i]) &&
+                                versionClassPath.endsWith('.class')) {
+                                entries.add(name)
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn('[strip-vtm] Cannot read {}: {}', jar.name, e.message)
+        }
+        return entries
+    }
+
+    // ── Patch helper ──────────────────────────────────────────────────────
+    // Backs up the JAR to <name>.orig and removes the given entries with
+    // zip -d.  The backup is restored by buildFinished (or by the crash
+    // recovery in doFirst on the next build).
+
+    def patchJarEntries = { File jar, List entriesToRemove ->
+        def backupFile = new File(jar.parentFile, jar.name + '.orig')
+        logger.lifecycle('[strip-vtm] Patching {} — removing:', jar.name)
+        entriesToRemove.each { logger.lifecycle('[strip-vtm]   - {}', it) }
+        java.nio.file.Files.copy(
+            jar.toPath(), backupFile.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        def zipCmd = ['zip', '-d', jar.absolutePath] + entriesToRemove
+        def pb = new ProcessBuilder(zipCmd as List)
+        pb.inheritIO()
+        def proc = pb.start()
+        def exitCode = proc.waitFor()
+        if (exitCode != 0) {
+            logger.warn('[strip-vtm] zip -d returned {} for {}', exitCode, jar.name)
+        } else {
+            logger.lifecycle('[strip-vtm] Successfully patched {}', jar.name)
+        }
+    }
+
+    // ── Config-time patch of the vendored JAR ────────────────────────────
+    // AGP fingerprints the file inputs of desugar<variant>FileDependencies
+    // and mergeExtDex<variant> during the configuration phase, so the
+    // vendored JAR must already be stripped before any task (and any
+    // fingerprinting) runs.  Patch here, at configuration time, with a
+    // .orig backup; buildFinished restores the backup so node_modules
+    // stays pristine between builds.  A lingering .orig (crash of a
+    // previous build) means the JAR is already stripped — leave it for
+    // buildFinished to restore.
+
+    if (vendoredVtmJar != null) {
+        def backupFile = new File(vendoredVtmJar.parentFile,
+            vendoredVtmJar.name + '.orig')
+        if (backupFile.exists()) {
+            logger.lifecycle('[strip-vtm] Vendored vtm JAR already stripped (.orig present) — restoring at build end')
+        } else {
+            def entries = collectEntriesToRemove(vendoredVtmJar)
+            if (entries.isEmpty()) {
+                logger.lifecycle('[strip-vtm] Vendored vtm JAR has no shadowed classes — skipping')
+            } else {
+                patchJarEntries(vendoredVtmJar, entries)
+            }
+        }
+    }
 
     // ── Create the stripping task ─────────────────────────────────────────
 
@@ -287,11 +375,9 @@ appProject.gradle.projectsEvaluated {
             // runner where the Gradle cache is empty at configuration time.
 
             resolvedJarPaths.clear()
-            vendoredJarPaths.clear()
 
             if (vendoredVtmJar != null) {
                 resolvedJarPaths.add(vendoredVtmJar.absolutePath)
-                vendoredJarPaths.add(vendoredVtmJar.absolutePath)
                 logger.lifecycle('[strip-vtm] Using vendored vtm JAR: {}',
                     vendoredVtmJar)
             } else {
@@ -330,10 +416,14 @@ appProject.gradle.projectsEvaluated {
 
             // ── Crash recovery: restore any .orig backups left by a
             // previous build that crashed mid-strip ─────────────────
-            // (Vendored jars are patched persistently — no .orig handling.)
+            // The vendored JAR's .orig is created by the config-time
+            // patch of THIS build — restoring it here would undo the
+            // patch.  Its crash recovery is handled by the config-time
+            // patch itself on the next build.
             resolvedJarPaths.each { jarPath ->
                 def jar = new File(jarPath as String)
-                if (vendoredJarPaths.contains(jar.absolutePath)) return
+                if (vendoredVtmJar != null &&
+                    jar.absolutePath == vendoredVtmJar.absolutePath) return
                 def backupFile = new File(jar.parentFile, jar.name + '.orig')
                 if (backupFile.exists()) {
                     logger.lifecycle('[strip-vtm] Restoring original JAR from .orig (crash recovery): {}', jar.name)
@@ -357,58 +447,7 @@ appProject.gradle.projectsEvaluated {
             logger.lifecycle('[strip-vtm] Inspecting {} vtm JAR(s)', jars.size())
 
             jars.each { jar ->
-                def entriesToRemove = []
-
-                try {
-                    new java.util.zip.ZipFile(jar).withCloseable { zf ->
-                        zf.entries().each { entry ->
-                            def name = entry.name
-                            if (exactEntries.contains(name)) {
-                                entriesToRemove.add(name)
-                            } else {
-                                for (int i = 0; i < dollarPrefixes.size(); i++) {
-                                    if (name.startsWith(dollarPrefixes[i]) &&
-                                        name.endsWith('.class')) {
-                                        entriesToRemove.add(name)
-                                        break
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Scan META-INF/versions/ for multi-release
-                        // JAR copies ───────────────────────────────
-
-                        zf.entries().each { entry ->
-                            def name = entry.name
-                            if (!name.startsWith('META-INF/versions/'))
-                                return
-                            // Extract class path after
-                            // META-INF/versions/N/
-                            def versionClassPath = name.replaceFirst(
-                                /^META-INF\/versions\/\d+\//, '')
-                            if (exactEntries.contains(
-                                versionClassPath)) {
-                                entriesToRemove.add(name)
-                            } else {
-                                for (int i = 0;
-                                    i < dollarPrefixes.size();
-                                    i++) {
-                                    if (versionClassPath.startsWith(
-                                            dollarPrefixes[i]) &&
-                                        versionClassPath.endsWith(
-                                            '.class')) {
-                                        entriesToRemove.add(name)
-                                        break
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn('[strip-vtm] Cannot read {}: {}', jar.name, e.message)
-                    return
-                }
+                def entriesToRemove = collectEntriesToRemove(jar)
 
                 if (entriesToRemove.isEmpty()) {
                     logger.lifecycle('[strip-vtm] {} — no shadowed classes', jar.name)
@@ -447,11 +486,9 @@ appProject.gradle.projectsEvaluated {
                 logger.lifecycle('[strip-vtm] Patching {} — removing:', jar.name)
                 entriesToRemove.each { logger.lifecycle('[strip-vtm]   - {}', it) }
 
-                if (!vendoredJarPaths.contains(jar.absolutePath)) {
-                    java.nio.file.Files.copy(
-                        jar.toPath(), backupFile.toPath(),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                }
+                java.nio.file.Files.copy(
+                    jar.toPath(), backupFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
 
                 def zipCmd = ['zip', '-d', jar.absolutePath] + entriesToRemove
                 def pb = new ProcessBuilder(zipCmd as List)
@@ -469,13 +506,12 @@ appProject.gradle.projectsEvaluated {
     }
 
     // ── Restore the vtm JAR after the build completes (success or
-    // failure) so the shared Gradle cache is never left broken ─────
-    // (Vendored jars are patched persistently and never restored.)
+    // failure) so the shared Gradle cache and node_modules are never
+    // left patched ────────────────────────────────────────────────
     appProject.gradle.buildFinished {
         if (resolvedJarPaths.isEmpty()) return
         def jars = resolvedJarPaths.collect { new File(it as String) }
         jars.each { jar ->
-            if (vendoredJarPaths.contains(jar.absolutePath)) return
             def backupFile = new File(jar.parentFile, jar.name + '.orig')
             if (backupFile.exists()) {
                 logger.lifecycle('[strip-vtm] Restoring original JAR after build: {}', jar.name)
