@@ -462,21 +462,31 @@ graph (via Gradle's `allprojects` and a `node_modules/` fallback scan for
 setups where the extension project doesn't appear in `allprojects`).
 It uses a three-pronged approach, all scoped to the current build:
 
-1. **JAR patching** — the `stripShadowedVtmClasses` task patches the vtm JAR
-   in the Gradle cache with `zip -d` to remove matching `.class` entries
-   (including inner classes and multi-release JAR copies under
-   `META-INF/versions/`). A crash-recovery step (`doFirst`) restores any
-   stale `.orig` backups before patching, and a `buildFinished` hook
-   unconditionally restores the original JAR after every build — so the
-   shared Gradle cache is never left permanently modified.
+1. **JAR patching** — the `stripShadowedVtmClasses` task removes the
+   matching `.class` entries (including inner classes and multi-release JAR
+   copies under `META-INF/versions/`) from the vtm JAR with `zip -d`.
+   Since vtm 0.31.0 the JAR is **vendored** inside the core library
+   (`node_modules/react-native-mapsforge-vtm/android/libs/vtm-<version>/` —
+   vtm 0.31.0 has no published artifacts). The vendored JAR is patched at
+   **configuration time** (inside `projectsEvaluated`, before AGP
+   fingerprints the file inputs of `desugar<variant>FileDependencies` and
+   `mergeExtDex<variant>`), with a `.orig` backup that `buildFinished`
+   restores after every build — so node_modules is never left modified.
+   The strip task is also wired as a dependency of
+   `desugar*FileDependencies`/`mergeExtDex*` so the patch always lands
+   first. When no vendored JAR is present (older releases), the script
+   falls back to resolving the vtm artifact by coordinates and patching
+   the Gradle cache copy plus any transform-cache duplicates. See
+   `android/libs/vtm-0.31.0/README.md` for how the vendored jars are built.
 
 2. **Configuration-time source exclusion** — the script excludes shadowed
    `.java` source files from the core library's compilation using Gradle's
    `SourceDirectorySet.exclude()`. This is non-destructive: no files are
-   deleted from disk, the exclusion is scoped to the current build, and it
-   survives yalc symlinks. The core library ships `LineBucket.java` and
-   `RenderBuckets.java` (from vtm 0.29.0, restored as an AGP/D8 workaround),
-   so these two classes are always excluded when an extension shadows them.
+   deleted from disk and the exclusion is scoped to the current build.
+   (It existed for the vtm 0.28.0 era when the core library shipped shadow
+   copies of `LineBucket.java`/`RenderBuckets.java`; since 0.29.0 those
+   classes come from the vtm JAR itself, so this step is a no-op today and
+   the JAR patch does the work.)
 
 3. **Execution-time artifact cleaning** — a `stripShadowedClassesFromProjects`
    task cleans stale `.class` files, `.dex` files, and the
@@ -500,6 +510,14 @@ message listing the conflict.
 
 **App with no extensions:** The `apply from:` line is optional — the script is a
 no-op when no `ext.shadowedClasses` are found.
+
+**Compiling shadowed classes:** vtm 0.31.0 has no published artifacts, so
+extensions declare their compile-time vtm dependency against JitPack
+`com.github.mapsforge.vtm:vtm:0.29.0` (`compileOnly` — the runtime classes
+are provided by the vendored 0.31.0 JAR via the core library). 0.31.0 only
+changed `TextBucket`/`CanvasAdapter`, so shadowed bucket APIs
+(`LineBucket`, `RenderBuckets`, …) are compatible; expect a version-mismatch
+warning from the strip script, which is harmless in this case.
 
 ## TurboModule spec pattern
 

@@ -30,8 +30,12 @@ newArchEnabled=true
 
 ### 2. Add Maven Central repository
 
-The library pulls vtm and mapsforge dependencies from Maven Central. Your
-`android/build.gradle` should already include:
+The vtm artifacts ship **vendored** inside the library
+(`android/libs/vtm-0.31.0/` — vtm 0.31.0 has no published artifacts: the
+JitPack build is broken and Maven publishing was disabled after the OSSRH
+end-of-life). The `mapsforge-core/map/map-android` artifacts (0.30.0)
+resolve from JitPack, which the React Native Gradle Plugin adds
+automatically. Your `android/build.gradle` should still include:
 
 ```groovy
 repositories {
@@ -104,10 +108,14 @@ Your React Native version is too old. Upgrade to ≥ 0.80.0, or if you're on a
 custom build, ensure the `target_compile_reactnative_options` CMake function is
 available.
 
-### `Could not resolve com.github.mapsforge.vtm:vtm:0.29.0`
+### `Could not resolve com.github.mapsforge.mapsforge:mapsforge-*:0.30.0`
 
-Ensure `mavenCentral()` is in the `repositories` block of
-`android/build.gradle` (not just `android/settings.gradle`).
+The mapsforge artifacts resolve from JitPack. Ensure the JitPack repository
+is available — the React Native Gradle Plugin adds
+`https://www.jitpack.io` automatically; if your project overrides the
+plugin's repository injection, add it to the `repositories` block of
+`android/build.gradle` yourself. The vtm artifacts themselves need no
+repository — they are vendored inside the library.
 
 ### `java.lang.NoClassDefFoundError: com.facebook.react.bridge.TurboModule`
 

@@ -78,6 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   start or surface recreation the prop could arrive first and the GNSS listener never
   started (GNSS showed on but no positions flowed until the prop changed). The stored
   filter is now re-applied from `createMapView`.
+- **Shadowed-class stripping for vendored jars** — `strip-vtm-classes.gradle`
+  now detects the vtm JARs vendored under `android/libs/<version>/`, patches
+  them at configuration time (before AGP fingerprints the
+  desugar/mergeExtDex file inputs) with a `.orig` backup restored at build
+  end, and wires the strip task ahead of `desugar*FileDependencies`/
+  `mergeExtDex*`. Release builds of apps with shadowing extensions no longer
+  fail with "Type X is defined multiple times" from stale external-libs dex
+  output.
 
 ### Changed
 

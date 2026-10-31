@@ -427,20 +427,21 @@ dependencies {
   // Using "implementation" here causes duplicate-class errors.
   compileOnly project(':react-native-mapsforge-vtm')
 
-  // vtm — same versions as the parent library (android/build.gradle).
-  // Declared here because compileOnly does not pull transitive deps.
-  implementation 'com.github.mapsforge.vtm:vtm:0.29.0'
-  implementation 'com.github.mapsforge.vtm:vtm-android:0.29.0'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-armeabi-v7a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-arm64-v8a'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86'
-  runtimeOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0:natives-x86_64'
+  // vtm — compile-time only (compileOnly does not pull transitive deps).
+  // vtm 0.31.0 has no published artifacts (jitpack build broken, Maven
+  // publishing disabled) — it ships VENDORED inside the parent library and
+  // is provided at runtime.  Compile against jitpack 0.29.0 instead:
+  // 0.31.0 only changed TextBucket/CanvasAdapter, so the shadowed bucket
+  // APIs (LineBucket, RenderBuckets, ...) are compatible.  The strip script
+  // logs a version-mismatch warning for this — harmless here.
+  compileOnly 'com.github.mapsforge.vtm:vtm:0.29.0'
+  compileOnly 'com.github.mapsforge.vtm:vtm-android:0.29.0'
 
   // Conditional: only if the extension uses JTS geometry classes.
   // The parent library includes these; add them if the extension
   // directly references JTS types.
-  implementation 'com.github.mapsforge.vtm:vtm-jts:0.29.0'
-  implementation 'org.locationtech.jts:jts-core:1.20.0'
+  compileOnly 'com.github.mapsforge.vtm:vtm-jts:0.29.0'
+  compileOnly 'org.locationtech.jts:jts-core:1.20.0'
 }
 ```
 

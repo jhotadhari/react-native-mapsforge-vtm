@@ -27,13 +27,19 @@ Under `android/src/main/java/com/jhotadhari/reactnative/mapsforge/vtm/`:
   every vtm frame with no rate limiting.
 - `android/strip-vtm-classes.gradle` — reusable Gradle script that strips shadowed vtm classes
   at multiple stages to prevent "Type X is defined multiple times" errors: (1) patches the vtm
-  JAR in the Gradle cache (`zip -d` with crash recovery + automatic post-build restore so the
-  shared cache is never left broken), (2) at configuration time, excludes shadowed `.java`
+  JAR with `zip -d` (crash recovery + automatic post-build restore so the shared Gradle cache
+  and node_modules are never left modified). The vendored JARs under `android/libs/vtm-<version>/`
+  are detected and patched at CONFIGURATION time (in `projectsEvaluated`, before AGP fingerprints
+  the desugar/mergeExtDex file inputs), with the strip task wired as a dependency of
+  `desugar*FileDependencies`/`mergeExtDex*`; when no vendored JAR exists (older releases) the
+  script falls back to resolving the vtm artifact by coordinates and patching the Gradle cache
+  copy plus transform-cache duplicates. (2) at configuration time, excludes shadowed `.java`
   source files from the core library's compilation via Gradle's `SourceDirectorySet.exclude()`
-  (non-destructive — no files are deleted from disk), and (3) at execution time, cleans stale
-  `.class`/`.dex` build artifacts and the `runtime_library_classes_jar` directory from the core
-  library's build tree before DEX merging. Applied via `apply from:` in the consuming app's
-  `android/app/build.gradle`; extensions declare `ext.shadowedClasses` in their own `build.gradle`.
+  (non-destructive; a no-op since vtm 0.29.0, when the shadow sources were deleted). (3) at
+  execution time, cleans stale `.class`/`.dex` build artifacts and the
+  `runtime_library_classes_jar` directory from the core library's build tree before DEX merging.
+  Applied via `apply from:` in the consuming app's `android/app/build.gradle`; extensions declare
+  `ext.shadowedClasses` in their own `build.gradle`.
 
 ## Threading model
 
