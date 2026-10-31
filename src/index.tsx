@@ -60,6 +60,14 @@ import type {
 import LayerScalebar from './components/LayerScalebar';
 import type { LayerScalebarProps } from './NativeModules/NativeLayerScalebar';
 
+import LayerScreenLine from './components/LayerScreenLine';
+import type {
+	LayerScreenLineProps,
+	LineResponse,
+	ScreenLinePaint,
+	ScreenPosition as ScreenLineScreenPosition,
+} from './NativeModules/NativeScreenLine';
+
 import LayerShape from './components/LayerShape';
 import type {
 	LayerShapeGestureResponse,
@@ -231,6 +239,13 @@ export {
 	// LayerScalebar and NativeLayerScalebar.
 	LayerScalebar,
 	type LayerScalebarProps,
+
+	// LayerScreenLine and NativeScreenLine.
+	LayerScreenLine,
+	type ScreenLinePaint,
+	type LineResponse,
+	type LayerScreenLineProps,
+	type ScreenLineScreenPosition,
 
 	// LayerShape and NativeLayerShape.
 	LayerShape,

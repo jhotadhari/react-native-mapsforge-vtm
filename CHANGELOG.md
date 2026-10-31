@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`LayerScreenLine`** — a polyline rebuilt natively on the GL thread
+  every rendered frame from the frame's own sync viewport
+  (`ScreenLineRenderer`): screen-anchored points (`['50%', '50%']`,
+  `['100dp', '24dp']`, `{ x, y, unit }`) track the screen with **zero
+  latency** — no worker thread, no spatial index, no bridge crossings,
+  bearing/tilt-correct. The zero-lag sibling of `LayerPath` (whose
+  anchored points recompile asynchronously and trail by 1–2 frames) for
+  lines that must stay glued to the viewport while panning.
 - **Screen-anchored points on `LayerPath` and `Marker`** — any element of
   `LayerPath`'s `coordinates` (or a `Marker`'s `position`) may be a
   screen-anchored point (`['50%', '50%']`, `['100dp', '24dp']`, or

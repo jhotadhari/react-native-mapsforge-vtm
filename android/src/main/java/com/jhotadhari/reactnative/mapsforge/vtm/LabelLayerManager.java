@@ -443,6 +443,17 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 		Canvas canvas = CanvasAdapter.newCanvas();
 		canvas.setBitmap(bitmap);
 
+		// The BitmapBucket maps the FULL texture onto the quad, so the
+		// content must fill the whole power-of-two canvas 1:1 — otherwise
+		// the rendered label is scaled by used/tex per axis (too small and
+		// aspect-distorted). Draw the bubble+text CENTERED in the POT
+		// canvas and report the POT dims as the label size; the extra
+		// padding is transparent.
+		int texW = bitmap.getWidth();
+		int texH = bitmap.getHeight();
+		float ox = (texW - w) / 2f;
+		float oy = (texH - h) / 2f;
+
 		// Rounded-rect bubble via the raw Android canvas — the oscim Canvas
 		// abstraction has no rect primitive. Skipped on non-Android backends
 		// (same cast pattern as the marker rotation).
@@ -453,18 +464,18 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 			// backgroundAlpha is folded into the parsed color (parseLabelColor).
 			bgPaint.setColor(parseLabelColor(entry.backgroundColor, entry.backgroundAlpha));
 			float radius = entry.borderRadius * density;
-			((AndroidCanvas) canvas).canvas.drawRoundRect(0f, 0f, w, h, radius, radius, bgPaint);
+			((AndroidCanvas) canvas).canvas.drawRoundRect(ox, oy, ox + w, oy + h, radius, radius, bgPaint);
 		}
 
-		float baseline = padY + lineHeight;
+		float baseline = oy + padY + lineHeight;
 		for (String line : lines) {
-			canvas.drawText(line, padX, baseline, textPainter);
+			canvas.drawText(line, ox + padX, baseline, textPainter);
 			baseline += lineHeight;
 		}
 
 		entry.bitmap = bitmap;
-		entry.usedWidth = w;
-		entry.usedHeight = h;
+		entry.usedWidth = texW;
+		entry.usedHeight = texH;
 	}
 
 	/**

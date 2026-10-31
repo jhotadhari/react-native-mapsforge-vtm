@@ -18,6 +18,7 @@ import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMBTilesBitmap;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerPath;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerPathJts;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerScalebar;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerScreenLine;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerShape;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerBitmapTile;
@@ -64,6 +65,9 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 		}
 		if ( LayerScalebar.NAME.equals( s ) ) {
 			return new LayerScalebar( reactApplicationContext );
+		}
+		if ( LayerScreenLine.NAME.equals( s ) ) {
+			return new LayerScreenLine( reactApplicationContext );
 		}
 		if ( LayerShape.NAME.equals( s ) ) {
 			return new LayerShape( reactApplicationContext );
@@ -158,6 +162,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 				map.put( LayerScalebar.NAME, new ReactModuleInfo(
 					LayerScalebar.NAME,				// name
 					LayerScalebar.NAME,				// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
+				map.put( LayerScreenLine.NAME, new ReactModuleInfo(
+					LayerScreenLine.NAME,			// name
+					LayerScreenLine.NAME,			// className
 					false,							// canOverrideExistingModule
 					false,							// needsEagerInit
 					false,							// isCxxModule
