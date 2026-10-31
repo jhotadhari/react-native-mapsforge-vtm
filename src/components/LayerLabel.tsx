@@ -27,18 +27,16 @@ import { runUuidFor } from '../scene/ids';
  * zero bridge crossings while panning.
  *
  * When `followPosition` is set, the Java side re-positions the label on
- * every map movement so it stays on the line between the screen `position`
- * and that geographic point: inside the line (with a `gapDp` gap from the
- * anchor) when the line is long enough, beyond the anchor
- * (`fallbackOffsetDp`) when it's too short, hidden when the point is
+ * every map movement so it rides the line's axis through the screen
+ * `position` and that geographic point — always placed beyond the anchor,
+ * away from the follow point, at `offsetDp`, and hidden when the point is
  * closer than ~5dp.
  */
 const LayerLabel = ({
 	text,
 	position,
 	followPosition,
-	gapDp,
-	fallbackOffsetDp,
+	offsetDp,
 	paint,
 	onCreate,
 	onRemove,
@@ -99,8 +97,7 @@ const LayerLabel = ({
 					position: normalizedPosition,
 				}),
 				...(followPosition && { followPosition }),
-				...(gapDp != null && { gapDp }),
-				...(fallbackOffsetDp != null && { fallbackOffsetDp }),
+				...(offsetDp != null && { offsetDp }),
 				...(paint && { paint }),
 			}).then((response: LabelResponse) => {
 				triggerOnCreate && onCreate ? onCreate(response) : null;
@@ -143,8 +140,7 @@ const LayerLabel = ({
 					position: normalizedPosition,
 				}),
 				...(followPosition && { followPosition }),
-				...(gapDp != null && { gapDp }),
-				...(fallbackOffsetDp != null && { fallbackOffsetDp }),
+				...(offsetDp != null && { offsetDp }),
 				...(paint && { paint }),
 			})
 				.then((response: LabelResponse) => {
@@ -160,8 +156,7 @@ const LayerLabel = ({
 		text,
 		normalizedPosition,
 		followPosition,
-		gapDp,
-		fallbackOffsetDp,
+		offsetDp,
 		paint,
 		onChange,
 		onError,

@@ -27,11 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   position during pan/zoom/rotate with zero bridge crossings.
 - **`LayerLabel`** — a text label rendered into the map itself (native
   bitmap layer at a screen position): pixel-perfect alignment with
-  map-rendered geometry, no overlay lag. With `followPosition`, the Java
-  side re-positions the label per frame so it stays on the line between the
-  screen anchor and that point — inside the line (with a `gapDp` gap) when
-  long enough, beyond the anchor (`fallbackOffsetDp`) when too short, hidden
-  when closer than ~5dp. Taps land in the map's hit aggregation
+  map-rendered geometry, no overlay lag, text center-aligned. With
+  `followPosition`, the Java side re-positions the label per frame so it
+  rides the line's axis through the screen anchor and that point — always
+  placed beyond the anchor, away from the follow point, at `offsetDp`,
+  hidden when closer than ~5dp. Taps land in the map's hit aggregation
   (`manager: 'labels'`).
 - **`textureFilePath` on `LayerPath` paint** — repeating line texture (PNG from
   Android assets) following the path direction; `stipple` sets the repeat period,

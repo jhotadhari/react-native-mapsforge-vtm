@@ -55,19 +55,14 @@ export interface CreateLabelParams extends ModuleParams {
 	/** Screen anchor the label is positioned relative to (its center). */
 	position?: LabelPosition;
 	/**
-	 * Geographic point the label follows: the label stays on the line
-	 * between this point and `position` (inside the line with a `gapDp`
-	 * gap when long enough, beyond `position` otherwise), re-computed per
-	 * frame on the Java side.
+	 * Geographic point the label follows: the label stays on the line's
+	 * axis through this point and `position` — always placed beyond
+	 * `position`, away from the follow point, at `offsetDp`, re-computed
+	 * per frame on the Java side.
 	 */
 	followPosition?: Position;
-	/** Distance (dp) from `position` along the follow direction. */
-	gapDp?: Double;
-	/**
-	 * Offset (dp) beyond `position`, away from the follow point, when the
-	 * line is too short to hold the label inside it.
-	 */
-	fallbackOffsetDp?: Double;
+	/** Distance (dp) beyond `position`, away from the follow point. */
+	offsetDp?: Double;
 }
 
 export interface UpdateLabelParams {
@@ -76,8 +71,7 @@ export interface UpdateLabelParams {
 	text?: string;
 	position?: LabelPosition;
 	followPosition?: Position;
-	gapDp?: Double;
-	fallbackOffsetDp?: Double;
+	offsetDp?: Double;
 	paint?: {
 		// LabelPaint
 		fontSize?: Int32;
@@ -110,8 +104,7 @@ export type LayerLabelProps = {
 	 */
 	position?: ScreenPointSugar;
 	followPosition?: GeoJsonPosition;
-	gapDp?: number;
-	fallbackOffsetDp?: number;
+	offsetDp?: number;
 	paint?: LabelPaint;
 	onCreate?: null | ((response: LabelResponse) => void);
 	onRemove?: null | ((response: LabelResponse) => void);

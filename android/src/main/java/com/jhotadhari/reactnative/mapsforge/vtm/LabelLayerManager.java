@@ -38,14 +38,13 @@ import java.util.regex.Pattern;
  * The label is positioned relative to a screen anchor ({@code position},
  * fraction of the viewport or dp). When {@code followPosition} is set, the
  * offset is re-computed on every map frame (via {@link ScreenAnchorRegistry})
- * so the label stays on the line between the anchor and the geographic follow
- * point:
+ * so the label stays on the line's axis through the anchor and the follow
+ * point — always placed BEYOND the anchor, away from the follow point, at
+ * {@code offsetDp} (the historical overlay behavior):
  * <ul>
  *   <li>follow point closer than ~5dp to the anchor → label hidden</li>
- *   <li>line long enough to hold the label + {@code gapDp} gap → label
- *       centered inside the line at {@code gapDp} from the anchor</li>
- *   <li>otherwise → label placed beyond the anchor, away from the follow
- *       point, at {@code fallbackOffsetDp} (the historical overlay behavior)</li>
+ *   <li>otherwise → label centered at
+ *       {@code anchor - unit(targetScreen - anchor) * offsetDp}</li>
  * </ul>
  */
 public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry> {
@@ -94,8 +93,11 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 		/** Geographic point the label follows; null = static label. */
 		@Nullable
 		public GeoPoint followPoint;
-		public float gapDp = 52f;
-		public float fallbackOffsetDp = 48f;
+		/**
+		 * Distance (dp) beyond the anchor, away from the follow point, at
+		 * which the label is centered.
+		 */
+		public float offsetDp = 48f;
 
 		// Paint.
 		public int fontSize = 12; // dp
@@ -354,11 +356,8 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 				}
 			}
 		}
-		if (params.hasKey("gapDp")) {
-			entry.gapDp = (float) params.getDouble("gapDp");
-		}
-		if (params.hasKey("fallbackOffsetDp")) {
-			entry.fallbackOffsetDp = (float) params.getDouble("fallbackOffsetDp");
+		if (params.hasKey("offsetDp")) {
+			entry.offsetDp = (float) params.getDouble("offsetDp");
 		}
 
 		if (!params.hasKey("paint")) {
@@ -469,7 +468,9 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 
 		float baseline = oy + padY + lineHeight;
 		for (String line : lines) {
-			canvas.drawText(line, ox + padX, baseline, textPainter);
+			// Center-align each line within the bubble width.
+			float lineX = ox + padX + (maxWidth - textPainter.getTextWidth(line)) / 2f;
+			canvas.drawText(line, lineX, baseline, textPainter);
 			baseline += lineHeight;
 		}
 
@@ -515,22 +516,12 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 			}
 			float ux = dx / len;
 			float uy = dy / len;
-			float halfW = entry.usedWidth / 2f;
-			float halfH = entry.usedHeight / 2f;
-			// Projected half-extent of the (horizontal) label along the
-			// line direction.
-			float extent = halfW * Math.abs(ux) + halfH * Math.abs(uy);
-			float gapPx = entry.gapDp * density;
-			if (len >= gapPx + extent) {
-				// Long enough: label inside the line, gapDp from the anchor.
-				entry.offsetX = (ax + ux * gapPx) - halfW;
-				entry.offsetY = (ay + uy * gapPx) - halfH;
-			} else {
-				// Too short: beyond the anchor, away from the follow point.
-				float fallbackPx = entry.fallbackOffsetDp * density;
-				entry.offsetX = (ax - ux * fallbackPx) - halfW;
-				entry.offsetY = (ay - uy * fallbackPx) - halfH;
-			}
+			// Always beyond the anchor, away from the follow point — the
+			// historical overlay placement (the label rides the line's
+			// axis past the center).
+			float offsetPx = entry.offsetDp * density;
+			entry.offsetX = (ax - ux * offsetPx) - entry.usedWidth / 2f;
+			entry.offsetY = (ay - uy * offsetPx) - entry.usedHeight / 2f;
 		}
 	}
 

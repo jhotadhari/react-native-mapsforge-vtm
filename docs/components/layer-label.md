@@ -15,8 +15,7 @@ The label is horizontal (axis-aligned), matching typical cartography labels.
 | `text` | `string` | — | Label text; `\n` renders multiple lines |
 | `position` | `ScreenPointSugar` | `['50%','50%']` | Screen anchor the label is positioned relative to (its center): `['50%','50%']`, `['100dp','24dp']`, or `{ x, y, unit }` |
 | `followPosition` | `Position` (`[lng, lat]`) | — | Geographic point the label follows — see below |
-| `gapDp` | `number` | 52 | Distance (dp) from `position` along the follow direction |
-| `fallbackOffsetDp` | `number` | 48 | Offset (dp) beyond `position`, away from the follow point, when the line is too short |
+| `offsetDp` | `number` | 48 | Distance (dp) beyond `position`, away from the follow point, at which the label is centered |
 | `paint` | `LabelPaint` | defaults | Text/bubble styling |
 | `onCreate` | `(response: LabelResponse) => void` | — | Fires after the native label is created |
 | `onRemove` | `(response: LabelResponse) => void` | — | Fires after the native label is removed |
@@ -42,16 +41,14 @@ type LabelPaint = {
 ## Follow position
 
 With `followPosition` set, the Java side re-positions the label on **every
-map movement** so it stays on the line between the screen `position` and
-that geographic point:
+map movement** so it rides the line's axis through the screen `position`
+and that geographic point:
 
 1. follow point closer than ~5dp to the anchor → label hidden
-2. line long enough to hold the label + `gapDp` gap → label centered
-   **inside** the line at `gapDp` from the anchor
-3. otherwise → label placed **beyond** the anchor, away from the follow
-   point, at `fallbackOffsetDp`
+2. otherwise → label centered **beyond** the anchor, away from the follow
+   point, at `offsetDp` (the historical overlay placement)
 
-Without `followPosition`, the label stays at the screen `position`.
+Without `followPosition`, the label stays centered on the screen `position`.
 
 ## Example
 
@@ -63,7 +60,6 @@ import { MapContainer, LayerLabel } from 'react-native-mapsforge-vtm';
     text={'1.2 km\nNE 45°'}
     position={['50%', '50%']}
     followPosition={[13.405, 52.52]}
-    gapDp={52}
     paint={{ fontSize: 12, backgroundColor: '#ffffff' }}
   />
 </MapContainer>
