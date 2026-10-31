@@ -180,8 +180,7 @@ public class ScreenLineLayerManager extends LayerManager<ScreenLineLayerManager.
 		);
 		layer.getScreenLineRenderer().setPaint(
 			entry.strokeColor,
-			entry.strokeWidthDp,
-			entry.cap
+			entry.strokeWidthDp
 		);
 	}
 
