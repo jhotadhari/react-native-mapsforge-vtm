@@ -22,6 +22,7 @@ import org.oscim.backend.canvas.Canvas;
 import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint;
 import org.oscim.core.GeoPoint;
+import org.oscim.core.MercatorProjection;
 import org.oscim.core.Point;
 import org.oscim.layers.Layer;
 
@@ -501,12 +502,13 @@ public class LabelLayerManager extends LayerManager<LabelLayerManager.LabelEntry
 
 		if (entry.followPoint != null) {
 			Point p = new Point();
-			mapView.map().viewport().toScreenPoint(
-				entry.followPoint.getLongitude(),
-				entry.followPoint.getLatitude(),
-				false,
-				p
-			);
+			// toScreenPoint expects MERCATOR map coordinates — project the
+			// geo point first (passing degrees yields a huge, near-constant
+			// vector that pins the label to a fixed direction instead of
+			// tracking the follow point).
+			double mapX = MercatorProjection.longitudeToX(entry.followPoint.getLongitude());
+			double mapY = MercatorProjection.latitudeToY(entry.followPoint.getLatitude());
+			mapView.map().viewport().toScreenPoint(mapX, mapY, false, p);
 			float dx = (float) (p.x - ax);
 			float dy = (float) (p.y - ay);
 			float len = (float) Math.sqrt(dx * dx + dy * dy);
