@@ -168,7 +168,7 @@ appProject.gradle.projectsEvaluated {
         def libsDir = new File(coreLibProject.projectDir, 'libs')
         if (libsDir.exists()) {
             libsDir.eachDir { verDir ->
-                def coreJar = new File(verDir, "vtm-${verDir.name}.jar")
+                def coreJar = new File(verDir, "${verDir.name}.jar")
                 if (coreJar.exists()) {
                     vendoredVtmJar = coreJar
                 }
