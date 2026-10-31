@@ -270,10 +270,13 @@ public class ScreenLineRenderer extends LayerRenderer {
 			mLineMatrix.multiplyRhs(mRotationMatrix);
 			mLineMatrix.multiplyRhs(mScaleMatrix);
 
-			// Screen coordinates with origin at the viewport center: the
-			// [-1,1]^2 quad is transformed onto the segment.
-			v.useScreenCoordinates(false, 1);
-			v.mvp.multiplyRhs(mLineMatrix);
+			// The segment data is in center-origin screen px — the space
+			// vtm's projection matrix already maps to clip space. Compose
+			// mvp = proj · T(mid) · R(angle) · S(halfLen, halfWidth)
+			// directly (useScreenCoordinates would apply the top-left-
+			// origin translation T(-w/2, -h/2) and offset the whole line
+			// by half the viewport).
+			v.mvp.multiplyMM(v.proj, mLineMatrix);
 			v.mvp.setAsUniform(hMatrixPosition);
 
 			GLUtils.setColor(uColor, mColor);
