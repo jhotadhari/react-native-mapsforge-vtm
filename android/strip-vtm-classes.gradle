@@ -683,6 +683,24 @@ appProject.gradle.projectsEvaluated {
         }
     }
 
+    // ── Vendored-jar era: order file-jar consumers after the JAR patch ──
+    // With vtm shipped as files(...) jars, AGP desugars/dexes them via
+    // desugar<variant>FileDependencies in the core library project and
+    // mergeExtDex<variant> in the app.  None of those tasks is ordered
+    // after :app preBuild, so they can consume the unpatched JAR and
+    // re-introduce the shadowed classes into the app's external-libs dex
+    // (observed as "defined multiple times" in release builds).  Wire them
+    // all to stripTask so the patch always lands first.
+
+    rootProject.allprojects.each { proj ->
+        proj.tasks.configureEach { task ->
+            if (task.name.matches('desugar.*FileDependencies') ||
+                task.name.matches('mergeExtDex.*')) {
+                task.dependsOn stripTask
+            }
+        }
+    }
+
     logger.lifecycle('[strip-vtm] Registered stripShadowedVtmClasses + stripShadowedClassesFromProjects')
 
     } catch (Exception e) {
