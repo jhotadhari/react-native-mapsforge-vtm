@@ -162,7 +162,10 @@ appProject.gradle.projectsEvaluated {
 
     def vendoredVtmJar = null
     if (coreLibProject) {
-        def libsDir = new File(coreLibProject.projectDir, 'android/libs')
+        // coreLibProject.projectDir is the module's android/ directory
+        // (the build.gradle location), so the vendored jars sit directly
+        // under <projectDir>/libs/<version>/.
+        def libsDir = new File(coreLibProject.projectDir, 'libs')
         if (libsDir.exists()) {
             libsDir.eachDir { verDir ->
                 def coreJar = new File(verDir, "vtm-${verDir.name}.jar")
