@@ -48,7 +48,6 @@ public class CompassManager implements SensorEventListener {
 	private long lastEmitAt = 0L;
 
 	private final float[] rotationMatrix = new float[16];
-	private final float[] remappedMatrix = new float[16];
 	private final float[] orientation = new float[3];
 
 	/**
@@ -101,14 +100,14 @@ public class CompassManager implements SensorEventListener {
 	public void onSensorChanged(SensorEvent event) {
 		if (event.sensor.getType() != Sensor.TYPE_ROTATION_VECTOR) return;
 
+		// getOrientation on the rotation-vector matrix directly yields the
+		// device heading: the angle between magnetic north and the device's
+		// Y axis (top edge), 0=north, 90=east, clockwise positive. No
+		// remapCoordinateSystem here — the rotation-vector sensor is
+		// expressed in the device frame regardless of screen orientation,
+		// and a remap would rotate the result onto another device axis.
 		SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values);
-		// Remap from device coordinates to the screen/world frame so the
-		// azimuth is the direction the device's top edge faces regardless
-		// of the physical orientation.
-		SensorManager.remapCoordinateSystem(
-			rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Z, remappedMatrix
-		);
-		SensorManager.getOrientation(remappedMatrix, orientation);
+		SensorManager.getOrientation(rotationMatrix, orientation);
 
 		double degrees = Math.toDegrees(orientation[0]);
 		if (degrees < 0) degrees += 360;
