@@ -15,16 +15,32 @@ import com.facebook.react.bridge.WritableMap;
 import com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader;
 
 /**
- * Registers an Android {@link LocationListener} with the configured
- * {@code minDistanceMeters} / {@code minTimeMs} (passed directly to
- * {@link LocationManager#requestLocationUpdates}), applies an accuracy
- * guard, optionally resolves DEM altitude via {@link ElevationReader},
- * and calls back the host view with a {@code WritableMap} ready to emit
- * as a {@code onGnssPosition} event.
+ * Wraps an Android {@link LocationListener} to deliver two GNSS position
+ * streams to JS:
  *
- * <p>Filtering on/off: create a new instance and call {@link #start()}
- * when the {@code gnssFilter} prop is set; call {@link #stop()} when the
- * prop is cleared or the fragment is destroyed.
+ * <ul>
+ *   <li><b>Live</b> ({@code onGnssLive}) — every fix the provider delivers
+ *       (~1 Hz), guarded only against garbage accuracy (the weaker of a
+ *       100&nbsp;m cap and the recording accuracy threshold, so the
+ *       recording stream never starves).  Consumers that render the live
+ *       position (map marker, speed/course dashboard widgets) subscribe
+ *       to this stream — it stays dense even at low speeds.
+ *   <li><b>Recording</b> ({@code onGnssPosition}) — only positions that
+ *       qualify for track recording: accuracy within the configured
+ *       {@code minAccuracyMeters} AND at least {@code minTimeMs} elapsed
+ *       AND {@code minDistanceMeters} moved since the last qualifying
+ *       position.  This replicates the semantics of
+ *       {@link LocationManager#requestLocationUpdates(long, float,
+ *       android.location.LocationListener, android.os.Looper)} (which is
+ *       no longer used — the listener is registered with raw parameters
+ *       so the live stream never thins to the recording cadence).
+ * </ul>
+ *
+ * <p>Both payloads share the same shape; altitude resolution via
+ * {@link ElevationReader} runs once per fix.  Filtering on/off: create a
+ * new instance and call {@link #start()} when the {@code gnssFilter}
+ * prop is set; call {@link #stop()} when the prop is cleared or the
+ * fragment is destroyed.
  *
  * <p>DEM altitude is a fast-path cache hit — on cache miss,
  * {@link ElevationReader#getElevation(double, double)} returns null
@@ -34,8 +50,16 @@ import com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader;
  */
 public class GnssManager {
 
-	/** Callback invoked on every qualifying GNSS position. */
+	/** Upper accuracy bound for the live stream when the recording
+	 * threshold is looser — keeps the marker from teleporting on
+	 * garbage fixes. */
+	private static final float LIVE_MAX_ACCURACY_METERS = 100f;
+
+	/** Callbacks invoked per fix: live on every fix, recording only on
+	 * qualifying positions. */
 	public interface Callback {
+		void onGnssLive(@NonNull WritableMap payload);
+
 		void onGnssPosition(@NonNull WritableMap payload);
 	}
 
@@ -54,6 +78,11 @@ public class GnssManager {
 
 	private volatile boolean started;
 
+	/** Last position that passed the recording gate — anchor for the
+	 * internal time+distance filter (previously applied by
+	 * requestLocationUpdates). */
+	private Location lastPassingLocation;
+
 	// -------------------------------------------------------------------
 	// Construction
 	// -------------------------------------------------------------------
@@ -66,7 +95,8 @@ public class GnssManager {
 	 *                        (treated as "stop").
 	 * @param elevationReader May be null — when absent, DEM altitude
 	 *                        resolution is silently skipped.
-	 * @param callback        Called on each qualifying position.
+	 * @param callback        Called per fix: live always, recording on
+	 *                        qualifying positions.
 	 * @return a configured instance, or {@code null} if {@code gnssFilter}
 	 *         is null or lacks required fields.
 	 */
@@ -155,10 +185,13 @@ public class GnssManager {
 	private final LocationListener locationListener = new LocationListener() {
 		@Override
 		public void onLocationChanged(@NonNull Location location) {
-			// Accuracy guard — drop positions too coarse for the user's
-			// configured threshold.  Android's own distance/time filter
-			// already applied by requestLocationUpdates.
-			if (location.getAccuracy() > minAccuracyMeters) return;
+			// Live accuracy guard — drop positions too coarse to render.
+			// Never stricter than the recording threshold, so the
+			// recording stream cannot starve.
+			float liveAccuracyGuard = Math.max(
+				LIVE_MAX_ACCURACY_METERS, minAccuracyMeters
+			);
+			if (location.getAccuracy() > liveAccuracyGuard) return;
 
 			double lng = location.getLongitude();
 			double lat = location.getLatitude();
@@ -202,33 +235,64 @@ public class GnssManager {
 					break;
 			}
 
-			WritableMap payload = Arguments.createMap();
-			payload.putDouble("lng", lng);
-			payload.putDouble("lat", lat);
-			if (altitude != null) {
-				payload.putDouble("altitude", altitude);
-			} else {
-				payload.putNull("altitude");
-			}
-			if (gnssAltitude != null) {
-				payload.putDouble("gnssAltitude", gnssAltitude);
-			} else {
-				payload.putNull("gnssAltitude");
-			}
-			payload.putDouble("bearing", location.hasBearing()
-				? location.getBearing() : -1);
-			payload.putDouble("accuracy", location.getAccuracy());
-			payload.putDouble("speed", location.hasSpeed()
-				? location.getSpeed() : 0);
-			payload.putDouble("timestamp", location.getTime());
+			// Live stream: every fix.
+			callback.onGnssLive(buildPayload(location, gnssAltitude, altitude));
 
-			callback.onGnssPosition(payload);
+			// Recording gate: accuracy, time AND distance since the last
+			// qualifying position (replicating requestLocationUpdates).
+			if (location.getAccuracy() > minAccuracyMeters) return;
+			if (lastPassingLocation != null) {
+				long elapsedMs = location.getTime()
+					- lastPassingLocation.getTime();
+				float movedMeters = location.distanceTo(lastPassingLocation);
+				if (elapsedMs < minTimeMs || movedMeters < minDistanceMeters) {
+					return;
+				}
+			}
+			lastPassingLocation = location;
+			// Fresh payload — a Fabric event dispatch consumes the map,
+			// so the two streams must never share one WritableMap.
+			callback.onGnssPosition(buildPayload(location, gnssAltitude, altitude));
 		}
 
 		@Override public void onProviderEnabled(@NonNull String p) { }
 		@Override public void onProviderDisabled(@NonNull String p) { }
 		@Override public void onStatusChanged(String p, int s, Bundle e) { }
 	};
+
+	/**
+	 * Build a fresh {@link WritableMap} for one event emission.  Fabric
+	 * dispatches consume the map (the native memory moves to the event),
+	 * so every emission needs its own instance — never share one between
+	 * the live and recording streams.
+	 */
+	@NonNull
+	private WritableMap buildPayload(
+		@NonNull Location location,
+		@Nullable Double gnssAltitude,
+		@Nullable Double altitude
+	) {
+		WritableMap payload = Arguments.createMap();
+		payload.putDouble("lng", location.getLongitude());
+		payload.putDouble("lat", location.getLatitude());
+		if (altitude != null) {
+			payload.putDouble("altitude", altitude);
+		} else {
+			payload.putNull("altitude");
+		}
+		if (gnssAltitude != null) {
+			payload.putDouble("gnssAltitude", gnssAltitude);
+		} else {
+			payload.putNull("gnssAltitude");
+		}
+		payload.putDouble("bearing", location.hasBearing()
+			? location.getBearing() : -1);
+		payload.putDouble("accuracy", location.getAccuracy());
+		payload.putDouble("speed", location.hasSpeed()
+			? location.getSpeed() : 0);
+		payload.putDouble("timestamp", location.getTime());
+		return payload;
+	}
 
 	// -------------------------------------------------------------------
 	// Lifecycle
@@ -238,26 +302,38 @@ public class GnssManager {
 	public void start() {
 		if (started) return;
 		try {
+			// Raw registration — every fix reaches the listener; the
+			// recording gate is applied internally (see onLocationChanged).
 			locationManager.requestLocationUpdates(
-				provider, minTimeMs, minDistanceMeters,
+				provider, 0L, 0f,
 				locationListener, Looper.getMainLooper()
 			);
 			started = true;
 		} catch (SecurityException | IllegalArgumentException e) {
 			// Location permission not granted, or invalid parameters.
-			// Emit an error via the callback and leave started=false.
-			WritableMap err = Arguments.createMap();
-			err.putDouble("lng", 0);
-			err.putDouble("lat", 0);
-			err.putNull("altitude");
-			err.putNull("gnssAltitude");
-			err.putDouble("bearing", -1);
-			err.putDouble("accuracy", 0);
-			err.putDouble("speed", 0);
-			err.putDouble("timestamp", System.currentTimeMillis());
-			err.putString("errorMsg", e.getMessage());
-			callback.onGnssPosition(err);
+			// Emit an error via both callbacks and leave started=false.
+			callback.onGnssLive(buildErrorPayload(e.getMessage()));
+			callback.onGnssPosition(buildErrorPayload(e.getMessage()));
 		}
+	}
+
+	/**
+	 * Build an error payload for a failed listener start — a fresh map
+	 * per emission (Fabric dispatch consumes each one).
+	 */
+	@NonNull
+	private WritableMap buildErrorPayload(@Nullable String errorMsg) {
+		WritableMap err = Arguments.createMap();
+		err.putDouble("lng", 0);
+		err.putDouble("lat", 0);
+		err.putNull("altitude");
+		err.putNull("gnssAltitude");
+		err.putDouble("bearing", -1);
+		err.putDouble("accuracy", 0);
+		err.putDouble("speed", 0);
+		err.putDouble("timestamp", System.currentTimeMillis());
+		err.putString("errorMsg", errorMsg != null ? errorMsg : "");
+		return err;
 	}
 
 	/** Stop receiving location updates.  Idempotent. */
@@ -270,5 +346,6 @@ public class GnssManager {
 			// already unregistered by the OS.
 		}
 		started = false;
+		lastPassingLocation = null;
 	}
 }

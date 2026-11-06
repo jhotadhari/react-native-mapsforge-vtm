@@ -168,11 +168,17 @@ I/O. Exposed to JS as `hasDataAtPosition`.
 Native additions supporting elevation enrichment: `isTileCached(lng, lat)` (direct `LruCache.get()`,
 never preloads) and `setCacheCapacity(int maxTiles)` (`LruCache.resize()`).
 
-## GNSS track-recording filter
+## GNSS position streams
 
-`GnssManager` (`android/…/gnss/GnssManager.java`) wraps Android's `LocationManager` to record GNSS
-positions through a configurable filter, controlled by two `MapContainer` props: `gnssFilter`
-(starts/stops recording) and `onGnssPosition` (payload callback).
+`GnssManager` (`android/…/gnss/GnssManager.java`) wraps Android's `LocationManager` to deliver two
+GNSS position streams, controlled by the `gnssFilter` `MapContainer` prop (set starts / clear stops)
+and two callbacks: `onGnssLive` (every fix) and `onGnssPosition` (recording-qualifying only).
+
+The listener registers with **raw parameters** (0 ms / 0 m), so the live stream never thins to the
+recording cadence. `onGnssLive` fires per fix (~1 Hz) guarded only against garbage accuracy (the
+weaker of a 100 m cap and `minAccuracyMeters`). `onGnssPosition` fires only when accuracy ≤
+`minAccuracyMeters` AND ≥ `minTimeSec` elapsed AND ≥ `minDistanceMeters` moved since the last
+qualifying position — replicating the old `requestLocationUpdates(minTime, minDistance)` semantics.
 
 Filter config: `minDistanceMeters` (~5m default), `minTimeSec` (~2s default), `minAccuracyMeters`
 (~20m default), `provider` (`'satellite'`/`'network'`), `altitudeSource`
@@ -181,4 +187,4 @@ Filter config: `minDistanceMeters` (~5m default), `minTimeSec` (~2s default), `m
 Altitude: when not `'gnss-only'`, `GnssManager` calls `ElevationReader.getElevation` for DEM altitude
 (fast cache hit; miss → null + background preload, no blocking retry). `MapFragment.updateGnssFilter()`
 manages lifecycle; `onDestroy()` stops the listener; `start()` is idempotent and handles
-`SecurityException` by emitting an error through the callback.
+`SecurityException` by emitting an error through both callbacks.

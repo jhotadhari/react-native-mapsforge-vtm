@@ -40,9 +40,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `stippleColor` tints it, `transparent` blends gaps over the map. Known
   limitations (engine-level): the pattern phase quantizes at very low zoom and
   re-anchors during pan.
-- **`gnssAltitude` in the `onGnssPosition` payload** — the raw GNSS altitude
-  (independent of the filter's `altitudeSource`), alongside the resolved `altitude`,
-  so consumers can display the raw fix while recording still stores the DEM value.
+- **Dual GNSS position streams** — the listener now registers with raw
+  parameters and delivers two streams: `onGnssLive` fires on every fix
+  (~1 Hz, guarded only against garbage accuracy — the weaker of a 100 m cap
+  and the recording accuracy threshold) for live position UI, while
+  `onGnssPosition` fires only on recording-qualifying positions gated
+  natively by `minDistanceMeters`/`minTimeSec`/`minAccuracyMeters` (the
+  gate previously applied by `requestLocationUpdates`, now internal). The
+  live stream no longer thins to the recording cadence at low speeds. Both
+  payloads include `gnssAltitude` — the raw GNSS altitude (independent of
+  the filter's `altitudeSource`) alongside the resolved `altitude` — so
+  consumers can display the raw fix while recording still stores the DEM
+  value.
 
 ### Fixed
 

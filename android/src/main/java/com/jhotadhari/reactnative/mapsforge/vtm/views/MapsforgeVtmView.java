@@ -550,9 +550,18 @@ public class MapsforgeVtmView extends LinearLayout {
 	}
 
 	/**
+	 * Emit a {@code onGnssLive} event to JS.
+	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager}
+	 * on every GNSS fix (live stream — dense, for the live position UI).
+	 */
+	public void emitGnssLive( WritableMap payload ) {
+		emitMapEvent( "onGnssLive", payload );
+	}
+
+	/**
 	 * Emit a {@code onGnssPosition} event to JS.
 	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager}
-	 * on each qualifying GNSS position.
+	 * on each recording-qualifying GNSS position.
 	 */
 	public void emitGnssPosition( WritableMap payload ) {
 		emitMapEvent( "onGnssPosition", payload );

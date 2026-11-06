@@ -435,7 +435,17 @@ public class MapFragment extends Fragment {
 
 		gnssManager = GnssManager.create(
 			lm, filter, reader,
-			payload -> parent.emitGnssPosition( payload )
+			new GnssManager.Callback() {
+				@Override
+				public void onGnssLive( @NonNull WritableMap payload ) {
+					parent.emitGnssLive( payload );
+				}
+
+				@Override
+				public void onGnssPosition( @NonNull WritableMap payload ) {
+					parent.emitGnssPosition( payload );
+				}
+			}
 		);
 
 		if ( null != gnssManager ) {

@@ -55,7 +55,8 @@ event itself.
 | `onError` | `(e: NativeSyntheticEvent<{ errorMsg: string }>) => void` | Native error occurred |
 | `onTap` | `(e: NativeSyntheticEvent<TapEventResponse>) => void` | Single tap on the map (not on a marker/path) |
 | `onLongPress` | `(e: NativeSyntheticEvent<LongPressEventResponse>) => void` | Long press on the map |
-| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | GNSS position from the track-recording filter |
+| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | GNSS position that qualifies for track recording (accuracy + time + distance gate) |
+| `onGnssLive` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | Every GNSS fix (~1 Hz, garbage-accuracy guard only) — dense live stream for position UI |
 | `onMapCreated` | `() => void` | Internal — fires when the native `MapView` is ready |
 | `emitsMapUpdateEvents` | `boolean` | `true` if `onMapUpdate` set | Enable/disable position events. When `false`, the native side stops emitting `onMapUpdate` entirely, saving bridge bandwidth when no consumer is listening. |
 
@@ -94,13 +95,16 @@ This is separate from `LayerHillshading`'s `hgtDirPath`.
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `gnssFilter` | `GnssFilterNativeProps \| null` | `null` | Configures the native GNSS position filter. Setting starts recording; clearing (`null`) stops. |
-| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | — | Called on each qualifying position (after accuracy guard and altitude resolution). |
+| `gnssFilter` | `GnssFilterNativeProps \| null` | `null` | Configures the native GNSS listener. Setting starts it; clearing (`null`) stops. |
+| `onGnssPosition` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | — | Called on each recording-qualifying position: accuracy within `minAccuracyMeters` and at least `minTimeSec` / `minDistanceMeters` since the last one. |
+| `onGnssLive` | `(e: NativeSyntheticEvent<GnssPosition>) => void` | — | Called on every fix (~1 Hz), guarded only against garbage accuracy — independent of the recording filter. |
 
 The `gnssFilter` config fields: `minDistanceMeters`, `minTimeSec`,
 `minAccuracyMeters`, `provider` (`'satellite'` / `'network'`),
 `altitudeSource` (`'dem-only'` / `'gnss-only'` / `'dem-preferred'` /
-`'gnss-preferred'`). See **[GNSS filter](../api/gnss.md)** for full details.
+`'gnss-preferred'`). The listener registers with raw parameters; the
+filter fields only gate the `onGnssPosition` recording stream. See
+**[GNSS filter](../api/gnss.md)** for full details.
 
 ## Example
 

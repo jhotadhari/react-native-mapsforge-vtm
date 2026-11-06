@@ -132,6 +132,12 @@ interface MapViewProps extends ViewProps {
 	onTap?: DirectEventHandler<Readonly<TapEventResponse>> | null;
 	onLongPress?: DirectEventHandler<Readonly<LongPressEventResponse>> | null;
 	onGnssPosition?: DirectEventHandler<Readonly<GnssPosition>> | null;
+	/**
+	 * Live GNSS stream — fired on every fix the provider delivers (~1 Hz),
+	 * guarded only against garbage accuracy. Dense even at low speeds;
+	 * unlike `onGnssPosition` it is NOT thinned by the recording filter.
+	 */
+	onGnssLive?: DirectEventHandler<Readonly<GnssPosition>> | null;
 	onDeviceAzimuth?: DirectEventHandler<Readonly<DeviceAzimuth>> | null;
 	/**
 	 * Fired when an anchor view is added or removed under the map's wrapper
@@ -173,6 +179,7 @@ export type MapContainerProps = {
 	onTap?: MapViewProps['onTap'];
 	onLongPress?: MapViewProps['onLongPress'];
 	onGnssPosition?: MapViewProps['onGnssPosition'];
+	onGnssLive?: MapViewProps['onGnssLive'];
 	onDeviceAzimuth?: MapViewProps['onDeviceAzimuth'];
 	onAnchorsChanged?: MapViewProps['onAnchorsChanged'];
 };
