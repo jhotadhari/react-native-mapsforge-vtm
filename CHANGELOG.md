@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the filter's `altitudeSource`) alongside the resolved `altitude` — so
   consumers can display the raw fix while recording still stores the DEM
   value.
+- **`elevationSource` in the GNSS payloads** — both `onGnssLive` and
+  `onGnssPosition` now carry which source actually resolved `altitude`
+  (`'dem'`, `'gnss'`, or `'none'`), so track recording can persist
+  per-point altitude provenance.
 
 ### Fixed
 

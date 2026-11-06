@@ -215,28 +215,46 @@ public class GnssManager {
 			Double gnssAltitude = location.hasAltitude()
 				? location.getAltitude() : null;
 
+			// Resolved altitude plus which source actually produced it.
+			// Consumers (track recording) persist the source per point so
+			// DEM-vs-GNSS provenance survives the fix.
 			Double altitude = null;
+			String elevationSource = "none";
 			switch (altitudeSource) {
 				case "dem-only":
-					altitude = demAlt != null ? demAlt.doubleValue() : null;
+					if (demAlt != null) {
+						altitude = demAlt.doubleValue();
+						elevationSource = "dem";
+					}
 					break;
 				case "gnss-only":
-					altitude = gnssAltitude;
+					if (gnssAltitude != null) {
+						altitude = gnssAltitude;
+						elevationSource = "gnss";
+					}
 					break;
 				case "dem-preferred":
-					altitude = demAlt != null
-						? demAlt.doubleValue()
-						: gnssAltitude;
+					if (demAlt != null) {
+						altitude = demAlt.doubleValue();
+						elevationSource = "dem";
+					} else if (gnssAltitude != null) {
+						altitude = gnssAltitude;
+						elevationSource = "gnss";
+					}
 					break;
 				case "gnss-preferred":
-					altitude = gnssAltitude != null
-						? gnssAltitude
-						: (demAlt != null ? demAlt.doubleValue() : null);
+					if (gnssAltitude != null) {
+						altitude = gnssAltitude;
+						elevationSource = "gnss";
+					} else if (demAlt != null) {
+						altitude = demAlt.doubleValue();
+						elevationSource = "dem";
+					}
 					break;
 			}
 
 			// Live stream: every fix.
-			callback.onGnssLive(buildPayload(location, gnssAltitude, altitude));
+			callback.onGnssLive(buildPayload(location, gnssAltitude, altitude, elevationSource));
 
 			// Recording gate: accuracy, time AND distance since the last
 			// qualifying position (replicating requestLocationUpdates).
@@ -252,7 +270,7 @@ public class GnssManager {
 			lastPassingLocation = location;
 			// Fresh payload — a Fabric event dispatch consumes the map,
 			// so the two streams must never share one WritableMap.
-			callback.onGnssPosition(buildPayload(location, gnssAltitude, altitude));
+			callback.onGnssPosition(buildPayload(location, gnssAltitude, altitude, elevationSource));
 		}
 
 		@Override public void onProviderEnabled(@NonNull String p) { }
@@ -270,7 +288,8 @@ public class GnssManager {
 	private WritableMap buildPayload(
 		@NonNull Location location,
 		@Nullable Double gnssAltitude,
-		@Nullable Double altitude
+		@Nullable Double altitude,
+		@NonNull String elevationSource
 	) {
 		WritableMap payload = Arguments.createMap();
 		payload.putDouble("lng", location.getLongitude());
@@ -285,6 +304,10 @@ public class GnssManager {
 		} else {
 			payload.putNull("gnssAltitude");
 		}
+		// Which source actually produced `altitude` — 'dem', 'gnss', or
+		// 'none' (both unavailable).  Track recording persists this per
+		// point so elevation provenance survives the fix.
+		payload.putString("elevationSource", elevationSource);
 		payload.putDouble("bearing", location.hasBearing()
 			? location.getBearing() : -1);
 		payload.putDouble("accuracy", location.getAccuracy());
@@ -328,6 +351,7 @@ public class GnssManager {
 		err.putDouble("lat", 0);
 		err.putNull("altitude");
 		err.putNull("gnssAltitude");
+		err.putString("elevationSource", "none");
 		err.putDouble("bearing", -1);
 		err.putDouble("accuracy", 0);
 		err.putDouble("speed", 0);

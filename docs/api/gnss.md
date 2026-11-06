@@ -110,6 +110,7 @@ Both streams share the `GnssPosition` payload:
 | `lat` | `number` | Latitude in degrees |
 | `altitude` | `number \| null` | Resolved altitude in metres, or `null` |
 | `gnssAltitude` | `number \| null` | Raw GNSS altitude, independent of `altitudeSource` |
+| `elevationSource` | `'dem' \| 'gnss' \| 'none'` | Which source actually resolved `altitude` — `'none'` when `altitude` is `null` |
 | `bearing` | `number` | Bearing in degrees, or `-1` if unavailable |
 | `accuracy` | `number` | Accuracy in metres |
 | `speed` | `number` | Speed in m/s, or `0` if unavailable |

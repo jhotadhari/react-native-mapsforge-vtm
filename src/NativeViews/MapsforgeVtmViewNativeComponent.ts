@@ -88,6 +88,10 @@ export interface GnssPosition {
 	altitude: Double | null;
 	/** Raw GNSS altitude, independent of the filter's altitudeSource. */
 	gnssAltitude: Double | null;
+	/** Which source actually resolved `altitude`: `'dem'` (ElevationReader
+	 * cache hit), `'gnss'` (raw fix altitude), or `'none'` (no altitude
+	 * available). */
+	elevationSource: 'dem' | 'gnss' | 'none';
 	bearing: Double;
 	accuracy: Double;
 	speed: Double;
