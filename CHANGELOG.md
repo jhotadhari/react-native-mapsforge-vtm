@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `onGnssPosition` now carry which source actually resolved `altitude`
   (`'dem'`, `'gnss'`, or `'none'`), so track recording can persist
   per-point altitude provenance.
+- **`GnssModule` — application-scoped GNSS listener** — GNSS moves from the
+  map view to a TurboModule (`setFilter(filter|null)` + `setHgtDirPath`,
+  device events `onGnssLive`/`onGnssPosition`, same payload shape). The
+  listener survives the map surface, enabling background track recording
+  while the activity is swiped away. The view-level `gnssFilter` /
+  `onGnssPosition` / `onGnssLive` props are removed (breaking API change).
 
 ### Fixed
 

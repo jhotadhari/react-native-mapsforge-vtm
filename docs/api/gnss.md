@@ -1,8 +1,11 @@
 # GNSS Position Streams
 
 Native GNSS position delivery with configurable recording filtering and DEM
-altitude resolution. Configured via the `gnssFilter` prop — set it to start
-the listener, clear it to stop. Two streams are emitted:
+altitude resolution. Owned by the application-scoped **`GnssModule`**
+TurboModule — configure it with `setFilter()`, stop it with
+`setFilter(null)`. The listener is **not tied to any map view**: it keeps
+running while no surface is mounted, which is what makes background track
+recording work. Two streams are emitted as device events:
 
 - **`onGnssLive`** — every fix the provider delivers (~1 Hz), guarded only
   against garbage accuracy. Dense even at low speeds; for live UI (map
@@ -11,20 +14,20 @@ the listener, clear it to stop. Two streams are emitted:
   gated natively by `minDistanceMeters` + `minTimeSec` + `minAccuracyMeters`.
 
 ```tsx
-import type {
-  GnssFilterNativeProps,
-  GnssPosition,
+import GnssModule, {
+  type GnssFilterNativeProps,
+  type GnssPosition,
 } from 'react-native-mapsforge-vtm';
 ```
 
 ## Basic usage
 
 ```tsx
-import { useState, useCallback } from 'react';
-import { MapContainer } from 'react-native-mapsforge-vtm';
-import type {
-  GnssFilterNativeProps,
-  GnssPosition,
+import { useEffect, useState } from 'react';
+import { DeviceEventEmitter } from 'react-native';
+import GnssModule, {
+  type GnssFilterNativeProps,
+  type GnssPosition,
 } from 'react-native-mapsforge-vtm';
 
 const GnssTracker = () => {
@@ -40,40 +43,40 @@ const GnssTracker = () => {
     altitudeSource: 'dem-preferred',
   };
 
-  const handleGnssPosition = useCallback(
-    (e: { nativeEvent: GnssPosition }) => {
-      // Recording-qualifying position — persist it.
-      setTrack((prev) => [...prev, e.nativeEvent]);
-    },
-    []
-  );
+  useEffect(() => {
+    const onLive = DeviceEventEmitter.addListener('onGnssLive', (p: GnssPosition) => {
+      setLive(p);
+    });
+    const onPosition = DeviceEventEmitter.addListener('onGnssPosition', (p: GnssPosition) => {
+      setTrack((prev) => [...prev, p]);
+    });
+    return () => {
+      onLive.remove();
+      onPosition.remove();
+    };
+  }, []);
 
-  const handleGnssLive = useCallback(
-    (e: { nativeEvent: GnssPosition }) => {
-      // Every fix — update the live position UI.
-      setLive(e.nativeEvent);
-    },
-    []
-  );
+  useEffect(() => {
+    // Start/stop the application-scoped listener. It keeps running
+    // after the component unmounts (e.g. background recording) until
+    // setFilter(null) is called.
+    GnssModule.setFilter(recording ? filter : null);
+  }, [recording]);
 
-  return (
-    <MapContainer
-      gnssFilter={recording ? filter : null}
-      onGnssPosition={recording ? handleGnssPosition : undefined}
-      onGnssLive={handleGnssLive}
-    >
-      {/* layers */}
-    </MapContainer>
-  );
+  return null; // or the map UI — GNSS no longer needs a MapContainer
 };
 ```
 
-## Props
+## Module API
 
-### `gnssFilter: GnssFilterNativeProps | null`
+| Method | Description |
+|---|---|
+| `setFilter(filter \| null)` | Configure or stop the listener. `null` stops; a config (re)starts it. Reconfiguring restarts the listener with the new gate. |
+| `setHgtDirPath(path \| null)` | Configure the DEM directory used for altitude resolution (same semantics as the map's `setHgtDirPath`). `null`/empty tears the reader down — altitude then falls back to raw GNSS. |
 
-Set to a config object to start the listener; set to `null` to stop.
-Toggling between different configs stops and restarts the listener.
+## Filter config
+
+The `GnssFilterNativeProps` object passed to `setFilter`:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -87,14 +90,16 @@ Toggling between different configs stops and restarts the listener.
 > live stream never thins to the recording cadence. `minDistanceMeters` and
 > `minTimeSec` only gate the `onGnssPosition` recording stream.
 
-### `onGnssPosition: (e: { nativeEvent: GnssPosition }) => void`
+## Streams
+
+### `onGnssPosition`
 
 Called on each recording-qualifying position: accuracy within
 `minAccuracyMeters`, **and** at least `minTimeSec` elapsed **and**
 `minDistanceMeters` moved since the last qualifying position. This is the
 stream to persist (track recording).
 
-### `onGnssLive: (e: { nativeEvent: GnssPosition }) => void`
+### `onGnssLive`
 
 Called on **every** fix the provider delivers (~1 Hz), regardless of the
 recording filter. Guarded only against garbage accuracy — the weaker of a
@@ -102,7 +107,8 @@ recording filter. Guarded only against garbage accuracy — the weaker of a
 so the recording stream cannot starve). Use this for live UI: the map
 marker, speed/course widgets, live altitude.
 
-Both streams share the `GnssPosition` payload:
+Both streams share the `GnssPosition` payload (device events, not view
+events):
 
 | Field | Type | Description |
 |---|---|---|
@@ -137,12 +143,15 @@ and `enrichCoordinatesWithElevation` — all share the same LRU cache.
 
 ## Lifecycle
 
-- **Start**: setting `gnssFilter` on a mounted `MapContainer` calls
-  `GnssManager.start()` — registers an Android `LocationListener` (raw
-  parameters) on the main looper. Idempotent.
-- **Stop**: clearing `gnssFilter` (setting to `null`) calls
-  `GnssManager.stop()` — unregisters the listener. Idempotent.
-- **Tear down**: `MapFragment.onDestroy()` stops the listener if active.
+- **Start**: `setFilter(config)` calls `GnssManager.start()` — registers an
+  Android `LocationListener` (raw parameters) on the main looper.
+  Idempotent.
+- **Stop**: `setFilter(null)` calls `GnssManager.stop()` — unregisters the
+  listener. Idempotent.
+- **App scope**: the module (and its listener) is owned by the application,
+  **not** by any map view — it keeps running after the surface is gone
+  (background track recording). The process itself must stay alive (e.g. a
+  location-type foreground service in the host app).
 - **Permissions**: on `SecurityException` (missing `ACCESS_FINE_LOCATION`),
   the manager emits an error through **both** streams with `errorMsg` set
   and `lng`/`lat` = 0.
@@ -157,6 +166,7 @@ and `enrichCoordinatesWithElevation` — all share the same LRU cache.
 
 ## See also
 
-- **[MapContainer](../components/map-container.md)** — All props including `gnssFilter` / `onGnssPosition` / `onGnssLive`
+- **[MapContainer](../components/map-container.md)** — GNSS is no longer a
+  MapContainer concern (see the GNSS module section there)
 - **[ElevationReader](#)** — Native elevation infrastructure (two-level LRU cache)
 - **[enrichCoordinatesWithElevation()](./enrich-coordinates.md)** — Batch post-hoc elevation enrichment

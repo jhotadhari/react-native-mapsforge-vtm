@@ -12,7 +12,6 @@ import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.UIManagerHelper;
@@ -66,7 +65,6 @@ public class MapsforgeVtmView extends LinearLayout {
 	private double minRoll;
 	private double maxRoll;
 	private boolean emitsMapUpdateEvents;
-	private ReadableMap gnssFilter;
 	private boolean compassEnabled;
 
 	public MapsforgeVtmView( ThemedReactContext context ) { super(context); }
@@ -526,18 +524,6 @@ public class MapsforgeVtmView extends LinearLayout {
 		return emitsMapUpdateEvents;
 	}
 
-	public void setGnssFilter( @Nullable ReadableMap gnssFilter ) {
-		this.gnssFilter = gnssFilter;
-		if ( null != mapFragment ) {
-			mapFragment.updateGnssFilter();
-		}
-	}
-
-	@Nullable
-	public ReadableMap getGnssFilter() {
-		return gnssFilter;
-	}
-
 	public void setCompassEnabled( boolean compassEnabled ) {
 		this.compassEnabled = compassEnabled;
 		if ( null != mapFragment ) {
@@ -547,24 +533,6 @@ public class MapsforgeVtmView extends LinearLayout {
 
 	public boolean getCompassEnabled() {
 		return compassEnabled;
-	}
-
-	/**
-	 * Emit a {@code onGnssLive} event to JS.
-	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager}
-	 * on every GNSS fix (live stream — dense, for the live position UI).
-	 */
-	public void emitGnssLive( WritableMap payload ) {
-		emitMapEvent( "onGnssLive", payload );
-	}
-
-	/**
-	 * Emit a {@code onGnssPosition} event to JS.
-	 * Called from {@link com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager}
-	 * on each recording-qualifying GNSS position.
-	 */
-	public void emitGnssPosition( WritableMap payload ) {
-		emitMapEvent( "onGnssPosition", payload );
 	}
 
 	/**

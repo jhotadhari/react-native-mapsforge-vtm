@@ -23,7 +23,6 @@ import com.jhotadhari.reactnative.mapsforge.vtm.R;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
 import com.jhotadhari.reactnative.mapsforge.vtm.layer.HitTestLayer;
 import com.jhotadhari.reactnative.mapsforge.vtm.gnss.CompassManager;
-import com.jhotadhari.reactnative.mapsforge.vtm.gnss.GnssManager;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -43,8 +42,6 @@ public class MapFragment extends Fragment {
 	private Map.UpdateListener updateListener;
 
 	private HitTestLayer gestureLayer;
-
-	private GnssManager gnssManager;
 
 	private CompassManager compassManager;
 
@@ -85,16 +82,9 @@ public class MapFragment extends Fragment {
 			updateViewportValue( "roll" );
 			updateInteractionEnabled();
 			updateUpdateListener();
-			// Re-apply the stored gnssFilter prop. The prop can arrive
-			// before this fragment exists (cold start / surface
-			// recreation race) — setGnssFilter only applies it when the
-			// fragment is already there, so without this call the GNSS
-			// listener never starts and no positions flow until the
-			// prop changes (e.g. a GNSS toggle).
-			updateGnssFilter();
-			// Same race applies to the compass — re-apply the stored
-			// compassEnabled prop so azimuth events flow even when the
-			// prop arrived before the fragment existed.
+			// Re-apply the stored compassEnabled prop — the prop can
+			// arrive before this fragment exists (cold start / surface
+			// recreation race).
 			updateCompassEnabled();
 			bindGestureLayer();
 		} catch ( Exception e ) {
@@ -407,53 +397,6 @@ public class MapFragment extends Fragment {
 	}
 
 	/**
-	 * Start or stop the GNSS position filter based on the current
-	 * {@code gnssFilter} prop on the parent {@link MapsforgeVtmView}.
-	 */
-	public void updateGnssFilter() {
-		MapsforgeVtmView parent = getMapsforgeVtmView();
-		if ( null == parent ) return;
-
-		// Stop any existing listener first.
-		if ( null != gnssManager ) {
-			gnssManager.stop();
-			gnssManager = null;
-		}
-
-		ReadableMap filter = parent.getGnssFilter();
-		if ( null == filter ) return;
-
-		Context ctx = getContext();
-		if ( null == ctx ) return;
-
-		LocationManager lm = (LocationManager) ctx.getSystemService( Context.LOCATION_SERVICE );
-		if ( null == lm ) return;
-
-		com.jhotadhari.reactnative.mapsforge.vtm.ElevationReader reader =
-			com.jhotadhari.reactnative.mapsforge.vtm.modules.MapContainer.getElevationReader(
-				parent.getId(), parent.getReactContext() );
-
-		gnssManager = GnssManager.create(
-			lm, filter, reader,
-			new GnssManager.Callback() {
-				@Override
-				public void onGnssLive( @NonNull WritableMap payload ) {
-					parent.emitGnssLive( payload );
-				}
-
-				@Override
-				public void onGnssPosition( @NonNull WritableMap payload ) {
-					parent.emitGnssPosition( payload );
-				}
-			}
-		);
-
-		if ( null != gnssManager ) {
-			gnssManager.start();
-		}
-	}
-
-	/**
 	 * Start or stop the device-compass sensor based on the current
 	 * {@code compassEnabled} prop on the parent {@link MapsforgeVtmView}.
 	 */
@@ -532,10 +475,6 @@ public class MapFragment extends Fragment {
 	@Override
 	public void onDestroy() {
 		unbindUpdateListener();
-		if ( null != gnssManager ) {
-			gnssManager.stop();
-			gnssManager = null;
-		}
 		if ( null != compassManager ) {
 			compassManager.stop();
 			compassManager = null;

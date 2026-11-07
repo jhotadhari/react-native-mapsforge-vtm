@@ -171,8 +171,11 @@ never preloads) and `setCacheCapacity(int maxTiles)` (`LruCache.resize()`).
 ## GNSS position streams
 
 `GnssManager` (`android/…/gnss/GnssManager.java`) wraps Android's `LocationManager` to deliver two
-GNSS position streams, controlled by the `gnssFilter` `MapContainer` prop (set starts / clear stops)
-and two callbacks: `onGnssLive` (every fix) and `onGnssPosition` (recording-qualifying only).
+GNSS position streams. It is owned by the application-scoped **`GnssModule`** TurboModule
+(`android/…/modules/GnssModule.java`), controlled via `setFilter()` (set starts / clear stops) —
+not by the map view — and emitted as device events: `onGnssLive` (every fix) and `onGnssPosition`
+(recording-qualifying only). The module keeps its own `ElevationReader` slot in the shared
+registry (`MapContainer.putElevationReader`), configured via `setHgtDirPath`.
 
 The listener registers with **raw parameters** (0 ms / 0 m), so the live stream never thins to the
 recording cadence. `onGnssLive` fires per fix (~1 Hz) guarded only against garbage accuracy (the

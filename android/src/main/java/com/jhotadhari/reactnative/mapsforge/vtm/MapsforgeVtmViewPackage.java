@@ -10,6 +10,7 @@ import com.facebook.react.module.model.ReactModuleInfo;
 import com.facebook.react.module.model.ReactModuleInfoProvider;
 import com.facebook.react.uimanager.ViewManager;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.CanvasAdapter;
+import com.jhotadhari.reactnative.mapsforge.vtm.modules.GnssModule;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerHillshading;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerLabel;
 import com.jhotadhari.reactnative.mapsforge.vtm.modules.LayerMapsforge;
@@ -83,6 +84,9 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 		}
 		if ( CanvasAdapter.NAME.equals( s ) ) {
 			return new CanvasAdapter( reactApplicationContext );
+		}
+		if ( GnssModule.NAME.equals( s ) ) {
+			return new GnssModule( reactApplicationContext );
 		}
 		return null;
 	}
@@ -210,6 +214,14 @@ public class MapsforgeVtmViewPackage extends BaseReactPackage implements ReactPa
 				map.put( CanvasAdapter.NAME, new ReactModuleInfo(
 					CanvasAdapter.NAME,				// name
 					CanvasAdapter.NAME,				// className
+					false,							// canOverrideExistingModule
+					false,							// needsEagerInit
+					false,							// isCxxModule
+					true							// isTurboModule
+				) );
+				map.put( GnssModule.NAME, new ReactModuleInfo(
+					GnssModule.NAME,				// name
+					GnssModule.NAME,				// className
 					false,							// canOverrideExistingModule
 					false,							// needsEagerInit
 					false,							// isCxxModule

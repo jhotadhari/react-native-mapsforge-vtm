@@ -74,9 +74,6 @@ const MapContainer = ({
 	onError,
 	onTap,
 	onLongPress,
-	gnssFilter,
-	onGnssPosition,
-	onGnssLive,
 	compassEnabled = moduleDefaults.compassEnabled,
 	onDeviceAzimuth,
 }: MapContainerProps & {
@@ -250,9 +247,6 @@ const MapContainer = ({
 				onTap={onTap ? onTap : null}
 				onLongPress={onLongPress ? onLongPress : null}
 				onAnchorsChanged={handleAnchorsChanged}
-				gnssFilter={gnssFilter ? gnssFilter : null}
-				onGnssPosition={onGnssPosition ? onGnssPosition : null}
-				onGnssLive={onGnssLive ? onGnssLive : null}
 				compassEnabled={
 					isBoolean(compassEnabled) ? compassEnabled : false
 				}

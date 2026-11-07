@@ -133,6 +133,7 @@ import {
 } from './mercatorMath';
 import type { MercatorMathOptions, ViewportBbox } from './mercatorMath';
 import CanvasAdapterModule from './NativeModules/NativeCanvasAdapter';
+import GnssModule from './NativeModules/NativeGnssModule';
 import type { ErrorWithErrorMsg } from './types';
 import SharedLayer from './components/SharedLayer';
 import ReindexScope from './components/ReindexScope';
@@ -321,6 +322,7 @@ export {
 	// Other
 	useRenderStyleOptions,
 	CanvasAdapterModule,
+	GnssModule,
 	SharedLayer,
 	ReindexScope,
 	type ReindexScopeProps,

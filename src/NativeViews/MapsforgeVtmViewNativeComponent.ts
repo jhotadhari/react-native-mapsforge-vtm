@@ -125,7 +125,6 @@ interface MapViewProps extends ViewProps {
 	minRoll?: Double;
 	maxRoll?: Double;
 	emitsMapUpdateEvents: boolean;
-	gnssFilter?: Readonly<GnssFilterNativeProps> | null;
 	/** Enables the device-compass sensor and onDeviceAzimuth events. */
 	compassEnabled?: boolean;
 	onMapCreated?: DirectEventHandler<Readonly<{}>> | null;
@@ -135,13 +134,6 @@ interface MapViewProps extends ViewProps {
 	onError?: DirectEventHandler<Readonly<ErrorWithErrorMsg>> | null;
 	onTap?: DirectEventHandler<Readonly<TapEventResponse>> | null;
 	onLongPress?: DirectEventHandler<Readonly<LongPressEventResponse>> | null;
-	onGnssPosition?: DirectEventHandler<Readonly<GnssPosition>> | null;
-	/**
-	 * Live GNSS stream — fired on every fix the provider delivers (~1 Hz),
-	 * guarded only against garbage accuracy. Dense even at low speeds;
-	 * unlike `onGnssPosition` it is NOT thinned by the recording filter.
-	 */
-	onGnssLive?: DirectEventHandler<Readonly<GnssPosition>> | null;
 	onDeviceAzimuth?: DirectEventHandler<Readonly<DeviceAzimuth>> | null;
 	/**
 	 * Fired when an anchor view is added or removed under the map's wrapper
@@ -174,7 +166,6 @@ export type MapContainerProps = {
 	minRoll?: MapViewProps['minRoll'];
 	maxRoll?: MapViewProps['maxRoll'];
 	emitsMapUpdateEvents?: null | MapViewProps['emitsMapUpdateEvents'];
-	gnssFilter?: MapViewProps['gnssFilter'];
 	compassEnabled?: MapViewProps['compassEnabled'];
 	onMapUpdate?: MapViewProps['onMapUpdate'];
 	onPause?: MapViewProps['onPause'];
@@ -182,8 +173,6 @@ export type MapContainerProps = {
 	onError?: MapViewProps['onError'];
 	onTap?: MapViewProps['onTap'];
 	onLongPress?: MapViewProps['onLongPress'];
-	onGnssPosition?: MapViewProps['onGnssPosition'];
-	onGnssLive?: MapViewProps['onGnssLive'];
 	onDeviceAzimuth?: MapViewProps['onDeviceAzimuth'];
 	onAnchorsChanged?: MapViewProps['onAnchorsChanged'];
 };

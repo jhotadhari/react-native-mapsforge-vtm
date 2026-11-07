@@ -625,6 +625,25 @@ public class MapContainer extends NativeMapContainerSpec {
 	}
 
 	/**
+	 * Registers an ElevationReader under the given key (closing any
+	 * existing reader for that key). Used by non-view consumers — e.g.
+	 * the GnssModule, whose reader must exist independently of any map
+	 * view.
+	 */
+	public static void putElevationReader( int nativeNodeHandle, com.facebook.react.bridge.ReactContext reactContext, ElevationReader reader ) {
+		if ( reactContext == null || reader == null ) {
+			return;
+		}
+		MapContainer module = reactContext.getNativeModule( MapContainer.class );
+		if ( module != null ) {
+			ElevationReader old = module.elevationReaders.put( nativeNodeHandle, reader );
+			if ( old != null ) {
+				old.close();
+			}
+		}
+	}
+
+	/**
 	 * Returns the ElevationReader for the given nativeNodeHandle, or null.
 	 * Called from MapFragment.getResponseBase() on the render thread — the
 	 * ElevationReader's getElevation() is thread-safe (synchronized LruCache
