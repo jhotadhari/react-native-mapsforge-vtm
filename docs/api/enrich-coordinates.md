@@ -87,6 +87,8 @@ function, with the error-handling strategy described below.
 | `onProgress` | — | Called after each window completes with the overall fraction (0–1). Suitable for driving a progress bar. |
 | `signal` | — | `AbortSignal`. When aborted, enrichment stops at the next window boundary. Coordinates enriched so far are preserved — it does not roll back. |
 | `fallbackElevation` | `0` | Elevation value assigned to coordinates whose tile has no HGT data (ocean, missing coverage). Set to `null` to leave those coordinates untouched. |
+| `interpolateMissing` | `false` | When `true`, coordinates that received the fallback elevation (no-data tiles, void pixels, fence timeouts) are filled by interpolating from neighbouring valid elevations instead. Bounded runs (valid anchor on both sides) get linear interpolation along the track (cumulative haversine distance); leading/trailing runs get the nearest valid elevation. Fully missing tracks stay at the fallback. Skipped when enrichment is aborted. |
+| `interpolateMaxGapMeters` | `Infinity` | Along-track distance cap (metres) between the two valid anchors of a missing run. Runs spanning a larger gap keep the fallback — prevents fabricating a plausible-looking profile across large data gaps (e.g. DEM coverage missing for half a track). Only applies when `interpolateMissing` is `true`. |
 
 ## Return value
 
@@ -119,6 +121,10 @@ even when the native LRU cache is smaller than the tile set:
      return `null` and leave the coordinate unchanged.
 4. **Teardown** — the LRU cache capacity is restored to its compile-time
    default (10) in `finally`, unless `keepCacheCapacity` was set.
+5. **Interpolation (optional)** — with `interpolateMissing`, coordinates
+   that received the fallback elevation are filled from their nearest
+   valid neighbours in original track order (see the option docs for the
+   exact rules). Skipped when enrichment was aborted.
 
 ## See also
 

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`interpolateMissing` / `interpolateMaxGapMeters` on
+  `enrichCoordinatesWithElevation`** — interpolate missing elevations
+  (no-data tiles, void pixels) from neighbouring valid elevations:
+  linear along-track interpolation for bounded runs, carry-nearest at
+  track ends, with an optional anchor-gap distance cap.
 - **`setCorrectTextPacking`** — new `CanvasAdapter` TurboModule method bridging
   `org.oscim.backend.CanvasAdapter.correctTextPacking`.
 - **`LayerScreenLine`** — a polyline rebuilt natively on the GL thread

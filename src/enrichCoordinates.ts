@@ -16,6 +16,10 @@
  *         duration that accounts for I/O throughput.
  *      c. Phase 3 — collect: read all tiles from cache (sub‑ms each).
  *   5. Restore the LRU cache capacity (unless keepCacheCapacity is set).
+ *   6. Optionally interpolate missing elevations (interpolateMissing):
+ *      runs of coordinates that received the fallback are filled from
+ *      their nearest valid neighbours — linear along‑track interpolation
+ *      for bounded runs, carry‑nearest for leading/trailing runs.
  *
  * Coordinates are grouped by tile for efficient I/O; after the fence
  * proves every tile is cached, each coordinate gets its own bilinearly-
@@ -123,6 +127,37 @@ export interface EnrichCoordinatesOptions {
 	 * Default: `0`.  Set to `null` to leave those coordinates unchanged.
 	 */
 	fallbackElevation?: number | null;
+
+	/**
+	 * When `true`, coordinates that could not be enriched from HGT data
+	 * (no‑data tiles, void pixels, fence timeouts) are filled by
+	 * interpolating from neighbouring valid elevations instead of
+	 * keeping {@link EnrichCoordinatesOptions.fallbackElevation}.
+	 *
+	 * Runs of consecutive missing coordinates are handled as follows:
+	 * - Bounded runs (valid anchor on both sides): linear interpolation
+	 *   along the track (cumulative haversine distance between the
+	 *   anchors).
+	 * - Leading/trailing runs (track start/end): filled with the nearest
+	 *   valid elevation.
+	 * - Fully‑missing tracks: left at the fallback value.
+	 *
+	 * Skipped when enrichment is aborted.  Default: `false`.
+	 */
+	interpolateMissing?: boolean;
+
+	/**
+	 * Maximum along‑track distance (metres) between the two valid
+	 * anchors of a missing run for interpolation to apply.  Runs
+	 * spanning a larger gap keep the fallback elevation — this prevents
+	 * fabricating a plausible‑looking profile across large data gaps
+	 * (e.g. DEM coverage missing for half a track).
+	 *
+	 * Only meaningful when
+	 * {@link EnrichCoordinatesOptions.interpolateMissing} is `true`.
+	 * Default: `Infinity` (interpolate any bounded run).
+	 */
+	interpolateMaxGapMeters?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,10 +238,93 @@ const findElevationInTile = async (
 const delay = (ms: number): Promise<void> =>
 	new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Great‑circle distance in metres between two `[lng, lat]` points.
+ */
+const haversineMeters = (a: number[], b: number[]): number => {
+	const R = 6371000;
+	const toRad = (deg: number): number => (deg * Math.PI) / 180;
+	const dLat = toRad(b[1]! - a[1]!);
+	const dLng = toRad(b[0]! - a[0]!);
+	const lat1 = toRad(a[1]!);
+	const lat2 = toRad(b[1]!);
+	const h =
+		Math.sin(dLat / 2) ** 2 +
+		Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+	return 2 * R * Math.asin(Math.sqrt(h));
+};
+
+/**
+ * Fills runs of missing elevations (indices in `missing`) in place by
+ * interpolating from the nearest valid neighbours.  See
+ * {@link EnrichCoordinatesOptions.interpolateMissing} for the exact
+ * rules.
+ */
+const interpolateMissingElevations = (
+	coords: number[][],
+	missing: Set<number>,
+	maxGapMeters?: number
+): void => {
+	const n = coords.length;
+	if (n < 2 || missing.size === 0) return;
+
+	// Cumulative along‑track distance per coordinate.
+	const cumDist: number[] = [0];
+	for (let i = 1; i < n; i++) {
+		cumDist.push(
+			cumDist[i - 1]! + haversineMeters(coords[i - 1]!, coords[i]!)
+		);
+	}
+
+	const cap = maxGapMeters ?? Infinity;
+
+	let runStart = -1;
+	for (let i = 0; i <= n; i++) {
+		const isMissing = i < n && missing.has(i);
+		if (isMissing && runStart === -1) {
+			runStart = i;
+			continue;
+		}
+		if (!isMissing && runStart !== -1) {
+			const runEnd = i - 1;
+			const left = runStart - 1;
+			const right = i;
+			const altLeft = left >= 0 ? coords[left]![2] : undefined;
+			const altRight = right < n ? coords[right]![2] : undefined;
+
+			if (altLeft != null && altRight != null) {
+				// Bounded run — linear interpolation along the track.
+				const gapMeters = cumDist[right]! - cumDist[left]!;
+				if (gapMeters <= cap) {
+					for (let j = runStart; j <= runEnd; j++) {
+						const t =
+							gapMeters > 0
+								? (cumDist[j]! - cumDist[left]!) / gapMeters
+								: 0;
+						coords[j]![2] = altLeft + (altRight - altLeft) * t;
+					}
+				}
+			} else if (altLeft != null) {
+				// Trailing run — carry the last valid elevation.
+				for (let j = runStart; j <= runEnd; j++) {
+					coords[j]![2] = altLeft;
+				}
+			} else if (altRight != null) {
+				// Leading run — carry the first valid elevation.
+				for (let j = runStart; j <= runEnd; j++) {
+					coords[j]![2] = altRight;
+				}
+			}
+			runStart = -1;
+		}
+	}
+};
+
 interface TileGroup {
 	lng: number;
 	lat: number;
 	coords: number[][];
+	indices: number[];
 }
 
 // ---------------------------------------------------------------------------
@@ -227,6 +345,12 @@ interface TileGroup {
  * even when the native LRU cache is smaller than the tile set.  Each
  * window fits entirely in the cache, guaranteeing 100 % cache‑hit rate
  * in the collect phase.
+ *
+ * With {@link EnrichCoordinatesOptions.interpolateMissing} the
+ * coordinates that received the fallback elevation (or were left
+ * unchanged with `fallbackElevation: null`) are afterwards filled by
+ * interpolating from neighbouring valid elevations — see the option
+ * docs for the exact rules.
  *
  * Mutates `coords` **in place** (sets `c[2]` on every coordinate) and
  * also returns the same array for chaining.
@@ -256,14 +380,21 @@ export const enrichCoordinatesWithElevation = async (
 	// 1. Group coordinates by 1°×1° SRTM tile
 	// ------------------------------------------------------------------
 	const tileMap = new Map<string, TileGroup>();
-	for (const coord of coords) {
+	for (let i = 0; i < coords.length; i++) {
+		const coord = coords[i]!;
 		const key = tileKey(coord[0]!, coord[1]!);
 		let entry = tileMap.get(key);
 		if (!entry) {
-			entry = { lng: coord[0]!, lat: coord[1]!, coords: [] };
+			entry = {
+				lng: coord[0]!,
+				lat: coord[1]!,
+				coords: [],
+				indices: [],
+			};
 			tileMap.set(key, entry);
 		}
 		entry.coords.push(coord);
+		entry.indices.push(i);
 	}
 
 	const allTiles = Array.from(tileMap.values());
@@ -278,6 +409,8 @@ export const enrichCoordinatesWithElevation = async (
 	const tilesWithoutData: TileGroup[] = [];
 	const CHUNK_SIZE = 10;
 	const fallback = options?.fallbackElevation ?? 0;
+	/** Indices into `coords` that received the fallback (interpolation candidates). */
+	const missing = new Set<number>();
 	for (let i = 0; i < allTiles.length; i += CHUNK_SIZE) {
 		if (options?.signal?.aborted) return coords;
 		const chunk = allTiles.slice(i, i + CHUNK_SIZE);
@@ -300,9 +433,10 @@ export const enrichCoordinatesWithElevation = async (
 
 	// Apply fallback to coordinates in tiles without HGT data.
 	for (const tile of tilesWithoutData) {
-		for (const c of tile.coords) {
+		for (let i = 0; i < tile.coords.length; i++) {
+			missing.add(tile.indices[i]!);
 			if (fallback !== null) {
-				c[2] = fallback;
+				tile.coords[i]![2] = fallback;
 			}
 		}
 	}
@@ -413,13 +547,17 @@ export const enrichCoordinatesWithElevation = async (
 			// sub‑millisecond cache hits with full bilinear
 			// interpolation.  Each coordinate gets its own elevation
 			// rather than sharing a single tile‑representative value.
-			for (const { coords: tileCoords } of window) {
-				for (const c of tileCoords) {
+			for (const { coords: tileCoords, indices } of window) {
+				for (let ci = 0; ci < tileCoords.length; ci++) {
+					const c = tileCoords[ci]!;
 					const alt = await api.getAltitudeAtPosition(c[0]!, c[1]!);
 					if (alt !== null) {
 						c[2] = alt;
-					} else if (fallback !== null) {
-						c[2] = fallback;
+					} else {
+						missing.add(indices[ci]!);
+						if (fallback !== null) {
+							c[2] = fallback;
+						}
 					}
 				}
 				enrichedCount += tileCoords.length;
@@ -453,6 +591,20 @@ export const enrichCoordinatesWithElevation = async (
 				// Best-effort.
 			}
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// 5. Optional interpolation of missing elevations.  Runs in the
+	//    original track order are filled from their nearest valid
+	//    neighbours.  Skipped when enrichment was aborted — partial
+	//    data makes the anchors unreliable.
+	// ------------------------------------------------------------------
+	if (options?.interpolateMissing && !options?.signal?.aborted) {
+		interpolateMissingElevations(
+			coords,
+			missing,
+			options.interpolateMaxGapMeters
+		);
 	}
 
 	return coords;

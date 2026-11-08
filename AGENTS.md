@@ -193,7 +193,12 @@ interpolation). Mutates the input array in place and returns it.
 `setCacheCapacity?` (**throws**).
 
 **`EnrichCoordinatesOptions`:** `maxCacheCapacity` (default 50), `keepCacheCapacity`,
-`onProgress`, `signal` (AbortSignal), `fallbackElevation`.
+`onProgress`, `signal` (AbortSignal), `fallbackElevation`, `interpolateMissing`
+(default `false`), `interpolateMaxGapMeters` (default `Infinity`). With
+`interpolateMissing`, coordinates that received the fallback (no-data tiles, void
+pixels, fence timeouts) are filled from their nearest valid neighbours: linear
+along-track (haversine) interpolation for bounded runs, carry-nearest for
+leading/trailing runs — skipped on abort and capped by `interpolateMaxGapMeters`.
 
 **`getAltitudeAtPositionRetry(lng, lat, opts?)`:** exponential-backoff retry wrapper that checks
 `hasDataAtPosition` first (returns `null` immediately for ocean/missing tiles).
