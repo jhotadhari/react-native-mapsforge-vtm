@@ -76,10 +76,31 @@ export type LayerMBTilesBitmapProps = {
 	onError?: null | ((err: ErrorBase) => void);
 };
 
+export interface PruneTileMemoryCacheParams {
+	nativeNodeHandle: Int32;
+	uuid: string;
+	maxTiles: Int32;
+}
+
+export interface ClearTileMemoryCacheParams {
+	nativeNodeHandle: Int32;
+	uuid: string;
+}
+
 export interface Spec extends TurboModule {
 	getConstants(): ModuleParams;
 	createLayer(params: CreateLayerParams): Promise<LayerMBTilesBitmapResponse>;
 	removeLayer(params: RemoveLayerParams): Promise<string>;
+	/**
+	 * Prune this layer's in-memory tile cache to at most maxTiles tiles.
+	 * Tiles farthest from the current map position are evicted first.
+	 */
+	pruneTileMemoryCache(params: PruneTileMemoryCacheParams): Promise<string>;
+	/**
+	 * Clear this layer's in-memory tile cache (bitmaps and GL resources).
+	 * On-disk caches are untouched.
+	 */
+	clearTileMemoryCache(params: ClearTileMemoryCacheParams): Promise<string>;
 	updateEnabledZoomMinMax(
 		params: UpdateEnabledZoomMinMaxParams
 	): Promise<string>;

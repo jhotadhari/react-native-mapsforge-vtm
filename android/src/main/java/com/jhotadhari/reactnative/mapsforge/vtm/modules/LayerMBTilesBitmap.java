@@ -192,6 +192,30 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 	}
 
 	@Override
+	public void pruneTileMemoryCache( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) || ! Utils.rMapHasKey( params, "maxTiles" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle, uuid, or maxTiles" ); return;
+			}
+			LayerHelper.pruneTileMemoryCache( params.getInt( "nativeNodeHandle" ), params.getString( "uuid" ), params.getInt( "maxTiles" ), promise );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void clearTileMemoryCache( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or uuid" ); return;
+			}
+			LayerHelper.clearTileMemoryCache( params.getInt( "nativeNodeHandle" ), params.getString( "uuid" ), promise );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
 	public void updateEnabledZoomMinMax( ReadableMap params, Promise promise ) {
 		layerHelper.updateEnabledZoomMinMax( params, promise );
 	}

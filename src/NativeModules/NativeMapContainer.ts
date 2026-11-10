@@ -74,6 +74,15 @@ export interface GetPositionParams {
 	nativeNodeHandle: Int32;
 }
 
+export interface PruneTileMemoryCacheParams {
+	nativeNodeHandle: Int32;
+	maxTiles: Int32;
+}
+
+export interface ClearTileMemoryCacheParams {
+	nativeNodeHandle: Int32;
+}
+
 export interface GetPositionResponse {
 	center: Position;
 	zoomLevel: Double;
@@ -169,6 +178,18 @@ export interface Spec extends TurboModule {
 	): Promise<EnumerateAnchorsResponse>;
 	animateTo(params: AnimateToParams): Promise<void>;
 	getPosition(params: GetPositionParams): Promise<GetPositionResponse>;
+	/**
+	 * Prune the in-memory tile caches of all tile layers to at most
+	 * maxTiles tiles per layer. Tiles farthest from the current map
+	 * position are evicted first. On-disk caches (mapsforge files,
+	 * mbtiles, hillshading, downloaded raster tiles) are untouched.
+	 */
+	pruneTileMemoryCache(params: PruneTileMemoryCacheParams): Promise<void>;
+	/**
+	 * Clear the in-memory tile caches of all tile layers (bitmaps and
+	 * GL resources). On-disk caches are untouched.
+	 */
+	clearTileMemoryCache(params: ClearTileMemoryCacheParams): Promise<void>;
 	triggerEvent(params: TriggerParams): void;
 	setHgtDirPath(params: SetHgtDirPathParams): Promise<void>;
 	getAltitudeAtPosition(

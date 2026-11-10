@@ -155,6 +155,8 @@ const useMap = (nativeNodeHandleOverride?: null | number) => {
 			const stub: Record<string, (...args: any[]) => any> = {};
 			const methodNames = [
 				'getPosition',
+				'pruneTileMemoryCache',
+				'clearTileMemoryCache',
 				'jumpTo',
 				'panTo',
 				'panBy',

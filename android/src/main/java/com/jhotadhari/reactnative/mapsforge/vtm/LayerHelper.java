@@ -6,9 +6,11 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.UiThreadUtil;
 
 import org.oscim.android.MapView;
 import org.oscim.layers.Layer;
+import org.oscim.layers.tile.TileLayer;
 
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +41,61 @@ public class LayerHelper {
 			return null;
 		}
 		return queue.getKnownLayers().get(uuid);
+	}
+
+	// ------------------------------------------------------------------
+	// Tile memory cache commands (layer-level)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Prune the in-memory tile cache of a single layer down to at most
+	 * {@code maxTiles} tiles. Runs on the UI thread (vtm's map thread) —
+	 * the underlying eviction is not thread-safe.
+	 */
+	public static void pruneTileMemoryCache( int nativeNodeHandle, String uuid, int maxTiles, Promise promise ) {
+		Layer layer = getLayer( nativeNodeHandle, uuid );
+		if ( null == layer ) {
+			Utils.promiseReject( promise, "Layer not found" );
+			return;
+		}
+		if ( ! ( layer instanceof TileLayer ) ) {
+			Utils.promiseReject( promise, "Layer does not hold a tile cache" );
+			return;
+		}
+		final TileLayer tileLayer = (TileLayer) layer;
+		UiThreadUtil.runOnUiThread( () -> {
+			try {
+				tileLayer.pruneTileMemoryCache( maxTiles );
+				promise.resolve( null );
+			} catch ( Exception e ) {
+				Utils.promiseReject( promise, e.getMessage() );
+			}
+		} );
+	}
+
+	/**
+	 * Clear the in-memory tile cache of a single layer (tile bitmaps and
+	 * GL resources). Runs on the UI thread (vtm's map thread).
+	 */
+	public static void clearTileMemoryCache( int nativeNodeHandle, String uuid, Promise promise ) {
+		Layer layer = getLayer( nativeNodeHandle, uuid );
+		if ( null == layer ) {
+			Utils.promiseReject( promise, "Layer not found" );
+			return;
+		}
+		if ( ! ( layer instanceof TileLayer ) ) {
+			Utils.promiseReject( promise, "Layer does not hold a tile cache" );
+			return;
+		}
+		final TileLayer tileLayer = (TileLayer) layer;
+		UiThreadUtil.runOnUiThread( () -> {
+			try {
+				tileLayer.clearTileMemoryCache();
+				promise.resolve( null );
+			} catch ( Exception e ) {
+				Utils.promiseReject( promise, e.getMessage() );
+			}
+		} );
 	}
 
 	public Map<String, Layer> getLayers( int nativeNodeHandle ) {

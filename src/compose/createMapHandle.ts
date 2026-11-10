@@ -67,6 +67,25 @@ export function createMapHandle(nativeNodeHandle: number) {
 	const getPosition = (): Promise<GetPositionResponse> =>
 		NativeMapContainer.getPosition({ nativeNodeHandle });
 
+	/**
+	 * Prune the in-memory tile caches of all tile layers to at most
+	 * `maxTiles` tiles per layer. Tiles farthest from the current map
+	 * position are evicted first. On-disk caches (mapsforge files,
+	 * mbtiles, hillshading, downloaded raster tiles) are untouched.
+	 */
+	const pruneTileMemoryCache = (maxTiles: number): Promise<void> =>
+		NativeMapContainer.pruneTileMemoryCache({
+			nativeNodeHandle,
+			maxTiles,
+		});
+
+	/**
+	 * Clear the in-memory tile caches of all tile layers (bitmaps and
+	 * GL resources). On-disk caches are untouched.
+	 */
+	const clearTileMemoryCache = (): Promise<void> =>
+		NativeMapContainer.clearTileMemoryCache({ nativeNodeHandle });
+
 	const jumpTo = (target: MapPositionTarget): Promise<void> =>
 		animateTo(target);
 
@@ -243,6 +262,8 @@ export function createMapHandle(nativeNodeHandle: number) {
 
 	return {
 		getPosition,
+		pruneTileMemoryCache,
+		clearTileMemoryCache,
 		jumpTo,
 		panTo,
 		panBy,

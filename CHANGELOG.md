@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Map-level tile memory cache commands** — `pruneTileMemoryCache(maxTiles)`
+  and `clearTileMemoryCache()` on `useMap()` / the map handle: prune all
+  tile layers' in-memory tile caches down to a per-layer budget (tiles
+  farthest from the current map position are evicted first) or clear them
+  entirely. On-disk caches (mapsforge files, mbtiles, hillshading,
+  downloaded raster tiles) are untouched.
+- **Layer-level tile memory cache commands** — `pruneTileMemoryCache` and
+  `clearTileMemoryCache` on the `LayerMapsforge`, `LayerMBTilesBitmap`,
+  `LayerBitmapTile`, and `LayerHillshading` modules (params:
+  `nativeNodeHandle`, `uuid`, and `maxTiles` for prune).
 - **`interpolateMissing` / `interpolateMaxGapMeters` on
   `enrichCoordinatesWithElevation`** — interpolate missing elevations
   (no-data tiles, void pixels) from neighbouring valid elevations:

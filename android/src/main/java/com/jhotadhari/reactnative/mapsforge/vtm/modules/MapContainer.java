@@ -354,6 +354,50 @@ public class MapContainer extends NativeMapContainerSpec {
 		}
 	}
 
+	@Override
+	public void pruneTileMemoryCache( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "maxTiles" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle or maxTiles" ); return;
+			}
+
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			if ( null == mapView ) {
+				Utils.promiseRejectMapViewGone( promise ); return;
+			}
+
+			// Map.pruneTileMemoryCache posts to the map/main thread when
+			// called from a background thread.
+			mapView.map().pruneTileMemoryCache( params.getInt( "maxTiles" ) );
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void clearTileMemoryCache( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) ) {
+				Utils.promiseReject( promise, "Undefined nativeNodeHandle" ); return;
+			}
+
+			MapView mapView = Utils.getMapView( getReactApplicationContext(), params.getInt( "nativeNodeHandle" ) );
+			if ( null == mapView ) {
+				Utils.promiseRejectMapViewGone( promise ); return;
+			}
+
+			// Map.clearTileMemoryCache posts to the map/main thread when
+			// called from a background thread.
+			mapView.map().clearTileMemoryCache();
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			e.printStackTrace();
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
 
 	@Override
 	public void setHgtDirPath( ReadableMap params, Promise promise ) {
