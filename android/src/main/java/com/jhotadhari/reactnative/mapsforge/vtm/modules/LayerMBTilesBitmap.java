@@ -10,6 +10,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.module.annotations.ReactModule;
+import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerZoomBoundsHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerMBTilesBitmapSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
