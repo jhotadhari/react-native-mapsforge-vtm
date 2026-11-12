@@ -1,14 +1,16 @@
 /**
  * Batch elevation enrichment for coordinate arrays.
  *
- * Implements a windowed three-phase flow that works within the constraints
+ * Implements a batched three-phase flow that works within the constraints
  * of the native ElevationReader's background PRELOAD_EXECUTOR and
  * limited LRU cache:
  *
  *   1. Group coordinates by 1°×1° SRTM tile.
  *   2. Filter to tiles that have HGT files on disk (hasDataAtPosition).
- *   3. Optionally raise the LRU cache capacity to match the window size.
- *   4. Process in windows:
+ *   3. Optionally raise the LRU cache capacity — just enough for one
+ *      batch (`batchSize` tiles) on top of the default, never for the
+ *      whole tile set.
+ *   4. Process in batches (windows) of `batchSize` tiles:
  *      a. Phase 1 — trigger: fire preloads for all tiles in the window.
  *      b. Phase 2 — fence: poll every tile in the window via isTileCached
  *         until all are cached, re‑triggering preloads for any that
@@ -61,7 +63,7 @@ export interface ElevationAPI {
 	/**
 	 * Temporarily adjust the LRU cache capacity of the native
 	 * ElevationReader.  Called before enrichment starts (raised to
-	 * `maxCacheCapacity`) and in `finally` (restored to 10)
+	 * `min(maxCacheCapacity, batchSize + 10)`) and in `finally` (restored to 10)
 	 * unless {@link EnrichCoordinatesOptions.keepCacheCapacity}
 	 * is `true`.
 	 *
@@ -85,13 +87,14 @@ export interface ElevationAPI {
 
 export interface EnrichCoordinatesOptions {
 	/**
-	 * Called after each window completes with the overall fraction
+	 * Called after each batch completes with the overall fraction
 	 * (0‑1).  Suitable for driving a progress bar.
 	 */
 	onProgress?: (fraction: number) => void;
 
 	/**
-	 * When set, enrichment stops at the next window boundary after the
+	 * When set, enrichment stops at the next batch boundary (or at the
+	 * next fence poll) after the
 	 * signal is aborted.  The coordinates enriched so far are returned —
 	 * it does not roll back.
 	 */
@@ -108,17 +111,31 @@ export interface EnrichCoordinatesOptions {
 	keepCacheCapacity?: boolean;
 
 	/**
-	 * Maximum number of HGT tiles held in the LRU cache during
-	 * enrichment.  The cache is raised to this value (if
-	 * `setCacheCapacity` is available) before processing and
-	 * restored to the compile‑time default (10) in `finally`,
-	 * unless {@link EnrichCoordinatesOptions.keepCacheCapacity}
-	 * is `true`.
+	 * Upper bound for the number of HGT tiles held in the LRU cache
+	 * during enrichment.  The cache is raised to
+	 * `min(maxCacheCapacity, batchSize + 10)` (if `setCacheCapacity`
+	 * is available) before processing and restored to the
+	 * compile‑time default (10) in `finally`, unless
+	 * {@link EnrichCoordinatesOptions.keepCacheCapacity} is `true`.
 	 *
-	 * Default: 50.  At ~2.9 MB per SRTM3 tile this caps RAM usage
-	 * at roughly 145 MB on top of the app's baseline.
+	 * The effective batch size is also capped by this value.
+	 * Tiles are memory‑mapped natively (~0 Java heap each, ~2.9 MB of
+	 * page cache), so the capacity bounds address space / page cache,
+	 * not the Java heap.
+	 *
+	 * Default: 50.
 	 */
 	maxCacheCapacity?: number;
+
+	/**
+	 * Number of HGT tiles preloaded, fenced and collected together.
+	 * Coordinates are processed grouped by tile, `batchSize` tiles at a
+	 * time, so the native cache never has to hold the whole tile set.
+	 * Smaller batches keep memory flat; larger batches overlap more I/O.
+	 *
+	 * Default: 4.
+	 */
+	batchSize?: number;
 
 	/**
 	 * Elevation value assigned to coordinates whose tile has no HGT data
@@ -167,13 +184,17 @@ export interface EnrichCoordinatesOptions {
 /** ElevationReader compile‑time default — used when setCacheCapacity is absent. */
 const DEFAULT_CACHE_CAPACITY = 10;
 
+/** Default number of tiles per batch. */
+const DEFAULT_BATCH_SIZE = 4;
+
 /**
- * Estimated wall‑clock time for a single HGT file read on the
- * PRELOAD_EXECUTOR (ms).  Used to compute the adaptive fence timeout.
+ * Estimated wall‑clock time for a single HGT tile load on the
+ * single‑thread PRELOAD_EXECUTOR (ms).  Used to compute the adaptive
+ * fence timeout.
  *
- * Real measurements on mobile flash show ~320 ms per 2.9 MB HGT tile
- * on the single‑thread PRELOAD_EXECUTOR, so 500 ms provides headroom
- * for slower devices and filesystem contention.
+ * Tiles are memory‑mapped and pre‑faulted natively, which is faster than
+ * the old ~320 ms stream read per 2.9 MB tile; 500 ms is therefore a
+ * generous per‑tile estimate (headroom for slow flash / contention).
  */
 const ESTIMATED_MS_PER_TILE = 500;
 
@@ -341,10 +362,11 @@ interface TileGroup {
  * gets its own bilinearly‑interpolated elevation via per‑coordinate
  * {@link ElevationAPI.getAltitudeAtPosition} calls (all cache hits).
  *
- * Uses a windowed three‑phase flow so the operation works correctly
+ * Uses a batched three‑phase flow so the operation works correctly
  * even when the native LRU cache is smaller than the tile set.  Each
- * window fits entirely in the cache, guaranteeing 100 % cache‑hit rate
- * in the collect phase.
+ * batch (`batchSize` tiles, default 4) fits entirely in the cache,
+ * guaranteeing 100 % cache‑hit rate in the collect phase, and the
+ * cache capacity is never raised beyond `batchSize` + the default.
  *
  * With {@link EnrichCoordinatesOptions.interpolateMissing} the
  * coordinates that received the fallback elevation (or were left
@@ -444,15 +466,21 @@ export const enrichCoordinatesWithElevation = async (
 	if (tilesWithData.length === 0) return coords;
 
 	// ------------------------------------------------------------------
-	// 3. Determine window size & optionally raise cache capacity.
+	// 3. Determine batch size & optionally raise cache capacity.
 	//
-	//    The cache capacity MUST equal the window size for Phase 3 to
-	//    be 100 % cache-hit.  We probe setCacheCapacity with a test
-	//    call first — if it throws (not wired, native reject, etc.) we
-	//    fall back to the compile-time default so early tiles aren't
-	//    evicted before Phase 3 reads them.
+	//    The cache capacity MUST be >= the batch size for Phase 3 to
+	//    be 100 % cache-hit.  It is raised only to batchSize + default
+	//    (bounded by maxCacheCapacity), not to cover the whole tile
+	//    set.  We probe setCacheCapacity first — if it throws (not
+	//    wired, native reject, etc.) we fall back to the compile-time
+	//    default so early tiles aren't evicted before Phase 3 reads
+	//    them.
 	// ------------------------------------------------------------------
 	const maxCapacity = options?.maxCacheCapacity ?? 50;
+	const batchSize = Math.max(
+		1,
+		Math.floor(options?.batchSize ?? DEFAULT_BATCH_SIZE)
+	);
 	if (maxCapacity <= 0) {
 		console.warn(
 			'enrichCoordinatesWithElevation: maxCacheCapacity must be >= 1, got ' +
@@ -463,14 +491,19 @@ export const enrichCoordinatesWithElevation = async (
 	let effectiveCacheCapacity = DEFAULT_CACHE_CAPACITY;
 
 	if (typeof api.setCacheCapacity === 'function') {
+		const wanted = Math.max(
+			1,
+			Math.min(maxCapacity, batchSize + DEFAULT_CACHE_CAPACITY)
+		);
 		try {
-			await api.setCacheCapacity!(Math.max(1, maxCapacity));
-			effectiveCacheCapacity = Math.max(1, maxCapacity);
+			await api.setCacheCapacity!(wanted);
+			effectiveCacheCapacity = wanted;
 		} catch {}
 	}
 
 	const windowSize = Math.min(
 		tilesWithData.length,
+		batchSize,
 		Math.max(1, effectiveCacheCapacity)
 	);
 
@@ -542,6 +575,10 @@ export const enrichCoordinatesWithElevation = async (
 				}
 			}
 
+			// Aborted during the fence: tiles may be uncached, so skip
+			// the collect phase instead of stamping fallbacks.
+			if (options?.signal?.aborted) break;
+
 			// Phase 3 — collect.  The fence guarantees every tile
 			// is cached, so all getAltitudeAtPosition calls are
 			// sub‑millisecond cache hits with full bilinear
@@ -549,6 +586,7 @@ export const enrichCoordinatesWithElevation = async (
 			// rather than sharing a single tile‑representative value.
 			for (const { coords: tileCoords, indices } of window) {
 				for (let ci = 0; ci < tileCoords.length; ci++) {
+					if (options?.signal?.aborted) break;
 					const c = tileCoords[ci]!;
 					const alt = await api.getAltitudeAtPosition(c[0]!, c[1]!);
 					if (alt !== null) {

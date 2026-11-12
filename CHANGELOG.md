@@ -132,6 +132,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   0.30.0. TODO: swap the vendored jars back to coordinates when upstream
   publishes 0.31.0.
 
+
+### Changed
+
+- **ElevationReader memory** — HGT tiles are now memory-mapped read-only
+  (pre-faulted on the preload thread) instead of being read into
+  `short[1201][1201]` via a doubling buffer ladder (~12–14 MB transient per
+  load, ~58 MB retained for 10 tiles × 2 readers). `content://` DEM files are
+  mapped through their file descriptor when possible, otherwise read once into
+  a flat `short[]` (12 MB Java-heap budget). The preload executor is now a
+  single shared thread, and a preload that hits `OutOfMemoryError` is treated
+  as a cache miss. Interpolation results are unchanged.
+- **`enrichCoordinatesWithElevation`** processes tiles in batches (new
+  `batchSize` option, default 4) and raises the native cache capacity only to
+  `min(maxCacheCapacity, batchSize + 10)` instead of the whole window
+  (default 50). Aborting during the fence no longer stamps fallbacks on the
+  current batch.
+
 ## [0.10.0] - 2026-10-22
 
 ### Added
