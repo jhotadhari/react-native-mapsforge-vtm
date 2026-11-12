@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`setNativeBufferPoolLimit(maxBytes)` / `trimNativeBufferPool()`** — opt-in
+  cap (process-wide) for vtm's `NativeBufferPool`, the GL thread's direct upload
+  buffers. By default the pool is peak-hold and never shrinks; on Android those
+  buffers live on the Java heap (a heap dump showed 58 MB after panning across
+  regions). Requires the vendored vtm jar with `NativeBufferPool.setMaxPooledBytes`.
 - **Map-level tile memory cache commands** — `pruneTileMemoryCache(maxTiles)`
   and `clearTileMemoryCache()` on `useMap()` / the map handle: prune all
   tile layers' in-memory tile caches down to a per-layer budget (tiles

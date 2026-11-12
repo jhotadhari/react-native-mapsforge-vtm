@@ -114,6 +114,10 @@ import type {
 	RegistryLayerEntry,
 } from './compose/useMap';
 import { enrichCoordinatesWithElevation } from './enrichCoordinates';
+import {
+	setNativeBufferPoolLimit,
+	trimNativeBufferPool,
+} from './nativeBufferPool';
 import type {
 	ElevationAPI,
 	EnrichCoordinatesOptions,
@@ -290,6 +294,10 @@ export {
 	type FragmentSummaryEntry,
 	type RegistryDebugSnapshot,
 	type RegistryLayerEntry,
+
+	// Native buffer pool (opt-in memory limit, process-wide).
+	setNativeBufferPoolLimit,
+	trimNativeBufferPool,
 
 	// Elevation enrichment.
 	enrichCoordinatesWithElevation,

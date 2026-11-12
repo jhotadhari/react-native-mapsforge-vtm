@@ -74,6 +74,10 @@ export interface GetPositionParams {
 	nativeNodeHandle: Int32;
 }
 
+export interface SetNativeBufferPoolLimitParams {
+	maxBytes: Int32;
+}
+
 export interface PruneTileMemoryCacheParams {
 	nativeNodeHandle: Int32;
 	maxTiles: Int32;
@@ -203,6 +207,21 @@ export interface Spec extends TurboModule {
 	isTileCached(params: IsTileCachedParams): Promise<IsTileCachedResponse>;
 
 	setCacheCapacity(params: SetCacheCapacityParams): Promise<void>;
+
+	/**
+	 * Process-wide (all maps): cap the bytes vtm's NativeBufferPool keeps
+	 * pooled between frames. On Android direct buffers live on the Java
+	 * heap; the pool is peak-hold by default (unlimited). Negative → 0.
+	 */
+	setNativeBufferPoolLimit(
+		params: SetNativeBufferPoolLimitParams
+	): Promise<void>;
+
+	/**
+	 * Process-wide: release all pooled (unused) native buffers at the end
+	 * of the next rendered frame (GL thread).
+	 */
+	trimNativeBufferPool(): Promise<void>;
 
 	/**
 	 * Returns a JSON dump of all layers currently on the map, including both

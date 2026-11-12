@@ -523,6 +523,31 @@ public class MapContainer extends NativeMapContainerSpec {
 				Utils.promiseReject( promise, e.getMessage() );
 			}
 		}
+
+	@Override
+	public void setNativeBufferPoolLimit( ReadableMap params, Promise promise ) {
+		try {
+			if ( ! Utils.rMapHasKey( params, "maxBytes" ) ) {
+				Utils.promiseReject( promise, "Undefined maxBytes" ); return;
+			}
+			// Static, thread-safe setter; enforced on the GL thread at frame end.
+			org.oscim.renderer.MapRenderer.setMaxPooledBufferBytes( params.getInt( "maxBytes" ) );
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
+	public void trimNativeBufferPool( Promise promise ) {
+		try {
+			// Flag consumed at the end of the next rendered frame (GL thread).
+			org.oscim.renderer.MapRenderer.trimNativeBufferPool();
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
 	@Override
 	public void enumerateAnchors( ReadableMap params, Promise promise ) {
 		UiThreadUtil.runOnUiThread( () -> enumerateAnchorsOnUiThread( params, promise ) );
