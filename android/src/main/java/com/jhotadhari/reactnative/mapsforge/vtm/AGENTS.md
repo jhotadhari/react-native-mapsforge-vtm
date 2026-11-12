@@ -149,12 +149,25 @@ being created in the first place — see the root `AGENTS.md`.
 ## ElevationReader
 
 Provides elevation lookups from `.hgt` DEM files, with a two-level cache: an in-memory `dataCache`
-(`LruCache`) and a filename index (`fileIndex`, built once at construction). Three executors/threads:
+(`HgtTileCache`) and a filename index (`fileIndex`, built once at construction).
+
+**Tile storage:** tiles are read-only memory-mapped (`MappedHgtGrid`, `FileChannel.map` +
+`MappedByteBuffer.load()` on the preload thread) → ~0 Java heap per tile. `DemFileFS` and
+`content://` files (`DemFileAndroidContent`, via `ContentResolver.openFileDescriptor` + the fd's
+channel; needs a seekable fd) are mapped; the `File`/`Uri`/resolver are reached by reflection on
+mapsforge's protected fields (lookup failure → fallback). Unmappable files fall back to one
+exact-size read into a flat `short[]` (`ArrayHgtGrid`). `HgtGrid`/`MappedHgtGrid`/`ArrayHgtGrid`/
+`HgtInterpolator`/`HgtTileCache` are pure Java (no Android deps, host-JVM testable).
+`HgtTileCache` caps the tile **count** (`CACHE_MAX_TILES`=10, `setCacheCapacity`) and, separately,
+the Java heap of array-fallback tiles (12 MB; mapped tiles are charged 1 KB). The preload task
+catches `OutOfMemoryError` (treated as a miss; evicts the older half of the cache).
+
+Three executors/threads:
 
 | Thread | Role |
 |---|---|
 | **Render thread** (vtm GL, 60fps) | `MapFragment.getResponseBase()` calls `getElevation(lng, lat, 100)` (100ms-debounced overload — never blocks on I/O). |
-| **`PRELOAD_EXECUTOR`** (4-thread fixed pool) | Immediate `preload()` (2.9MB `.hgt` reads), used by the JS `getAltitudeAtPosition` API (delay=0). |
+| **`PRELOAD_EXECUTOR`** (single thread, shared by all readers) | Immediate `preload()` (map + pre-fault a `.hgt`), used by the JS `getAltitudeAtPosition` API (delay=0). |
 | **`DELAYED_PRELOAD_EXECUTOR`** (single-thread scheduled) | Debounced preloads from the render hot-path. |
 
 **Debounced preload (single-slot):** `schedulePreload()` holds at most one pending delayed preload;
@@ -166,7 +179,7 @@ a **different** tile cancels the prior, a **same** tile leaves the timer running
 I/O. Exposed to JS as `hasDataAtPosition`.
 
 Native additions supporting elevation enrichment: `isTileCached(lng, lat)` (direct `LruCache.get()`,
-never preloads) and `setCacheCapacity(int maxTiles)` (`LruCache.resize()`).
+never preloads) and `setCacheCapacity(int maxTiles)` (`HgtTileCache.resize()`).
 
 ## GNSS position streams
 
