@@ -30,7 +30,6 @@ import org.mapsforge.map.layer.hills.DemFolder;
 import org.mapsforge.map.layer.hills.DemFolderFS;
 
 import org.oscim.android.MapView;
-import org.oscim.android.cache.TileCache;
 import org.oscim.tiling.ITileCache;
 
 import java.io.File;
@@ -162,11 +161,11 @@ public class Utils {
 	 * on-disk tile cache. vtm requires the cache to be set on a TileSource before that source is
 	 * attached to a TileLayer.
 	 *
-	 * @param activity      Current Activity, needed by vtm's TileCache constructor. Null is a real,
-	 *                      reachable case (e.g. an Activity recreation/destruction race) -- callers
-	 *                      already catch exceptions generically and reject the promise with the
-	 *                      message, so this throws rather than silently skipping the cache or NPEing
-	 *                      inside TileCache's own constructor.
+	 * @param activity      Current Activity, needed by SizeLimitedTileCache's constructor. Null is a
+	 *                      real, reachable case (e.g. an Activity recreation/destruction race) --
+	 *                      callers already catch exceptions generically and reject the promise with
+	 *                      the message, so this throws rather than silently skipping the cache or
+	 *                      NPEing inside SizeLimitedTileCache's own constructor.
 	 * @param cacheSize     Cache size in mb. 0 or less disables caching (returns null).
 	 * @param cacheDirBase  Empty string is handled by getCacheDirParent.
 	 * @param cacheDirChild Empty string falls back to dbname.
@@ -191,8 +190,10 @@ public class Utils {
 		File cacheDirParent = getCacheDirParent( cacheDirBase, reactContext );
 		String resolvedCacheDirChild = ! cacheDirChild.isEmpty() ? cacheDirChild : dbname;
 		File cacheDirectory = new File( cacheDirParent, resolvedCacheDirChild );
-		ITileCache tileCache = new TileCache( activity, cacheDirectory.toString(), dbname );
-		tileCache.setCacheSize( (long) cacheSize * ( 1 << 10 ) );
+		// Local size-enforcing replacement for vtm's TileCache (whose setCacheSize
+		// is a no-op apart from clear-on-0, see upstream discussion #1212).
+		ITileCache tileCache = new SizeLimitedTileCache( activity, cacheDirectory.toString(), dbname );
+		tileCache.setCacheSize( (long) cacheSize * 1024 * 1024 );
 		return tileCache;
 	}
 

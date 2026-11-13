@@ -181,6 +181,29 @@ I/O. Exposed to JS as `hasDataAtPosition`.
 Native additions supporting elevation enrichment: `isTileCached(lng, lat)` (direct `LruCache.get()`,
 never preloads) and `setCacheCapacity(int maxTiles)` (`HgtTileCache.resize()`).
 
+## On-disk tile cache (`SizeLimitedTileCache`)
+
+`Utils.buildTileCache` builds the SQLite on-disk tile cache for the two layers that support one
+(`LayerHillshading`, `LayerMBTilesBitmap`; the only two `buildTileCache` callers). It uses a local
+**`SizeLimitedTileCache`** — a size-enforcing replacement for vtm's `org.oscim.android.cache.TileCache`,
+whose `setCacheSize` is a stub (only clears on 0, otherwise unlimited — upstream discussion #1212).
+
+- `setCacheSize(long bytes)` is reused in place: `<= 0` clears (matching vtm's stub), `> 0` sets the
+  byte budget; `buildTileCache` passes `cacheSize` (MB) as `cacheSize * 1024 * 1024` bytes.
+- Enforcement is **exact**: after every `saveTile` (and immediately when the budget changes), the
+  least-recently-accessed rows are evicted — in chunked ~32-row transactions — until the total is
+  within budget. A single tile larger than the budget is always kept.
+- Schema v2 adds a `size` column, backfilled with `length(data)` on upgrade so existing caches keep
+  their tiles; `last_access` is maintained on put and on read (true LRU); the running total is
+  seeded with `SELECT SUM(size)` at open. `INSERT OR REPLACE` fixes the stock cache's
+  PK-conflict throw on re-put.
+- The cache dir is `{cacheDirBase}/{cacheDirChild}`; straymap derives `cacheDirChild` per layer
+  config and reports the size in its CacheManager/CacheControl.
+
+Delete this class once an upstream vtm release implements the same limit (see the plan under
+`/home/jhotadhari/.opencode/plan/map-upstream/`), and point `buildTileCache` back at vtm's
+`TileCache` with the upstream API.
+
 ## GNSS position streams
 
 `GnssManager` (`android/…/gnss/GnssManager.java`) wraps Android's `LocationManager` to deliver two
