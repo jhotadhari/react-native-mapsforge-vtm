@@ -190,11 +190,19 @@ whose `setCacheSize` is a stub (only clears on 0, otherwise unlimited — upstre
 
 - `setCacheSize(long bytes)` is reused in place: `<= 0` clears (matching vtm's stub), `> 0` sets the
   byte budget; `buildTileCache` passes `cacheSize` (MB) as `cacheSize * 1024 * 1024` bytes.
-- Enforcement is **lazy and bounded**: after every `saveTile` the least-recently-accessed rows are
-  evicted in at most one ~32-row chunk while the total exceeds the budget, so a far-over-budget
-  cache converges over subsequent writes. (Eager full pruning at `setCacheSize` was tried on device
-  and OOM'd the native allocator when a 1.6 GB cache had to be pruned to the budget in one go.)
-- An index on `last_access` (`idx_tiles_last_access`, created in the constructor) keeps the
+- **Init runs on a dedicated worker thread** (open + schema v1→v2 migration + `last_access` index +
+  `SUM(size)` seed): the caller thread (native modules queue) must never block on a gigabyte-scale
+  migration. Until ready, reads miss and writes are skipped; on failure the cache is disabled
+  gracefully (all SQL failures are swallowed and logged — a tile cache must never break the tile
+  pipeline).
+- **Enforcement is a background trimmer**: a daemon loop wakes while over budget and evicts the
+  least-recently-accessed rows, stopping each pass as soon as the total drops under budget.
+  Field-learned constraints: eager full pruning at `setCacheSize` OOM'd the native allocator
+  (1.6 GB → 100 MB in one go), per-save eviction caused ~600 ms tile-loader contention, and a
+  fixed 256-row batch emptied a ~50 MB cache in one pass (only a few hundred rows fit at that
+  size) — the "cache clears itself" bug. Small passes (16 candidates) with a stop-at-budget check
+  hold the cache just under the limit.
+- An index on `last_access` (`idx_tiles_last_access`, created at init) keeps the
   eviction SELECT from full-sorting the table.
 - Schema v2 adds a `size` column, backfilled with `length(data)` on upgrade so existing caches keep
   their tiles; `last_access` is maintained on put and on read (true LRU); the running total is
