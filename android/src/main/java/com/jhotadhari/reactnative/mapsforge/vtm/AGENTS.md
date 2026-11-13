@@ -190,9 +190,12 @@ whose `setCacheSize` is a stub (only clears on 0, otherwise unlimited — upstre
 
 - `setCacheSize(long bytes)` is reused in place: `<= 0` clears (matching vtm's stub), `> 0` sets the
   byte budget; `buildTileCache` passes `cacheSize` (MB) as `cacheSize * 1024 * 1024` bytes.
-- Enforcement is **exact**: after every `saveTile` (and immediately when the budget changes), the
-  least-recently-accessed rows are evicted — in chunked ~32-row transactions — until the total is
-  within budget. A single tile larger than the budget is always kept.
+- Enforcement is **lazy and bounded**: after every `saveTile` the least-recently-accessed rows are
+  evicted in at most one ~32-row chunk while the total exceeds the budget, so a far-over-budget
+  cache converges over subsequent writes. (Eager full pruning at `setCacheSize` was tried on device
+  and OOM'd the native allocator when a 1.6 GB cache had to be pruned to the budget in one go.)
+- An index on `last_access` (`idx_tiles_last_access`, created in the constructor) keeps the
+  eviction SELECT from full-sorting the table.
 - Schema v2 adds a `size` column, backfilled with `length(data)` on upgrade so existing caches keep
   their tiles; `last_access` is maintained on put and on read (true LRU); the running total is
   seeded with `SELECT SUM(size)` at open. `INSERT OR REPLACE` fixes the stock cache's

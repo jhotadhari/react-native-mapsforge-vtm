@@ -1,6 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
 import android.graphics.Color;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -142,6 +143,7 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 				);
 			}
 
+			Log.i( "SizeLimitedTileCache", "LayerHillshading.createLayer cacheSize=" + cacheSize + " child=" + cacheDirChild );
 			ITileCache tileCache = Utils.buildTileCache(
 				getCurrentActivity(), getReactApplicationContext(),
 				cacheSize, cacheDirBase, cacheDirChild,

@@ -1,5 +1,7 @@
 package com.jhotadhari.reactnative.mapsforge.vtm.modules;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.facebook.react.bridge.Promise;
@@ -102,6 +104,7 @@ public class LayerMBTilesBitmap extends NativeLayerMBTilesBitmapSpec {
 			);
 
 			// Cache MUST be set before the tile source is attached to a TileLayer.
+			Log.i( "SizeLimitedTileCache", "LayerMBTilesBitmap.createLayer cacheSize=" + cacheSize + " child=" + cacheDirChild );
 			ITileCache tileCache = Utils.buildTileCache(
 				getCurrentActivity(), getReactApplicationContext(),
 				cacheSize, cacheDirBase, cacheDirChild,

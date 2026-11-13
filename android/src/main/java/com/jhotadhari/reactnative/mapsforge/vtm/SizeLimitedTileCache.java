@@ -6,9 +6,15 @@
  * Differences: enforces a real byte budget. vtm's TileCache.setCacheSize
  * only clears the table when passed 0 and otherwise does nothing (see
  * https://github.com/mapsforge/vtm/discussions/1212), so the on-disk cache
- * grows without bound. Here setCacheSize keeps that clear-on-<=0 semantics
- * but a positive value sets a byte budget that is enforced after every save
- * by evicting the least-recently-accessed tiles.
+ * grows without bound (hillshading caches reaching the gigabyte range).
+ * Here setCacheSize keeps that clear-on-<=0 semantics but a positive value
+ * sets a byte budget that is enforced lazily after every save by evicting a
+ * bounded batch of the least-recently-accessed tiles (an over-budget cache
+ * converges over subsequent saves; eager full pruning of a far-over-budget
+ * cache OOMs on the caller thread).
+ *
+ * All SQL errors are swallowed and logged: a tile cache must never break or
+ * storm the tile pipeline.
  *
  * Local, opt-in replacement: wired in Utils.buildTileCache. Delete this
  * class once an upstream vtm release implements the same limit.
@@ -19,9 +25,11 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
 import android.os.Build;
+import android.util.Log;
 
 import org.oscim.core.Tile;
 import org.oscim.tiling.ITileCache;
@@ -33,15 +41,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class SizeLimitedTileCache implements ITileCache {
 
-	private static final Logger log = Logger.getLogger(SizeLimitedTileCache.class.getName());
-	static final boolean dbg = false;
+	private static final String TAG = "SizeLimitedTileCache";
 
 	/** How many least-recently-accessed tiles to evict per save while over budget. */
-	private static final int EVICT_BATCH = 32;
+	private static final int EVICT_BATCH = 256;
 
 	class CacheTileReader implements TileReader {
 		final InputStream inputStream;
@@ -91,7 +97,6 @@ public class SizeLimitedTileCache implements ITileCache {
 	private final ArrayList<ByteArrayOutputStream> cacheBuffers;
 	private final SQLiteHelper dbHelper;
 	private final SQLiteDatabase database;
-	private final SQLiteStatement stmtGetTile;
 	private final SQLiteStatement stmtPutTile;
 	private final SQLiteStatement stmtUpdateAccess;
 
@@ -101,6 +106,10 @@ public class SizeLimitedTileCache implements ITileCache {
 	/** 0 = unlimited (no eviction). */
 	private long maxCacheBytes;
 
+	private long saveCount;
+
+	private long evictCount;
+
 	public void dispose() {
 		if (database.isOpen())
 			database.close();
@@ -108,9 +117,6 @@ public class SizeLimitedTileCache implements ITileCache {
 
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 	public SizeLimitedTileCache(Context context, String cacheDirectory, String dbName) {
-		if (dbg)
-			log.fine("open cache " + cacheDirectory + ", " + dbName);
-
 		if (cacheDirectory != null)
 			dbName = new File(cacheDirectory, dbName).getAbsolutePath();
 		dbHelper = new SQLiteHelper(context, dbName);
@@ -120,10 +126,14 @@ public class SizeLimitedTileCache implements ITileCache {
 
 		database = dbHelper.getWritableDatabase();
 
-		stmtGetTile = database.compileStatement("" +
-			"SELECT " + COLUMN_DATA +
-			" FROM " + TABLE_NAME +
-			" WHERE x=? AND y=? AND z = ?");
+		try {
+			// Eviction orders by last_access; without an index that is a
+			// full-table sort on every eviction pass (pathological on
+			// gigabyte-sized caches).
+			database.execSQL("CREATE INDEX IF NOT EXISTS idx_tiles_last_access ON " + TABLE_NAME + " (" + COLUMN_ACCESS + ")");
+		} catch (SQLiteException e) {
+			Log.w(TAG, "create index failed, eviction will be slow: " + e);
+		}
 
 		stmtPutTile = database.compileStatement("" +
 			"INSERT OR REPLACE INTO " + TABLE_NAME +
@@ -138,7 +148,16 @@ public class SizeLimitedTileCache implements ITileCache {
 		cacheBuffers = new ArrayList<ByteArrayOutputStream>();
 
 		// Seed the running total. Cheap: reads the size column, never the blobs.
-		totalBytes = querySingleLong("SELECT COALESCE(SUM(" + COLUMN_SIZE + "),0) FROM " + TABLE_NAME, null);
+		long rows = 0;
+		long sum = 0;
+		try {
+			sum = querySingleLong("SELECT COALESCE(SUM(" + COLUMN_SIZE + "),0) FROM " + TABLE_NAME, null);
+			rows = querySingleLong("SELECT COUNT(*) FROM " + TABLE_NAME, null);
+		} catch (SQLiteException e) {
+			Log.e(TAG, "open/seed failed: " + e);
+		}
+		totalBytes = sum;
+		Log.i(TAG, "opened " + dbName + " rows=" + rows + " totalBytes=" + sum);
 	}
 
 	@Override
@@ -182,7 +201,6 @@ public class SizeLimitedTileCache implements ITileCache {
 
 		@Override
 		public void onCreate(SQLiteDatabase db) {
-			log.fine("create table");
 			db.execSQL(TILE_SCHEMA);
 		}
 
@@ -196,7 +214,6 @@ public class SizeLimitedTileCache implements ITileCache {
 				db.execSQL("UPDATE " + TABLE_NAME + " SET " + COLUMN_SIZE + " = length(" + COLUMN_DATA + ")");
 				return;
 			}
-			log.fine("drop table");
 			db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
 			onCreate(db);
 		}
@@ -208,43 +225,47 @@ public class SizeLimitedTileCache implements ITileCache {
 	}
 
 	public synchronized void saveTile(Tile tile, ByteArrayOutputStream data, boolean success) {
-		byte[] bytes = null;
+		// Capture before reset(): the buffer is pooled below.
+		final byte[] bytes = success ? data.toByteArray() : null;
 
-		if (success)
-			bytes = data.toByteArray();
-
+		// Buffer pooling must always happen, whatever the SQL below does.
 		synchronized (cacheBuffers) {
 			data.reset();
 			cacheBuffers.add(data);
 		}
 
-		if (dbg)
-			log.fine("store tile " + tile + " " + success);
-
 		if (!success)
 			return;
 
-		// Accounting for INSERT OR REPLACE: subtract a replaced row's old size.
-		final long oldSize = querySingleLong(
-			"SELECT " + COLUMN_SIZE + " FROM " + TABLE_NAME + " WHERE z=? AND x=? AND y=?",
-			new String[]{String.valueOf(tile.zoomLevel), String.valueOf(tile.tileX), String.valueOf(tile.tileY)});
+		try {
+			// Accounting for INSERT OR REPLACE: subtract a replaced row's old size.
+			final long oldSize = querySingleLong(
+				"SELECT " + COLUMN_SIZE + " FROM " + TABLE_NAME + " WHERE z=? AND x=? AND y=?",
+				new String[]{String.valueOf(tile.zoomLevel), String.valueOf(tile.tileX), String.valueOf(tile.tileY)});
 
-		synchronized (stmtPutTile) {
-			stmtPutTile.bindLong(1, tile.tileX);
-			stmtPutTile.bindLong(2, tile.tileY);
-			stmtPutTile.bindLong(3, tile.zoomLevel);
-			stmtPutTile.bindLong(4, System.currentTimeMillis());
-			stmtPutTile.bindLong(5, System.currentTimeMillis());
-			stmtPutTile.bindLong(6, bytes.length);
-			stmtPutTile.bindBlob(7, bytes);
+			synchronized (stmtPutTile) {
+				stmtPutTile.bindLong(1, tile.tileX);
+				stmtPutTile.bindLong(2, tile.tileY);
+				stmtPutTile.bindLong(3, tile.zoomLevel);
+				stmtPutTile.bindLong(4, System.currentTimeMillis());
+				stmtPutTile.bindLong(5, System.currentTimeMillis());
+				stmtPutTile.bindLong(6, bytes.length);
+				stmtPutTile.bindBlob(7, bytes);
 
-			stmtPutTile.execute();
-			stmtPutTile.clearBindings();
+				stmtPutTile.execute();
+				stmtPutTile.clearBindings();
+			}
+
+			totalBytes = totalBytes - oldSize + bytes.length;
+
+			enforceMaxSizeLocked();
+
+			saveCount++;
+			if ((saveCount & 127) == 0)
+				Log.i(TAG, "saved " + saveCount + " tiles, totalBytes=" + totalBytes);
+		} catch (SQLiteException e) {
+			Log.e(TAG, "saveTile failed for " + tile + ": " + e);
 		}
-
-		totalBytes = totalBytes - oldSize + bytes.length;
-
-		enforceMaxSizeLocked();
 	}
 
 	private final String[] queryVals = new String[3];
@@ -256,59 +277,77 @@ public class SizeLimitedTileCache implements ITileCache {
 		queryVals[1] = String.valueOf(tile.tileX);
 		queryVals[2] = String.valueOf(tile.tileY);
 
-		Cursor cursor = database.rawQuery("SELECT " + COLUMN_DATA +
-			" FROM " + TABLE_NAME +
-			" WHERE z=? AND x=? AND y=?", queryVals);
+		try {
+			Cursor cursor = database.rawQuery("SELECT " + COLUMN_DATA +
+				" FROM " + TABLE_NAME +
+				" WHERE z=? AND x=? AND y=?", queryVals);
 
-		if (!cursor.moveToFirst()) {
-			if (dbg)
-				log.fine("not in cache " + tile);
+			if (!cursor.moveToFirst()) {
+				cursor.close();
+				return null;
+			}
 
+			InputStream in = new ByteArrayInputStream(cursor.getBlob(0));
 			cursor.close();
+
+			// Refresh recency so LRU eviction keeps whatever region is being panned.
+			try {
+				synchronized (stmtUpdateAccess) {
+					stmtUpdateAccess.bindLong(1, System.currentTimeMillis());
+					stmtUpdateAccess.bindLong(2, tile.tileX);
+					stmtUpdateAccess.bindLong(3, tile.tileY);
+					stmtUpdateAccess.bindLong(4, tile.zoomLevel);
+					stmtUpdateAccess.execute();
+					stmtUpdateAccess.clearBindings();
+				}
+			} catch (SQLiteException e) {
+				Log.w(TAG, "last_access update failed for " + tile + ": " + e);
+			}
+
+			return new CacheTileReader(tile, in);
+		} catch (SQLiteException e) {
+			Log.e(TAG, "getTile failed for " + tile + ": " + e);
 			return null;
 		}
-
-		InputStream in = new ByteArrayInputStream(cursor.getBlob(0));
-		cursor.close();
-
-		// Refresh recency so LRU eviction keeps whatever region is being panned.
-		synchronized (stmtUpdateAccess) {
-			stmtUpdateAccess.bindLong(1, System.currentTimeMillis());
-			stmtUpdateAccess.bindLong(2, tile.tileX);
-			stmtUpdateAccess.bindLong(3, tile.tileY);
-			stmtUpdateAccess.bindLong(4, tile.zoomLevel);
-			stmtUpdateAccess.execute();
-			stmtUpdateAccess.clearBindings();
-		}
-
-		if (dbg)
-			log.fine("load tile " + tile);
-
-		return new CacheTileReader(tile, in);
 	}
 
 	/**
 	 * 0 or less clears the cache, matching vtm's TileCache.setCacheSize.
-	 * A positive value sets the byte budget, prunes immediately and enforces
-	 * the budget after every save.
+	 * A positive value sets the byte budget, enforced lazily after each save
+	 * (bounded work per save — a far-over-budget cache converges over the
+	 * next writes instead of blocking the caller on one huge prune).
 	 */
 	@Override
 	public synchronized void setCacheSize(long size) {
 		if (size <= 0) {
-			database.execSQL("DELETE FROM " + TABLE_NAME);
+			try {
+				database.execSQL("DELETE FROM " + TABLE_NAME);
+			} catch (SQLiteException e) {
+				Log.e(TAG, "clear failed: " + e);
+			}
 			totalBytes = 0;
 		} else {
 			maxCacheBytes = size;
-			enforceMaxSizeLocked();
+			Log.i(TAG, "cacheSize set to " + size + " bytes");
 		}
 	}
 
+	/**
+	 * Lazy enforcement: evict at most one batch of least-recently-accessed
+	 * rows per call, so a cache far over a newly lowered budget converges over
+	 * subsequent saves with bounded work on the caller thread.
+	 */
 	private void enforceMaxSizeLocked() {
-		if (maxCacheBytes <= 0)
+		if (maxCacheBytes <= 0 || totalBytes <= maxCacheBytes)
 			return;
-		while (totalBytes > maxCacheBytes) {
-			if (!evictOldestLocked(EVICT_BATCH))
-				return;
+		try {
+			if (evictOldestLocked(EVICT_BATCH)) {
+				evictCount++;
+				if ((evictCount & 31) == 0)
+					Log.i(TAG, "evicted (pass " + evictCount + "), totalBytes=" + totalBytes + " budget=" + maxCacheBytes);
+			}
+		} catch (SQLiteException e) {
+			Log.e(TAG, "eviction failed: " + e);
 		}
 	}
 

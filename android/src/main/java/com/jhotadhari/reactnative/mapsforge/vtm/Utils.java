@@ -161,11 +161,11 @@ public class Utils {
 	 * on-disk tile cache. vtm requires the cache to be set on a TileSource before that source is
 	 * attached to a TileLayer.
 	 *
-	 * @param activity      Current Activity, needed by SizeLimitedTileCache's constructor. Null is a
-	 *                      real, reachable case (e.g. an Activity recreation/destruction race) --
-	 *                      callers already catch exceptions generically and reject the promise with
-	 *                      the message, so this throws rather than silently skipping the cache or
-	 *                      NPEing inside SizeLimitedTileCache's own constructor.
+	 * @param activity      Current Activity, needed by SizeLimitedTileCache's constructor. Null is a real,
+	 *                      reachable case (e.g. an Activity recreation/destruction race) -- callers
+	 *                      already catch exceptions generically and reject the promise with the
+	 *                      message, so this throws rather than silently skipping the cache or NPEing
+	 *                      inside SizeLimitedTileCache's own constructor.
 	 * @param cacheSize     Cache size in mb. 0 or less disables caching (returns null).
 	 * @param cacheDirBase  Empty string is handled by getCacheDirParent.
 	 * @param cacheDirChild Empty string falls back to dbname.
@@ -182,6 +182,7 @@ public class Utils {
 		String dbname
 	) {
 		if ( cacheSize <= 0 ) {
+			Log.i( "SizeLimitedTileCache", "buildTileCache: cacheSize " + cacheSize + " <= 0, no disk cache" );
 			return null;
 		}
 		if ( null == activity ) {
