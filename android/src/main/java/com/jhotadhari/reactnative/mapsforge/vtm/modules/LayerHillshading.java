@@ -12,6 +12,8 @@ import com.jhotadhari.reactnative.mapsforge.vtm.LayerHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.LayerZoomBoundsHelper;
 import com.jhotadhari.reactnative.mapsforge.vtm.NativeLayerHillshadingSpec;
 import com.jhotadhari.reactnative.mapsforge.vtm.Utils;
+import com.jhotadhari.reactnative.mapsforge.vtm.hillshading.HillshadingMemory;
+import com.jhotadhari.reactnative.mapsforge.vtm.hillshading.RecyclingHillshadingTileSource;
 
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.layer.hills.AClasyHillShading;
@@ -26,6 +28,9 @@ import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.mapsforge.map.layer.hills.StandardClasyHillShading;
 import org.oscim.android.MapView;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
+import org.oscim.layers.tile.TileLayer;
+import org.oscim.layers.Layer;
+import org.oscim.tiling.TileSource;
 import org.oscim.tiling.ITileCache;
 import org.oscim.tiling.source.hills.HillshadingTileSource;
 
@@ -97,6 +102,9 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 			int cacheSize = Utils.rMapHasKey( params, "cacheSize" ) ? params.getInt( "cacheSize" ) : (int) getConstants().get( "cacheSize" );
 			String cacheDirBase = Utils.rMapHasKey( params, "cacheDirBase" ) ? params.getString( "cacheDirBase" ) : (String) getConstants().get( "cacheDirBase" );
 			String cacheDirChild = Utils.rMapHasKey( params, "cacheDirChild" ) ? params.getString( "cacheDirChild" ) : (String) getConstants().get( "cacheDirChild" );
+			// Opt-in HGT bitmap memory handling. Layer props override the process-wide defaults (setHillshadingMemoryDefaults).
+			boolean recycleEvictedBitmaps = Utils.rMapHasKey( params, "recycleEvictedBitmaps" ) ? params.getBoolean( "recycleEvictedBitmaps" ) : HillshadingMemory.defaultRecycleEvictedBitmaps();
+			long hgtMemoryCacheMaxBytes = Utils.rMapHasKey( params, "hgtMemoryCacheMaxMb" ) ? Math.max( 0, (long) ( params.getDouble( "hgtMemoryCacheMaxMb" ) * 1000 * 1000 ) ) : HillshadingMemory.defaultCacheMaxBytes();
 
 			ShadingAlgorithmResult algorithmResult;
 			try {
@@ -109,15 +117,30 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 				AndroidGraphicFactory.createInstance( getReactApplicationContext() );
 			}
 
-			HillshadingTileSource hillshadingTileSource = new HillshadingTileSource(
-				zoomMin,
-				zoomMax,
-				demFolder,
-				algorithmResult.shadingAlgorithm,
-				magnitude,
-				Color.BLACK,
-				AndroidGraphicFactory.INSTANCE
-			);
+			TileSource hillshadingTileSource;
+			if ( recycleEvictedBitmaps ) {
+				// Shared, byte-capped HGT bitmap cache that recycles evicted bitmaps (hgtMemoryCacheMaxMb 0 => mapsforge default).
+				hillshadingTileSource = new RecyclingHillshadingTileSource(
+					zoomMin,
+					zoomMax,
+					demFolder,
+					algorithmResult.shadingAlgorithm,
+					magnitude,
+					Color.BLACK,
+					AndroidGraphicFactory.INSTANCE,
+					hgtMemoryCacheMaxBytes
+				);
+			} else {
+				hillshadingTileSource = new HillshadingTileSource(
+					zoomMin,
+					zoomMax,
+					demFolder,
+					algorithmResult.shadingAlgorithm,
+					magnitude,
+					Color.BLACK,
+					AndroidGraphicFactory.INSTANCE
+				);
+			}
 
 			ITileCache tileCache = Utils.buildTileCache(
 				getCurrentActivity(), getReactApplicationContext(),
@@ -171,6 +194,14 @@ public class LayerHillshading extends NativeLayerHillshadingSpec {
 		try {
 			if ( ! Utils.rMapHasKey( params, "nativeNodeHandle" ) || ! Utils.rMapHasKey( params, "uuid" ) ) {
 				Utils.promiseReject( promise, "Undefined nativeNodeHandle or uuid" ); return;
+			}
+			// Also drop the (opt-in) HGT bitmap cache of this layer; entries in use are kept and recalculated on demand otherwise.
+			Layer layer = LayerHelper.getLayer( params.getInt( "nativeNodeHandle" ), params.getString( "uuid" ) );
+			if ( layer instanceof TileLayer ) {
+				TileSource tileSource = ( (TileLayer) layer ).getTileSource();
+				if ( tileSource instanceof RecyclingHillshadingTileSource ) {
+					( (RecyclingHillshadingTileSource) tileSource ).clearMemory();
+				}
 			}
 			LayerHelper.clearTileMemoryCache( params.getInt( "nativeNodeHandle" ), params.getString( "uuid" ), promise );
 		} catch ( Exception e ) {

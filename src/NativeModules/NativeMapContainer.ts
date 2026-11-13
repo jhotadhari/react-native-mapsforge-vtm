@@ -78,6 +78,11 @@ export interface SetNativeBufferPoolLimitParams {
 	maxBytes: Int32;
 }
 
+export interface SetHillshadingMemoryDefaultsParams {
+	recycleEvictedBitmaps?: boolean;
+	hgtMemoryCacheMaxMb?: Double;
+}
+
 export interface PruneTileMemoryCacheParams {
 	nativeNodeHandle: Int32;
 	maxTiles: Int32;
@@ -215,6 +220,15 @@ export interface Spec extends TurboModule {
 	 */
 	setNativeBufferPoolLimit(
 		params: SetNativeBufferPoolLimitParams
+	): Promise<void>;
+
+	/**
+	 * Process-wide defaults for the opt-in hillshading HGT bitmap memory
+	 * handling (see LayerHillshading recycleEvictedBitmaps /
+	 * hgtMemoryCacheMaxMb). Read when a hillshading layer is created.
+	 */
+	setHillshadingMemoryDefaults(
+		params: SetHillshadingMemoryDefaultsParams
 	): Promise<void>;
 
 	/**

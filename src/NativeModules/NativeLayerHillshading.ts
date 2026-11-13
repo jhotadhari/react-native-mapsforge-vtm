@@ -53,6 +53,8 @@ export interface ModuleParams {
 	cacheSize?: Int32; // mb
 	cacheDirBase?: string; // empty will be handled java side.
 	cacheDirChild?: string; // empty will be handled java side.
+	recycleEvictedBitmaps?: boolean;
+	hgtMemoryCacheMaxMb?: Double; // mb
 }
 
 interface CreateLayerParams extends ModuleParams {
@@ -83,6 +85,23 @@ export type LayerHillshadingProps = {
 	cacheSize?: number;
 	cacheDirBase?: `/${string}`;
 	cacheDirChild?: string;
+	/**
+	 * Opt-in. Recycle HGT hillshading bitmaps as soon as they are evicted from
+	 * the in-memory cache (reference counted, so never while a tile is still
+	 * being shaded), and share one byte-capped cache across all tile loader
+	 * threads of this layer. Without it, evicted bitmaps (native pixel memory,
+	 * up to ~6 MB each at high zoom) linger until the GC finalizes them, and the
+	 * cache cap is not enforced. Overrides the process-wide default from
+	 * `setHillshadingMemoryDefaults`. Changing it recreates the layer.
+	 */
+	recycleEvictedBitmaps?: boolean;
+	/**
+	 * Byte cap (in MB) of the in-memory HGT bitmap cache. Only applies together
+	 * with `recycleEvictedBitmaps`. Bitmaps currently in use may exceed it
+	 * temporarily. Unset or 0 → mapsforge default (1/10 of the Java heap limit).
+	 * Overrides the process-wide default from `setHillshadingMemoryDefaults`.
+	 */
+	hgtMemoryCacheMaxMb?: number;
 	onCreate?: null | ((result: ResponseBase) => void);
 	onRemove?: null | ((result: ResponseBase) => void);
 	onChange?: null | ((result: ResponseBase) => void);

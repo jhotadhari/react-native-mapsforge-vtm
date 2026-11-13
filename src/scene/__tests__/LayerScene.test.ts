@@ -238,4 +238,58 @@ describe('LayerScene', () => {
 		scene.clear();
 		expect(scene.planWithResolved('e1').layers).toEqual([]);
 	});
+
+	describe('no-op updates do not mutate the scene', () => {
+		test('identical walk, re-declared entry and re-attached uuid are no-ops', () => {
+			const scene = new LayerScene();
+			const walk = [
+				dedicated('a'),
+				{
+					uid: 'f',
+					kind: 'fragment' as const,
+					layerType: 'marker',
+					fragmentId: 'f',
+				},
+			];
+			scene.applyWalk(walk);
+			scene.declareEntry(entry('m', 'f', 'marker', 0));
+			scene.attachUuid('m', 'u1');
+			scene.attachUuid('a', 'ua');
+			const v = scene.version();
+			const planBefore = scene.plan();
+			for (let i = 0; i < 5; i++) {
+				// Fresh array + fresh descriptor objects each time, as a re-walk does.
+				scene.applyWalk(walk.map((d) => ({ ...d })));
+				scene.declareEntry(entry('m', 'f', 'marker', 0));
+				scene.attachUuid('m', 'u1');
+			}
+			expect(scene.version()).toBe(v);
+			expect(scene.plan()).toBe(planBefore);
+		});
+
+		test('real changes still mutate', () => {
+			const scene = new LayerScene();
+			scene.applyWalk([dedicated('a')]);
+			scene.attachUuid('a', 'ua');
+			let v = scene.version();
+			scene.applyWalk([dedicated('a'), dedicated('b')]); // added
+			expect(scene.version()).toBeGreaterThan(v);
+			v = scene.version();
+			scene.applyWalk([dedicated('b'), dedicated('a')]); // reordered
+			expect(scene.version()).toBeGreaterThan(v);
+			v = scene.version();
+			scene.applyWalk([dedicated('b')]); // removed
+			expect(scene.version()).toBeGreaterThan(v);
+			v = scene.version();
+			scene.attachUuid('a', 'ua2'); // uuid changed
+			expect(scene.version()).toBeGreaterThan(v);
+			v = scene.version();
+			scene.declareEntry(entry('e', 'f', 'path', 1));
+			scene.declareEntry(entry('e', 'f', 'path', 2)); // sortIndex changed
+			expect(scene.version()).toBeGreaterThan(v + 1);
+			v = scene.version();
+			scene.undeclareEntry('e');
+			expect(scene.version()).toBeGreaterThan(v);
+		});
+	});
 });

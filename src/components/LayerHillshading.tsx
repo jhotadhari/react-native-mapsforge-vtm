@@ -77,6 +77,8 @@ const LayerHillshading = ({
 	cacheSize,
 	cacheDirBase,
 	cacheDirChild,
+	recycleEvictedBitmaps,
+	hgtMemoryCacheMaxMb,
 	onCreate,
 	onRemove,
 	onChange,
@@ -124,6 +126,12 @@ const LayerHillshading = ({
 				}),
 				...(cacheDirBase && { cacheDirBase: cacheDirBase.trim() }),
 				...(cacheDirChild && { cacheDirChild: cacheDirChild.trim() }),
+				...(recycleEvictedBitmaps !== undefined && {
+					recycleEvictedBitmaps,
+				}),
+				...(hgtMemoryCacheMaxMb !== undefined && {
+					hgtMemoryCacheMaxMb,
+				}),
 			}).then((newUuid) => {
 				triggerOnCreate && onCreate
 					? onCreate({ nativeNodeHandle, uuid: newUuid })
@@ -204,6 +212,8 @@ const LayerHillshading = ({
 		cacheSize,
 		cacheDirBase,
 		cacheDirChild,
+		recycleEvictedBitmaps,
+		hgtMemoryCacheMaxMb,
 		shadingAlgorithmOptionsKey,
 		triggerRemove,
 		triggerCreate,

@@ -118,6 +118,7 @@ import {
 	setNativeBufferPoolLimit,
 	trimNativeBufferPool,
 } from './nativeBufferPool';
+import { setHillshadingMemoryDefaults } from './hillshadingMemory';
 import type {
 	ElevationAPI,
 	EnrichCoordinatesOptions,
@@ -162,7 +163,7 @@ import useSceneUuidBinding from './compose/useSceneUuidBinding';
 import useSceneFragmentUuid from './compose/useSceneFragmentUuid';
 import useSceneFragmentReady from './compose/useSceneFragmentReady';
 import useSceneBusy from './compose/useSceneBusy';
-import { LayerScene } from './scene/LayerScene';
+import { LayerScene, setSceneMutationTrace } from './scene/LayerScene';
 import { SceneSync } from './scene/SceneSync';
 import { registerEntryPriorityHandler } from './scene/priorityHandlers';
 import { fragmentUuidFor, runUuidFor } from './scene/ids';
@@ -299,6 +300,9 @@ export {
 	setNativeBufferPoolLimit,
 	trimNativeBufferPool,
 
+	// Hillshading HGT bitmap memory (opt-in defaults, process-wide).
+	setHillshadingMemoryDefaults,
+
 	// Elevation enrichment.
 	enrichCoordinatesWithElevation,
 	type ElevationAPI,
@@ -357,6 +361,7 @@ export {
 	fragmentUuidFor,
 	runUuidFor,
 	LayerScene,
+	setSceneMutationTrace,
 	SceneSync,
 	registerEntryPriorityHandler,
 	useNativeLayerLifecycle,

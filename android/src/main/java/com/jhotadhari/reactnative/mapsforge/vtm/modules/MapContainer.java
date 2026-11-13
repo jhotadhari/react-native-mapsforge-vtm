@@ -539,6 +539,22 @@ public class MapContainer extends NativeMapContainerSpec {
 	}
 
 	@Override
+	public void setHillshadingMemoryDefaults( ReadableMap params, Promise promise ) {
+		try {
+			// Process-wide defaults, read when a hillshading layer is created.
+			if ( Utils.rMapHasKey( params, "recycleEvictedBitmaps" ) ) {
+				com.jhotadhari.reactnative.mapsforge.vtm.hillshading.HillshadingMemory.setDefaultRecycleEvictedBitmaps( params.getBoolean( "recycleEvictedBitmaps" ) );
+			}
+			if ( Utils.rMapHasKey( params, "hgtMemoryCacheMaxMb" ) ) {
+				com.jhotadhari.reactnative.mapsforge.vtm.hillshading.HillshadingMemory.setDefaultCacheMaxBytes( (long) ( params.getDouble( "hgtMemoryCacheMaxMb" ) * 1000 * 1000 ) );
+			}
+			promise.resolve( null );
+		} catch ( Exception e ) {
+			Utils.promiseReject( promise, e.getMessage() );
+		}
+	}
+
+	@Override
 	public void trimNativeBufferPool( Promise promise ) {
 		try {
 			// Flag consumed at the end of the next rendered frame (GL thread).

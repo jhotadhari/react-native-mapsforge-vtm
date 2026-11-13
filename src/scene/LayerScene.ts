@@ -20,6 +20,25 @@ import { fragmentUuidFor } from './ids';
 /** Upper bound on distinct planWithResolved memo keys before a blunt reset. */
 const MAX_RESOLVED_PLAN_MEMO = 64;
 
+/**
+ * Debug aid: when true, every scene mutation logs its method, key and a short
+ * stack (console.log, prefix `[scene-mutation]`). Off by default. Enable from the
+ * app with `setSceneMutationTrace(true)`.
+ */
+let traceSceneMutations = false;
+export const setSceneMutationTrace = (enabled: boolean): void => {
+	traceSceneMutations = enabled;
+};
+
+const sameDescriptor = (a: AnchorDescriptor, b: AnchorDescriptor): boolean =>
+	a.uid === b.uid &&
+	a.kind === b.kind &&
+	a.layerType === b.layerType &&
+	a.fragmentId === b.fragmentId &&
+	a.shared === b.shared &&
+	a.scopeOrder === b.scopeOrder &&
+	a.scopeUid === b.scopeUid;
+
 export class LayerScene {
 	private walk: AnchorDescriptor[] = [];
 	private entries = new Map<string, EntryDeclaration>();
@@ -47,13 +66,33 @@ export class LayerScene {
 
 	/** Replaces the committed anchor sequence (fresh walk result). */
 	applyWalk(sequence: AnchorDescriptor[]): void {
+		// An identical re-walk (same anchors, same order, same descriptors) is a
+		// no-op: skipping it avoids a needless plan rebuild, listener fan-out
+		// and presenter busy cycle.
+		if (
+			sequence.length === this.walk.length &&
+			sequence.every((d, i) => sameDescriptor(d, this.walk[i]!))
+		) {
+			return;
+		}
 		// Defensive copy — the caller must not be able to mutate the live walk.
 		this.walk = [...sequence];
-		this.mutated();
+		this.mutated('applyWalk', `${sequence.length} anchors`);
 	}
 
 	/** Declares or updates an entry (drawable) inside a fragment. */
 	declareEntry(entry: EntryDeclaration): void {
+		// Re-declaring an entry with unchanged ordering-relevant fields keeps its
+		// original declarationSeq and is a no-op.
+		const prev = this.entries.get(entry.uid);
+		if (
+			prev !== undefined &&
+			prev.fragmentId === entry.fragmentId &&
+			prev.layerType === entry.layerType &&
+			prev.sortIndex === entry.sortIndex
+		) {
+			return;
+		}
 		this.declarationSeq++;
 		this.entries.set(entry.uid, {
 			...entry,
@@ -63,25 +102,28 @@ export class LayerScene {
 			entry.uid,
 			fragmentUuidFor(entry.fragmentId, entry.layerType)
 		);
-		this.mutated();
+		this.mutated('declareEntry', entry.uid);
 	}
 
 	undeclareEntry(uid: string): void {
 		if (this.entries.delete(uid)) {
 			this.entryFragment.delete(uid);
-			this.mutated();
+			this.mutated('undeclareEntry', uid);
 		}
 	}
 
 	/** Records a resolved native uuid (dedicated layer, entry, or owner layer). */
 	attachUuid(key: string, uuid: string): void {
+		if (this.uuids.get(key) === uuid) {
+			return;
+		}
 		this.uuids.set(key, uuid);
-		this.mutated();
+		this.mutated('attachUuid', key);
 	}
 
 	detachUuid(key: string): void {
 		if (this.uuids.delete(key)) {
-			this.mutated();
+			this.mutated('detachUuid', key);
 		}
 	}
 
@@ -167,7 +209,15 @@ export class LayerScene {
 		this.resolvedPlanMemo.clear();
 	}
 
-	private mutated(): void {
+	private mutated(method: string, key: string): void {
+		if (traceSceneMutations) {
+			const stack = (new Error().stack ?? '')
+				.split('\n')
+				.slice(3, 8)
+				.map((l) => l.trim())
+				.join(' <- ');
+			console.log(`[scene-mutation] ${method} ${key} ${stack}`);
+		}
 		this.mutationVersion++;
 		this.planDirty = true;
 		// Coalesce listener notification into a single microtask flush (S23):

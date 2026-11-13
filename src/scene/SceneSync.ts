@@ -285,6 +285,9 @@ export class SceneSync {
 					}
 				}
 				this.scene.applyWalk(sequence);
+				// An identical walk is a no-op in the scene (no mutation, so no
+				// listener fan-out) — settle busy here, walkInFlight just cleared.
+				this.refreshBusy();
 			})
 			.catch(() => {
 				this.walkInFlight = false;
