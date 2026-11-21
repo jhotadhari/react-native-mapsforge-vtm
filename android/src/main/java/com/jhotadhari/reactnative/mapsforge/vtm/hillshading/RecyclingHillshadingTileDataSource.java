@@ -32,6 +32,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -118,6 +119,7 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
     private void createTile(MapTile tile, ITileDataSink sink, ITileCache cache) {
         QueryResult res = QueryResult.FAILED;
         ITileCache.TileWriter cacheWriter = null;
+        boolean cacheOk = false;
         try {
             final byte zoomLevel = tile.zoomLevel >= 0 ? tile.zoomLevel : 0;
 
@@ -149,8 +151,23 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
                     deque.addLast(code);
                 }
 
+                // Drain every strip even after one fails, so no task is left
+                // pending, but remember whether all of them actually rendered.
+                // SilentFutureTask.get() returns null when the task threw.
+                boolean allStripsOk = true;
                 while (!deque.isEmpty()) {
-                    deque.pollFirst().get();
+                    if (!Boolean.TRUE.equals(deque.pollFirst().get())) {
+                        allStripsOk = false;
+                    }
+                }
+
+                if (!allStripsOk) {
+                    // Leave res = FAILED: vtm drops the tile and re-queues it on
+                    // the next position change. Far better than handing it a
+                    // half-shaded bitmap that would also be written to the cache
+                    // and then served from disk forever.
+                    log.fine(tile + " incomplete shading, not displayed or cached");
+                    return;
                 }
 
                 if (!tileBitmap.isValid()) {
@@ -158,18 +175,35 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
                     return;
                 }
 
+                // Encode for the cache BEFORE handing the bitmap over:
+                // setTileImage() transfers ownership to vtm, which may recycle
+                // the bitmap, so encoding it afterwards raced and threw
+                // "Can't compress a recycled bitmap". A failure here costs only
+                // the cache entry, never the tile.
+                byte[] pngBytes = null;
+                if (cache != null) {
+                    try {
+                        pngBytes = tileBitmap.getPngEncodedData();
+                    } catch (Throwable t) {
+                        log.log(Level.SEVERE, tile + " png encode for cache failed", t);
+                    }
+                }
+
                 // Set tile bitmap to sink
                 sink.setTileImage(tileBitmap);
 
                 // Write to cache
-                if (cache != null) {
+                if (cache != null && pngBytes != null) {
                     cacheWriter = cache.writeTile(tile);
                     OutputStream outputStream = cacheWriter.getOutputStream();
                     try {
-                        byte[] pngBytes = tileBitmap.getPngEncodedData();
                         outputStream.write(pngBytes);
+                        cacheOk = true;
                     } catch (IOException e) {
-                        log.severe(e.toString());
+                        // Must not be committed: swallowing this and still
+                        // reporting SUCCESS committed a truncated PNG that was
+                        // then served from disk forever.
+                        log.severe(tile + " cache write failed: " + e);
                     } finally {
                         IOUtils.closeQuietly(outputStream);
                     }
@@ -182,8 +216,11 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
         } finally {
             boolean ok = (res == QueryResult.SUCCESS);
 
+            // complete() must run for every writer we obtained -- it is what
+            // returns the pooled buffer -- but only commit a write that fully
+            // succeeded. A good tile with a failed cache write still renders.
             if (cacheWriter != null)
-                cacheWriter.complete(ok);
+                cacheWriter.complete(ok && cacheOk);
 
             sink.completed(res);
         }
@@ -315,7 +352,11 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
                         }
                     }
                 } catch (Throwable t) {
-                    log.severe(t.toString());
+                    // Report the failure. Swallowing it here and returning true
+                    // made createTile present (and cache) a half-shaded tile as
+                    // a successful render -- a permanent seam on the map.
+                    log.log(Level.SEVERE, tile + " shading strip failed", t);
+                    return false;
                 }
                 return true;
             }
