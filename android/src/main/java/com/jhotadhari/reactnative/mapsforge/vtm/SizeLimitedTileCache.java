@@ -256,7 +256,10 @@ public class SizeLimitedTileCache implements ITileCache {
 
 	class SQLiteHelper extends SQLiteOpenHelper {
 
-		private static final int DATABASE_VERSION = 2;
+		// v3: no schema change. The bump discards caches written before the
+		// hillshading "incomplete shading reported as success" fix, which
+		// persisted half-shaded tiles that were then served from disk forever.
+		private static final int DATABASE_VERSION = 3;
 
 		private static final String TILE_SCHEMA =
 			"CREATE TABLE "
@@ -348,14 +351,19 @@ public class SizeLimitedTileCache implements ITileCache {
 		}
 	}
 
-	private final String[] queryVals = new String[3];
-
 	@Override
 	public TileReader getTile(Tile tile) {
 
-		queryVals[0] = String.valueOf(tile.zoomLevel);
-		queryVals[1] = String.valueOf(tile.tileX);
-		queryVals[2] = String.valueOf(tile.tileY);
+		// Per-call args, deliberately not a reused field: vtm's TileCache keeps a
+		// shared String[] and gets away with it only because its whole getTile is
+		// synchronized. Here the lock starts below, so a shared array would race
+		// between tile-loader threads and return another tile's blob under this
+		// tile's identity.
+		final String[] queryVals = {
+			String.valueOf(tile.zoomLevel),
+			String.valueOf(tile.tileX),
+			String.valueOf(tile.tileY),
+		};
 
 		synchronized (dbLock) {
 			if (database == null)
