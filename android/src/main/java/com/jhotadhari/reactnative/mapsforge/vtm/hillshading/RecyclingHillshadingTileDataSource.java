@@ -258,10 +258,16 @@ public class RecyclingHillshadingTileDataSource implements ITileDataSource {
                             try {
                                 shadingLease = mShadeTileSource.acquireHillshadingBitmap(shadingBottomLat, shadingLeftLon, zoomLevel, pxPerLat, pxPerLon, effectiveColor);
                             } catch (Exception e) {
-                                log.severe(e.toString());
+                                // Must not be swallowed: a load failure is NOT the same as
+                                // "no DEM data here". Swallowing it made both arrive at the
+                                // null check below, so a failed cell was skipped and the
+                                // incomplete tile was then displayed and cached as a success.
+                                log.log(Level.SEVERE, tile + " shading tile load failed", e);
+                                return false;
                             }
                         }
 
+                        // Genuine no-data (ocean, missing .hgt): skipping is correct here.
                         if (shadingLease == null) {
                             continue;
                         }
